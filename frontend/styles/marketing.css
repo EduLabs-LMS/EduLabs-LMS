@@ -29,7 +29,7 @@ html[lang="ar"] .edu-marketing{
   --body:'Cairo','Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;
 }
 /* Blocks on the green fill keep black ink in both themes */
-.edu-marketing .on-green{--ink:#000;--text:#000;--muted:#1b3a10;--surface:#f6f9f2;--green-text:#1b3a10}
+.edu-marketing .on-green{--ink:#000;--text:#000;--muted:#1b3a10;--surface:#f6f9f2;--green-text:#1b3a10;--shadow:4px 4px 0 #000;color:#000;color-scheme:light}
 
 .edu-marketing *,.edu-marketing *::before,.edu-marketing *::after{box-sizing:inherit}
 .edu-marketing{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 84px);scroll-behavior:smooth}

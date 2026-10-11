@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
 	title: 'EduLabs | Your learning, all in one place',
-	description: 'The Life of Physics learning platform for 3rd Secondary students.',
+	description: 'EduLabs brings your courses, teaching and learning together in one secure space.',
 };
 
 export default async function RootLayout({

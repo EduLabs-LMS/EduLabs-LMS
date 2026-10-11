@@ -1,5 +1,6 @@
 // UI copy only. User-authored names, course text, URLs and identifiers stay intact.
 export const ar: Record<string, string> = {
+  'Full Name': 'الاسم الكامل', 'e.g. Video playback buffering in Chapter 1': 'مثلًا: تعذر فتح صفحة المقرر', 'Describe what happened or where you encountered the issue...': 'اشرح ما حدث وأين واجهت المشكلة…',
   'self paced': 'تعلم ذاتي', 'scheduled': 'مجدول', 'live': 'مباشر', 'blended': 'مدمج', 'Loading page...': 'جارٍ تحميل الصفحة…', 'Close': 'إغلاق',
   'Lesson editing, homework, video playback, support tickets, live sessions, notifications, payments, personalization and notes are not available in this staging phase. Your existing records are preserved.': 'تحرير الدروس والواجبات وتشغيل الفيديو وتذاكر الدعم والحصص المباشرة والإشعارات والمدفوعات والتخصيص والملاحظات قيد التطوير. سجلاتك الحالية محفوظة.',
   'Course changed. Reload before saving.': 'تم تغيير المقرر. أعد تحميل الصفحة قبل الحفظ.', 'This slug is already in use': 'هذا المعرّف مستخدم بالفعل', 'Operation not permitted or unavailable': 'العملية غير مسموحة أو غير متاحة', 'Unable to save. Please retry.': 'تعذر الحفظ. حاول مجددًا.', 'Invalid name or slug': 'اسم أو معرّف غير صالح', 'Invalid course details': 'بيانات المقرر غير صالحة', 'Course not found or editing not permitted': 'المقرر غير موجود أو غير مصرح بتحريره',

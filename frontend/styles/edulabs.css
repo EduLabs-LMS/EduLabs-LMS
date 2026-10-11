@@ -111,6 +111,14 @@ html[lang=ar] :is(.edu-auth,.edu-app) :is(h1,h2,h3) { line-height:1.3; }
 html.dark .edu-app [role=alert] { color:#ff9c94; }
 .edu-loading { background:var(--edu-bg)!important; color:var(--edu-text); }
 html[data-edulabs] .ql-toolbar { max-width:100%; }
+html[dir=rtl] .edu-drawer > button { inset-inline-start:auto; inset-inline-end:1rem; }
+html[data-edulabs] .edu-drawer { max-height:100dvh; border-radius:0; }
+html[data-edulabs] .edu-drawer [role=dialog] { max-height:100dvh; }
+html[lang=ar] .ql-snow .ql-picker.ql-header .ql-picker-label::before,
+html[lang=ar] .ql-snow .ql-picker.ql-header .ql-picker-item::before { content:'عادي'; }
+html[lang=ar] .ql-snow .ql-picker.ql-header [data-value='1']::before { content:'عنوان ١'; }
+html[lang=ar] .ql-snow .ql-picker.ql-header [data-value='2']::before { content:'عنوان ٢'; }
+html[lang=ar] .ql-snow .ql-picker.ql-header [data-value='3']::before { content:'عنوان ٣'; }
 .edu-student-hero { display:grid; align-items:center; gap:2rem; }
 .edu-student-hero h1 { font-size:clamp(2rem,5vw,3.5rem); line-height:1.1; }
 .edu-student-hero svg { width:130px; margin:auto; }
@@ -130,6 +138,7 @@ html[data-edulabs] .ql-toolbar { max-width:100%; }
 .edu-app button:not(.ql-toolbar button):not([role=checkbox]) { font-family:var(--edu-body); }
 .edu-app :is([role=dialog],[role=alertdialog]),html[data-edulabs] :is([role=dialog],[role=alertdialog]) { background:var(--edu-surface); color:var(--edu-text); border:2.5px solid var(--edu-ink); border-radius:28px; box-shadow:6px 6px 0 var(--edu-ink); max-height:90dvh; overflow-y:auto; }
 html[data-edulabs] [role=dialog] :is(input,textarea) { background:var(--edu-bg); color:var(--edu-text); }
+html[data-edulabs] [role=dialog].edu-drawer { max-height:100dvh; border-radius:0; }
 @media(min-width:780px) { .edu-auth-card { grid-template-columns:5fr 6fr; } .edu-student-hero { grid-template-columns:1fr auto; } }
 @media(max-width:779px) { .edu-auth-side { display:none; } }
 @media(max-width:899px) { .edu-desktop-sidebar { display:none; } .edu-mobile-header { display:flex; } .edu-main { padding-inline-start:0; } .edu-main-content { padding:1.25rem; } .edu-metrics { grid-template-columns:1fr; } }

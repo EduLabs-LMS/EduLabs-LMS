@@ -1,5 +1,5 @@
 'use client';
-import { T } from '@/frontend/design/preferences';
+import { T, useLocale } from '@/frontend/design/preferences';
 
 import { type ReactNode, useEffect, useState } from 'react';
 import { useApplicationAuth } from '@/frontend/components/providers/application-auth-provider';
@@ -28,6 +28,7 @@ interface SupportModalProps {
 
 const SupportModal = ({ trigger }: SupportModalProps) => {
 	const { user } = useApplicationAuth();
+  const {t}=useLocale();
 	const supportModal = useSupportModal();
 
 	const [studentName, setStudentName] = useState('');
@@ -109,7 +110,7 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 					<DialogTitle className="text-xl font-bold text-slate-900">
 						<T>{"Report a website problem"}</T></DialogTitle>
 					<DialogDescription className="leading-relaxed text-slate-500 text-sm">
-						<T>{"Trouble logging in, watching a video, or uploading homework? Tell us what happened and our team will help. For lesson questions, use the WhatsApp or call buttons in the footer."}</T></DialogDescription>
+						{isFirebaseStaging() ? <T arabic="اشرح مشكلة الموقع. يفتح هذا النموذج رسالة في تطبيق البريد لديك؛ أرسلها من هناك. للأسئلة الدراسية استخدم أزرار التواصل أسفل الصفحة.">Describe the website problem. This form opens a draft in your email app; send it from there. For lesson questions, use the contact links in the footer.</T> : <T>Trouble logging in, watching a video, or uploading homework? Tell us what happened and our team will help. For lesson questions, use the WhatsApp or call buttons in the footer.</T>}</DialogDescription>
 				</DialogHeader>
 
 				<form className="mt-4 space-y-3.5" onSubmit={onSubmit}>
@@ -122,7 +123,7 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 								type="text"
 								value={studentName}
 								onChange={(event) => setStudentName(event.target.value)}
-								placeholder="Full Name"
+								placeholder={t('Full Name')}
 								className="border-slate-200 bg-slate-50 text-slate-900 focus:bg-white text-xs h-9 transition-colors"
 							/>
 						</div>
@@ -151,7 +152,7 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 							type="text"
 							value={subject}
 							onChange={(event) => setSubject(event.target.value)}
-							placeholder="e.g. Video playback buffering in Chapter 1"
+							placeholder={t('e.g. Video playback buffering in Chapter 1')}
 							required
 							className="border-slate-200 bg-slate-50 text-slate-900 focus:bg-white text-xs h-9 transition-colors"
 						/>
@@ -165,7 +166,7 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 							id="support-message"
 							value={message}
 							onChange={(event) => setMessage(event.target.value)}
-							placeholder="Describe what happened or where you encountered the issue..."
+							placeholder={t('Describe what happened or where you encountered the issue...')}
 							required
 							rows={4}
 							maxLength={2000}
@@ -196,7 +197,7 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 							) : (
 								<>
 									<Send className="h-3.5 w-3.5" />
-									<span><T>{"Send help request"}</T></span>
+									<span>{isFirebaseStaging() ? <T arabic="فتح تطبيق البريد">Open email app</T> : <T>Send help request</T>}</span>
 								</>
 							)}
 						</Button>

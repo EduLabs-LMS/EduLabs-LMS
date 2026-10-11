@@ -89,11 +89,30 @@ test('Firebase staging never routes legacy APIs to Clerk or Prisma', () => {
   const request = path => ({ url: `http://localhost${path}`, nextUrl: new URL(`http://localhost${path}`) });
   for (const path of ['/api/uploadthing', '/api/admin/users', '/api/livekit', '/api/courses']) assert.equal(middleware(request(path), {}), 503);
   assert.equal(middleware(request('/home'), {}), 'allowed');
+  assert.equal(middleware(request('/design-preview'), {}), 'allowed');
   assert.equal(middleware(request('/teacher/create'), {}), 'allowed');
   for (const path of ['/api/teacher/organizations', '/api/teacher/courses', '/api/teacher/courses/20000000-0000-0000-0000-000000000001']) assert.equal(middleware(request(path), {}), 'allowed');
   for (const path of ['/api/teacher/courses/invalid', '/api/teacher/courses/20000000-0000-0000-0000-000000000001/chapters']) assert.equal(middleware(request(path), {}), 503);
   assert.equal(middleware(request('/courses/id/chapters/lesson'), {}), '/unavailable');
   for (const path of ['/sign-in', '/lms-staging', '/api/auth/firebase/session']) assert.equal(middleware(request(path), {}), 'allowed');
+});
+
+test('public design preview retains Clerk middleware context in fallback mode', async () => {
+  let protectedCalls = 0;
+  const { default: middleware } = load('middleware.ts', {
+    '@clerk/nextjs/server': {
+      createRouteMatcher: routes => { assert.ok(routes.includes('/design-preview')); return request => request.nextUrl.pathname === '/design-preview'; },
+      clerkMiddleware: handler => async request => { await handler({ protect: async () => { protectedCalls++; } }, request); return 'clerk-context'; },
+    },
+    '@/shared/auth-config': { isFirebaseStaging: () => false },
+    '@/shared/website-routes': {},
+    'next/server': { NextResponse: { next: () => 'bypassed' } },
+  });
+  const request = path => ({ url: `http://localhost${path}`, nextUrl: new URL(`http://localhost${path}`) });
+  assert.equal(await middleware(request('/design-preview'), {}), 'clerk-context');
+  assert.equal(protectedCalls, 0);
+  assert.equal(await middleware(request('/home'), {}), 'clerk-context');
+  assert.equal(protectedCalls, 1);
 });
 test('same-origin CSRF validation fails closed in production without an exact configured origin', () => {
   const deps = { 'next/server': {}, '@supabase/supabase-js': {}, '@/shared/supabase-config': {}, '@/shared/auth-config': {}, '@/server/services/firebase-auth': {}, '@/server/integrations/firebase-admin': {} };

@@ -55,6 +55,12 @@ export function Splash() {
     const timer = window.setTimeout(() => setPhase(phase === 'go' ? 'leave' : 'hidden'), phase === 'go' ? 3100 : 1400);
     return () => clearTimeout(timer);
   }, [phase]);
+  useEffect(() => {
+    if (phase === 'hidden') return;
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setPhase('leave'); };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [phase]);
   if (phase === 'hidden') return null;
   return <><div className={`curtain ${phase === 'leave' ? 'leave' : ''}`} aria-hidden="true" />
     <button type="button" className={`intro ${phase !== 'waiting' ? 'go edu-go' : ''} ${phase === 'leave' ? 'leave' : ''}`} onClick={skip} onKeyDown={e => { if (e.key === 'Escape') skip(); }} aria-label={locale === 'ar' ? 'تخطي المقدمة' : 'Skip introduction'}>
