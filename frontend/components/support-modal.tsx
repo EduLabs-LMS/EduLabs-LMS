@@ -1,4 +1,5 @@
 'use client';
+import { T } from '@/frontend/design/preferences';
 
 import { type ReactNode, useEffect, useState } from 'react';
 import { useApplicationAuth } from '@/frontend/components/providers/application-auth-provider';
@@ -104,22 +105,18 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 				<DialogHeader>
 					<div className="flex items-center gap-2 text-sky-700 font-semibold mb-1 text-sm">
 						<HelpCircle className="h-5 w-5" />
-						Website Help
-					</div>
+						<T>{"Website Help"}</T></div>
 					<DialogTitle className="text-xl font-bold text-slate-900">
-						Report a website problem
-					</DialogTitle>
+						<T>{"Report a website problem"}</T></DialogTitle>
 					<DialogDescription className="leading-relaxed text-slate-500 text-sm">
-						Trouble logging in, watching a video, or uploading homework? Tell us what happened and our team will help. For lesson questions, use the WhatsApp or call buttons in the footer.
-					</DialogDescription>
+						<T>{"Trouble logging in, watching a video, or uploading homework? Tell us what happened and our team will help. For lesson questions, use the WhatsApp or call buttons in the footer."}</T></DialogDescription>
 				</DialogHeader>
 
 				<form className="mt-4 space-y-3.5" onSubmit={onSubmit}>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						<div className="space-y-1">
 							<label className="text-xs font-semibold uppercase tracking-wider text-slate-700" htmlFor="support-name">
-								Your Name
-							</label>
+								<T>{"Your Name"}</T></label>
 							<Input
 								id="support-name"
 								type="text"
@@ -131,7 +128,7 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 						</div>
 						<div className="space-y-1">
 							<label className="text-xs font-semibold uppercase tracking-wider text-slate-700" htmlFor="support-email">
-								Email Address <span className="text-red-500">*</span>
+								<T>{"Email Address"}</T><span className="text-red-500">*</span>
 							</label>
 							<Input
 								id="support-email"
@@ -147,7 +144,7 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 
 					<div className="space-y-1">
 						<label className="text-xs font-semibold uppercase tracking-wider text-slate-700" htmlFor="support-subject">
-							Subject <span className="text-red-500">*</span>
+							<T>{"Subject"}</T><span className="text-red-500">*</span>
 						</label>
 						<Input
 							id="support-subject"
@@ -162,7 +159,7 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 
 					<div className="space-y-1">
 						<label className="text-xs font-semibold uppercase tracking-wider text-slate-700" htmlFor="support-message">
-							Message <span className="text-red-500">*</span>
+							<T>{"Message"}</T><span className="text-red-500">*</span>
 						</label>
 						<Textarea
 							id="support-message"
@@ -184,8 +181,7 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 							onClick={() => supportModal.onClose()}
 							className="border-slate-200 text-slate-700 hover:bg-slate-100"
 						>
-							Cancel
-						</Button>
+							<T>{"Cancel"}</T></Button>
 						<Button
 							type="submit"
 							size="sm"
@@ -195,12 +191,12 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 							{isSubmitting ? (
 								<>
 									<Loader2 className="h-3.5 w-3.5 animate-spin" />
-									<span>Sending...</span>
+									<span><T>{"Sending..."}</T></span>
 								</>
 							) : (
 								<>
 									<Send className="h-3.5 w-3.5" />
-									<span>Send help request</span>
+									<span><T>{"Send help request"}</T></span>
 								</>
 							)}
 						</Button>

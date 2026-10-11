@@ -1,4 +1,6 @@
 'use client';
+import { LearningHome } from '@/frontend/design/learning-dashboard';
+
 
 import type { StudentLesson } from '@/shared/contracts/dashboard';
 export type { StudentLesson } from '@/shared/contracts/dashboard';
@@ -98,7 +100,7 @@ const getLessonStatus = (lesson: StudentLesson) => {
 	return 'In Progress' as const;
 };
 
-const StudentHome = ({
+const LegacyStudentHome = ({
 	phase1 = false,
 	summaryAvailable = true,
 	lessons,
@@ -449,4 +451,5 @@ const StudentHome = ({
 	);
 };
 
+const StudentHome = (props: StudentHomeProps) => props.phase1 ? <LearningHome lessons={props.lessons} summaryAvailable={props.summaryAvailable} /> : <LegacyStudentHome {...props} />;
 export default StudentHome;

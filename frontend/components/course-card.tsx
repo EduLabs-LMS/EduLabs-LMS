@@ -1,3 +1,5 @@
+import { isFirebaseStaging } from '@/shared/auth-config';
+import { EduCourseCard } from '@/frontend/design/course-card';
 import Image from 'next/image';
 import Link from 'next/link';
 import { IconBadge } from '@/frontend/components/icon-badge';
@@ -14,7 +16,7 @@ interface CourseCardProps {
 	category?: string;
 }
 
-const CourseCard = ({
+const LegacyCourseCard = ({
 	href,
 	id,
 	title,
@@ -69,4 +71,5 @@ const CourseCard = ({
 	);
 };
 
+const CourseCard = (props: CourseCardProps) => isFirebaseStaging() ? <EduCourseCard {...props} /> : <LegacyCourseCard {...props} />;
 export default CourseCard;

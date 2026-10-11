@@ -20,6 +20,7 @@ import {
 	Atom,
 } from 'lucide-react';
 
+import { EduSidebar } from '@/frontend/design/application-shell';
 import { cn } from '@/shared/utils';
 import { useSupportModal } from '@/frontend/hooks/use-support-modal';
 
@@ -29,7 +30,7 @@ interface SidebarProps {
 	onNavigate?: () => void;
 }
 
-const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
+const LegacySidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	const pathname = usePathname();
 	const { user: clerkUser, signOut } = useApplicationAuth();
 	const navigation = useWebsiteNavigation();
@@ -305,4 +306,5 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	);
 };
 
+const Sidebar = (props: SidebarProps) => isFirebaseStaging() ? <EduSidebar className={props.className} onNavigate={props.onNavigate} /> : <LegacySidebar {...props} />;
 export default Sidebar;

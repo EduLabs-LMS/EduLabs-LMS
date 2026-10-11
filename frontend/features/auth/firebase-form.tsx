@@ -2,6 +2,9 @@
 
 import { useCallback, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Brand, Tree } from '@/frontend/design/tree';
+import { PreferenceControls, useLocale } from '@/frontend/design/preferences';
+import { Eye, EyeOff } from 'lucide-react';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, sendEmailVerification, sendPasswordResetEmail,
   signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useEffect } from 'react';
@@ -22,6 +25,8 @@ function readableError(failure: unknown) {
 }
 export function FirebaseForm({ register = false }: { register?: boolean }) {
   const { user, loading, error, refresh } = useFirebaseAuth();
+  const { t } = useLocale();
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState<string | null>(null);
   const redirecting = useRef(false);
@@ -57,21 +62,25 @@ export function FirebaseForm({ register = false }: { register?: boolean }) {
       } else throw failure;
     }
   });
-  return <section className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm text-slate-900">
-    <h1 className="text-2xl font-semibold">The Life of Physics</h1>
-    <p className="mt-2 mb-6 text-slate-500">{register ? 'Create your learning account' : 'Sign in to continue'}</p>
-    <form onSubmit={event => { event.preventDefault(); void submit(); }} className="space-y-4">
-      <label className="block">Email<input disabled={busy || loading} required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
-      <label className="block">Password<input disabled={busy || loading} required type="password" minLength={register ? 12 : undefined} autoComplete={register ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
-      <button disabled={busy || loading} className="w-full rounded-lg bg-sky-600 p-3 text-white disabled:opacity-50">{busy ? 'Please wait…' : register ? 'Create account' : 'Sign in'}</button>
+  return <div className="edu-auth">
+    <header className="edu-auth-top"><Link href="/design-preview" aria-label="EduLabs"><Brand /></Link><PreferenceControls /></header>
+    <section className="edu-auth-card">
+      <aside className="edu-auth-side"><Tree variant="ink" /><div><h2>{t('Your class, one login away.')}</h2><p className="mt-6">{t('Every student signs in with their own email')}</p><p className="mt-3">{t('Pick up your lessons on any device')}</p></div><span>EduLabs</span></aside>
+      <div className="edu-auth-main"><span className="edu-pill">EduLabs</span><h1 className="mt-4">{t(register ? 'Create your learning account' : 'Welcome back')}</h1><p className="edu-muted mt-2">{t('Sign in to continue')}</p>
+    <form onSubmit={event => { event.preventDefault(); void submit(); }}>
+      <label>{t('Email')}<input disabled={busy || loading} required type="email" dir="ltr" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} /></label>
+      <label>{t('Password')}<span className="edu-password"><input disabled={busy || loading} required type={showPassword ? 'text' : 'password'} dir="ltr" minLength={register ? 12 : undefined} autoComplete={register ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} /><button type="button" aria-pressed={showPassword} aria-label={t(showPassword ? 'Hide password' : 'Show password')} onClick={() => setShowPassword(v => !v)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></span></label>
+      {register && <p className="edu-muted text-sm">{t('Choose a stronger password with at least 12 characters.')}</p>}
+      <button disabled={busy || loading} aria-busy={busy || loading} className="edu-btn edu-btn-green w-full">{t(busy ? 'Please wait…' : register ? 'Create account' : 'Sign in')}</button>
     </form>
-    <button disabled={busy || loading} onClick={() => void google()} className="mt-4 w-full rounded-lg border p-3">Continue with Google</button>
-    {!register && <button disabled={busy || !email} onClick={() => void run(async () => { await sendPasswordResetEmail(getFirebaseAuth(), email.trim()); setMessage('If an account exists, a password reset email has been sent.'); })} className="mt-4 text-sky-700">Forgot password?</button>}
-    {user && !user.emailVerified && <div className="mt-4 flex gap-4">
-      <button disabled={busy} onClick={() => void run(async () => { await sendEmailVerification(user); setMessage('Verification email sent.'); })}>Resend verification</button>
-      <button disabled={busy} onClick={() => void run(async () => { await refresh(); goHome(); })}>I verified my email</button>
-    </div>}
-    {(message || error) && <p role="status" className="mt-4 text-sm">{message || error}</p>}
-    <p className="mt-6 text-sm"><Link className="text-sky-700" href={register ? '/sign-in' : '/sign-up'}>{register ? 'Already have an account? Sign in' : 'Create an account'}</Link></p>
-  </section>;
+    <button disabled={busy || loading} onClick={() => void google()} className="edu-btn mt-4 w-full">{t('Continue with Google')}</button>
+    {!register && <button disabled={busy || !email} onClick={() => void run(async () => { await sendPasswordResetEmail(getFirebaseAuth(), email.trim()); setMessage('If an account exists, a password reset email has been sent.'); })} className="edu-link mt-4">{t('Forgot password?')}</button>}
+    {user && !user.emailVerified && <div className="edu-notice"><p>{t('Check your email for a verification link.')}</p><div className="edu-auth-links">
+      <button disabled={busy} className="edu-link" onClick={() => void run(async () => { await sendEmailVerification(user); setMessage('Verification email sent.'); })}>{t('Resend verification')}</button>
+      <button disabled={busy} className="edu-link" onClick={() => void run(async () => { await refresh(); goHome(); })}>{t('I verified my email')}</button>
+    </div></div>}
+    {(message || error) && <p role="status" aria-live="polite" className="edu-notice">{t(message || error || '')}</p>}
+    <p className="mt-6 text-sm"><Link className="edu-link" href={register ? '/sign-in' : '/sign-up'}>{t(register ? 'Already have an account? Sign in' : 'Create an account')}</Link></p>
+    </div></section>
+  </div>;
 }

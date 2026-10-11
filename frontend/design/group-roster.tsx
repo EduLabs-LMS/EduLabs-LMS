@@ -1,0 +1,7 @@
+'use client';
+import type { GroupRosterViewProps } from '@/shared/contracts/dashboard';
+import { useLocale } from './preferences';
+export function EduGroupRoster({ groupName, peers }: GroupRosterViewProps) {
+  const { locale,t }=useLocale();
+  return <div className="space-y-6"><header className="edu-card edu-on-green"><span className="edu-pill">{locale==='ar'?'مجموعة دراسية':'Course group'}</span><h1 className="mt-4 text-3xl">{groupName}</h1><p className="mt-3">{locale==='ar'?'جداول الحصص والواجبات قيد التطوير.':'Session schedules and homework are awaiting integration.'}</p></header><section className="edu-card"><h2 className="text-2xl">{locale==='ar'?'قائمة الالتحاق':'Enrollment roster'}</h2><p className="edu-muted mt-2">{locale==='ar'?'يمكن فقط لفريق المجموعة المصرح له عرض الطلاب الآخرين.':'Only authorized offering staff can view other students.'}</p><p className="edu-pill mt-4">{peers.length} {locale==='ar'?'سجلات في هذه الصفحة':'records on this page'}</p><div className="mt-4">{peers.map(peer=><div className="edu-learning-item" key={peer.id}><div><strong>{peer.name}</strong>{peer.isCurrentUser&&<span className="edu-pill ms-3">{locale==='ar'?'أنت':'You'}</span>}</div><span className="edu-pill">{t(peer.enrollmentStatus || 'Unavailable')}</span></div>)}</div>{!peers.length&&<p className="edu-muted py-6">{locale==='ar'?'لا توجد سجلات في هذه الصفحة.':'No enrollment records on this page.'}</p>}</section></div>;
+}

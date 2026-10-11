@@ -3,6 +3,7 @@
 import type { GroupRosterViewProps } from '@/shared/contracts/dashboard';
 export type { PeerMember, GroupRosterViewProps } from '@/shared/contracts/dashboard';
 
+import { EduGroupRoster } from '@/frontend/design/group-roster';
 import Link from 'next/link';
 import {
 	Users,
@@ -18,7 +19,7 @@ import UpcomingSession from '@/frontend/components/upcoming-session';
 
 
 
-export const GroupRosterView = ({
+const LegacyGroupRosterView = ({
 	groupName,
 	phase1 = false,
 	nextSession,
@@ -177,4 +178,5 @@ export const GroupRosterView = ({
 	);
 };
 
+export const GroupRosterView = (props: GroupRosterViewProps) => props.phase1 ? <EduGroupRoster {...props} /> : <LegacyGroupRosterView {...props} />;
 export default GroupRosterView;

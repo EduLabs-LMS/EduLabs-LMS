@@ -42,8 +42,8 @@ export default async function RootLayout({
 
 	return (
 		<AuthProvider {...(firebase ? {} : { afterSignOutUrl: '/', appearance: { options: { showOptionalFields: true } } })}>
-			<html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} data-edulabs="" suppressHydrationWarning>
-				<body className={`${caprasimo.variable} ${figtree.variable} ${lalezar.variable} ${cairo.variable}`}>
+			<html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} data-edulabs="" className={`${caprasimo.variable} ${figtree.variable} ${lalezar.variable} ${cairo.variable}`} suppressHydrationWarning>
+				<body>
 					<ThemeProvider
 						attribute="class"
 						defaultTheme="light"

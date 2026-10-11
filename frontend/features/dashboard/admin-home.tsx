@@ -1,5 +1,6 @@
 'use client';
 
+import { TeachingOverview } from '@/frontend/design/learning-dashboard';
 import Link from 'next/link';
 import {
 	ArrowRight,
@@ -45,7 +46,7 @@ interface AdminHomeProps {
 	}>;
 }
 
-export const AdminHome = ({
+const LegacyAdminHome = ({
 	adminName = 'Teacher',
 	phase1 = false,
 	metrics,
@@ -380,4 +381,5 @@ export const AdminHome = ({
 	);
 };
 
+export const AdminHome = (props: AdminHomeProps) => props.phase1 ? <TeachingOverview name={props.adminName} metrics={props.metrics} /> : <LegacyAdminHome {...props} />;
 export default AdminHome;

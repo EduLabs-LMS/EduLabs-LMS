@@ -26,6 +26,9 @@ test('restored-session and form completion navigate home only once', async () =>
     react: { useState: initial => [initial, () => {}], useEffect: effect => effects.push(effect), useRef: value => ({ current: value }), useCallback: callback => callback },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'next/link': { default: 'Link' },
+    '@/frontend/design/tree': { Brand: 'Brand', Tree: 'Tree' },
+    '@/frontend/design/preferences': { useLocale: () => ({t: text => text}), PreferenceControls: 'PreferenceControls' },
+    'lucide-react': { Eye: 'Eye', EyeOff: 'EyeOff' },
     'firebase/auth': { signInWithEmailAndPassword: async () => ({ user }), getRedirectResult: async () => null },
     '@/frontend/lib/firebase': { getFirebaseAuth: () => ({}), restoreFirebaseAuth: async () => {} },
     '@/frontend/components/providers/firebase-auth-provider': {
@@ -38,7 +41,8 @@ test('restored-session and form completion navigate home only once', async () =>
     require: name => { assert.ok(name in dependencies, name); return dependencies[name]; },
   });
   const tree = module.exports.FirebaseForm({});
-  const form = tree.props.children.find(child => child?.type === 'form');
+  function findForm(node) { if (!node || typeof node !== 'object') return; if (node?.type === 'form') return node; for (const child of [node?.props?.children].flat(Infinity)) { const found = findForm(child); if (found) return found; } }
+  const form = findForm(tree);
   form.props.onSubmit({ preventDefault() {} });
   await new Promise(resolve => setImmediate(resolve));
   effects[1]();

@@ -1,5 +1,7 @@
 'use client';
 
+import { isFirebaseStaging } from '@/shared/auth-config';
+import { EduMobileSidebar } from '@/frontend/design/application-shell';
 import { useState } from 'react';
 import { Menu, BookOpen } from 'lucide-react';
 
@@ -10,7 +12,7 @@ interface MobileSidebarProps {
 	initialRole?: string | null;
 }
 
-export const MobileSidebar = ({ initialRole }: MobileSidebarProps) => {
+const LegacyMobileSidebar = ({ initialRole }: MobileSidebarProps) => {
 	const [open, setOpen] = useState(false);
 
 	return (
@@ -54,4 +56,5 @@ export const MobileSidebar = ({ initialRole }: MobileSidebarProps) => {
 	);
 };
 
+export const MobileSidebar = (props: MobileSidebarProps) => isFirebaseStaging() ? <EduMobileSidebar /> : <LegacyMobileSidebar {...props} />;
 export default MobileSidebar;

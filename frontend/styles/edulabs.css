@@ -95,6 +95,22 @@ html[lang=ar] :is(.edu-app,.edu-auth,.edu-marketing) { line-height:1.8; }
 .edu-course-card { overflow:hidden; padding:0; transition:transform .25s,box-shadow .25s; height:100%; }
 .edu-course-card:hover { transform:translateY(-6px); box-shadow:7px 7px 0 var(--edu-ink); }
 .edu-course-info { padding:1.25rem; display:grid; gap:.6rem; }
+.edu-app .edu-ui-button { border:2.5px solid var(--edu-ink); border-radius:999px; min-height:44px; box-shadow:calc(3px * var(--edu-dir)) 3px 0 var(--edu-ink); }
+.edu-app .edu-ui-button:hover { transform:translate(calc(-1px * var(--edu-dir)),-1px); }
+.edu-app .edu-ui-button:active { transform:translate(calc(2px * var(--edu-dir)),2px); box-shadow:1px 1px 0 var(--edu-ink); }
+.edu-marketing .edu-no-top { padding-top:0; }
+.edu-marketing .edu-splash-skip { margin-top:1rem; font:600 .9rem var(--edu-body); }
+.edu-marketing .intro { width:100%; border:0; padding:0; font:inherit; }
+.edu-marketing .edu-brand { color:var(--ink); }
+.edu-marketing .hero-art svg { animation:edu-float 7s ease-in-out infinite; }
+.edu-marketing .hero-art:not([data-s=in]) svg { animation-play-state:paused; }
+@keyframes edu-float { 50% { transform:translateY(-10px); } }
+.edu-marketing .hero-art path { fill:var(--green); }
+html[lang=ar] :is(.edu-auth,.edu-app) :is(h1,h2,h3) { line-height:1.3; }
+.edu-app [role=alert] { color:#a5261e; border:2px solid currentColor; border-radius:14px; padding:.8rem 1rem; }
+html.dark .edu-app [role=alert] { color:#ff9c94; }
+.edu-loading { background:var(--edu-bg)!important; color:var(--edu-text); }
+html[data-edulabs] .ql-toolbar { max-width:100%; }
 .edu-student-hero { display:grid; align-items:center; gap:2rem; }
 .edu-student-hero h1 { font-size:clamp(2rem,5vw,3.5rem); line-height:1.1; }
 .edu-student-hero svg { width:130px; margin:auto; }
