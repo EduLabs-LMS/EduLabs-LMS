@@ -1,0 +1,15 @@
+/* Isolate the supplied V2 utilities from the previous .edu-app color/heading
+   overrides. Keep the V2 card's own sizing, borders, shadow and interactions. */
+.cards.cards.cards :global(.bg-white) { background-color: #fff; color: #020617; }
+.cards.cards.cards :global(.bg-slate-900) { background-color: #0f172a; color: #fff; }
+.cards.cards.cards :global(.bg-slate-100) { background-color: #f1f5f9; }
+.cards.cards.cards :global(.text-slate-500) { color: #64748b; }
+.cards.cards.cards :global(.text-slate-600) { color: #475569; }
+.cards.cards.cards :global(.text-slate-700) { color: #334155; }
+.cards.cards.cards :global(.text-sky-700) { color: #0369a1; }
+.cards.cards.cards :global(.border-slate-200) { border-color: #e2e8f0; }
+.cards.cards.cards article h3 {
+  font-family: inherit;
+  font-weight: 700;
+  color: inherit;
+}

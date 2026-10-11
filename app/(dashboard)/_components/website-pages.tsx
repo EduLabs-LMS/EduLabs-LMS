@@ -11,6 +11,9 @@ import GroupRosterView from '@/frontend/features/groups/group-roster-view';
 import { getWebsiteContext, loadWebsiteScope, courseCapability, offeringCapability } from '@/server/services/website';
 import { studentLessons, validRosterPage } from '@/shared/website-model';
 import { canEditTeacherCourse } from '@/shared/teacher-course';
+import { LessonCard } from '@/frontend/features/courses/lesson-card';
+import lessonCards from '@/frontend/features/courses/lesson-cards.module.css';
+import { lessonNumbersByModule, lessonCardStatus, moduleDisplayLabel } from '@/shared/lesson-card-model';
 
 export type WebsiteSearch = { organization?: string; offering?: string; page?: string; title?: string };
 const panel = 'edu-card';
@@ -81,11 +84,29 @@ export async function WebsiteCourse({ courseId, search = {} }: { courseId: strin
   const course = scope.courses[0];
   if (search.offering && !scope.offerings.some(o => o.id === search.offering)) notFound();
   const offering = scope.offerings.find(o => o.id === search.offering);
+  const publishedLessons = scope.lessons.filter(l => l.status === 'published' && scope.modules.some(m => m.id === l.module_id));
+  const lessonNumbers = lessonNumbersByModule(publishedLessons);
   return <div className="space-y-6 p-2 sm:p-8"><div className="grid gap-8 sm:grid-cols-2"><div><h1 className="text-3xl font-bold">{course.title}</h1><div className="mt-4 text-sm">{course.description ? <Preview value={course.description}/> : <T>No description</T>}</div><p className="mt-4 text-xs text-slate-500">{context.organizations.find(o => o.id === course.organization_id)?.name} · <T>{course.status}</T></p></div><div className="grid min-h-40 place-items-center rounded-2xl border bg-white text-cyan-600"><BookOpen className="h-12 w-12" /></div></div>
     <LimitNotice limited={scope.limited} /><Offerings scope={scope} />
     <section className={panel}><h2 className="mb-4 text-xl font-bold"><T>{"Available Lessons"}</T>{offering ? ` · ${offering.name}` : ''}</h2>{!offering && <p className="mb-4 text-sm text-slate-500"><T>{"Select a group above to view progress for that specific course run."}</T></p>}
-      {scope.modules.map(m => <div key={m.id} className="border-t py-4"><h3 className="font-semibold">{m.title}</h3>{scope.lessons.filter(l => l.module_id === m.id).map(l => <div key={l.id} className="flex justify-between gap-2 py-2 text-sm"><span>{l.title}</span><span className="text-slate-500">{offering ? <T>{scope.progress.find(p => p.offering_id === offering.id && p.lesson_id === l.id)?.status || 'not_started'}</T> : <T>Published</T>}{l.estimated_duration_seconds !== null ? <> · {Math.ceil(l.estimated_duration_seconds / 60)} <T arabic="دقيقة">min</T></> : null}</span></div>)}</div>)}
-      {!scope.lessons.length && <p className="text-sm text-slate-500"><T>{"No published lessons available."}</T></p>}<p className="mt-4 text-sm text-slate-500"><T>{"Video playback, homework and lesson editing are awaiting integration. Existing progress is shown read-only."}</T></p>
+      <div className={lessonCards.cards}>{scope.modules.map((m, moduleIndex) => {
+        const label = moduleDisplayLabel(m.title, moduleIndex);
+        return <div key={m.id} className="border-t py-4"><h3 className="mb-4 font-semibold">{label}</h3>
+          <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {publishedLessons.filter(l => l.module_id === m.id).map(l => {
+              const progress = offering ? scope.progress.find(p => p.offering_id === offering.id && p.lesson_id === l.id) : undefined;
+              return <li key={l.id} className="flex min-w-0 flex-col gap-2">
+                <LessonCard moduleLabel={label} lessonNumber={lessonNumbers.get(l.id)!} title={l.title} partsCount={null}
+                  status={lessonCardStatus({ published: true, offeringSelected: Boolean(offering), progressStatus: progress?.status })} />
+                <p className="min-h-[1rem] text-xs text-slate-500" aria-hidden={l.estimated_duration_seconds === null}>
+                  {l.estimated_duration_seconds !== null && <>{Math.ceil(l.estimated_duration_seconds / 60)} <T arabic="دقيقة">min</T></>}
+                </p>
+              </li>;
+            })}
+          </ul>
+        </div>;
+      })}</div>
+      {!publishedLessons.length && <p className="text-sm text-slate-500"><T>{"No published lessons available."}</T></p>}<p className="mt-4 text-sm text-slate-500"><T>{"Video playback, homework and lesson editing are awaiting integration. Existing progress is shown read-only."}</T></p>
     </section><Assessments scope={scope} />
   </div>;
 }
