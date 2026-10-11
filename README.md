@@ -2,6 +2,8 @@
 
 A new multi-tenant Learning Management System built with Next.js, Firebase Authentication and Supabase PostgreSQL, reusing the original website's adapted frontend design.
 
+The EduLabs redesign is documented in [visual integration and acceptance](docs/edulabs-visual-redesign.md). Its public reference page is `/design-preview`; `/` keeps its existing authenticated behavior. The new LMS supports English/Arabic, RTL and light/dark presentation.
+
 **Active direction:** no legacy data migration or Clerk identity linking. See [the new LMS Phase 2 plan](docs/new-lms-phase2.md) for completed functionality, verification and the next teacher-editor slices. Historical feature/setup notes below may describe dormant Clerk/Prisma code retained for a later reviewed cleanup.
 
 The frontend and backend have distinct code layers within one Next.js deployment. See [the architecture guide](docs/architecture.md) for request flow, dependency rules, and how to add features.
