@@ -11,7 +11,6 @@ import {
 	Home,
 	BookOpen,
 	Users,
-	Calendar,
 	FileText,
 	HelpCircle,
 	LogOut,
@@ -58,7 +57,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	pathname.startsWith('/self-learning') ||
 	pathname.startsWith('/courses');
 	const isGroupActive =
-	pathname === '/group' ||
+	pathname === '/sessions-groups' || pathname === '/sessions' || pathname === '/group' ||
 	pathname === '/groups' ||
 	pathname.startsWith('/group');
 	const isExamsActive = pathname.startsWith('/exams');
@@ -135,7 +134,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		</Link>
 
 		<Link
-		href="/group"
+		href="/sessions-groups"
 		onClick={() => onNavigate?.()}
 		className={cn(
 			'relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',
@@ -150,21 +149,8 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			isGroupActive ? 'text-black' : 'text-slate-500'
 		)}
 		/>
-		<span>Group</span>
+		<span>Sessions &amp; Groups</span>
 		</Link>
-
-		<div
-		aria-disabled="true"
-		className="flex items-center justify-between px-4 py-3.5 min-h-[48px] text-[15px] font-medium text-slate-400 rounded-xl cursor-not-allowed select-none"
-		>
-		<div className="flex items-center gap-3.5">
-		<Calendar className="w-[22px] h-[22px] shrink-0 text-slate-400" />
-		<span>Sessions</span>
-		</div>
-		<span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-500">
-		Soon
-		</span>
-		</div>
 
 		<Link
 		href="/exams"

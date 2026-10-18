@@ -10,13 +10,15 @@ export function validGroupMeetingUrl(value:string){
  return !/%(?![A-Fa-f0-9]{2})|%(?:0[0-9a-f]|1[0-9a-f]|7f)/i.test(value);
 }
 const secureUrl=z.string().refine(validGroupMeetingUrl,'Use an HTTPS URL with a valid full DNS hostname and no credentials');
-const groupFields=z.object({name:z.string().trim().min(1).max(160),description:z.string().max(4000),mode:z.enum(['online','center']),location:z.string().max(1000),joinUrl:secureUrl,instructions:z.string().max(2000),capacity:z.number().int().min(1).max(10000).nullable(),schedules:z.array(weeklySchedule).max(14)}).strict();
-export const groupEdit=groupFields.partial().superRefine((v,c)=>{if(v.schedules&&new Set(v.schedules.map(s=>`${s.weekday}:${s.time}`)).size!==v.schedules.length)c.addIssue({code:'custom',path:['schedules'],message:'Duplicate meeting time'});});
+export const groupStreamIcons=['video','radio','users','presentation','headphones','messages'] as const;
+export const streamPresentation=z.object({streamLabel:z.string().trim().min(1).max(80).refine(v=>!Array.from(v).some(c=>c.charCodeAt(0)<32||c.charCodeAt(0)===127),'Use a single-line label'),streamIcon:z.enum(groupStreamIcons)}).strict();
+const groupFields=z.object({name:z.string().trim().min(1).max(160),description:z.string().max(4000),mode:z.enum(['online','center']),location:z.string().max(1000),joinUrl:secureUrl,instructions:z.string().max(2000),capacity:z.number().int().min(1).max(10000).nullable(),schedules:z.array(weeklySchedule).max(14),streamLabel:streamPresentation.shape.streamLabel.optional(),streamIcon:streamPresentation.shape.streamIcon.optional()}).strict();
+export const groupEdit=groupFields.extend({applyMeetingDefaults:z.boolean().optional()}).partial().superRefine((v,c)=>{if(v.schedules&&new Set(v.schedules.map(s=>`${s.weekday}:${s.time}`)).size!==v.schedules.length)c.addIssue({code:'custom',path:['schedules'],message:'Duplicate meeting time'});});
 export const groupDefinition=groupFields.superRefine((v,c)=>{if(v.mode==='center'&&!v.location.trim())c.addIssue({code:'custom',path:['location'],message:'Enter a center location'});if(new Set(v.schedules.map(s=>`${s.weekday}:${s.time}`)).size!==v.schedules.length)c.addIssue({code:'custom',path:['schedules'],message:'Duplicate meeting time'});});
 export const sessionDefinition=z.object({title:z.string().trim().min(1).max(200),startsAt:stamp,endsAt:stamp}).strict().refine(v=>Date.parse(v.endsAt)>Date.parse(v.startsAt)&&Date.parse(v.endsAt)-Date.parse(v.startsAt)<=86400000,'Session must last between 1 second and 24 hours');
-export const groupRead=z.object({groupId:id.nullable(),section:z.string().max(40).default('sessions'),page:z.number().int().min(0).max(100000).default(0),search:z.string().max(160).default('')}).strict();
+export const groupRead=z.object({groupId:id.nullable(),section:z.string().max(60).default('sessions'),page:z.number().int().min(0).max(100000).default(0),search:z.string().max(160).default('')}).strict();
 export type GroupDefinition=z.infer<typeof groupDefinition>;
-export type StudyGroup={id:string;offering_id:string;offering_name:string;name:string;description:string;mode:'online'|'center';location:string;join_url:string;instructions:string;capacity:number|null;status:'active'|'archived';version:number;staff:boolean;instructor:boolean};
+export type StudyGroup={stream_label?:string;stream_icon?:typeof groupStreamIcons[number];id:string;offering_id:string;offering_name:string;name:string;description:string;mode:'online'|'center';location:string;join_url:string;instructions:string;capacity:number|null;status:'active'|'archived';version:number;staff:boolean;instructor:boolean};
 export type GroupSession={id:string;group_id:string;title:string;starts_at:string;ends_at:string;mode:'online'|'center';location:string;join_url:string;instructions:string;cancelled:boolean;version:number;attendance_state:'draft'|'finalized'|'reopened';state:'upcoming'|'ongoing'|'completed'|'cancelled'};
 export type GroupRow={user_id:string;display_name:string;id?:string;starts_at?:string;ends_at?:string|null;status?:'not_marked'|'attended'|'absent';assigned?:boolean;eligible?:boolean;session_id?:string;title?:string;action?:string;reason?:string;created_at?:string};
 export type GroupPage<T>={rows:T[];page:number;hasMore?:boolean;catchingUp?:boolean;serverNow?:string;nextSession?:GroupSession|null;session?:GroupSession;counts?:{attended:number;absent:number;not_marked:number}};
@@ -32,3 +34,7 @@ export function cairoWallTime(value:string){
  const matches=[2,3].map(offset=>wall-offset*3600000).filter(t=>formatter.format(new Date(t)).replace(' ','T')===value);
  if(!matches.length)throw Error('This Cairo time does not exist due to daylight saving');return new Date(Math.max(...matches)).toISOString();
 }
+
+export const groupSummarySchema=z.object({own:z.object({attended:z.number().int().nonnegative(),absent:z.number().int().nonnegative()}),staff:z.object({attended:z.number().int().nonnegative(),absent:z.number().int().nonnegative()}),pendingHomework:z.number().int().nonnegative()});
+export type GroupSummary=z.infer<typeof groupSummarySchema>;
+export function attendanceLabel(status:string){return status==='attended'?'Attended':status==='absent'?'Absent':'Pending / Unmarked';}

@@ -36,5 +36,5 @@ test('real shared desktop/mobile sidebar exposes learner routes without staff af
   if(n.includes('application-auth-provider'))return {useWebsiteNavigation:()=>({staffOrganizationIds:[]})};
   if(n==='@/shared/utils')return {cn:(...v)=>v.filter(Boolean).join(' ')};
   return new Proxy({},{get:()=>()=>null});
- });const html=render(React.createElement(m.default));assert.doesNotMatch(html,/href="\/(teacher|admin|onboarding)/);for(const route of ['home','self-learning','group'])assert.match(html,new RegExp('href="/'+route+'"'));
+ });const html=render(React.createElement(m.default));assert.doesNotMatch(html,/href="\/(teacher|admin|onboarding)/);for(const route of ['home','self-learning','sessions-groups'])assert.match(html,new RegExp('href="/'+route+'"'));
 });

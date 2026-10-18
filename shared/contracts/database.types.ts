@@ -1968,6 +1968,8 @@ export type Database = {
       }
       study_groups: {
         Row: {
+          stream_label: string
+          stream_icon: string
           capacity: number | null
           created_at: string
           created_by: string
@@ -1985,6 +1987,8 @@ export type Database = {
           version: number
         }
         Insert: {
+          stream_label?: string
+          stream_icon?: string
           capacity?: number | null
           created_at?: string
           created_by: string
@@ -2002,6 +2006,8 @@ export type Database = {
           version?: number
         }
         Update: {
+          stream_label?: string
+          stream_icon?: string
           capacity?: number | null
           created_at?: string
           created_by?: string

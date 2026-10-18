@@ -9,3 +9,4 @@ Dockerfile text eol=lf
 .dockerignore text eol=lf
 supabase/migrations/20261018091735_lesson_covers.sql -text
 supabase/migrations/20261018092002_chapter_metadata.sql -text
+supabase/migrations/20261018100132_group_presentation_and_session_summary.sql -text

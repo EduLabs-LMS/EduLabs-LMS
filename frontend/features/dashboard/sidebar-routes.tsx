@@ -33,16 +33,7 @@ const studentRoutes: SidebarRoute[] = [
 		label: 'Self Learning',
 		href: '/self-learning',
 	},
-	{
-		icon: Users,
-		label: 'Group',
-		href: '/group',
-	},
-	{
-		icon: CalendarClock,
-		label: 'Sessions',
-		badge: 'Coming Soon',
-	},
+	{ icon: Users, label: 'Sessions & Groups', href: '/sessions-groups' },
 	{
 		icon: BookOpen,
 		label: 'Exams',

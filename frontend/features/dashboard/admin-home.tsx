@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useGroupSummary } from '@/frontend/features/groups/use-group-summary';
+import { GroupSummaryPanel } from '@/frontend/features/groups/group-summary-panel';
 import {
 	ArrowRight,
 	BookOpen,
@@ -52,8 +54,10 @@ export const AdminHome = ({
 	recentSignups,
 	recentSubmissions,
 }: AdminHomeProps) => {
+ const attendance=useGroupSummary(phase1);
 	return (
 		<div className="mx-auto w-full max-w-[1600px] space-y-8 pt-2 animate-in fade-in-50 slide-in-from-bottom-2 duration-200">
+			{phase1&&<GroupSummaryPanel summary={attendance} staff homework={false}/>}
 			{/* Top Welcome Hero Banner */}
 			<section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
 				<div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
