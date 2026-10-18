@@ -2,6 +2,7 @@
 import { createContext, useContext } from 'react';
 import { useUser, useClerk, UserButton } from '@clerk/nextjs';
 import { useFirebaseAuth } from '@/frontend/components/providers/firebase-auth-provider';
+import { FirebaseAccountBridge } from '@/frontend/features/auth/firebase-account-bridge';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import type { WebsiteNavigation } from '@/shared/contracts/application-auth';
 
@@ -17,7 +18,7 @@ function ClerkBridge({ children }: { children: React.ReactNode }) {
 }
 function FirebaseBridge({ children }: { children: React.ReactNode }) {
   const { user, logout } = useFirebaseAuth();
-  return <AuthContext.Provider value={{ user: user ? { id: user.uid, lastName: null, imageUrl: user.photoURL, firstName: user.displayName?.split(' ')[0] || null, username: null, fullName: user.displayName, email: user.email } : null, signOut: logout, openUserProfile: () => { throw new Error("Profile editing is awaiting integration"); } }}>{children}</AuthContext.Provider>;
+  return <FirebaseAccountBridge key={user?.uid??'signed-out'} provide={({profile,open})=><AuthContext.Provider value={{user:user?{id:user.uid,lastName:profile?.last_name||null,imageUrl:profile?.avatarUrl??null,firstName:profile?.first_name||user.displayName?.split(' ')[0]||null,username:null,fullName:profile&&(profile.first_name||profile.last_name)?`${profile.first_name} ${profile.last_name}`.trim():user.displayName,email:user.email}:null,signOut:logout,openUserProfile:open}}>{children}</AuthContext.Provider>}/>;
 }
 export function ApplicationAuthProvider({ children }: { children: React.ReactNode }) {
   return isFirebaseStaging() ? <FirebaseBridge>{children}</FirebaseBridge> : <ClerkBridge>{children}</ClerkBridge>;
@@ -32,7 +33,7 @@ export function WebsiteNavigationProvider({ value, children }: { value: WebsiteN
 }
 export const useWebsiteNavigation = () => useContext(NavigationContext);
 export function ApplicationAvatar() {
-  const { user } = useApplicationAuth();
-  return isFirebaseStaging() ? <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-cyan-500 bg-cyan-50 text-cyan-800 font-bold">{(user?.fullName || user?.email || 'L').slice(0, 1).toUpperCase()}</span> :
+  const { user,openUserProfile } = useApplicationAuth();
+  return isFirebaseStaging() ? <button type="button" aria-label="Your account" onClick={openUserProfile} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-cyan-500 bg-cyan-50 text-cyan-800 font-bold">{user?.imageUrl?<img alt="Your profile" src={user.imageUrl} className="h-full w-full rounded-full object-cover"/>:(user?.fullName || user?.email || 'L').slice(0, 1).toUpperCase()}</button> :
     <UserButton appearance={{ elements: { avatarBox: 'h-9 w-9 border-2 border-cyan-500 shadow-sm', userButtonPopoverCard: 'shadow-xl rounded-2xl border border-slate-200 z-[99999] pointer-events-auto', userButtonPopoverMain: 'z-[99999] pointer-events-auto' } }} />;
 }

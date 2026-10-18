@@ -26,6 +26,12 @@ test('restored-session and form completion navigate home only once', async () =>
     react: { useState: initial => [initial, () => {}], useEffect: effect => effects.push(effect), useRef: value => ({ current: value }), useCallback: callback => callback },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'next/link': { default: 'Link' },
+    'lucide-react': {},
+    '@/shared/contracts/account': {},
+    '@/frontend/lib/signup-recovery': {},
+    '@/frontend/lib/account-draft': {},
+    '@/frontend/components/edulabs-mark': {},
+    './avatar-picker': {}, './provider-icons': {},
     'firebase/auth': { signInWithEmailAndPassword: async () => ({ user }), getRedirectResult: async () => null },
     '@/frontend/lib/firebase': { getFirebaseAuth: () => ({}), restoreFirebaseAuth: async () => {} },
     '@/shared/contracts/student-administration': load('shared/contracts/student-administration.ts',{zod:require('zod')}),
@@ -34,12 +40,13 @@ test('restored-session and form completion navigate home only once', async () =>
       synchronizeFirebaseSession: () => syncing,
     },
   };
-  vm.runInNewContext(source, { module, exports: module.exports,URLSearchParams,
+  vm.runInNewContext(source, { module, exports: module.exports,URLSearchParams,process:{env:{}},sessionStorage:{getItem:()=>null,removeItem(){}},
     window: { location: { search:'',replace: path => navigations.push(path), assign: path => navigations.push(path) } },
     require: name => { assert.ok(name in dependencies, name); return dependencies[name]; },
   });
   const tree = module.exports.FirebaseForm({});
-  const form = tree.props.children.find(child => child?.type === 'form');
+  function findForm(node){if(!node||typeof node!=='object')return null;if(node?.type==='form')return node;for(const child of [node?.props?.children].flat()) {const found=findForm(child);if(found)return found;}return null;}
+  const form=findForm(tree);
   form.props.onSubmit({ preventDefault() {} });
   await new Promise(resolve => setImmediate(resolve));
   effects[2]();
