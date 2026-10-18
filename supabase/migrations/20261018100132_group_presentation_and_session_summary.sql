@@ -1,4 +1,5 @@
--- Milestone 3. Presentation metadata only; existing group/session IDs, recurrence,
+-- Milestone 3. Presentation, explicit future defaults and caller-scoped summaries.
+-- Existing group/session IDs, recurrence,
 -- meeting URL validation, attendance and enrollment authorization are preserved.
 alter table public.study_groups add column stream_label text not null default 'Live interactive stream' check(length(btrim(stream_label)) between 1 and 80 and stream_label !~ '[[:cntrl:]]');
 alter table public.study_groups add column stream_icon text not null default 'video' check(stream_icon in ('video','radio','users','presentation','headphones','messages'));
