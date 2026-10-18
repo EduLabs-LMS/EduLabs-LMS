@@ -3,7 +3,7 @@ import type { SelfLearningChapter, StudentLesson } from '@/shared/contracts/dash
 type Scope = {
   courses: { id: string; title: string }[];
   modules: { id: string; course_id: string; title: string; position: number;group_type?:string }[];
-  lessons: { id: string; module_id: string; title: string; status: string }[];
+  lessons: { id: string; module_id: string; title: string; status: string;cover_url?:string|null }[];
   offerings: { id: string; course_id: string; name: string }[];
   progress: { offering_id: string; lesson_id: string; status: string }[];
   segments?: {id:string;lesson_id:string;title:string;position:number;status:string;thumbnail_url?:string|null}[];
@@ -25,7 +25,7 @@ export function v2Chapters(scope: Scope, offeringId?: string): SelfLearningChapt
         const isComplete=(id:string)=>progress.some(p=>p.segment_id===id&&p.status==='completed');
         const next=parts.find(s=>progress.some(p=>p.segment_id===s.id&&p.status==='in_progress'))??parts.find(s=>!isComplete(s.id))??parts[0];
         const description=('description' in lesson&&typeof lesson.description==='string')?lesson.description.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim():null;
-        return {id:lesson.id,title:lesson.title,chapterType:module.group_type??'Module',chapterNumber:index+1,description,imageUrl:next?.thumbnail_url??null,partsCount:parts.length,
+        return {id:lesson.id,title:lesson.title,chapterType:module.group_type??'Module',chapterNumber:index+1,description,imageUrl:lesson.cover_url??null,partsCount:parts.length,
           href:offeringId&&next?`/courses/${module.course_id}/chapters/${next.id}?offering=${offeringId}`:null,
           chapters:parts.map(s=>({id:s.id,title:s.title,isCompleted:isComplete(s.id)})),
           status:!parts.length?'Locked':parts.every(s=>isComplete(s.id))?'Completed':parts.some(s=>progress.some(p=>p.segment_id===s.id))?'In Progress':'Not Started'};

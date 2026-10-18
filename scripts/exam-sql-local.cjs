@@ -54,7 +54,7 @@ const runtime = process.env.LMS_SQL_RUNTIME || path.resolve('.local/step03a/runt
   }
   if(!seeded)await db.exec(fs.readFileSync('supabase/seed.sql','utf8'));
   const baseline = (await db.query('select count(*)::int n from public.assessment_attempts')).rows[0].n;
-  for (const name of ['authorization','hardening','firebase-identity','organization-owner-cascade','organization-provisioning','teacher-editor','exam-attempts-results','exam-authoring','exam-completion','lessons','homework','groups-attendance','notifications-support','group-notifications','student-administration']) {
+  for (const name of ['authorization','hardening','firebase-identity','organization-owner-cascade','organization-provisioning','teacher-editor','exam-attempts-results','exam-authoring','exam-completion','lessons','homework','groups-attendance','notifications-support','group-notifications','student-administration','lesson-covers']) {
    let sql=fs.readFileSync(`supabase/tests/${name}.sql`,'utf8');
    try {
     const results=await db.exec(sql);

@@ -1558,6 +1558,7 @@ export type Database = {
       }
       lessons: {
         Row: {
+          cover_asset_id: string | null
           created_at: string
           description: string
           estimated_duration_seconds: number | null
@@ -1569,6 +1570,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cover_asset_id?: string | null
           created_at?: string
           description?: string
           estimated_duration_seconds?: number | null
@@ -1580,6 +1582,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cover_asset_id?: string | null
           created_at?: string
           description?: string
           estimated_duration_seconds?: number | null

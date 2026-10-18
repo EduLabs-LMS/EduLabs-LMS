@@ -1,4 +1,5 @@
 'use client';
+import { LessonCoverForm } from './lesson-cover-form';
 import { uploadLessonFile } from '@/frontend/lib/lesson-upload';
 
 import { useState,useTransition } from 'react';
@@ -44,7 +45,7 @@ export function LearningTreeEditor({courseId,tree}:{courseId:string;tree:Learnin
   {!lessons.length&&<p className="text-xs text-slate-500">No lessons in this module.</p>}
   {lessons.map((l,li)=>{const parts=tree.segments.filter(s=>s.lesson_id===l.id);return <div key={l.id+l.updated_at} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
    <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-semibold">Lesson {li+1} · {l.status}</span>{arrows('lessons',m.id,lessons,li)}</div>
-   <TitleForm initialData={l} courseId={courseId} onSave={v=>run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{...v,description:l.description,status:l.status as 'draft'|'published'}}).then(()=>{})}/>
+   <LessonCoverForm courseId={courseId} lesson={l}/><TitleForm initialData={l} courseId={courseId} onSave={v=>run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{...v,description:l.description,status:l.status as 'draft'|'published'}}).then(()=>{})}/>
    <DescriptionForm initialData={l} courseId={courseId} onSave={v=>run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{...v,title:l.title,status:l.status as 'draft'|'published'}}).then(()=>{})}/>
    <Button size="sm" disabled={busy} variant="outline" onClick={()=>void run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{title:l.title,description:l.description,status:l.status==='published'?'draft':'published'}}).catch(()=>{})}>{l.status==='published'?'Unpublish lesson':'Publish lesson'}</Button>
    {!parts.length&&<p className="text-xs text-slate-500">No parts yet.</p>}

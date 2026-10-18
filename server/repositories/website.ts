@@ -30,7 +30,7 @@ export function createWebsiteRepository(client: SupabaseClient<Database>, profil
       // Keep PostgREST URLs bounded as well as row counts (up to five batches).
       const batches: string[][] = [];
       for (let i = 0; i < Math.min(moduleIds.length, 500); i += 100) batches.push(moduleIds.slice(i, i + 100));
-      const result = await Promise.all(batches.map(batch => rows(client.from('lessons').select('id,module_id,title,description,position,status,estimated_duration_seconds').in('module_id', batch).eq('status', 'published').order('position').order('id').limit(501))));
+      const result = await Promise.all(batches.map(batch => rows(client.from('lessons').select('id,module_id,title,description,cover_asset_id,position,status,estimated_duration_seconds').in('module_id', batch).eq('status', 'published').order('position').order('id').limit(501))));
       return result.flat().sort((a, b) => a.position - b.position || a.id.localeCompare(b.id)).slice(0, 501);
     },
     progress: (offeringIds: string[]) => offeringIds.length ? rows(client.from('lesson_progress').select('offering_id,lesson_id,status').eq('user_id', profileId).in('offering_id', offeringIds).order('offering_id').order('lesson_id').limit(1001)) : Promise.resolve([]),

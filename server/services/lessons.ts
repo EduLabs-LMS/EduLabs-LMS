@@ -1,4 +1,5 @@
 import 'server-only';
+import { validateLessonImage } from './lesson-image-validation';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import { getApplicationViewer } from '@/server/services/application-auth';
 import { editableTeacherCourse } from '@/server/services/teacher-course';
@@ -88,6 +89,7 @@ export async function learningService(courseId:string,teacher=false) {
   if(stored.error||!stored.data)throw lessonFailure('Uploaded file could not be checked',503);
   const bytes=new Uint8Array(await stored.data.arrayBuffer());
   if(!validLessonFile(bytes,info.mime))throw lessonFailure('Stored file signature or size is invalid');
+  if(info.mime.startsWith('image/')){try{await validateLessonImage(bytes,info.mime);}catch{throw lessonFailure('Image content is invalid or too large');}}
   await checked(client.rpc('complete_media_upload',{p_asset_id:id}).then(r=>({...r,data:r.error?null:true})));
   return {id,name:info.name,kind:info.mime==='video/mp4'?'video':info.mime==='application/pdf'?'pdf':'image'};
  }
