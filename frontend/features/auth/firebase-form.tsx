@@ -1,7 +1,7 @@
 'use client';
 import { useCallback,useEffect,useRef,useState } from 'react';
 import Link from 'next/link';
-import { GoogleAuthProvider,OAuthProvider,sendEmailVerification,sendPasswordResetEmail,signInWithEmailAndPassword,signInWithPopup,signInWithRedirect,getRedirectResult } from 'firebase/auth';
+import { GoogleAuthProvider,OAuthProvider,sendEmailVerification,sendPasswordResetEmail,signInWithEmailAndPassword,signInWithPopup,signInWithRedirect,getRedirectResult,getAdditionalUserInfo } from 'firebase/auth';
 import { Eye,EyeOff,ArrowRight,ShieldCheck } from 'lucide-react';
 import { getFirebaseAuth,restoreFirebaseAuth } from '@/frontend/lib/firebase';
 import { synchronizeFirebaseSession,useFirebaseAuth } from '@/frontend/components/providers/firebase-auth-provider';
@@ -13,19 +13,29 @@ import EduLabsMark from '@/frontend/components/edulabs-mark';
 import { AvatarPicker } from './avatar-picker';
 import { GoogleIcon,AppleIcon } from './provider-icons';
 
-export function readableAuthError(failure:unknown){const code=(failure as {code?:string})?.code;const messages:Record<string,string>={
+export function readableAuthError(failure:unknown){if(Array.isArray((failure as {issues?:unknown})?.issues))return 'Enter valid first and last names.';const code=(failure as {code?:string})?.code;const messages:Record<string,string>={
  'auth/invalid-credential':'Email or password is incorrect.','auth/email-already-in-use':'This email already has an account. Sign in or reset your password.','auth/weak-password':'Choose a stronger password with at least 12 characters.','auth/too-many-requests':'Too many attempts. Please wait before trying again.','auth/unauthorized-domain':'This website domain needs to be authorized in Firebase.','auth/popup-closed-by-user':'Sign-in was cancelled.','auth/operation-not-allowed':'This sign-in method is not enabled. Use an available method.','auth/requires-recent-login':'Please verify your current sign-in again before changing this setting.','auth/wrong-password':'The current password is incorrect.','auth/invalid-email':'Enter a valid email address.','auth/network-request-failed':'Check your connection and retry.','auth/account-exists-with-different-credential':'Sign in using the method already linked to this account. Accounts are never linked automatically by email.'};return (code&&messages[code])||(failure instanceof Error&&!code?failure.message:'Unable to complete this request. Please try again.');}
+async function rememberProviderProfile(credential:import('firebase/auth').UserCredential){
+ const info=getAdditionalUserInfo(credential);if(!info?.isNewUser)return;
+ const supplied=info.profile??{},parts=(credential.user.displayName??'').trim().split(/\s+/);
+ const appleName=supplied.name&&typeof supplied.name==='object'?supplied.name as Record<string,unknown>:{};
+ const first=typeof supplied.given_name==='string'?supplied.given_name:typeof appleName.firstName==='string'?appleName.firstName:parts[0]??'',last=typeof supplied.family_name==='string'?supplied.family_name:typeof appleName.lastName==='string'?appleName.lastName:parts.slice(1).join(' ');
+ // Provider-supplied names are editable presentation only, never authorization.
+ try{await storeAccountDraft(credential.user.uid,first.slice(0,60),last.slice(0,60),null,'provider');}catch{/* Manual onboarding remains available. */}
+}
+function readRememberedNext(){try{return sessionStorage.getItem('edulabs-auth-next');}catch{return null;}}
 const field='mt-1 w-full rounded-xl border-2 border-black bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60';
 const button='flex w-full items-center justify-center gap-3 rounded-xl border-2 border-black bg-white p-3 text-sm font-bold shadow-hard-sm transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-50';
 export function FirebaseForm({register=false}:{register?:boolean}){
  const {user,loading,error,refresh}=useFirebaseAuth();
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[firstName,setFirstName]=useState(''),[lastName,setLastName]=useState(''),[photo,setPhoto]=useState<File|null>(null),[show,setShow]=useState(false),[next,setNext]=useState('/home'),[busy,setBusy]=useState(false),[message,setMessage]=useState<string|null>(null),[retryAt,setRetryAt]=useState(0),[now,setNow]=useState(0);
+ const [redirectReady,setRedirectReady]=useState(false);
  const redirecting=useRef(false),operation=useRef(false);const apple=process.env.NEXT_PUBLIC_FIREBASE_APPLE_ENABLED==='true';
- useEffect(()=>{setNext(safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||sessionStorage.getItem('edulabs-auth-next')));const tick=()=>setNow(Date.now());tick();const timer=setInterval(tick,1000);return()=>clearInterval(timer);},[]);
- const goHome=useCallback(()=>{if(redirecting.current)return;redirecting.current=true;const destination=safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||sessionStorage.getItem('edulabs-auth-next'));sessionStorage.removeItem('edulabs-auth-next');window.location.replace(destination);},[]);
+ useEffect(()=>{setNext(safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext()));const tick=()=>setNow(Date.now());tick();const timer=setInterval(tick,1000);return()=>clearInterval(timer);},[]);
+ const goHome=useCallback(()=>{if(redirecting.current)return;redirecting.current=true;const destination=safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext());try{sessionStorage.removeItem('edulabs-auth-next');}catch{}window.location.replace(destination);},[]);
  const run=async(fn:()=>Promise<void>)=>{if(operation.current)return;operation.current=true;setBusy(true);setMessage(null);try{await restoreFirebaseAuth();await fn();}catch(e){setMessage(readableAuthError(e));}finally{operation.current=false;setBusy(false);}};
- useEffect(()=>{let active=true;void restoreFirebaseAuth().then(()=>getRedirectResult(getFirebaseAuth())).catch(e=>{if(active)setMessage(readableAuthError(e));});return()=>{active=false;};},[]);
- useEffect(()=>{if(user?.emailVerified&&!loading&&!error&&!busy)goHome();},[user,loading,error,busy,goHome]);
+ useEffect(()=>{let active=true;void restoreFirebaseAuth().then(()=>getRedirectResult(getFirebaseAuth())).then(async value=>{if(value)await rememberProviderProfile(value);}).catch(e=>{if(active)setMessage(readableAuthError(e));}).finally(()=>{if(active)setRedirectReady(true);});return()=>{active=false;};},[]);
+ useEffect(()=>{if(user?.emailVerified&&!loading&&!error&&!busy&&redirectReady)goHome();},[user,loading,error,busy,redirectReady,goHome]);
  const submit=()=>run(async()=>{
   if(register){accountNames.parse({firstName,lastName});if(password!==confirm)throw Error('Passwords must match.');if(password.length<12)throw Error('Use at least 12 characters.');if(Date.now()<retryAt)throw Error('Your account is saved. Wait before retrying verification.');
    const result=await registerFirebaseAccount(getFirebaseAuth(),email,password,`${firstName.trim()} ${lastName.trim()}`);setRetryAt(Date.now()+result.retryAfterSeconds*1000);setMessage(result.message);
@@ -33,7 +43,7 @@ export function FirebaseForm({register=false}:{register?:boolean}){
    if(result.user.emailVerified){await synchronizeFirebaseSession(result.user);goHome();}
   }else{const credential=await signInWithEmailAndPassword(getFirebaseAuth(),email.trim(),password);if(!credential.user.emailVerified){setMessage('Your account is saved. Verify your email, then choose “I verified my email”.');return;}await synchronizeFirebaseSession(credential.user);goHome();}
  });
- const provider=(kind:'google'|'apple')=>run(async()=>{if(kind==='apple'&&!apple)throw Error('Apple sign-in is not configured yet.');sessionStorage.setItem('edulabs-auth-next',next);const value=kind==='google'?new GoogleAuthProvider():new OAuthProvider('apple.com');if(value instanceof OAuthProvider){value.addScope('email');value.addScope('name');}try{const credential=await signInWithPopup(getFirebaseAuth(),value);await synchronizeFirebaseSession(credential.user);goHome();}catch(e){if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes((e as {code:string}).code))await signInWithRedirect(getFirebaseAuth(),value);else throw e;}});
+ const provider=(kind:'google'|'apple')=>run(async()=>{if(kind==='apple'&&!apple)throw Error('Apple sign-in is not configured yet.');try{sessionStorage.setItem('edulabs-auth-next',next);}catch{}const value=kind==='google'?new GoogleAuthProvider():new OAuthProvider('apple.com');if(value instanceof OAuthProvider){value.addScope('email');value.addScope('name');}try{const credential=await signInWithPopup(getFirebaseAuth(),value);await rememberProviderProfile(credential);await synchronizeFirebaseSession(credential.user);goHome();}catch(e){if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes((e as {code:string}).code))await signInWithRedirect(getFirebaseAuth(),value);else throw e;}});
  return <section className="grid w-full max-w-5xl overflow-hidden rounded-[28px] border-[2.5px] border-black bg-card text-black shadow-hard-lg md:grid-cols-[.8fr_1.2fr]">
   <div className="flex flex-col justify-between gap-8 border-b-[2.5px] border-black bg-primary p-6 sm:p-8 md:border-b-0 md:border-r-[2.5px]"><div className="flex items-center gap-3"><EduLabsMark grow shadow className="h-12 w-12"/><span className="font-display text-3xl">EduLabs</span></div><div className="hidden space-y-5 md:block"><EduLabsMark grow shadow className="mx-auto h-48 w-48"/><h2 className="font-display text-4xl leading-tight">Your next chapter starts here.</h2><p className="text-sm leading-relaxed">One learning account. Your teachers, courses and progress, together.</p></div><p className="flex gap-2 text-xs font-medium"><ShieldCheck className="h-4 w-4 shrink-0"/>Creating an account never grants access to private courses.</p></div>
   <div className="space-y-5 p-6 sm:p-8"><header><h1 className="font-display text-3xl">{register?'Create your account':'Welcome back'}</h1><p className="mt-2 text-sm text-slate-600">{register?'Set up your profile and verify your email.':'Sign in to keep learning.'}</p></header>

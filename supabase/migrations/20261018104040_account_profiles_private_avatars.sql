@@ -54,6 +54,7 @@ begin
  if exists(select 1 from jsonb_object_keys(p_data) k where k not in ('firstName','lastName','completeOnboarding','id','size','sha256')) then raise exception 'Unsupported account field' using errcode='23514';end if;
  insert into public.account_profiles(user_id) values(u) on conflict do nothing;
  select * into p from public.account_profiles where user_id=u for update;
+ if private.current_app_user_id() is distinct from u or not private.is_active_user() then raise exception 'Account access changed' using errcode='42501';end if;
  if p_action in ('save','begin-avatar','commit-avatar','remove-avatar') and p_revision is distinct from p.revision then raise exception 'Account changed; reload' using errcode='PT409';end if;
  if p_action='save' then
   first_value:=btrim(p_data->>'firstName');last_value:=btrim(p_data->>'lastName');
