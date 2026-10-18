@@ -25,7 +25,7 @@ export function createWebsiteRepository(client: SupabaseClient<Database>, profil
     offerings: (courseIds: string[]) => courseIds.length ? rows(client.from('course_offerings').select('id,course_id,name,status,delivery_mode,starts_at,ends_at,timezone').in('course_id', courseIds).order('id').limit(101)) : Promise.resolve([]),
     offering: (id: string) => rows(client.from('course_offerings').select('id,course_id,name,status,delivery_mode,starts_at,ends_at,timezone').eq('id', id).limit(1)),
     myEnrollments: () => rows(client.from('enrollments').select('id,offering_id,status,enrolled_at,expires_at').eq('user_id', profileId).order('id').limit(101)),
-    modules: (courseIds: string[]) => courseIds.length ? rows(client.from('course_modules').select('id,course_id,title,group_type,position').in('course_id', courseIds).order('position').order('id').limit(501)) : Promise.resolve([]),
+    modules: (courseIds: string[]) => courseIds.length ? rows(client.from('course_modules').select('id,course_id,title,group_type,chapter_number,summary,description,position').in('course_id', courseIds).order('position').order('id').limit(501)) : Promise.resolve([]),
     lessons: async (moduleIds: string[]) => {
       // Keep PostgREST URLs bounded as well as row counts (up to five batches).
       const batches: string[][] = [];

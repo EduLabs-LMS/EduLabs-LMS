@@ -2,7 +2,7 @@ import type { SelfLearningChapter, StudentLesson } from '@/shared/contracts/dash
 
 type Scope = {
   courses: { id: string; title: string }[];
-  modules: { id: string; course_id: string; title: string; position: number;group_type?:string }[];
+  modules: { id: string; course_id: string; title: string; position: number;group_type?:string;chapter_number?:number|null;summary?:string;description?:string|null }[];
   lessons: { id: string; module_id: string; title: string; status: string;cover_url?:string|null }[];
   offerings: { id: string; course_id: string; name: string }[];
   progress: { offering_id: string; lesson_id: string; status: string }[];
@@ -14,7 +14,7 @@ type Scope = {
 export function v2Chapters(scope: Scope, offeringId?: string): SelfLearningChapter[] {
   return scope.modules.map<SelfLearningChapter>((module, index) => ({
     id: `${offeringId ?? 'catalog'}:${module.id}`,
-    type: module.group_type??'Module', number: index + 1, title: module.title, subtitle: '', description: '',
+    type: module.group_type??'Module', number: module.chapter_number??index + 1, title: module.title, subtitle: module.summary??'', description: module.description??'',
     lessonCount: scope.lessons.filter(l => l.module_id === module.id && l.status === 'published').length,
     progressAvailable: Boolean(offeringId),
     lessons: scope.lessons.filter(l => l.module_id === module.id && l.status === 'published').map(lesson => {
@@ -25,12 +25,12 @@ export function v2Chapters(scope: Scope, offeringId?: string): SelfLearningChapt
         const isComplete=(id:string)=>progress.some(p=>p.segment_id===id&&p.status==='completed');
         const next=parts.find(s=>progress.some(p=>p.segment_id===s.id&&p.status==='in_progress'))??parts.find(s=>!isComplete(s.id))??parts[0];
         const description=('description' in lesson&&typeof lesson.description==='string')?lesson.description.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim():null;
-        return {id:lesson.id,title:lesson.title,chapterType:module.group_type??'Module',chapterNumber:index+1,description,imageUrl:lesson.cover_url??null,partsCount:parts.length,
+        return {id:lesson.id,title:lesson.title,chapterType:module.group_type??'Module',chapterNumber:module.chapter_number??index+1,description,imageUrl:lesson.cover_url??null,partsCount:parts.length,
           href:offeringId&&next?`/courses/${module.course_id}/chapters/${next.id}?offering=${offeringId}`:null,
           chapters:parts.map(s=>({id:s.id,title:s.title,isCompleted:isComplete(s.id)})),
           status:!parts.length?'Locked':parts.every(s=>isComplete(s.id))?'Completed':parts.some(s=>progress.some(p=>p.segment_id===s.id))?'In Progress':'Not Started'};
       }
-      return { id: lesson.id, href: null, title: lesson.title, chapterType: 'Module', chapterNumber: index + 1,
+      return { id: lesson.id, href: null, title: lesson.title, chapterType: module.group_type??'Module', chapterNumber: module.chapter_number??index + 1,
         description: null, imageUrl: null, partsCount: null,
         // This is a progress projection, not an invented video/segment record.
         chapters: offeringId ? [{ id: lesson.id, title: lesson.title, isCompleted: status === 'completed' }] : [],
@@ -51,5 +51,5 @@ export function v2StudentLessons(scope: Scope): StudentLesson[] {
 
 /** Each card carries one actual offering, including when no filter was selected. */
 export function v2OfferingChapters(scope:Scope,offeringId?:string):SelfLearningChapter[] {
- return scope.offerings.filter(o=>!offeringId||o.id===offeringId).flatMap(o=>v2Chapters({...scope,modules:scope.modules.filter(m=>m.course_id===o.course_id)},o.id).map(m=>({...m,subtitle:scope.offerings.filter(x=>x.course_id===o.course_id).length>1?o.name:m.subtitle})));
+ return scope.offerings.filter(o=>!offeringId||o.id===offeringId).flatMap(o=>v2Chapters({...scope,modules:scope.modules.filter(m=>m.course_id===o.course_id)},o.id).map(m=>({...m,subtitle:scope.offerings.filter(x=>x.course_id===o.course_id).length>1?[o.name,m.subtitle].filter(Boolean).join(' · '):m.subtitle})));
 }

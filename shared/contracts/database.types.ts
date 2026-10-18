@@ -481,6 +481,8 @@ export type Database = {
       }
       course_modules: {
         Row: {
+          chapter_number: number | null
+          summary: string
           course_id: string
           created_at: string
           description: string | null
@@ -491,6 +493,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          chapter_number?: number | null
+          summary?: string
           course_id: string
           created_at?: string
           description?: string | null
@@ -501,6 +505,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          chapter_number?: number | null
+          summary?: string
           course_id?: string
           created_at?: string
           description?: string | null
