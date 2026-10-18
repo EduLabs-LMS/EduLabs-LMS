@@ -103,6 +103,7 @@ export async function learningService(courseId:string,teacher=false) {
    const format=allowed[mime];if(!format||bytes.length>format.limit||!bytes.length)throw lessonFailure('Unsupported file type or size',415);
    const valid=mime==='application/pdf'?bytes.toString('ascii',0,5)==='%PDF-':mime==='video/mp4'?bytes.toString('ascii',4,8)==='ftyp':mime==='image/png'?bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WEBP';
    if(!valid)throw lessonFailure('File content does not match its type');
+   if(mime.startsWith('image/')){try{await validateLessonImage(bytes,mime);}catch{throw lessonFailure('Image content is invalid or too large');}}
    const registered=await checked(client.rpc('register_lesson_upload',{p_course_id:courseId,p_mime:mime,p_filename:name.slice(0,200)}));
    if(typeof registered!=='object'||Array.isArray(registered)||typeof registered.id!=='string'||typeof registered.path!=='string')throw lessonFailure('Upload registration failed',503);
    const id=registered.id,path=registered.path;

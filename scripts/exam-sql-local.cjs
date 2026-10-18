@@ -62,7 +62,7 @@ const runtime = process.env.LMS_SQL_RUNTIME || path.resolve('.local/step03a/runt
    } catch(e) { throw new Error(`Suite ${name}: ${e.message}`,{cause:e}); }
    assert.equal((await db.query('select count(*)::int n from public.assessment_attempts')).rows[0].n,baseline,`${name} rolled back`);
   }
-  if(admin) {await require('./exam-concurrency.cjs')(makeClient,db);await require('./lesson-concurrency.cjs')(makeClient,db);await require('./homework-concurrency.cjs')(makeClient,db);await require('./group-concurrency.cjs')(makeClient,db);await require('./communications-concurrency.cjs')(makeClient,db);await require('./group-notification-concurrency.cjs')(makeClient,db);await require('./student-administration-concurrency.cjs')(makeClient,db);}
+  if(admin) {await require('./milestone2-concurrency.cjs')(makeClient,db);await require('./exam-concurrency.cjs')(makeClient,db);await require('./lesson-concurrency.cjs')(makeClient,db);await require('./homework-concurrency.cjs')(makeClient,db);await require('./group-concurrency.cjs')(makeClient,db);await require('./communications-concurrency.cjs')(makeClient,db);await require('./group-notification-concurrency.cjs')(makeClient,db);await require('./student-administration-concurrency.cjs')(makeClient,db);}
   if(admin && process.argv.includes('--timers')) await require('./exam-deadline.cjs')(makeClient,db);
   console.log('All local SQL suites passed. No connected Supabase database accessed.');
  } finally {

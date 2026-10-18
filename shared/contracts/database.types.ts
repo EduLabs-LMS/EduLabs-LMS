@@ -1601,6 +1601,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "lessons_cover_asset_id_fkey"
+            columns: ["cover_asset_id"]
+            isOneToOne: false
+            referencedRelation: "media_assets"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "lessons_module_id_fkey"
             columns: ["module_id"]
             isOneToOne: false

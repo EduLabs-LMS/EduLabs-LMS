@@ -51,5 +51,5 @@ export function v2StudentLessons(scope: Scope): StudentLesson[] {
 
 /** Each card carries one actual offering, including when no filter was selected. */
 export function v2OfferingChapters(scope:Scope,offeringId?:string):SelfLearningChapter[] {
- return scope.offerings.filter(o=>!offeringId||o.id===offeringId).flatMap(o=>v2Chapters({...scope,modules:scope.modules.filter(m=>m.course_id===o.course_id)},o.id).map(m=>({...m,subtitle:scope.offerings.filter(x=>x.course_id===o.course_id).length>1?[o.name,m.subtitle].filter(Boolean).join(' · '):m.subtitle})));
+ return scope.offerings.filter(o=>!offeringId||o.id===offeringId).flatMap(o=>v2Chapters({...scope,modules:scope.modules.filter(m=>m.course_id===o.course_id)},o.id).map(m=>({...m,subtitle:scope.offerings.filter(x=>x.course_id===o.course_id).length>1?[o.name,m.subtitle].filter(Boolean).join(' Â· '):m.subtitle})));
 }
