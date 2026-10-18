@@ -67,6 +67,7 @@ export interface PeerMember {
 }
 
 export interface GroupRosterViewProps {
+ serverNow?: string;
  privacySafe?: boolean;
  mode?: 'online' | 'center';
  location?: string;
@@ -77,6 +78,7 @@ export interface GroupRosterViewProps {
 		dayLabel: string;
 		timeLabel: string;
 		fullFormatted: string;
+  endDate?: string;
 	} | null;
 	peers: PeerMember[];
 }

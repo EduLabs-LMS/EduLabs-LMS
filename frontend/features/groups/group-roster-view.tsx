@@ -19,6 +19,7 @@ import UpcomingSession from '@/frontend/components/upcoming-session';
 
 
 export const GroupRosterView = ({
+ serverNow,
  privacySafe = false,
  mode,
  location,
@@ -60,7 +61,8 @@ export const GroupRosterView = ({
 						</div>
 					</div>
 
-					{!privacySafe && (!phase1 || nextSession) && <UpcomingSession
+					{(!phase1 || nextSession) && <UpcomingSession
+      serverNow={serverNow}
 						session={nextSession}
 						groupName={groupName}
 						description="Finish your homework and have your notes ready before class."
