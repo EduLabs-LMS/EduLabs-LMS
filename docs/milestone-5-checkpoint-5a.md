@@ -2,6 +2,11 @@
 
 Date: 2026-10-18. Status: **local implementation tested; awaiting development SQL approval**.
 
+Historical checkpoint: on 2026-10-19, Checkpoint 5B independently verified that
+the exact SQL below is applied in development as version `20261018210950`.
+Development has 30 migrations. See the migration ledger for the verified map;
+the original pending-approval report below is retained as historical evidence.
+
 Branch: `codex/milestone5-academic-programs-stages`.
 Isolated worktree: `E:/EduLabs-Milestone5`.
 Starting checkpoint: `06544439fe2c056793e72a34c275689931c11638`, whose parent is the reviewed `integration/milestone4-candidate` commit `d264556480d81f64f3c3e5cc6fce84f7c9bbabdb`.

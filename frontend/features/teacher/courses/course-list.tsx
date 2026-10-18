@@ -21,12 +21,12 @@ export const V2TeacherCourseList = ({ courses }: {courses:CourseListRow[]}) => {
 					</p>
 				</div>
 
-				<Link href="/teacher/create">
+				<div className="flex flex-wrap gap-3"><Link className="rounded-xl border-2 border-black bg-primary px-4 py-2 text-sm font-bold shadow-hard-sm" href="/teacher/programs">Academic programs</Link><Link href="/teacher/create">
 					<Button className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-xs">
 						<PlusCircle className="h-4 w-4 mr-1.5" />
 						New Lesson
 					</Button>
-				</Link>
+				</Link></div>
 			</div>
 
 			{/* White Card Container */}

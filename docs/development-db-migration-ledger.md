@@ -68,6 +68,26 @@ At the original local-only checkpoint, Milestone 5A was still pending and develo
 
 ## Outstanding acceptance
 
+### Milestone 5A — application confirmed read-only, 2026-10-19
+
+Development now has **30 applied migrations**. The reviewed Git SQL file
+`20261018203119_academic_programs_stages.sql` is recorded remotely as
+`20261018210950_academic_programs_stages`, with exact stored SQL SHA-256
+`19ee37c9462e7879b987f013928ef41066e23620e5bbd2226353dd2f5152f8bd`.
+This is a fifth historical Git/remote timestamp mapping; do not run automatic
+history repair or replay earlier files.
+
+Checkpoint 5B's read-only verification confirmed all five new tables with RLS,
+authenticated SELECT-only access on the four public tables, no authenticated
+table access to the private version ledger, invoker public RPCs, private definers
+with empty search paths, all eight live function bodies matching the reviewed
+source, and four SELECT policies. Composite tenant/program foreign keys remain
+present. No database mutation or migration application was performed by 5B.
+
+The earlier 29-migration/pending statements in this document and the 5A report
+are historical pre-application checkpoints, not the current development state.
+This verification does not claim connected authenticated UI acceptance.
+
 The isolated validation at `3855e3a` passed 237 application tests, TypeScript, boundaries, lint (0 errors/10 warnings) and the production Docker build. It did **not** run a full SQL regression replay for the integrated tree or test connected Firebase sessions, onboarding, actual uploads and Storage read/delete, provider login, or desktop/mobile acceptance on the deployed website. Staging is still the previous `a544ced` release. Separate review and authorization are required before staging deployment; production is untouched.
 
 ## Milestone 5A development application — 2026-10-19 (Cairo)

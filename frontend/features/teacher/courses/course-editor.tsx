@@ -1,4 +1,5 @@
 'use client';
+import { CourseStages } from '@/frontend/features/teacher/academics/course-stages';
 import { LearningTreeEditor } from '@/frontend/features/teacher/chapters/editor/learning-editor';
 import type { LearningTree } from '@/shared/contracts/lessons';
 
@@ -17,7 +18,7 @@ import Actions from './editor/actions';
 import { Input } from '@/frontend/components/ui/input';
 import { Button } from '@/frontend/components/ui/button';
 import { CapabilityGate } from '@/frontend/components/capability-gate';
-type Record = {id:string;title:string;description:string|null;slug:string;status:string;visibility:string;updated_at:string};
+type Record = {id:string;organization_id:string;title:string;description:string|null;slug:string;status:string;visibility:string;updated_at:string};
 export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:LearningTree}) {
  const [busy,setBusy]=useState(false);
  const course={...record,isPublished:record.status==='published'};
@@ -74,6 +75,7 @@ export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:Learning
 			</div>
 
 			{/* 2-Column Light Theme Cards */}
+            <CourseStages courseId={course.id} organizationId={course.organization_id}/>
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 				{/* Left Card: Customize Lesson */}
 				<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
