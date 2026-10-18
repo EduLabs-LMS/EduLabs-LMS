@@ -23,6 +23,7 @@ import {
 
 import { cn } from '@/shared/utils';
 import { getUpcomingGroupSessions } from '@/shared/group-schedule';
+import { useGroupSummary } from '@/frontend/features/groups/use-group-summary';
 import { useGroupSessions } from '@/frontend/features/groups/use-group-sessions';
 import { TextbookWaveTopRight, TextbookWaveBottomLeft } from '@/frontend/components/textbook-accent';
 import UpcomingSession from '@/frontend/components/upcoming-session';
@@ -205,6 +206,7 @@ const StudentHome = ({
 		: 0;
 	const firstName = user?.firstName || user?.username?.split(' ')[0] || 'there';
 	const liveGroups = useGroupSessions(phase1);
+ const attendance=useGroupSummary(phase1);
 	const legacySessions = useMemo(
 		() => getUpcomingGroupSessions(groupName, groupSchedule),
 		[groupName, groupSchedule]
@@ -314,7 +316,7 @@ const StudentHome = ({
 			{/* LIVE SESSION & HOMEWORK REMINDER BANNER */}
 			<section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
 				<div className="flex min-w-0 flex-col justify-between gap-6 xl:flex-row xl:items-center">
-					{phase1 && liveGroups.error && <p role="alert" className="text-sm text-red-700">{liveGroups.error}</p>}
+					{phase1 && liveGroups.error && <p role="alert" className="text-sm text-red-700">{liveGroups.error} <button className="underline" onClick={liveGroups.retry}>Retry schedule</button></p>}
 					{phase1 && liveGroups.loading && <p role="status" className="text-sm text-slate-500">Loading your class schedule…</p>}
 					{(!phase1 || (!liveGroups.error && !liveGroups.loading)) && <UpcomingSession
 						serverNow={phase1 ? liveGroups.serverNow : undefined}
@@ -363,10 +365,10 @@ const StudentHome = ({
 								<div className="space-y-1">
 									<span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-800">
 										<AlertCircle className="h-3 w-3" />
-										{phase1 ? "Homework integration unavailable" : "Homework Pending — Upload before your next session!"}
+										{phase1 ? (attendance.loading?"Loading homework…":attendance.error?"Homework unavailable":attendance.data?.pendingHomework?`${attendance.data.pendingHomework} homework awaiting submission`:"No pending homework") : "Homework Pending — Upload before your next session!"}
 									</span>
 									<p className="text-xs text-slate-600">
-										{phase1 ? 'Homework status has not been connected to this LMS.' : <>Submit textbook photos for {homeworkInfo?.chapterTitle || 'current lesson'}.</>}
+										{phase1 ? <>Current authorized assignments only. {attendance.error&&<button className="underline" onClick={attendance.refresh}>Retry</button>}</> : <>Submit textbook photos for {homeworkInfo?.chapterTitle || 'current lesson'}.</>}
 									</p>
 									{homeworkInfo?.chapterUrl && (
 										<Link
@@ -406,14 +408,14 @@ const StudentHome = ({
 					</div>
 
 					{[
-						{ label: 'Sessions Done', icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
-						{ label: 'Total Sessions', icon: CalendarClock, tone: 'bg-violet-50 text-violet-600' },
-					].map(({ label, icon: Icon, tone }) => (
+						{ label: 'Sessions Attended', value:attendance.data?.own.attended, icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
+						{ label: 'Sessions Absent', value:attendance.data?.own.absent, icon: CalendarClock, tone: 'bg-violet-50 text-violet-600' },
+					].map(({ label, value, icon: Icon, tone }) => (
 						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default" key={label}>
 							<div className="flex items-start justify-between gap-4">
 								<div>
 									<p className="text-sm font-medium text-slate-500">{label}</p>
-									<p className="mt-2 text-lg font-semibold text-slate-950">Coming Soon</p>
+									<p className="mt-2 text-lg font-semibold text-slate-950">{phase1&&attendance.loading?'Loading…':value??'Unavailable'}</p>
 								</div>
 								<span className={cn('grid h-11 w-11 place-items-center rounded-xl', tone)}>
 									<Icon className="h-5 w-5" />

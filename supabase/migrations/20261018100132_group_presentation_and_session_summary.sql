@@ -101,7 +101,7 @@ begin
    insert into public.group_memberships(group_id,offering_id,user_id,enrollment_id,enrollment_expires_at,created_by) values(sid,g.offering_id,target,e.id,e.expires_at,u);
   end if;
   if sid<>g.id then
-  
+
  if p_action in ('create','edit') then
   update public.study_groups set stream_label=case when p_data?'streamLabel' then btrim(p_data->>'streamLabel') else stream_label end,
    stream_icon=case when p_data?'streamIcon' then p_data->>'streamIcon' else stream_icon end where id=g.id;
