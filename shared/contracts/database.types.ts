@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_profiles: {
+        Row: { user_id: string; first_name: string; last_name: string; avatar_id: string | null; onboarding_completed_at: string | null; revision: number; updated_at: string }
+        Insert: { user_id: string; first_name?: string; last_name?: string; avatar_id?: string | null; onboarding_completed_at?: string | null; revision?: number; updated_at?: string }
+        Update: { user_id?: string; first_name?: string; last_name?: string; avatar_id?: string | null; onboarding_completed_at?: string | null; revision?: number; updated_at?: string }
+        Relationships: [{ foreignKeyName: "account_profiles_user_id_fkey"; columns: ["user_id"]; isOneToOne: true; referencedRelation: "profiles"; referencedColumns: ["id"] }]
+      }
       enrollment_requests: {
         Row: {
           id: string
@@ -2046,6 +2052,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      account_profile: { Args: { p_action: string; p_revision?: number | null; p_data?: Json }; Returns: Json }
       student_administration: { Args: { p_action: string; p_offering?: string | null; p_subject?: string | null; p_version?: number | null; p_request?: string | null; p_data?: Json }; Returns: Json }
       notification_command: { Args: { p_action: string; p_data?: Json }; Returns: Json }
       support_command: { Args: { p_action: string; p_ticket?: string | null; p_version?: number | null; p_request?: string | null; p_data?: Json }; Returns: Json }
