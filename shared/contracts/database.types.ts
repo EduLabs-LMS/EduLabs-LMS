@@ -2242,7 +2242,7 @@ export type Database = {
         Returns: Json
       }
       course_stage_classification: { Args: { p_course_id: string }; Returns: Json }
-      set_student_stage_preference: { Args: { p_program_id: string; p_stage_id: string; p_revision?: number }; Returns: Json }
+      set_student_stage_preference: { Args: { p_program_id: string; p_stage_id: string | null; p_revision?: number }; Returns: Json }
       account_profile: { Args: { p_action: string; p_revision?: number | null; p_data?: Json }; Returns: Json }
       student_administration: { Args: { p_action: string; p_offering?: string | null; p_subject?: string | null; p_version?: number | null; p_request?: string | null; p_data?: Json }; Returns: Json }
       notification_command: { Args: { p_action: string; p_data?: Json }; Returns: Json }

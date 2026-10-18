@@ -35,6 +35,7 @@ interface StudentHomeProps {
 	phase1?: boolean;
 	summaryAvailable?: boolean;
 	lessons: StudentLesson[];
+	discoveryLessonIds?: string[];
 	groupName: string | null;
 	groupSchedule?: any;
 	homeworkInfo?: {
@@ -102,6 +103,7 @@ const getLessonStatus = (lesson: StudentLesson) => {
 
 const StudentHome = ({
 	lessons,
+	discoveryLessonIds,
 	summaryAvailable = true,
 	phase1 = false,
 	groupName,
@@ -201,6 +203,7 @@ const StudentHome = ({
 	const completedLessons = lessons.filter(
 		(lesson) => getLessonStatus(lesson) === 'Completed'
 	).length;
+	const discoveryCount = discoveryLessonIds ? lessons.filter(l=>discoveryLessonIds.includes(l.id)).length : lessons.length;
 	const progress = lessons.length
 		? Math.round((completedLessons / lessons.length) * 100)
 		: 0;
@@ -429,12 +432,13 @@ const StudentHome = ({
 			<section>
 				<div className="mb-4 flex items-center justify-between gap-4">
 					<h2 className="text-xl font-bold text-slate-950">Your Journey</h2>
-					<span className="text-sm text-slate-500">{summaryAvailable ? lessons.length : "Unavailable"} lessons available</span>
+					<span className="text-sm text-slate-500">{summaryAvailable ? discoveryCount : "Unavailable"} lessons available</span>
 				</div>
 
 				<div className="flex gap-4 overflow-x-auto py-2 pb-4">
-					{lessons.length ? (
+					{discoveryCount ? (
 						lessons.map((lesson, index) => {
+							if (discoveryLessonIds && !discoveryLessonIds.includes(lesson.id)) return null;
 							const firstChapter = lesson.chapters[0];
 							return (
 								<div className="w-72 shrink-0" key={lesson.id}>
@@ -454,7 +458,7 @@ const StudentHome = ({
 						})
 					) : (
 						<div className="flex min-h-[174px] w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
-							Your lessons will appear here as soon as they are published.
+							{discoveryLessonIds ? 'No lessons match this discovery filter. Choose All My Courses to view your other lessons.' : 'Your lessons will appear here as soon as they are published.'}
 						</div>
 					)}
 				</div>
