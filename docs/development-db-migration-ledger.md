@@ -5,7 +5,7 @@ This is an **audit ledger**, not a migration file, and is not permission for unr
 - Target: Supabase **development only**, project ref `gmvouqgjbtbkbhrdruzu`.
 - Source: integration candidate based on `3855e3a67a727df84c6a73b191fba6d9dc68a418`.
 - Owner expressly approved applying **only** the Milestone 4 account/private-avatar migration after preflight.
-- Connected schema now has **29 applied migrations**. The first 25 foundation versions already match their Git files.
+- At the Milestone 4 checkpoint the connected schema had **29 applied migrations**; Milestone 5A increased this to 30, as recorded in the latest section below. The first 25 foundation versions already match their Git files.
 - All four mappings below were verified using SHA-256 of the exact UTF-8 SQL stored in `supabase_migrations.schema_migrations.statements[1]` and the reviewed Git migration checksum. SQL bytes match; migration version timestamps do not.
 
 | GitHub migration file | Supabase applied version | History name | SQL SHA-256 |
@@ -64,8 +64,31 @@ extra explanatory comments. Their executable SQL matches. This audit does not
 relabel formatting equivalence as byte-level checksum equality.
 
 Baseline counts were 10 profiles, 2 organizations, 2 courses and 3 offerings.
-Milestone 5A adds a **local pending** migration only; development remains at 29.
+At the original local-only checkpoint, Milestone 5A was still pending and development had 29 migrations. See the dated application record below.
 
 ## Outstanding acceptance
 
 The isolated validation at `3855e3a` passed 237 application tests, TypeScript, boundaries, lint (0 errors/10 warnings) and the production Docker build. It did **not** run a full SQL regression replay for the integrated tree or test connected Firebase sessions, onboarding, actual uploads and Storage read/delete, provider login, or desktop/mobile acceptance on the deployed website. Staging is still the previous `a544ced` release. Separate review and authorization are required before staging deployment; production is untouched.
+
+## Milestone 5A development application — 2026-10-19 (Cairo)
+
+The independently reviewed Milestone 5A migration from commit `283641662ae057b6d6beea00eef8ee2b259a0a00` was applied **once** to development Supabase project `gmvouqgjbtbkbhrdruzu` with the Supabase migration interface. Application returned `success: true`. The source file and GitHub blob exactly matched the previously supplied and approved SQL:
+
+| Git file | Applied remote version | History name | Stored SQL SHA-256 |
+| --- | --- | --- | --- |
+| `20261018203119_academic_programs_stages.sql` | `20261018210950` | `academic_programs_stages` | `19ee37c9462e7879b987f013928ef41066e23620e5bbd2226353dd2f5152f8bd` |
+
+Git blob SHA: `c42fc6cd44dd2627466f95fc427bb7a003efdff8`.
+
+**Actual read-only post-application verification:**
+- Migration history contains **30** versions, including the new version and exact stored SQL SHA-256 shown above. None of the first 29 migration SQL files was replayed.
+- Present with RLS enabled: `public.academic_programs`, `public.academic_stages`, `public.course_stage_assignments`, `public.student_stage_preferences`, `private.course_stage_versions`.
+- Authenticated has SELECT only, not direct INSERT/UPDATE/DELETE, on the four new public tables; anonymous has no SELECT. The private version ledger grants neither authenticated nor anonymous direct table access.
+- Reviewed all four new public SELECT policies. The private ledger is intentionally policy-free/deny-by-default.
+- `public.academic_command`, `public.set_student_stage_preference`, `public.course_stage_classification` are invoker functions; private implementations are definer functions with fixed empty search paths. Anonymous EXECUTE is denied, authenticated EXECUTE enabled.
+- Same-organization course/stage composite FKs, program/stage/preference composite FKs, `courses_academic_tenant_key`, uniqueness and referential constraints verified in PostgreSQL.
+- Before/after unchanged existing counts: 10 profiles, 2 organizations, 2 courses, 3 offerings and 3 enrollments. All five new tables initially contain zero rows; no seeded taxonomies were fabricated.
+
+**Do not reapply this migration.** Git version `20261018203119` differs from remote history version `20261018210950` even though the SHA-256 exactly matches. All prior migration-version discrepancies remain unresolved; do not run `supabase db push`, `supabase migration up` or manual history repair without separately reviewed authorization. The code for 5B–5D and real authenticated end-to-end tests are still pending; no website/VPS deployment or production modification occurred.
+
+This ledger-only commit will move the milestone branch past `2836416`; Codex must fast-forward its local branch before making further commits. No original SQL migration or historical database row is changed by recording this information.
