@@ -1,4 +1,5 @@
 'use client';
+import { LessonCoverForm } from './lesson-cover-form';
 import { uploadLessonFile } from '@/frontend/lib/lesson-upload';
 
 import { useState,useTransition } from 'react';
@@ -13,7 +14,8 @@ import Banner from '@/frontend/components/banner';
 import TitleForm from '@/frontend/features/teacher/courses/editor/title-form';
 import DescriptionForm from '@/frontend/features/teacher/courses/editor/description-form';
 import { type LearningTree,type LearningEdit,type LearningSegment,lessonVideo } from '@/shared/contracts/lessons';
-import { CHAPTER_TYPE_PRESETS } from '@/shared/chapter-label';
+import { formatChapterTitle } from '@/shared/chapter-label';
+import { ModuleDetailsForm } from './module-details-form';
 import { HomeworkAssignments } from '@/frontend/features/courses/lesson/homework-assignments';
 
 async function edit(courseId:string,value:LearningEdit) {
@@ -37,14 +39,12 @@ export function LearningTreeEditor({courseId,tree}:{courseId:string;tree:Learnin
  const arrows=(kind:'modules'|'lessons'|'segments',parent:string,items:{id:string;updated_at:string}[],index:number)=><span className="inline-flex gap-1"><Button size="sm" variant="outline" aria-label="Move up" disabled={busy||index===0} onClick={()=>reorder(kind,parent,items,index,-1)}>↑</Button><Button size="sm" variant="outline" aria-label="Move down" disabled={busy||index===items.length-1} onClick={()=>reorder(kind,parent,items,index,1)}>↓</Button></span>;
  return <div className="space-y-4">{error&&<p role="alert" className="text-red-700 text-sm">{error}</p>}{!tree.modules.length&&<p className="text-sm text-slate-500">No modules yet. Add a module, then its lessons and parts.</p>}
  {tree.modules.map((m,mi)=>{const lessons=tree.lessons.filter(l=>l.module_id===m.id);return <section key={m.id+ m.updated_at} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
-  <div className="flex items-center justify-between gap-2"><strong>{m.group_type} {mi+1}</strong>{arrows('modules',courseId,tree.modules,mi)}</div>
-  <label className="block text-sm font-semibold">Curriculum grouping<select aria-label="Curriculum grouping" className="ml-3 rounded-md border bg-white p-2" value={m.group_type} disabled={busy} onChange={e=>void run({action:'edit_module',id:m.id,parentId:null,updatedAt:m.updated_at,data:{title:m.title,description:m.description??'',group_type:e.target.value as typeof CHAPTER_TYPE_PRESETS[number]}}).catch(()=>{})}>{CHAPTER_TYPE_PRESETS.map(kind=><option key={kind}>{kind}</option>)}</select></label>
-  <TitleForm initialData={m} courseId={courseId} onSave={v=>run({action:'edit_module',id:m.id,parentId:null,updatedAt:m.updated_at,data:{...v,description:m.description??''}}).then(()=>{})}/>
-  <DescriptionForm initialData={m} courseId={courseId} onSave={v=>run({action:'edit_module',id:m.id,parentId:null,updatedAt:m.updated_at,data:{...v,title:m.title}}).then(()=>{})}/>
+  <div className="flex items-center justify-between gap-2"><strong>{formatChapterTitle(m.group_type,m.chapter_number??mi+1,m.title)}</strong>{arrows('modules',courseId,tree.modules,mi)}</div>
+  <ModuleDetailsForm key={m.id+m.updated_at} courseId={courseId} module={m} onSave={run} disabled={busy}/>
   {!lessons.length&&<p className="text-xs text-slate-500">No lessons in this module.</p>}
   {lessons.map((l,li)=>{const parts=tree.segments.filter(s=>s.lesson_id===l.id);return <div key={l.id+l.updated_at} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
    <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-semibold">Lesson {li+1} · {l.status}</span>{arrows('lessons',m.id,lessons,li)}</div>
-   <TitleForm initialData={l} courseId={courseId} onSave={v=>run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{...v,description:l.description,status:l.status as 'draft'|'published'}}).then(()=>{})}/>
+   <LessonCoverForm courseId={courseId} lesson={l}/><TitleForm initialData={l} courseId={courseId} onSave={v=>run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{...v,description:l.description,status:l.status as 'draft'|'published'}}).then(()=>{})}/>
    <DescriptionForm initialData={l} courseId={courseId} onSave={v=>run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{...v,title:l.title,status:l.status as 'draft'|'published'}}).then(()=>{})}/>
    <Button size="sm" disabled={busy} variant="outline" onClick={()=>void run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{title:l.title,description:l.description,status:l.status==='published'?'draft':'published'}}).catch(()=>{})}>{l.status==='published'?'Unpublish lesson':'Publish lesson'}</Button>
    {!parts.length&&<p className="text-xs text-slate-500">No parts yet.</p>}

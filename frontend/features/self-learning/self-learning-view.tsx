@@ -3,6 +3,7 @@
 import type { SelfLearningLesson, SelfLearningChapter } from '@/shared/contracts/dashboard';
 export type { SelfLearningLesson, SelfLearningChapter } from '@/shared/contracts/dashboard';
 
+import { ChapterDescription } from '@/frontend/components/chapter-description';
 import { useState } from 'react';
 import {
 	BookOpen,
@@ -147,9 +148,7 @@ export const SelfLearningView = ({ chapters }: SelfLearningViewProps) => {
 								{isExpanded && (
 									<div className="border-t border-slate-100 bg-slate-50/50 p-5 sm:p-6 space-y-4">
 										{chapter.description && (
-											<p className="rounded-xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-600">
-												{chapter.description}
-											</p>
+											<ChapterDescription value={chapter.description}/>
 										)}
 										<div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-500">
 											<span>Published Lessons ({totalLessons})</span>

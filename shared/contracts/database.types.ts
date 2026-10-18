@@ -481,6 +481,8 @@ export type Database = {
       }
       course_modules: {
         Row: {
+          chapter_number: number | null
+          summary: string
           course_id: string
           created_at: string
           description: string | null
@@ -491,6 +493,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          chapter_number?: number | null
+          summary?: string
           course_id: string
           created_at?: string
           description?: string | null
@@ -501,6 +505,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          chapter_number?: number | null
+          summary?: string
           course_id?: string
           created_at?: string
           description?: string | null
@@ -1558,6 +1564,7 @@ export type Database = {
       }
       lessons: {
         Row: {
+          cover_asset_id: string | null
           created_at: string
           description: string
           estimated_duration_seconds: number | null
@@ -1569,6 +1576,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cover_asset_id?: string | null
           created_at?: string
           description?: string
           estimated_duration_seconds?: number | null
@@ -1580,6 +1588,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cover_asset_id?: string | null
           created_at?: string
           description?: string
           estimated_duration_seconds?: number | null
@@ -1591,6 +1600,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lessons_cover_asset_id_fkey"
+            columns: ["cover_asset_id"]
+            isOneToOne: false
+            referencedRelation: "media_assets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lessons_module_id_fkey"
             columns: ["module_id"]

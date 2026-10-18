@@ -25,12 +25,12 @@ export function createWebsiteRepository(client: SupabaseClient<Database>, profil
     offerings: (courseIds: string[]) => courseIds.length ? rows(client.from('course_offerings').select('id,course_id,name,status,delivery_mode,starts_at,ends_at,timezone').in('course_id', courseIds).order('id').limit(101)) : Promise.resolve([]),
     offering: (id: string) => rows(client.from('course_offerings').select('id,course_id,name,status,delivery_mode,starts_at,ends_at,timezone').eq('id', id).limit(1)),
     myEnrollments: () => rows(client.from('enrollments').select('id,offering_id,status,enrolled_at,expires_at').eq('user_id', profileId).order('id').limit(101)),
-    modules: (courseIds: string[]) => courseIds.length ? rows(client.from('course_modules').select('id,course_id,title,group_type,position').in('course_id', courseIds).order('position').order('id').limit(501)) : Promise.resolve([]),
+    modules: (courseIds: string[]) => courseIds.length ? rows(client.from('course_modules').select('id,course_id,title,group_type,chapter_number,summary,description,position').in('course_id', courseIds).order('position').order('id').limit(501)) : Promise.resolve([]),
     lessons: async (moduleIds: string[]) => {
       // Keep PostgREST URLs bounded as well as row counts (up to five batches).
       const batches: string[][] = [];
       for (let i = 0; i < Math.min(moduleIds.length, 500); i += 100) batches.push(moduleIds.slice(i, i + 100));
-      const result = await Promise.all(batches.map(batch => rows(client.from('lessons').select('id,module_id,title,description,position,status,estimated_duration_seconds').in('module_id', batch).eq('status', 'published').order('position').order('id').limit(501))));
+      const result = await Promise.all(batches.map(batch => rows(client.from('lessons').select('id,module_id,title,description,cover_asset_id,position,status,estimated_duration_seconds').in('module_id', batch).eq('status', 'published').order('position').order('id').limit(501))));
       return result.flat().sort((a, b) => a.position - b.position || a.id.localeCompare(b.id)).slice(0, 501);
     },
     progress: (offeringIds: string[]) => offeringIds.length ? rows(client.from('lesson_progress').select('offering_id,lesson_id,status').eq('user_id', profileId).in('offering_id', offeringIds).order('offering_id').order('lesson_id').limit(1001)) : Promise.resolve([]),

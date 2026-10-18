@@ -18,16 +18,21 @@ export function validLessonFile(bytes:Uint8Array,mime:string) {
  return mime==='application/pdf'?ascii(0,5)==='%PDF-':mime==='video/mp4'?ascii(4,8)==='ftyp':mime==='image/png'?[137,80,78,71,13,10,26,10].every((n,i)=>bytes[i]===n):mime==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP';
 }
 export const learningEdit = z.object({
- action: z.enum(['create_module','edit_module','reorder_modules','create_lesson','edit_lesson','reorder_lessons','create_segment','edit_segment','reorder_segments','attach_resource','remove_resource','edit_block']),
+ action: z.enum(['create_module','edit_module','reorder_modules','set_lesson_cover','edit_module_details','create_lesson','edit_lesson','reorder_lessons','create_segment','edit_segment','reorder_segments','attach_resource','remove_resource','edit_block']),
  id: lessonId.nullable(), parentId: lessonId.nullable(), updatedAt: z.string().datetime({offset:true}).nullable(),
  data: z.object({ title: title.optional(), description: z.string().max(100000).optional(),text:z.string().max(100000).optional(), status: z.enum(['draft','published']).optional(),
-  video_url: lessonVideo.optional(), video_asset_id: lessonId.nullable().optional(), thumbnail_asset_id: lessonId.nullable().optional(), group_type:z.enum(['Chapter','Month','Unit','Week','Module','Term','Revision']).optional(), name: title.optional(), asset_id: lessonId.optional(), resource_id: lessonId.optional(),
+  cover_asset_id: lessonId.nullable().optional(), video_url: lessonVideo.optional(), video_asset_id: lessonId.nullable().optional(), thumbnail_asset_id: lessonId.nullable().optional(), chapter_number:z.number().int().min(1).max(99).optional(), summary:z.string().max(200).optional(), group_type:z.string().trim().min(1).max(24).regex(/^[^\x00-\x1f\x7f]+$/).optional(), name: title.optional(), asset_id: lessonId.optional(), resource_id: lessonId.optional(),
   items: z.array(z.object({id:lessonId,updated_at:z.string().datetime({offset:true})}).strict()).max(500).optional(),
  }).strict(),
-}).strict();
+}).strict().superRefine((value,ctx)=>{
+ if(value.action==='set_lesson_cover'&&(!value.id||!value.updatedAt||!Object.prototype.hasOwnProperty.call(value.data,'cover_asset_id')||Object.keys(value.data).some(k=>k!=='cover_asset_id')))ctx.addIssue({code:z.ZodIssueCode.custom,message:'Select a lesson and a cover, or explicitly remove its cover.'});
+ if(value.action==='edit_module_details'){
+  if(!value.id||!value.updatedAt||!value.data.group_type||!value.data.chapter_number||!value.data.title||value.data.title.length>120||(value.data.description?.length??0)>2000)ctx.addIssue({code:z.ZodIssueCode.custom,message:'Check the chapter type, number, name and description, then reload before saving.'});
+ }
+});
 export type LearningEdit = z.infer<typeof learningEdit>;
-export type LearningModule = { id:string;course_id:string;title:string;group_type:string;description:string|null;position:number;updated_at:string };
-export type LearningLesson = { id:string;module_id:string;title:string;description:string;position:number;status:string;updated_at:string };
+export type LearningModule = { id:string;course_id:string;title:string;group_type:string;description:string|null;position:number;updated_at:string;chapter_number?:number|null;summary?:string };
+export type LearningLesson = { cover_asset_id?:string|null; id:string;module_id:string;title:string;description:string;position:number;status:string;updated_at:string };
 export type LearningSegment = { id:string;lesson_id:string;title:string;description:string;position:number;status:string;video_url:string|null;video_asset_id:string|null;thumbnail_asset_id:string|null;updated_at:string };
 export type LearningResource = {id:string;segment_id:string;name:string;media_asset_id:string};
 export type LearningBlock = {id:string;lesson_id:string;block_type:string;position:number;content:import('./database.types').Json;media_asset_id:string|null;updated_at:string};

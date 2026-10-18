@@ -3,3 +3,5 @@ supabase/migrations/20261013184915_complete_homework_workflows.sql -text whitesp
 supabase/migrations/20261014054726_complete_group_attendance_workflows.sql -text
 supabase/migrations/20261015185510_complete_notifications_support_workflows.sql -text whitespace=cr-at-eol
 supabase/migrations/20261016053117_student_administration_workflows.sql -text whitespace=cr-at-eol
+supabase/migrations/20261018091735_lesson_covers.sql -text
+supabase/migrations/20261018092002_chapter_metadata.sql -text

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef,useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle2, Layers, LockKeyhole, PlayCircle } from 'lucide-react';
 
@@ -51,8 +52,9 @@ export const LessonCard = ({
 	status,
 	className,
 }: LessonCardProps) => {
-	const [imageFailed, setImageFailed] = useState(false);
-	const hasImage = Boolean(imageUrl) && !imageFailed;
+	const [failedImage, setFailedImage] = useState<string|null>(null);
+ const refreshed=useRef(false),router=useRouter();
+	const hasImage = Boolean(imageUrl) && failedImage !== imageUrl;
 	const text = description?.trim();
 
 	const statusStyle: Record<LessonCardStatus, string> = {
@@ -82,7 +84,7 @@ export const LessonCard = ({
 						alt=""
 						referrerPolicy="no-referrer"
 						draggable={false}
-						onError={() => setImageFailed(true)}
+						onError={() => { setFailedImage(imageUrl??null); if(!refreshed.current){refreshed.current=true;router.refresh();} }}
 						className="absolute inset-0 -z-20 h-full w-full object-cover"
 					/>
 					<div

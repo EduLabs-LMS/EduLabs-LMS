@@ -44,7 +44,7 @@ export async function loadWebsiteScope(context: WebsiteContext, organizationId?:
   ]);
   const scheduled = scheduledRows.slice(0, 100);
   const [segments,segmentProgress]=await Promise.all([context.repository.segments(lessonRows.map(l=>l.id)),context.repository.segmentProgress(offerings.map(o=>o.id))]);
-  const thumbnailUrls=await lessonThumbnails(await getSupabaseServerClient(),segments.flatMap(s=>s.thumbnail_asset_id?[s.thumbnail_asset_id]:[]));
+  const thumbnailUrls=await lessonThumbnails(await getSupabaseServerClient(),[...segments.flatMap(s=>s.thumbnail_asset_id?[s.thumbnail_asset_id]:[]),...lessonRows.flatMap(l=>l.cover_asset_id?[l.cover_asset_id]:[])]);
   const parts=segments.map(s=>({...s,thumbnail_url:s.thumbnail_asset_id?thumbnailUrls[s.thumbnail_asset_id]??null:null}));
   // New delivery status is computed from actual published parts. Adding another
   // published part must not leave a cached lesson completion authoritative.
@@ -55,7 +55,7 @@ export async function loadWebsiteScope(context: WebsiteContext, organizationId?:
     return {...p,status:parts.every(s=>mine.some(x=>x.segment_id===s.id&&x.status==='completed'))?'completed':mine.length?'in_progress':'not_started'};
   });
   const assessments = await context.repository.assessments(Array.from(new Set(scheduled.map(a => a.assessment_id))));
-  return { courses, offerings, modules, lessons: lessonRows.slice(0, 500), progress: progress.slice(0, 1000),segments:parts,segmentProgress,
+  return { courses, offerings, modules, lessons: lessonRows.slice(0, 500).map(l=>({...l,cover_url:l.cover_asset_id?thumbnailUrls[l.cover_asset_id]??null:null})), progress: progress.slice(0, 1000),segments:parts,segmentProgress,
     enrollments: enrollmentRows.slice(0, 100), scheduled, assessments,
     limited: segmentProgress.length>5000 || courseRows.length > 100 || offeringRows.length > 100 || moduleRows.length > 500 || enrollmentRows.length > 100 || lessonRows.length > 500 || progressRows.length > 1000 || scheduledRows.length > 100 || assessments.length > 100 };
 }
