@@ -7,3 +7,5 @@ infra/*.sh text eol=lf
 infra/Caddyfile* text eol=lf
 Dockerfile text eol=lf
 .dockerignore text eol=lf
+supabase/migrations/20261018091735_lesson_covers.sql -text
+supabase/migrations/20261018092002_chapter_metadata.sql -text

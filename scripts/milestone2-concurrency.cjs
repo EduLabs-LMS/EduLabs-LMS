@@ -1,0 +1,24 @@
+// Called exclusively by the loopback disposable PostgreSQL harness.
+const assert=require('node:assert/strict'),{randomUUID}=require('node:crypto');
+module.exports=async function(makeClient,admin){
+ const clients=[];
+ async function actor(){const c=await makeClient();clients.push(c);c.pid=(await c.query('select pg_backend_pid() pid')).rows[0].pid;c.begin=async()=>{await c.query('begin');await c.query("set local lock_timeout='5s'; set local role authenticated");await c.query("select set_config('request.jwt.claims',$1,true)",[JSON.stringify({iss:'https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1',aud:'authenticated',role:'authenticated',sub:'10000000-0000-0000-0000-000000000002'})]);};return c;}
+ async function blocked(c){for(let i=0;i<100;i++){if((await admin.query('select cardinality(pg_blocking_pids($1)) n',[c.pid])).rows[0].n>0)return;await new Promise(r=>setTimeout(r,10));}throw Error('Expected real Milestone 2 lock wait');}
+ try{
+ const course=randomUUID(),module=randomUUID(),lesson=randomUUID();
+ await admin.query("insert into public.courses(id,organization_id,title,slug,created_by) values($1::uuid,'20000000-0000-0000-0000-000000000001','M2 race',$1::uuid::text,'10000000-0000-0000-0000-000000000002')",[course]);
+ await admin.query("insert into public.course_modules(id,course_id,title,position) values($1,$2,'M2 module',0)",[module,course]);await admin.query("insert into public.lessons(id,module_id,title,position) values($1,$2,'M2 lesson',0)",[lesson,module]);
+ async function image(){const id=randomUUID();await admin.query("insert into public.media_assets(id,organization_id,uploaded_by,kind,mime_type,original_filename,bucket,object_path,status,size_bytes) values($1::uuid,'20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000002','image','image/png','Cover.png','lms-course-media','20000000-0000-0000-0000-000000000001/'||$1::uuid::text||'/cover.png','ready',100)",[id]);await admin.query('insert into private.lesson_upload_scopes(asset_id,course_id) values($1,$2)',[id,course]);return id;}
+ const a=await actor(),b=await actor(),asset=await image();
+ const cover="select public.edit_learning_content($1,'set_lesson_cover',$2,null,$3,jsonb_build_object('cover_asset_id',$4::text))";
+ const stamp=(await admin.query('select updated_at::text stamp from public.lessons where id=$1',[lesson])).rows[0].stamp;
+ await a.begin();await b.begin();await a.query(cover,[course,lesson,stamp,asset]);let result=b.query(cover,[course,lesson,stamp,null]).then(()=>null,e=>e.code);await blocked(b);await a.query('commit');assert.equal(await result,'PT409');await b.query('rollback');console.log('PASS milestone2 race: competing cover edit rejects stale writer');
+ await a.begin();await b.begin();await a.query(cover,[course,lesson,(await a.query('select updated_at::text stamp from public.lessons where id=$1',[lesson])).rows[0].stamp,null]);await a.query('rollback');
+ // Reuse the referenced asset: a cleanup request must not archive it.
+ await b.query('rollback');await a.begin();await b.begin();await a.query(cover,[course,lesson,(await a.query('select updated_at::text stamp from public.lessons where id=$1',[lesson])).rows[0].stamp,asset]);result=b.query('select public.archive_unused_lesson_upload($1)',[asset]).then(()=>null,e=>e.code);await blocked(b);await a.query('commit');assert.equal(await result,'23514');await b.query('rollback');console.log('PASS milestone2 race: referenced cover remains protected during cleanup');
+ const fresh=await image();await a.begin();await b.begin();await b.query('select public.archive_unused_lesson_upload($1)',[fresh]);result=a.query(cover,[course,lesson,(await a.query('select updated_at::text stamp from public.lessons where id=$1',[lesson])).rows[0].stamp,fresh]).then(()=>null,e=>e.code);await blocked(a);await b.query('commit');assert.equal(await result,'23514');await a.query('rollback');console.log('PASS milestone2 race: cleanup winner cannot become a cover');
+ const moduleStamp=(await admin.query('select updated_at::text stamp from public.course_modules where id=$1',[module])).rows[0].stamp;
+ const details="select public.edit_learning_content($1,'edit_module_details',$2,null,$3,'{\"title\":\"M2 module\",\"group_type\":\"Custom\",\"chapter_number\":37}')";
+ await a.begin();await b.begin();await a.query(details,[course,module,moduleStamp]);result=b.query(details,[course,module,moduleStamp]).then(()=>null,e=>e.code);await blocked(b);await a.query('commit');assert.equal(await result,'PT409');await b.query('rollback');assert.equal((await admin.query('select chapter_number from public.course_modules where id=$1',[module])).rows[0].chapter_number,37);console.log('PASS milestone2 race: competing metadata edit rejects stale writer');
+ }finally{await Promise.all(clients.map(async c=>{try{await c.query('rollback');}finally{await c.end();}}));}
+};
