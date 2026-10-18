@@ -36,6 +36,36 @@ Security linter reported one new informational finding for the deliberately poli
 
 Keep this mapping and original SQL checksums intact until an explicitly approved repair brings the migration-history versions into canonical alignment. The v1.3 VPS staging manager additionally rejects any unapproved local migration changes; approval of database SQL does not silently approve a website deployment.
 
+## Milestone 5A read-only recheck — 2026-10-18
+
+The connected project still has exactly the same 29 versions/names. The four
+**stored remote SQL** checksums above match the ledger. No Milestone 5 objects
+exist remotely, and no migration/history repair or mutating test was performed.
+
+One byte-level clarification is required for the source candidate at `0654443`:
+the lesson-cover and chapter-metadata Git blobs use LF, while their reviewed,
+stored remote SQL uses CRLF. Converting only those line endings reproduces the
+ledger hashes exactly; SQL content is unchanged. The earlier statement that all
+four current Git blobs match remote SQL byte-for-byte is therefore too broad.
+Do not rewrite either historical migration to conceal this distinction.
+
+| Git file | Current Git blob SHA-256 (LF) | Stored remote SHA-256 (CRLF) |
+| --- | --- | --- |
+| `20261018091735_lesson_covers.sql` | `68a1907106ae42b8e6b689451d35bfd2b5a4def3060850e7ba8981f555c0d7d2` | `e58f0d40a0afaa1b152736c2c66f69b92a4657933b7916f7986216eb5f36fb98` |
+| `20261018092002_chapter_metadata.sql` | `9deeec8e295b0d356853d041e0389d8f9a44a2c751f0111bff7e127372b1d755` | `8d0423ab55d7eb729a79c8cebd375114d699c35aa7dacc7532b68c6e2be91f5a` |
+
+The other two mapped files match remote bytes exactly. All 29 original Git blobs
+remain unchanged by Milestone 5. The first 25 version/name pairs still match;
+several old stored SQL strings differ from Git in line endings or surrounding
+whitespace. Three further differences were read and checked: response-size
+constraint SQL has comments/line wrapping in Git; course-owner-trigger reuse has
+an extra explanatory comment/blank line; organization-creation revocation has
+extra explanatory comments. Their executable SQL matches. This audit does not
+relabel formatting equivalence as byte-level checksum equality.
+
+Baseline counts were 10 profiles, 2 organizations, 2 courses and 3 offerings.
+Milestone 5A adds a **local pending** migration only; development remains at 29.
+
 ## Outstanding acceptance
 
 The isolated validation at `3855e3a` passed 237 application tests, TypeScript, boundaries, lint (0 errors/10 warnings) and the production Docker build. It did **not** run a full SQL regression replay for the integrated tree or test connected Firebase sessions, onboarding, actual uploads and Storage read/delete, provider login, or desktop/mobile acceptance on the deployed website. Staging is still the previous `a544ced` release. Separate review and authorization are required before staging deployment; production is untouched.
