@@ -18,7 +18,7 @@ export async function groupsPOST(request:NextRequest){
   while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>65536){await reader.cancel();throw groupFailure('Request too large',413);}parts.push(value);}
   const envelope=z.object({action:z.string().max(20),groupId:id.nullable(),version:version.nullable().optional(),data:z.record(z.unknown()).default({})}).strict().parse(JSON.parse(Buffer.concat(parts).toString('utf8')));
   const service=await groupService();let result:unknown;const {action,groupId}=envelope;let data:unknown;
-  if(action==='view'){const v=groupRead.parse({groupId,...envelope.data});if(!['sessions','detail','offerings','upcoming','members','eligible','staff','history','audit'].includes(v.section)&&!id.safeParse(v.section).success)throw groupFailure('Invalid view');result=await service.view(v.groupId,v.section,v.page,v.search);}
+  if(action==='view'){const v=groupRead.parse({groupId,...envelope.data});if(!['sessions','detail','offerings','upcoming','members','eligible','staff','history','audit','summary'].includes(v.section)&&!(v.section.startsWith('offering:')&&id.safeParse(v.section.slice(9)).success)&&!id.safeParse(v.section).success)throw groupFailure('Invalid view');result=await service.view(v.groupId,v.section,v.page,v.search);}
   else {
    if(action!=='create'&&!groupId)throw groupFailure('Group required');
    if(action==='create'){const v=z.object({offeringId:id,definition:groupDefinition}).strict().parse(envelope.data);data={offeringId:v.offeringId,...v.definition};}

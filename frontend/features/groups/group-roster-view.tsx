@@ -4,6 +4,7 @@ import type { GroupRosterViewProps } from '@/shared/contracts/dashboard';
 export type { PeerMember, GroupRosterViewProps } from '@/shared/contracts/dashboard';
 
 import Link from 'next/link';
+import { StreamBubble } from './stream-bubble';
 import {
 	Users,
 	CheckCircle2,
@@ -19,6 +20,7 @@ import UpcomingSession from '@/frontend/components/upcoming-session';
 
 
 export const GroupRosterView = ({
+ streamLabel,streamIcon,
  serverNow,
  privacySafe = false,
  mode,
@@ -55,8 +57,7 @@ export const GroupRosterView = ({
 								<span>{privacySafe ? (mode === 'center' ? location || 'Center / In-Person' : 'Online') : phase1 ? 'Course offering' : 'Class Location'}</span>
 							</div>
 							<div className="inline-flex items-center gap-1.5 rounded-xl bg-slate-800/90 border border-slate-700/80 px-3.5 py-2 text-xs font-medium text-slate-200">
-								<Video className="h-4 w-4 text-cyan-400 shrink-0" />
-								<span>{privacySafe || phase1 ? 'Livestream · Coming Soon' : 'Live Interactive Stream'}</span>
+								<StreamBubble label={streamLabel??'Live interactive stream'} icon={streamIcon??'video'}/>
 							</div>
 						</div>
 					</div>

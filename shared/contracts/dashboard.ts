@@ -67,6 +67,8 @@ export interface PeerMember {
 }
 
 export interface GroupRosterViewProps {
+ streamLabel?:string;
+ streamIcon?:'video'|'radio'|'users'|'presentation'|'headphones'|'messages';
  serverNow?: string;
  privacySafe?: boolean;
  mode?: 'online' | 'center';
