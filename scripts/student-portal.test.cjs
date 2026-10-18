@@ -21,7 +21,7 @@ test('failed authorized loads propagate instead of rendering empty results',asyn
  const p=pages(empty,true);await assert.rejects(p.WebsiteHome({}),/Load failed/);await assert.rejects(p.WebsiteCourses({}),/Load failed/);
 });
 test('nonempty authorized offering and published schedule summaries remain visible',async()=>{
- const p=pages({...empty,offerings:[{id:'o',name:'Group A',status:'active',delivery_mode:'live'}],scheduled:[{id:'s',offering_id:'o',assessment_id:'a',closes_at:null}],assessments:[{id:'a',title:'Quiz A'}]});const html=render(await p.WebsiteHome({}));assert.match(html,/Group A/);assert.match(html,/Quiz A/);
+ const p=pages({...empty,offerings:[{id:'o',name:'Group A',status:'active',delivery_mode:'live'}],scheduled:[{id:'s',offering_id:'o',assessment_id:'a',closes_at:null}],assessments:[{id:'a',title:'Quiz A',type:'quiz'}]});const html=render(await p.WebsiteHome({}));assert.match(html,/Group A/);assert.match(html,/Quiz A/);assert.match(html,/href="\/exams\/s"/);assert.doesNotMatch(html,/awaiting integration/);
 });
 test('organization HTTP provisioning fails closed without reaching the existing backend',async()=>{
  const route=load('server/http/managed-provisioning.ts',()=>({NextResponse:{json:(body,options)=>({body,...options})}}));assert.equal(route.managedOrganizationPOST().status,403);

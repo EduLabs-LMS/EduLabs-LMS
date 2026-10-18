@@ -164,7 +164,7 @@ export const AdminHome = ({
 				</Link>
 
 				{/* 4. Active Study Groups */}
-				<Link href="/admin/users" className="block group">
+				<Link href={phase1?'/groups':'/admin/users'} className="block group">
 					<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-pointer h-full flex flex-col justify-between">
 						<div className="flex items-center justify-between">
 							<div>
@@ -262,7 +262,7 @@ export const AdminHome = ({
 						</Link>
 					</div>
 
-					{phase1 ? <p role="status" className="text-sm text-slate-500">Signup activity is awaiting a tenant-scoped backend integration.</p> : recentSignups.length === 0 ? (
+					{phase1 ? <p role="status" className="text-sm text-slate-500">Review actual pending requests in <Link href="/admin/users" className="underline">Students &amp; Access</Link>.</p> : recentSignups.length === 0 ? (
 						<div className="py-8 text-center text-xs text-slate-400">
 							No recent sign-ups found.
 						</div>
@@ -329,7 +329,7 @@ export const AdminHome = ({
 						</Link>
 					</div>
 
-					{phase1 ? <p role="status" className="text-sm text-slate-500">Homework activity is awaiting backend integration.</p> : recentSubmissions.length === 0 ? (
+					{phase1 ? <p role="status" className="text-sm text-slate-500">Open the <Link href="/admin/submissions" className="underline">Homework Queue</Link> for submissions requiring correction.</p> : recentSubmissions.length === 0 ? (
 						<div className="py-8 text-center text-xs text-slate-400">
 							No recent homework submissions found.
 						</div>

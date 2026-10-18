@@ -28,20 +28,21 @@ test('restored-session and form completion navigate home only once', async () =>
     'next/link': { default: 'Link' },
     'firebase/auth': { signInWithEmailAndPassword: async () => ({ user }), getRedirectResult: async () => null },
     '@/frontend/lib/firebase': { getFirebaseAuth: () => ({}), restoreFirebaseAuth: async () => {} },
+    '@/shared/contracts/student-administration': load('shared/contracts/student-administration.ts',{zod:require('zod')}),
     '@/frontend/components/providers/firebase-auth-provider': {
       useFirebaseAuth: () => ({ user, loading: false, error: null }),
       synchronizeFirebaseSession: () => syncing,
     },
   };
-  vm.runInNewContext(source, { module, exports: module.exports,
-    window: { location: { replace: path => navigations.push(path), assign: path => navigations.push(path) } },
+  vm.runInNewContext(source, { module, exports: module.exports,URLSearchParams,
+    window: { location: { search:'',replace: path => navigations.push(path), assign: path => navigations.push(path) } },
     require: name => { assert.ok(name in dependencies, name); return dependencies[name]; },
   });
   const tree = module.exports.FirebaseForm({});
   const form = tree.props.children.find(child => child?.type === 'form');
   form.props.onSubmit({ preventDefault() {} });
   await new Promise(resolve => setImmediate(resolve));
-  effects[1]();
+  effects[2]();
   finishSync();
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(navigations, ['/home']);

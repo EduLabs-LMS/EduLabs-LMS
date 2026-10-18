@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      enrollment_requests: {
+        Row: {
+          id: string
+          offering_id: string
+          user_id: string
+          status: string
+          version: number
+          reason: string
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          offering_id: string
+          user_id: string
+          status?: string
+          version?: number
+          reason?: string
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          offering_id?: string
+          user_id?: string
+          status?: string
+          version?: number
+          reason?: string
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [{"foreignKeyName":"enrollment_requests_offering_id_fkey","columns":["offering_id"],"isOneToOne":false,"referencedRelation":"course_offerings","referencedColumns":["id"]},{"foreignKeyName":"enrollment_requests_reviewed_by_fkey","columns":["reviewed_by"],"isOneToOne":false,"referencedRelation":"profiles","referencedColumns":["id"]},{"foreignKeyName":"enrollment_requests_user_id_fkey","columns":["user_id"],"isOneToOne":false,"referencedRelation":"profiles","referencedColumns":["id"]}]
+      }
+
+
       support_tickets: {
         Row: {
           id: string
@@ -1983,6 +2024,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      student_administration: { Args: { p_action: string; p_offering?: string | null; p_subject?: string | null; p_version?: number | null; p_request?: string | null; p_data?: Json }; Returns: Json }
       notification_command: { Args: { p_action: string; p_data?: Json }; Returns: Json }
       support_command: { Args: { p_action: string; p_ticket?: string | null; p_version?: number | null; p_request?: string | null; p_data?: Json }; Returns: Json }
       notification_worker: { Args: { p_action: string; p_data?: Json }; Returns: Json }

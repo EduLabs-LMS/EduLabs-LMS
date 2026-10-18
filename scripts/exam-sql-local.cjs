@@ -33,7 +33,7 @@ const runtime = process.env.LMS_SQL_RUNTIME || path.resolve('.local/step03a/runt
   for (const name of fs.readdirSync('supabase/migrations').filter(n=>n.endsWith('.sql')).sort()) {
    if(name.endsWith('_complete_lesson_workflows.sql')&&!process.argv.includes('--fresh-install')){await db.exec(fs.readFileSync('supabase/seed.sql','utf8'));seeded=true;}
    let preservation;
-   if(name.endsWith('_complete_homework_workflows.sql')||name.endsWith('_complete_group_attendance_workflows.sql')||name.endsWith('_complete_notifications_support_workflows.sql')) {
+   if(name.endsWith('_complete_homework_workflows.sql')||name.endsWith('_complete_group_attendance_workflows.sql')||name.endsWith('_complete_notifications_support_workflows.sql')||name.endsWith('_student_administration_workflows.sql')) {
     const tables=(await db.query("select n.nspname schema,c.relname name,c.relrowsecurity rls,c.relacl::text acl from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private','auth','storage') and c.relkind='r' order by 1,2")).rows;
     const functions=(await db.query("select n.nspname schema,p.proname name,p.oid::regprocedure::text signature,pg_get_functiondef(p.oid) definition,p.proacl::text acl from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prokind='f' order by 1,3")).rows;
     const policies=(await db.query('select * from pg_policies order by schemaname,tablename,policyname')).rows;
@@ -54,7 +54,7 @@ const runtime = process.env.LMS_SQL_RUNTIME || path.resolve('.local/step03a/runt
   }
   if(!seeded)await db.exec(fs.readFileSync('supabase/seed.sql','utf8'));
   const baseline = (await db.query('select count(*)::int n from public.assessment_attempts')).rows[0].n;
-  for (const name of ['authorization','hardening','firebase-identity','organization-owner-cascade','organization-provisioning','teacher-editor','exam-attempts-results','exam-authoring','exam-completion','lessons','homework','groups-attendance','notifications-support','group-notifications']) {
+  for (const name of ['authorization','hardening','firebase-identity','organization-owner-cascade','organization-provisioning','teacher-editor','exam-attempts-results','exam-authoring','exam-completion','lessons','homework','groups-attendance','notifications-support','group-notifications','student-administration']) {
    let sql=fs.readFileSync(`supabase/tests/${name}.sql`,'utf8');
    try {
     const results=await db.exec(sql);
@@ -62,7 +62,7 @@ const runtime = process.env.LMS_SQL_RUNTIME || path.resolve('.local/step03a/runt
    } catch(e) { throw new Error(`Suite ${name}: ${e.message}`,{cause:e}); }
    assert.equal((await db.query('select count(*)::int n from public.assessment_attempts')).rows[0].n,baseline,`${name} rolled back`);
   }
-  if(admin) {await require('./exam-concurrency.cjs')(makeClient,db);await require('./lesson-concurrency.cjs')(makeClient,db);await require('./homework-concurrency.cjs')(makeClient,db);await require('./group-concurrency.cjs')(makeClient,db);await require('./communications-concurrency.cjs')(makeClient,db);await require('./group-notification-concurrency.cjs')(makeClient,db);}
+  if(admin) {await require('./exam-concurrency.cjs')(makeClient,db);await require('./lesson-concurrency.cjs')(makeClient,db);await require('./homework-concurrency.cjs')(makeClient,db);await require('./group-concurrency.cjs')(makeClient,db);await require('./communications-concurrency.cjs')(makeClient,db);await require('./group-notification-concurrency.cjs')(makeClient,db);await require('./student-administration-concurrency.cjs')(makeClient,db);}
   if(admin && process.argv.includes('--timers')) await require('./exam-deadline.cjs')(makeClient,db);
   console.log('All local SQL suites passed. No connected Supabase database accessed.');
  } finally {

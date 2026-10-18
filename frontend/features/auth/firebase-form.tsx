@@ -3,10 +3,11 @@
 import { useCallback, useRef, useState } from 'react';
 import Link from 'next/link';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, sendEmailVerification, sendPasswordResetEmail,
-  signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+  signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult,updateProfile } from 'firebase/auth';
 import { useEffect } from 'react';
 import { getFirebaseAuth, restoreFirebaseAuth } from '@/frontend/lib/firebase';
 import { synchronizeFirebaseSession, useFirebaseAuth } from '@/frontend/components/providers/firebase-auth-provider';
+import { safeStudentAuthDestination } from '@/shared/contracts/student-administration';
 
 function readableError(failure: unknown) {
   const code = (failure as { code?: string })?.code;
@@ -23,12 +24,14 @@ function readableError(failure: unknown) {
 export function FirebaseForm({ register = false }: { register?: boolean }) {
   const { user, loading, error, refresh } = useFirebaseAuth();
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
+  const [displayName,setDisplayName]=useState('');const [next,setNext]=useState('/home');
+  useEffect(()=>setNext(safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next'))),[]);
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState<string | null>(null);
   const redirecting = useRef(false);
   const goHome = useCallback(() => {
     if (redirecting.current) return;
     redirecting.current = true;
-    window.location.replace('/home');
+    window.location.replace(safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')));
   }, []);
   const run = async (operation: () => Promise<void>) => {
     setBusy(true); setMessage(null);
@@ -41,9 +44,10 @@ export function FirebaseForm({ register = false }: { register?: boolean }) {
     if (user?.emailVerified && !loading && !error && !busy) goHome();
   }, [user, loading, error, busy, goHome]);
   const submit = () => run(async () => {
+    if(register&&!displayName.trim())throw Error('Enter your full name.');
     const auth = getFirebaseAuth();
     const credential = register ? await createUserWithEmailAndPassword(auth, email.trim(), password) : await signInWithEmailAndPassword(auth, email.trim(), password);
-    if (register) { await sendEmailVerification(credential.user); setMessage('Check your email for a verification link.'); }
+    if (register) { await updateProfile(credential.user,{displayName:displayName.trim()});await sendEmailVerification(credential.user); setMessage('Check your email for a verification link.'); }
     else { await synchronizeFirebaseSession(credential.user); goHome(); }
   });
   const google = () => run(async () => {
@@ -61,6 +65,7 @@ export function FirebaseForm({ register = false }: { register?: boolean }) {
     <h1 className="text-2xl font-semibold">EduLabs</h1>
     <p className="mt-2 mb-6 text-slate-500">{register ? 'Create your learning account' : 'Sign in to continue'}</p>
     <form onSubmit={event => { event.preventDefault(); void submit(); }} className="space-y-4">
+      {register&&<label className="block">Full name<input disabled={busy||loading} required maxLength={120} value={displayName} onChange={e=>setDisplayName(e.target.value)} className="mt-1 w-full rounded-lg border p-3"/></label>}
       <label className="block">Email<input disabled={busy || loading} required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
       <label className="block">Password<input disabled={busy || loading} required type="password" minLength={register ? 12 : undefined} autoComplete={register ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
       <button disabled={busy || loading} className="w-full rounded-lg bg-sky-600 p-3 text-white disabled:opacity-50">{busy ? 'Please wait…' : register ? 'Create account' : 'Sign in'}</button>
@@ -72,6 +77,6 @@ export function FirebaseForm({ register = false }: { register?: boolean }) {
       <button disabled={busy} onClick={() => void run(async () => { await refresh(); goHome(); })}>I verified my email</button>
     </div>}
     {(message || error) && <p role="status" className="mt-4 text-sm">{message || error}</p>}
-    <p className="mt-6 text-sm"><Link className="text-sky-700" href={register ? '/sign-in' : '/sign-up'}>{register ? 'Already have an account? Sign in' : 'Create an account'}</Link></p>
+    <p className="mt-6 text-sm"><Link className="text-sky-700" href={(register?'/sign-in':'/sign-up')+(next==='/home'?'':'?next='+encodeURIComponent(next))}>{register ? 'Already have an account? Sign in' : 'Create an account'}</Link></p>
   </section>;
 }

@@ -15,6 +15,8 @@ import { v2Chapters, v2StudentLessons,v2OfferingChapters } from '@/shared/v2-lea
 import { V2TeacherCourseList } from '@/frontend/features/teacher/courses/course-list';
 import SearchInput from '@/frontend/components/search-input';
 import { canEditTeacherCourse } from '@/shared/teacher-course';
+import { studentAdministration } from '@/server/services/student-administration';
+import type { AdminMetrics } from '@/shared/contracts/student-administration';
 
 export type WebsiteSearch = { organization?: string; offering?: string; page?: string; title?: string };
 const panel = 'rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm';
@@ -44,11 +46,11 @@ function Offerings({ scope, hideEmpty = false }: { scope: NonNullable<Awaited<Re
 }
 function Assessments({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof loadWebsiteScope>>> }) {
   const now = Date.now();
-  const upcoming = scope.scheduled.filter(s => !s.closes_at || Date.parse(s.closes_at) > now);
+  const upcoming = scope.scheduled.filter(s => scope.assessments.some(a=>a.id===s.assessment_id&&['exam','quiz'].includes(a.type))&&(!s.closes_at || Date.parse(s.closes_at) > now));
   if (!scope.limited && !upcoming.length) return null;
-  return <section className={panel}><h2 className="mb-3 text-xl font-bold">Available &amp; Upcoming Assessments</h2><p className="mb-4 text-xs text-slate-500">Assessment participation is awaiting integration. These are published schedules for accessible offerings.</p>
+  return <section className={panel}><h2 className="mb-3 text-xl font-bold">Available &amp; Upcoming Assessments</h2><p className="mb-4 text-xs text-slate-500">Published exams and quizzes for your accessible course offerings.</p>
     {!upcoming.length && <p className="text-sm text-slate-500">{scope.limited ? "Assessment data is incomplete; no empty summary can be determined." : "No upcoming published assessments."}</p>}
-    {upcoming.map(s => <div className="border-t py-3 text-sm" key={s.id}><strong>{scope.assessments.find(a => a.id === s.assessment_id)?.title || 'Assessment'}</strong><p>{scope.offerings.find(o => o.id === s.offering_id)?.name} · Opens {s.opens_at ? new Date(s.opens_at).toISOString() : 'any time'} · Closes {s.closes_at ? new Date(s.closes_at).toISOString() : 'without a deadline'}</p></div>)}
+    {upcoming.map(s => <div className="border-t py-3 text-sm" key={s.id}><Link href={'/exams/'+s.id}><strong>{scope.assessments.find(a => a.id === s.assessment_id)?.title || 'Assessment'}</strong></Link><p>{scope.offerings.find(o => o.id === s.offering_id)?.name} · Opens {s.opens_at ? new Date(s.opens_at).toISOString() : 'any time'} · Closes {s.closes_at ? new Date(s.closes_at).toISOString() : 'without a deadline'}</p></div>)}
   </section>;
 }
 export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
@@ -61,9 +63,10 @@ export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
 
   return <div className="space-y-8"><LimitNotice limited={scope.limited} />
     {staff && <nav className="flex flex-wrap gap-4 text-sm text-sky-700" aria-label="Teaching tools">{context.memberships.some(m=>m.status==='active'&&['owner','admin','teacher'].includes(m.role))&&<Link href="/teacher/create">Create a course</Link>}</nav>}
-    {staff ? <AdminHome phase1 adminName={context.viewer.displayName} metrics={{ totalStudents: null, pendingWaitlistCount: null, pendingHomeworkCount: null, activeGroupsCount: supported.filter(o => o.status === 'active').length }} recentSignups={[]} recentSubmissions={[]} /> :
+    {staff ? <AdminHome phase1 adminName={context.viewer.displayName} metrics={await studentAdministration<AdminMetrics>('metrics',search.organization?{organizationId:search.organization}:{})} recentSignups={[]} recentSubmissions={[]} /> :
     <StudentHome phase1 summaryAvailable={!scope.limited} lessons={scope.limited ? [] : v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} groupName={null} />}
     {scope.limited && <p className="text-sm text-slate-500">Open a course for its available lessons. Dashboard lesson progress is not calculated on partial data.</p>}
+    {!staff&&<p className="text-sm text-slate-600">Need course access? Use your teacher&apos;s invitation link. <Link className="underline" href="/access">View your access requests</Link>.</p>}
     <Offerings scope={scope} hideEmpty /><Assessments scope={scope} />
   </div>;
 }
@@ -98,7 +101,7 @@ export async function WebsiteCourse({ courseId, search = {} }: { courseId: strin
   const course = scope.courses[0];
   if (search.offering && !scope.offerings.some(o => o.id === search.offering)) notFound();
   const offering = scope.offerings.find(o => o.id === search.offering) ?? scope.offerings.find(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'));
-  return <div className="space-y-6"><OriginalCourseDetail initialCourse={course}/><LimitNotice limited={scope.limited}/><Offerings scope={scope}/><SelfLearningView chapters={scope.limited ? [] : v2Chapters(scope, offering?.id)}/><p role="status">Choose a lesson to study. Feedback and homework belong to their separate milestones.</p></div>;
+  return <div className="space-y-6"><OriginalCourseDetail initialCourse={course}/><LimitNotice limited={scope.limited}/><Offerings scope={scope}/><SelfLearningView chapters={scope.limited ? [] : v2Chapters(scope, offering?.id)}/><p role="status">Choose a lesson to study its parts, resources and assigned homework.</p></div>;
 
 }
 export async function WebsiteGroups({ search = {} }: { search?: WebsiteSearch }) {
