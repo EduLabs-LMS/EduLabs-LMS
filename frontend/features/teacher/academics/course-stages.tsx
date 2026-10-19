@@ -5,6 +5,9 @@ import type { AcademicProgram, AcademicStage, Classification } from '@/shared/co
 import { academicButton, academicPanel, AcademicLoadState, PageControls, useAcademicPage } from './program-workspace';
 
 export function CourseStages({courseId,organizationId}:{courseId:string;organizationId:string}) {
+ return <CourseStageEditor key={organizationId+':'+courseId} courseId={courseId} organizationId={organizationId}/>;
+}
+function CourseStageEditor({courseId,organizationId}:{courseId:string;organizationId:string}) {
  const [snapshot,setSnapshot]=useState<Classification|null>(null),[chosen,setChosen]=useState<string[]>([]),[names,setNames]=useState<Classification['selected']>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[version,setVersion]=useState(0),[program,setProgram]=useState<AcademicProgram|null>(null),[page,setPage]=useState(0);
  const operation=useRef(false),programs=useAcademicPage<AcademicProgram>({kind:'programs',organizationId,page:String(page)});
  useEffect(()=>{const c=new AbortController();setSnapshot(null);setError('');void academicRequest<Classification>({kind:'classification',organizationId,courseId},undefined,c.signal).then(value=>{if(!c.signal.aborted){setSnapshot(value);setChosen(value.stageIds);setNames(value.selected);}}).catch(e=>{if(!c.signal.aborted)setError((e as Error).message);});return()=>c.abort();},[organizationId,courseId,version]);

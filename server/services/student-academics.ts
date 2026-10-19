@@ -34,8 +34,10 @@ export async function studentAcademicService(userId:string) {
    const activeStages=stages.filter(s=>programs.some(p=>p.id===s.program_id));
    const assignments:StudentAcademics['assignments']=[];
    const authorizedCourses=courses.filter(c=>ids.includes(c.organization_id)).map(c=>c.id);
-   for(let i=0;i<authorizedCourses.length;i+=50) {
-    const rows=complete(await academicResult(client.from('course_stage_assignments').select('course_id,stage_id').in('course_id',authorizedCourses.slice(i,i+50)).limit(2501)),2500);
+   // Ten courses x the RPC's 50-link maximum fits below PostgREST's default
+   // 1,000-row ceiling, including a sentinel. Never classify a clipped link set.
+   for(let i=0;i<authorizedCourses.length;i+=10) {
+    const rows=complete(await academicResult(client.from('course_stage_assignments').select('course_id,stage_id').in('course_id',authorizedCourses.slice(i,i+10)).order('course_id').order('stage_id').limit(501)));
     assignments.push(...rows);
    }
    return{organizations:selected,programs,stages:activeStages,preferences,assignments};

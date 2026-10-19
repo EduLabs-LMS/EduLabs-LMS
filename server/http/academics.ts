@@ -22,6 +22,7 @@ export async function academicsHTTP(request: NextRequest) {
    const q=parsed.data, service=await academicService(viewer.id,q.organizationId);
    return reply(q.kind==='programs' ? await service.programs(q.page) : q.kind==='stages' ? await service.stages(q.programId,q.page) : await service.classification(q.courseId));
   }
+  if (new URL(request.url).search) return reply({error:'Unexpected query'},400);
   if (request.headers.get('content-type')?.split(';')[0].trim()!=='application/json') return reply({error:'JSON required'},415);
   const reader=request.body?.getReader();if (!reader) return reply({error:'Missing body'},400);
   const chunks:Uint8Array[]=[];let size=0;
@@ -31,6 +32,7 @@ export async function academicsHTTP(request: NextRequest) {
   return reply(await (await academicService(viewer.id,input.data.organizationId)).write(input.data));
  } catch (error) {
   const status=(error as {status?:number}).status;
-  return reply({error:status ? (error as Error).message : 'Academic data is unavailable. Please retry.'},status && [400,403,404,409,503].includes(status)?status:503);
+  const known=status&&[400,403,404,409,503].includes(status);
+  return reply({error:known ? (error as Error).message : 'Academic data is unavailable. Please retry.'},known?status:503);
  }
 }

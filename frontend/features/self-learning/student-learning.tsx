@@ -7,6 +7,9 @@ import { academicCourseIds } from '@/shared/contracts/student-academics';
 import type { StudentAcademics } from '@/shared/contracts/student-academics';
 import type { StudentLesson, SelfLearningChapter } from '@/shared/contracts/dashboard';
 export function StudentLearning({organizationId,lessons,chapters,offerings,home=false,limited=false}:{organizationId?:string;lessons:StudentLesson[];chapters:SelfLearningChapter[];offerings:{id:string;course_id:string}[];home?:boolean;limited?:boolean}) {
+ return <ScopedStudentLearning key={organizationId??'all'} organizationId={organizationId} lessons={lessons} chapters={chapters} offerings={offerings} home={home} limited={limited}/>;
+}
+function ScopedStudentLearning({organizationId,lessons,chapters,offerings,home=false,limited=false}:{organizationId?:string;lessons:StudentLesson[];chapters:SelfLearningChapter[];offerings:{id:string;course_id:string}[];home?:boolean;limited?:boolean}) {
  const [selection,setSelection]=useState<{data:StudentAcademics|null;filter:string}>({data:null,filter:'all'});
  const change=useCallback((data:StudentAcademics|null,filter:string)=>setSelection({data,filter}),[]);
  const courses=offerings.map(o=>o.course_id),ids=selection.data?academicCourseIds(courses,selection.data,selection.filter):courses;
