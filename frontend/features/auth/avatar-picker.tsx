@@ -1,0 +1,9 @@
+'use client';
+import { useEffect,useState } from 'react';
+import { Camera,User } from 'lucide-react';
+import { validateAvatarSelection } from '@/shared/contracts/account';
+export function AvatarPicker({file,url,hasPhoto=false,disabled,onChange}:{file:File|null;url?:string|null;hasPhoto?:boolean;disabled?:boolean;onChange:(file:File|null)=>void}){
+ const [preview,setPreview]=useState<string|null>(null),[error,setError]=useState('');
+ useEffect(()=>{if(!file){setPreview(null);return;}const value=URL.createObjectURL(file);setPreview(value);return()=>URL.revokeObjectURL(value);},[file]);
+ return <div className="space-y-2"><div className="flex flex-wrap items-center gap-4"><div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full border-[2.5px] border-black bg-primary shadow-hard-sm">{preview||url?/* Owner-selected local preview or authorized URL. */<img alt="Profile preview" src={preview||url||''} className="h-full w-full object-cover" referrerPolicy="no-referrer"/>:<User className="h-9 w-9"/>}</div><div className="space-y-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-black bg-white px-3 py-2 text-sm font-bold shadow-hard-sm focus-within:ring-2 focus-within:ring-black"><Camera className="h-4 w-4"/>Choose photo<input aria-label="Profile image" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={disabled} onChange={e=>{const value=e.target.files?.[0];e.target.value='';if(!value)return;try{validateAvatarSelection(value);setError('');onChange(value);}catch(e){setError((e as Error).message);}}}/></label>{(file||url||hasPhoto)&&<button type="button" disabled={disabled} className="ml-3 text-sm underline" onClick={()=>{setError('');onChange(null);}}>Remove photo</button>}<p className="text-xs text-slate-600">Optional · PNG, JPEG or WebP · up to 3 MB</p></div></div>{error&&<p role="alert" className="text-sm text-red-700">{error}</p>}</div>;
+}

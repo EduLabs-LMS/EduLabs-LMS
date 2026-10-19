@@ -1,87 +1,64 @@
 'use client';
-
-import { useCallback, useRef, useState } from 'react';
+import { useCallback,useEffect,useRef,useState } from 'react';
 import Link from 'next/link';
-import { GoogleAuthProvider, sendEmailVerification, sendPasswordResetEmail,
-  signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
-import { registerFirebaseAccount } from '@/frontend/lib/signup-recovery';
-import { useEffect } from 'react';
-import { getFirebaseAuth, restoreFirebaseAuth } from '@/frontend/lib/firebase';
-import { synchronizeFirebaseSession, useFirebaseAuth } from '@/frontend/components/providers/firebase-auth-provider';
+import { GoogleAuthProvider,OAuthProvider,sendEmailVerification,sendPasswordResetEmail,signInWithEmailAndPassword,signInWithPopup,signInWithRedirect,getRedirectResult,getAdditionalUserInfo } from 'firebase/auth';
+import { Eye,EyeOff,ArrowRight,ShieldCheck } from 'lucide-react';
+import { getFirebaseAuth,restoreFirebaseAuth } from '@/frontend/lib/firebase';
+import { synchronizeFirebaseSession,useFirebaseAuth } from '@/frontend/components/providers/firebase-auth-provider';
 import { safeStudentAuthDestination } from '@/shared/contracts/student-administration';
+import { accountNames } from '@/shared/contracts/account';
+import { registerFirebaseAccount } from '@/frontend/lib/signup-recovery';
+import { storeAccountDraft } from '@/frontend/lib/account-draft';
+import EduLabsMark from '@/frontend/components/edulabs-mark';
+import { AvatarPicker } from './avatar-picker';
+import { GoogleIcon,AppleIcon } from './provider-icons';
 
-function readableError(failure: unknown) {
-  const code = (failure as { code?: string })?.code;
-  const messages: Record<string, string> = {
-    'auth/invalid-credential': 'Email or password is incorrect.',
-    'auth/email-already-in-use': 'This email already has an account. Sign in or reset your password.',
-    'auth/weak-password': 'Choose a stronger password with at least 12 characters.',
-    'auth/too-many-requests': 'Too many attempts. Please wait before trying again.',
-    'auth/unauthorized-domain': 'This website domain needs to be authorized in Firebase.',
-    'auth/popup-closed-by-user': 'Sign-in was cancelled.',
-  };
-  return (code && messages[code]) || (failure instanceof Error && !code ? failure.message : 'Unable to sign in. Please try again.');
+export function readableAuthError(failure:unknown){if(Array.isArray((failure as {issues?:unknown})?.issues))return 'Enter valid first and last names.';const code=(failure as {code?:string})?.code;const messages:Record<string,string>={
+ 'auth/invalid-credential':'Email or password is incorrect.','auth/email-already-in-use':'This email already has an account. Sign in or reset your password.','auth/weak-password':'Choose a stronger password with at least 12 characters.','auth/too-many-requests':'Too many attempts. Please wait before trying again.','auth/unauthorized-domain':'This website domain needs to be authorized in Firebase.','auth/popup-closed-by-user':'Sign-in was cancelled.','auth/operation-not-allowed':'This sign-in method is not enabled. Use an available method.','auth/requires-recent-login':'Please verify your current sign-in again before changing this setting.','auth/wrong-password':'The current password is incorrect.','auth/invalid-email':'Enter a valid email address.','auth/network-request-failed':'Check your connection and retry.','auth/account-exists-with-different-credential':'Sign in using the method already linked to this account. Accounts are never linked automatically by email.'};return (code&&messages[code])||(failure instanceof Error&&!code?failure.message:'Unable to complete this request. Please try again.');}
+async function rememberProviderProfile(credential:import('firebase/auth').UserCredential){
+ const info=getAdditionalUserInfo(credential);if(!info?.isNewUser)return;
+ const supplied=info.profile??{},parts=(credential.user.displayName??'').trim().split(/\s+/);
+ const appleName=supplied.name&&typeof supplied.name==='object'?supplied.name as Record<string,unknown>:{};
+ const first=typeof supplied.given_name==='string'?supplied.given_name:typeof appleName.firstName==='string'?appleName.firstName:parts[0]??'',last=typeof supplied.family_name==='string'?supplied.family_name:typeof appleName.lastName==='string'?appleName.lastName:parts.slice(1).join(' ');
+ // Provider-supplied names are editable presentation only, never authorization.
+ try{await storeAccountDraft(credential.user.uid,first.slice(0,60),last.slice(0,60),null,'provider');}catch{/* Manual onboarding remains available. */}
 }
-export function FirebaseForm({ register = false }: { register?: boolean }) {
-  const { user, loading, error, refresh } = useFirebaseAuth();
-  const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
-  const [displayName,setDisplayName]=useState('');const [next,setNext]=useState('/home');
-  useEffect(()=>setNext(safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next'))),[]);
-  const [busy, setBusy] = useState(false); const [message, setMessage] = useState<string | null>(null);
-  const [verificationRetryAt,setVerificationRetryAt]=useState(0);
-  const redirecting = useRef(false);
-  const goHome = useCallback(() => {
-    if (redirecting.current) return;
-    redirecting.current = true;
-    window.location.replace(safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')));
-  }, []);
-  const run = async (operation: () => Promise<void>) => {
-    setBusy(true); setMessage(null);
-    try { await restoreFirebaseAuth(); await operation(); }
-    catch (failure) { setMessage(readableError(failure)); }
-    finally { setBusy(false); }
-  };
-  useEffect(() => { void restoreFirebaseAuth().then(() => getRedirectResult(getFirebaseAuth())).catch(failure => setMessage(readableError(failure))); }, []);
-  useEffect(() => {
-    if (user?.emailVerified && !loading && !error && !busy) goHome();
-  }, [user, loading, error, busy, goHome]);
-  const submit = () => run(async () => {
-    if(register&&!displayName.trim())throw Error('Enter your full name.');
-    const auth = getFirebaseAuth();
-    if(register){
-      if(Date.now()<verificationRetryAt)throw Error('Please wait before requesting another verification email. Your account is saved.');
-      const result=await registerFirebaseAccount(auth,email,password,displayName);
-      setVerificationRetryAt(Date.now()+result.retryAfterSeconds*1000);setMessage(result.message);
-      if(result.user.emailVerified){await synchronizeFirebaseSession(result.user);goHome();}
-    }else {const credential=await signInWithEmailAndPassword(auth,email.trim(),password);await synchronizeFirebaseSession(credential.user);goHome();}
-  });
-  const google = () => run(async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      const credential = await signInWithPopup(getFirebaseAuth(), provider);
-      await synchronizeFirebaseSession(credential.user); goHome();
-    } catch (failure) {
-      if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'].includes((failure as { code: string }).code)) {
-        await signInWithRedirect(getFirebaseAuth(), provider);
-      } else throw failure;
-    }
-  });
-  return <section className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm text-slate-900">
-    <h1 className="text-2xl font-semibold">EduLabs</h1>
-    <p className="mt-2 mb-6 text-slate-500">{register ? 'Create your learning account' : 'Sign in to continue'}</p>
-    <form onSubmit={event => { event.preventDefault(); void submit(); }} className="space-y-4">
-      {register&&<label className="block">Full name<input disabled={busy||loading} required maxLength={120} value={displayName} onChange={e=>setDisplayName(e.target.value)} className="mt-1 w-full rounded-lg border p-3"/></label>}
-      <label className="block">Email<input disabled={busy || loading} required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
-      <label className="block">Password<input disabled={busy || loading} required type="password" minLength={register ? 12 : undefined} autoComplete={register ? 'new-password' : 'current-password'} value={password} onChange={e => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border p-3" /></label>
-      <button disabled={busy || loading} className="w-full rounded-lg bg-sky-600 p-3 text-white disabled:opacity-50">{busy ? 'Please wait…' : register ? 'Create account' : 'Sign in'}</button>
-    </form>
-    <button disabled={busy || loading} onClick={() => void google()} className="mt-4 w-full rounded-lg border p-3">Continue with Google</button>
-    {!register && <button disabled={busy || !email} onClick={() => void run(async () => { await sendPasswordResetEmail(getFirebaseAuth(), email.trim()); setMessage('If an account exists, a password reset email has been sent.'); })} className="mt-4 text-sky-700">Forgot password?</button>}
-    {user && !user.emailVerified && <div className="mt-4 flex gap-4">
-      <button disabled={busy} onClick={() => void run(async () => { if(Date.now()<verificationRetryAt)throw Error('Please wait before requesting another verification email. Your account is saved.');setVerificationRetryAt(Date.now()+60000);await sendEmailVerification(user); setMessage('Verification email sent.'); })}>Resend verification</button>
-      <button disabled={busy} onClick={() => void run(async () => { await refresh(); goHome(); })}>I verified my email</button>
-    </div>}
-    {(message || error) && <p role="status" className="mt-4 text-sm">{message || error}</p>}
-    <p className="mt-6 text-sm"><Link className="text-sky-700" href={(register?'/sign-in':'/sign-up')+(next==='/home'?'':'?next='+encodeURIComponent(next))}>{register ? 'Already have an account? Sign in' : 'Create an account'}</Link></p>
-  </section>;
+function readRememberedNext(){try{return sessionStorage.getItem('edulabs-auth-next');}catch{return null;}}
+const field='mt-1 w-full rounded-xl border-2 border-black bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60';
+const button='flex w-full items-center justify-center gap-3 rounded-xl border-2 border-black bg-white p-3 text-sm font-bold shadow-hard-sm transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-50';
+export function FirebaseForm({register=false}:{register?:boolean}){
+ const {user,loading,error,refresh}=useFirebaseAuth();
+ const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[firstName,setFirstName]=useState(''),[lastName,setLastName]=useState(''),[photo,setPhoto]=useState<File|null>(null),[show,setShow]=useState(false),[next,setNext]=useState('/home'),[busy,setBusy]=useState(false),[message,setMessage]=useState<string|null>(null),[retryAt,setRetryAt]=useState(0),[now,setNow]=useState(0);
+ const [redirectReady,setRedirectReady]=useState(false);
+ const redirecting=useRef(false),operation=useRef(false);const apple=process.env.NEXT_PUBLIC_FIREBASE_APPLE_ENABLED==='true';
+ useEffect(()=>{setNext(safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext()));const tick=()=>setNow(Date.now());tick();const timer=setInterval(tick,1000);return()=>clearInterval(timer);},[]);
+ const goHome=useCallback(()=>{if(redirecting.current)return;redirecting.current=true;const destination=safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext());try{sessionStorage.removeItem('edulabs-auth-next');}catch{}window.location.replace(destination);},[]);
+ const run=async(fn:()=>Promise<void>)=>{if(operation.current)return;operation.current=true;setBusy(true);setMessage(null);try{await restoreFirebaseAuth();await fn();}catch(e){setMessage(readableAuthError(e));}finally{operation.current=false;setBusy(false);}};
+ useEffect(()=>{let active=true;void restoreFirebaseAuth().then(()=>getRedirectResult(getFirebaseAuth())).then(async value=>{if(value)await rememberProviderProfile(value);}).catch(e=>{if(active)setMessage(readableAuthError(e));}).finally(()=>{if(active)setRedirectReady(true);});return()=>{active=false;};},[]);
+ useEffect(()=>{if(user?.emailVerified&&!loading&&!error&&!busy&&redirectReady)goHome();},[user,loading,error,busy,redirectReady,goHome]);
+ const submit=()=>run(async()=>{
+  if(register){accountNames.parse({firstName,lastName});if(password!==confirm)throw Error('Passwords must match.');if(password.length<12)throw Error('Use at least 12 characters.');if(Date.now()<retryAt)throw Error('Your account is saved. Wait before retrying verification.');
+   const result=await registerFirebaseAccount(getFirebaseAuth(),email,password,`${firstName.trim()} ${lastName.trim()}`);setRetryAt(Date.now()+result.retryAfterSeconds*1000);setMessage(result.message);
+   try{await storeAccountDraft(result.user.uid,firstName.trim(),lastName.trim(),photo);}catch{setMessage(result.message+' Your profile draft could not be saved on this device. Finish it from your account after verification.');}
+   if(result.user.emailVerified){await synchronizeFirebaseSession(result.user);goHome();}
+  }else{const credential=await signInWithEmailAndPassword(getFirebaseAuth(),email.trim(),password);if(!credential.user.emailVerified){setMessage('Your account is saved. Verify your email, then choose “I verified my email”.');return;}await synchronizeFirebaseSession(credential.user);goHome();}
+ });
+ const provider=(kind:'google'|'apple')=>run(async()=>{if(kind==='apple'&&!apple)throw Error('Apple sign-in is not configured yet.');try{sessionStorage.setItem('edulabs-auth-next',next);}catch{}const value=kind==='google'?new GoogleAuthProvider():new OAuthProvider('apple.com');if(value instanceof OAuthProvider){value.addScope('email');value.addScope('name');}try{const credential=await signInWithPopup(getFirebaseAuth(),value);await rememberProviderProfile(credential);await synchronizeFirebaseSession(credential.user);goHome();}catch(e){if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes((e as {code:string}).code))await signInWithRedirect(getFirebaseAuth(),value);else throw e;}});
+ return <section className="grid w-full max-w-5xl overflow-hidden rounded-[28px] border-[2.5px] border-black bg-card text-black shadow-hard-lg md:grid-cols-[.8fr_1.2fr]">
+  <div className="flex flex-col justify-between gap-8 border-b-[2.5px] border-black bg-primary p-6 sm:p-8 md:border-b-0 md:border-r-[2.5px]"><div className="flex items-center gap-3"><EduLabsMark grow tone="ink" shadow={false} className="h-12 w-12"/><span className="font-display text-3xl">EduLabs</span></div><div className="hidden space-y-5 md:block"><EduLabsMark grow tone="ink" shadow={false} className="mx-auto h-48 w-48"/><h2 className="font-display text-4xl leading-tight">Your next chapter starts here.</h2><p className="text-sm leading-relaxed">One learning account. Your teachers, courses and progress, together.</p></div><p className="flex gap-2 text-xs font-medium"><ShieldCheck className="h-4 w-4 shrink-0"/>Creating an account never grants access to private courses.</p></div>
+  <div className="space-y-5 p-6 sm:p-8"><header><h1 className="font-display text-3xl">{register?'Create your account':'Welcome back'}</h1><p className="mt-2 text-sm text-slate-600">{register?'Set up your profile and verify your email.':'Sign in to keep learning.'}</p></header>
+   <form onSubmit={e=>{e.preventDefault();void submit();}} className="space-y-4"><fieldset disabled={busy||loading} className="space-y-4">
+    {register&&<><AvatarPicker file={photo} onChange={setPhoto}/><div className="grid gap-3 sm:grid-cols-2"><label className="block text-sm font-semibold">First name<input required maxLength={60} autoComplete="given-name" className={field} value={firstName} onChange={e=>setFirstName(e.target.value)}/></label><label className="block text-sm font-semibold">Last name<input required maxLength={60} autoComplete="family-name" className={field} value={lastName} onChange={e=>setLastName(e.target.value)}/></label></div><p className="text-xs text-slate-600">Your photo stays on this device until verification and is uploaded privately afterward.</p></>}
+    <label className="block text-sm font-semibold">Email<input required type="email" autoComplete="email" className={field} value={email} onChange={e=>setEmail(e.target.value)}/></label>
+    <label className="block text-sm font-semibold">Password<div className="relative"><input required type={show?'text':'password'} minLength={register?12:undefined} autoComplete={register?'new-password':'current-password'} className={field+' pr-14'} value={password} onChange={e=>setPassword(e.target.value)}/><button type="button" aria-label={show?'Hide password':'Show password'} aria-pressed={show} className="absolute right-3 top-4 rounded p-1 focus:ring-2 focus:ring-black" onClick={()=>setShow(!show)}>{show?<EyeOff className="h-5 w-5"/>:<Eye className="h-5 w-5"/>}</button></div></label>
+    {register&&<><label className="block text-sm font-semibold">Confirm password<input required type={show?'text':'password'} autoComplete="new-password" className={field} value={confirm} onChange={e=>setConfirm(e.target.value)} aria-invalid={!!confirm&&password!==confirm}/></label><p className="text-xs text-slate-600">At least 12 characters. {confirm&&(password===confirm?'Passwords match.':'Passwords do not match.')}</p></>}
+    <button className={button+' !bg-primary'}>{busy?'Please wait…':register?'Create account':'Sign in'}<ArrowRight className="h-4 w-4"/></button>
+   </fieldset></form>
+   <div className="space-y-3"><button disabled={busy||loading} onClick={()=>void provider('google')} className={button}><GoogleIcon/>Continue with Google</button><button disabled={!apple||busy||loading} aria-describedby={!apple?'apple-setup':undefined} onClick={()=>void provider('apple')} className={button}><AppleIcon/>Continue with Apple</button>{!apple&&<p id="apple-setup" className="text-xs text-slate-600">Apple sign-in requires provider setup and is currently unavailable.</p>}</div>
+   {!register&&<button disabled={busy||!email} className="text-sm font-semibold underline" onClick={()=>void run(async()=>{try{await sendPasswordResetEmail(getFirebaseAuth(),email.trim());}catch(e){if(!['auth/user-not-found','auth/invalid-email'].includes((e as {code:string}).code))throw e;}setMessage('If an account exists, a password reset email has been sent.');})}>Forgot password?</button>}
+   {user&&!user.emailVerified&&<div className="space-y-3 rounded-2xl border-2 border-black bg-primary/15 p-4"><p className="text-sm">Check your inbox and spam folder. Learning access remains locked until your email is verified.</p><div className="flex flex-wrap gap-3"><button disabled={busy||now<retryAt} className="text-sm font-bold underline disabled:opacity-50" onClick={()=>void run(async()=>{if(Date.now()<retryAt)throw Error('Wait before requesting another verification email.');setRetryAt(Date.now()+60000);await sendEmailVerification(user);setMessage('Verification email sent. Check your inbox.');})}>{now<retryAt?`Resend in ${Math.ceil((retryAt-now)/1000)}s`:'Resend verification'}</button><button disabled={busy} className="text-sm font-bold underline" onClick={()=>void run(async()=>{await refresh();goHome();})}>I verified my email</button></div></div>}
+   {(message||error)&&<p role="status" aria-live="polite" className="break-words rounded-xl border-2 border-black bg-white p-3 text-sm">{message||error}</p>}
+   <p className="text-sm"><Link className="font-bold underline" href={(register?'/sign-in':'/sign-up')+(next==='/home'?'':'?next='+encodeURIComponent(next))}>{register?'Already have an account? Sign in':'Create an account'}</Link></p>
+  </div>
+ </section>;
 }

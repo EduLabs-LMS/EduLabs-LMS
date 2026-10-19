@@ -1,0 +1,49 @@
+// Only invoked with connections to the disposable loopback harness database.
+const assert=require('node:assert/strict');
+module.exports=async(makeClient,admin)=>{
+ const clients=[],org='20000000-0000-0000-0000-000000000001',course='30000000-0000-0000-0000-000000000001';
+ async function actor(n){const c=await makeClient();clients.push(c);c.pid=(await c.query('select pg_backend_pid() pid')).rows[0].pid;c.begin=async()=>{await c.query("begin;set local lock_timeout='5s';set local role authenticated");await c.query("select set_config('request.jwt.claims',$1,true)",[JSON.stringify({iss:'https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1',aud:'authenticated',role:'authenticated',sub:'10000000-0000-0000-0000-'+String(n).padStart(12,'0')})]);};return c;}
+ const command=async(c,action,id=null,rev=null,data={})=>(await c.query('select public.academic_command($1,$2,$3,$4,$5) value',[action,org,id,rev,data])).rows[0].value;
+ const preference=async(c,program,stage,rev=0)=>(await c.query('select public.set_student_stage_preference($1,$2,$3) value',[program,stage,rev])).rows[0].value;
+ const code=p=>p.then(()=>null,e=>e.code);
+ async function blocked(c){for(let n=0;n<200;n++){if((await admin.query('select cardinality(pg_blocking_pids($1)) n',[c.pid])).rows[0].n)return;await new Promise(r=>setTimeout(r,10));}throw Error('Expected academic organization lock wait');}
+ let membershipChanged=false,identityChanged=false,enrollmentChanged=false;
+ try{
+ const a=await actor(1),b=await actor(1),s=await actor(5),s2=await actor(5),m=await actor(4);
+ await a.begin();const p=await command(a,'program.create',null,null,{label:'Race program',slug:'race-'+require('node:crypto').randomUUID()});
+ const stage=await command(a,'stage.create',null,null,{programId:p.id,label:'Race stage',slug:'one'});
+ const other=await command(a,'stage.create',null,null,{programId:p.id,label:'Other stage',slug:'two'});await a.query('commit');
+
+ await a.begin();await b.begin();await command(a,'program.edit',p.id,0,{label:'Winning program'});let pending=code(command(b,'program.edit',p.id,0,{label:'Stale program'}));await blocked(b);await a.query('commit');assert.equal(await pending,'PT409');await b.query('rollback');console.log('PASS academic concurrency: stale program edit rejected');
+ await a.begin();await b.begin();await command(a,'stage.edit',stage.id,0,{position:9});pending=code(command(b,'stage.edit',stage.id,0,{position:8}));await blocked(b);await a.query('commit');assert.equal(await pending,'PT409');await b.query('rollback');console.log('PASS academic concurrency: stale stage ordering rejected');
+
+ await s.begin();await s2.begin();await preference(s,p.id,stage.id);pending=code(preference(s2,p.id,other.id));await blocked(s2);await s.query('commit');assert.equal(await pending,'PT409');await s2.query('rollback');assert.equal((await admin.query('select count(*)::int n from public.student_stage_preferences where user_id=$1 and program_id=$2',['10000000-0000-0000-0000-000000000005',p.id])).rows[0].n,1);console.log('PASS academic concurrency: first preference creates one row and rejects racing replacement');
+ await a.begin();await b.begin();await command(a,'course.assign',course,0,{stageIds:[stage.id]});pending=code(command(b,'course.assign',course,0,{stageIds:[other.id]}));await blocked(b);await a.query('commit');assert.equal(await pending,'PT409');await b.query('rollback');console.log('PASS academic concurrency: stale classification cannot overwrite stage links');
+
+ await a.begin();await s.begin();await command(a,'stage.edit',stage.id,1,{status:'archived'});pending=code(preference(s,p.id,stage.id,1));await blocked(s);await a.query('commit');assert.equal(await pending,'42501');await s.query('rollback');assert.equal((await admin.query('select stage_id from public.student_stage_preferences where user_id=$1 and program_id=$2',['10000000-0000-0000-0000-000000000005',p.id])).rows[0].stage_id,stage.id);console.log('PASS academic concurrency: archive winner rejects selection and retains prior preference');
+
+ await admin.query("update public.organization_memberships set role='admin' where organization_id=$1 and user_id='10000000-0000-0000-0000-000000000004'",[org]);membershipChanged=true;
+ await admin.query('begin');await admin.query('select 1 from public.organizations where id=$1 for update',[org]);await m.begin();pending=code(command(m,'program.edit',p.id,1,{label:'Revoked admin'}));await blocked(m);await admin.query("update public.organization_memberships set status='suspended' where organization_id=$1 and user_id='10000000-0000-0000-0000-000000000004'",[org]);await admin.query('commit');assert.equal(await pending,'42501');await m.query('rollback');await admin.query("update public.organization_memberships set role='assistant',status='active' where organization_id=$1 and user_id='10000000-0000-0000-0000-000000000004'",[org]);membershipChanged=false;console.log('PASS academic concurrency: role revocation while waiting prevents taxonomy edit');
+
+ await admin.query('begin');await admin.query('select 1 from public.organizations where id=$1 for update',[org]);await s.begin();pending=code(preference(s,p.id,other.id,1));await blocked(s);await admin.query("update public.enrollments set status='suspended' where offering_id='60000000-0000-0000-0000-000000000001' and user_id='10000000-0000-0000-0000-000000000005'");enrollmentChanged=true;await admin.query('commit');assert.equal(await pending,'42501');await s.query('rollback');await admin.query("update public.enrollments set status='active' where offering_id='60000000-0000-0000-0000-000000000001' and user_id='10000000-0000-0000-0000-000000000005'");enrollmentChanged=false;console.log('PASS academic concurrency: enrollment suspension revalidated after wait');
+
+ await admin.query('begin');await admin.query('select 1 from public.organizations where id=$1 for update',[org]);await s.begin();pending=code(preference(s,p.id,other.id,1));await blocked(s);await admin.query("update private.external_identities set status='disabled' where provider='supabase' and profile_id='10000000-0000-0000-0000-000000000005'");identityChanged=true;await admin.query('commit');assert.equal(await pending,'42501');await s.query('rollback');await admin.query("update private.external_identities set status='active' where provider='supabase' and profile_id='10000000-0000-0000-0000-000000000005'");identityChanged=false;console.log('PASS academic concurrency: identity revocation revalidated after wait');
+
+ await a.begin();await command(a,'program.edit',p.id,1,{description:'A locked'});const bTenant=await actor(3);await bTenant.begin();await bTenant.query("set local lock_timeout='500ms'");await bTenant.query("select public.academic_command('program.create','20000000-0000-0000-0000-000000000002',null,null,$1)",[{label:'Independent B',slug:'independent-'+require('node:crypto').randomUUID()}]);await bTenant.query('rollback');await a.query('rollback');console.log('PASS academic concurrency: separate tenants do not share command lock');
+
+ // Existing last-owner protection takes membership -> organization locks.
+ // Academic writes take organization first, so a busy membership must fail
+ // without waiting/producing a cycle, partial writes or an owner bypass.
+ await admin.query('begin');await admin.query("select 1 from public.organization_memberships where organization_id=$1 and user_id='10000000-0000-0000-0000-000000000001' for update",[org]);await a.begin();assert.equal(await code(command(a,'program.edit',p.id,1,{label:'Contended owner'})),'55P03');await a.query('rollback');await admin.query('select 1 from public.organizations where id=$1 for update',[org]);await admin.query('rollback');assert.equal((await admin.query('select revision from public.academic_programs where id=$1',[p.id])).rows[0].revision,'1');console.log('PASS academic concurrency: busy owner membership fails retryably without inverse-lock deadlock');
+
+ await admin.query('begin');await admin.query("select 1 from public.enrollments where offering_id='60000000-0000-0000-0000-000000000001' and user_id='10000000-0000-0000-0000-000000000005' for update");await s.begin();assert.equal(await code(preference(s,p.id,other.id,1)),'55P03');await s.query('rollback');await admin.query('rollback');assert.equal((await admin.query('select revision from public.student_stage_preferences where user_id=$1 and program_id=$2',['10000000-0000-0000-0000-000000000005',p.id])).rows[0].revision,'1');console.log('PASS academic concurrency: busy enrollment fails retryably and preserves preference');
+
+ await admin.query('begin');await admin.query('select 1 from public.organizations where id=$1 for update',[org]);await s.begin();await s.query("set local lock_timeout='500ms'");assert.equal(await code(command(s,'program.edit',p.id,1,{label:'Unauthorized student'})),'42501');await s.query('rollback');const outsider=await actor(7);await outsider.begin();await outsider.query("set local lock_timeout='500ms'");assert.equal(await code(preference(outsider,p.id,other.id)),'42501');await outsider.query('rollback');await admin.query('rollback');console.log('PASS academic concurrency: unauthorized commands and preferences reject before tenant lock');
+ }finally{
+ for(const c of clients)try{await c.query('rollback');await c.end();}catch{}
+ await admin.query('rollback');
+ if(membershipChanged)await admin.query("update public.organization_memberships set role='assistant',status='active' where organization_id=$1 and user_id='10000000-0000-0000-0000-000000000004'",[org]);
+ if(identityChanged)await admin.query("update private.external_identities set status='active' where provider='supabase' and profile_id='10000000-0000-0000-0000-000000000005'");
+ if(enrollmentChanged)await admin.query("update public.enrollments set status='active' where offering_id='60000000-0000-0000-0000-000000000001' and user_id='10000000-0000-0000-0000-000000000005'");
+ }
+};

@@ -1,0 +1,68 @@
+-- Isolated local fixtures only; account and Storage metadata changes roll back.
+begin;
+create temp table account_results(name text primary key);grant select,insert on account_results to authenticated,anon;
+create function pg_temp.ok(v boolean,label text) returns void language plpgsql as $$begin if v is distinct from true then raise exception 'FAILED %',label;end if;insert into pg_temp.account_results values(label);end$$;
+create function pg_temp.denied(sql text,code text,label text) returns void language plpgsql as $$declare caught text;begin begin execute sql;exception when others then get stacked diagnostics caught=returned_sqlstate;end;if caught is distinct from code then raise exception 'FAILED % expected % got %',label,code,caught;end if;insert into pg_temp.account_results values(label);end$$;
+create function pg_temp.claim(n integer,extra jsonb default '{}') returns void language sql as $$select set_config('request.jwt.claims',(jsonb_build_object('iss','https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1','aud','authenticated','role','authenticated','sub','10000000-0000-0000-0000-'||lpad(n::text,12,'0'))||extra)::text,true)::void$$;
+select pg_temp.ok((select bool_and(relrowsecurity) from pg_class where oid in ('public.account_profiles'::regclass,'private.account_avatar_assets'::regclass)),'new tables have RLS');
+select pg_temp.ok(not has_function_privilege('anon','public.account_profile(text,bigint,jsonb)','execute'),'anonymous RPC revoked');
+select pg_temp.ok(not has_table_privilege('authenticated','public.account_profiles','update'),'direct profile writes revoked');
+select pg_temp.ok(not has_table_privilege('authenticated','private.account_avatar_assets','select'),'private upload ledger not exposed');
+select pg_temp.ok(not (select public from storage.buckets where id='lms-avatars'),'avatar bucket is private');
+set local role authenticated;select pg_temp.claim(5);
+select pg_temp.ok((public.account_profile('get')->>'user_id')='10000000-0000-0000-0000-000000000005','self identity resolved');
+select pg_temp.ok(public.account_profile('get')->>'onboarding_completed_at' is null,'onboarding not falsely completed');
+select public.account_profile('save',0,'{"firstName":"Synthetic","lastName":"Learner","completeOnboarding":true}');
+select pg_temp.ok((public.account_profile('get')->>'revision')::integer=1,'profile revision persisted');
+select pg_temp.ok(public.account_profile('get')->>'onboarding_completed_at' is not null,'completion persisted');
+select pg_temp.denied($q$select public.account_profile('save',0,'{"firstName":"Stale","lastName":"Learner"}')$q$,'PT409','stale update rejected');
+select pg_temp.denied($q$select public.account_profile('save',1,'{"firstName":"","lastName":"Learner"}')$q$,'23514','blank names rejected');
+select pg_temp.denied($q$select public.account_profile('save',1,'{"firstName":"A","lastName":"B","userId":"10000000-0000-0000-0000-000000000006"}')$q$,'23514','forged account target rejected');
+select pg_temp.denied($q$select public.account_profile('save',1,'{"firstName":"A","lastName":"B","role":"owner"}')$q$,'23514','role payload rejected');
+select set_config('account.asset',public.account_profile('begin-avatar',1,jsonb_build_object('size',100,'sha256',repeat('a',64)))::text,true);
+select pg_temp.ok(not private.account_avatar_access(current_setting('account.asset')::jsonb->>'path','insert'),'ordinary signed token cannot upload unvalidated bytes');
+select pg_temp.denied($q$select public.account_profile('commit-avatar',1,jsonb_build_object('id',current_setting('account.asset')::jsonb->>'id'))$q$,'42501','unattested completion rejected');
+select pg_temp.claim(5,jsonb_build_object('avatar_upload',jsonb_build_object('id',current_setting('account.asset')::jsonb->>'id','size',100,'sha256',repeat('a',64),'issuedAt',floor(extract(epoch from clock_timestamp())))));
+select pg_temp.ok(private.account_avatar_access(current_setting('account.asset')::jsonb->>'path','insert'),'trusted exact-upload capability allows normalized file');
+select pg_temp.ok(not private.account_avatar_access('different/path.webp','insert'),'capability cannot target another path');
+insert into storage.objects(bucket_id,name,metadata) values('lms-avatars',current_setting('account.asset')::jsonb->>'path','{"mimetype":"image/webp","size":100}');
+select public.account_profile('commit-avatar',1,jsonb_build_object('id',current_setting('account.asset')::jsonb->>'id'));
+select pg_temp.ok((public.account_profile('get')->>'avatar_id')=current_setting('account.asset')::jsonb->>'id','avatar reference committed');
+select pg_temp.ok(not private.account_avatar_access(current_setting('account.asset')::jsonb->>'path','insert'),'capability cannot replay after commit');
+select pg_temp.ok(not private.account_avatar_access(current_setting('account.asset')::jsonb->>'path','delete'),'active photo cannot be deleted');
+select pg_temp.claim(6);
+select pg_temp.ok((select count(*)=0 from public.account_profiles where user_id='10000000-0000-0000-0000-000000000005'),'cross user profile hidden');
+select pg_temp.ok((select count(*)=0 from storage.objects where bucket_id='lms-avatars'),'cross user avatar objects hidden');
+select pg_temp.denied($q$select public.account_profile('commit-avatar',0,jsonb_build_object('id',current_setting('account.asset')::jsonb->>'id'))$q$,'42501','cross user avatar assignment denied');
+select pg_temp.claim(2);
+select pg_temp.ok((select count(*)=0 from public.account_profiles where user_id='10000000-0000-0000-0000-000000000005'),'teacher cannot edit or read private student account');
+select pg_temp.claim(5);select public.account_profile('remove-avatar',2);
+select pg_temp.ok(public.account_profile('get')->>'avatar_id' is null,'removed reference stays absent');
+select pg_temp.ok(private.account_avatar_access(current_setting('account.asset')::jsonb->>'path','delete'),'retired owner photo can be cleaned through Storage');
+select public.account_profile('prune-avatar',null,jsonb_build_object('id',current_setting('account.asset')::jsonb->>'id'));
+reset role;
+select pg_temp.ok(exists(select 1 from private.account_avatar_assets where id=(current_setting('account.asset')::jsonb->>'id')::uuid),'ledger cannot be pruned before Storage deletion');
+-- Test-only Storage API simulation in a rolled-back local DB. Application cleanup
+-- always uses the Storage API; it never issues DELETE on storage.objects.
+delete from storage.objects where bucket_id='lms-avatars' and name=current_setting('account.asset')::jsonb->>'path';
+set local role authenticated;select pg_temp.claim(5);select public.account_profile('prune-avatar',null,jsonb_build_object('id',current_setting('account.asset')::jsonb->>'id'));
+reset role;select pg_temp.ok(not exists(select 1 from private.account_avatar_assets where id=(current_setting('account.asset')::jsonb->>'id')::uuid),'completed owner cleanup prunes ledger');
+select pg_temp.ok((select display_name='Synthetic Learner' from public.profiles where id='10000000-0000-0000-0000-000000000005'),'shared profile name stays consistent');
+select pg_temp.ok(not has_function_privilege('authenticated','public.create_organization(text,text)','execute'),'manual organization provisioning restriction preserved');
+
+set local role authenticated;select pg_temp.claim(5);
+select set_config('account.expired',public.account_profile('begin-avatar',3,jsonb_build_object('size',50,'sha256',repeat('b',64)))::text,true);
+select pg_temp.claim(5,jsonb_build_object('avatar_upload',jsonb_build_object('id',current_setting('account.expired')::jsonb->>'id','size',50,'sha256',repeat('b',64),'issuedAt',floor(extract(epoch from clock_timestamp()))-121)));
+select pg_temp.ok(not private.account_avatar_access(current_setting('account.expired')::jsonb->>'path','insert'),'expired attestation cannot insert');
+select pg_temp.claim(5,jsonb_build_object('avatar_upload',jsonb_build_object('id',current_setting('account.expired')::jsonb->>'id','size',50,'sha256',repeat('c',64),'issuedAt',floor(extract(epoch from clock_timestamp())))));
+select pg_temp.ok(not private.account_avatar_access(current_setting('account.expired')::jsonb->>'path','insert'),'wrong digest cannot insert');
+select pg_temp.denied($q$insert into storage.objects(bucket_id,name,metadata) values('lms-avatars',current_setting('account.expired')::jsonb->>'path','{}')$q$,'42501','direct unvalidated Storage insert denied');
+select public.account_profile('abort-avatar',null,jsonb_build_object('id',current_setting('account.expired')::jsonb->>'id'));
+select public.account_profile('prune-avatar',null,jsonb_build_object('id',current_setting('account.expired')::jsonb->>'id'));
+select pg_temp.denied($q$update public.account_profiles set first_name='Forged' where user_id='10000000-0000-0000-0000-000000000005'$q$,'42501','direct profile update denied');
+reset role;
+select pg_temp.ok((select count(*)=0 from public.organization_memberships where user_id='10000000-0000-0000-0000-000000000005'),'profile completion does not grant staff membership');
+select pg_temp.ok((select bool_and(proconfig @> array['search_path=""']) from pg_proc where oid in ('private.account_profile(text,bigint,jsonb)'::regprocedure,'private.avatar_capability(uuid)'::regprocedure,'private.account_avatar_access(text,text)'::regprocedure)),'new definer functions have empty search paths');
+
+select count(*) as account_profile_tests from account_results;
+rollback;

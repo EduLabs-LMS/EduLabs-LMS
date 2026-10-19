@@ -5,6 +5,8 @@ const PATHS: [string, number, number, number][] = [["M199.8 300Q194.4 300 194.2 
 
 interface EduLabsMarkProps {
 	className?: string;
+	/** Original brand green or contrasting black for green backgrounds. */
+	tone?: 'brand' | 'ink';
 	/** Play the growing animation: the middle grows first, then both branches follow. */
 	grow?: boolean;
 	/** Black offset shadow, enabled by default. Pass false to omit it or a number for logo-unit offset. */
@@ -13,7 +15,7 @@ interface EduLabsMarkProps {
 	stagger?: number;
 }
 
-const EduLabsMark = ({ className, grow = false, shadow = true, stagger }: EduLabsMarkProps) => {
+const EduLabsMark = ({ className, grow = false, shadow = true, stagger, tone = 'brand' }: EduLabsMarkProps) => {
 	const offset = typeof shadow === 'number' ? shadow : 12;
 	const svgStyle = {
 		overflow: 'visible',
@@ -43,7 +45,7 @@ const EduLabsMark = ({ className, grow = false, shadow = true, stagger }: EduLab
 					{pieces('#000000')}
 				</g>
 			) : null}
-			<g>{pieces('#7ed957')}</g>
+			<g>{pieces(tone === 'ink' ? '#000000' : '#7ed957')}</g>
 		</svg>
 	);
 };
