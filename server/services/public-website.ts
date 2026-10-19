@@ -20,7 +20,11 @@ export async function allowPublicRequest(site:string,cost:number){
  if(!endpoint||!token)throw publicFailure('Public browsing is awaiting gateway configuration.',503);
  let url:URL;try{url=new URL(endpoint);if(url.protocol!=='https:'||url.username||url.password||url.hash)throw Error();}catch{throw publicFailure('Public browsing is awaiting gateway configuration.',503);}
  try{const r=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({bucket:'edulabs-public-websites',site,cost}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(3000)});
-  if(!r.ok)throw Error();const text=await r.text();if(text.length>1024)throw Error();const verdict=z.object({allowed:z.boolean(),retryAfterSeconds:z.number().int().min(1).max(3600)}).strict().parse(JSON.parse(text));
+  if(!r.ok)throw Error();
+  // Bound bytes while reading, rather than allocating an arbitrarily large response before validation.
+  const reader=r.body?.getReader();if(!reader)throw Error();const chunks:Uint8Array[]=[];let bytes=0;
+  try{while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>1024){await reader.cancel();throw Error();}chunks.push(value);}}finally{reader.releaseLock();}
+  const text=Buffer.concat(chunks).toString('utf8');const verdict=z.object({allowed:z.boolean(),retryAfterSeconds:z.number().int().min(1).max(3600)}).strict().parse(JSON.parse(text));
   if(!verdict.allowed)throw Object.assign(publicFailure('Too many requests. Please try again shortly.',429),{retryAfter:verdict.retryAfterSeconds});
  }catch(e){if((e as {status?:number}).status===429)throw e;throw publicFailure('Public browsing is temporarily unavailable. Please retry.',503);}
 }

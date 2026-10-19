@@ -68,3 +68,15 @@ test('middleware allows only exact public paths and preserves private API gating
  for(const p of ['/t','/t/fictional-academy/private','/t/fictional-academy/courses/bad'])assert.equal(middleware(true)(req(p),{}).status,404);
  assert.equal(middleware(false)(req('/t/fictional-academy'),{}).status,404);assert.equal(middleware(true)(req('/api/unmigrated'),{}).status,503);assert.equal(middleware(true)(req('/teacher/website'),{}).headers.get('X-Robots-Tag'),'noindex, nofollow');
 });
+
+test('gateway response is byte-bounded during streaming and cancels oversized bodies',async()=>{
+ const env={PUBLIC_WEBSITE_RATE_LIMIT_URL:'https://gateway.example/consume',PUBLIC_WEBSITE_RATE_LIMIT_TOKEN:'fixture-token'};let cancelled=false;
+ const fetcher=async()=>new Response(new ReadableStream({start(controller){controller.enqueue(new Uint8Array(1025));},cancel(){cancelled=true;}}));
+ await assert.rejects(()=>serviceFixture({env,fetcher}).allowPublicRequest(page.slug,1),{status:503});assert.equal(cancelled,true);
+ await assert.rejects(()=>serviceFixture({env,fetcher:async()=>new Response(null,{status:200})}).allowPublicRequest(page.slug,1),{status:503});
+});
+test('buffered public rendering rejection produces sanitized 503 rather than escaping the HTTP boundary',async()=>{
+ const React=require('react'),renderer=require('react-dom/server.browser'),components=load('frontend/features/public-website/teacher-site.tsx',{'@/shared/public-website':c});let calls=0;
+ const {publicWebsiteHTTP}=load('app/t/_render.tsx',{'react-dom/server.browser':{renderToReadableStream:async element=>{if(!calls++)throw Error('PRIVATE_RENDER_SENTINEL');return renderer.renderToReadableStream(element);}},'@/shared/auth-config':{isFirebaseStaging:()=>true},'@/shared/public-website':c,'@/server/services/public-website':{publicRequestOrigin:()=> 'https://platform.example',allowPublicRequest:async()=>{},readPublicWebsite:async()=>page,publicFailure:(message,status)=>Object.assign(Error(message),{status})},'@/frontend/features/public-website/teacher-site':components});
+ const response=await publicWebsiteHTTP(new Request('https://platform.example/t/'+page.slug));assert.equal(response.status,503);const html=await response.text();assert.equal(html.includes('PRIVATE_RENDER_SENTINEL'),false);assert.ok(html.includes('temporarily unavailable'));assert.equal(response.headers.get('cache-control'),'no-store, max-age=0');
+});
