@@ -23,7 +23,7 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
     return legacyMiddleware(request, event);
   }
   if (path === '/api/student-academics') return NextResponse.next();
-  if (/^\/api\/teacher\/(academics|organizations|courses(?:\/[0-9a-f-]{36})?)$/.test(path)) return NextResponse.next();
+  if (/^\/api\/teacher\/(website|academics|organizations|courses(?:\/[0-9a-f-]{36})?)$/.test(path)) return NextResponse.next();
   if (/^\/api\/homework\/(new|[0-9a-f-]{36})\/(list|offerings|save|get|lifecycle|copy-media|assignments|revisions|inbox|history|work|upload-intent|finish-upload|cleanup|media)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(edit|progress|upload|media|cleanup|upload-intent|finish-upload)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(resources|blocks)\/[0-9a-f-]{36}$/.test(path)) return NextResponse.next();
