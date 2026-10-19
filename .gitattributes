@@ -11,3 +11,5 @@ supabase/migrations/20261018091735_lesson_covers.sql -text
 supabase/migrations/20261018092002_chapter_metadata.sql -text
 supabase/migrations/20261018100132_group_presentation_and_session_summary.sql -text
 supabase/migrations/20261018104040_account_profiles_private_avatars.sql -text
+supabase/migrations/20261018203119_academic_programs_stages.sql -text
+supabase/migrations/20261019004546_teacher_websites_public_catalogs.sql -text

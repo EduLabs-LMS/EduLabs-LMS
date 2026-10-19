@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { BookOpen, Users, ShieldCheck } from 'lucide-react';
-import StudentHome from '@/frontend/features/dashboard/student-home';
+import { StudentLearning } from '@/frontend/features/self-learning/student-learning';
 import AdminHome from '@/frontend/features/dashboard/admin-home';
 import CourseCard from '@/frontend/components/course-card';
 import GroupRosterView from '@/frontend/features/groups/group-roster-view';
@@ -62,9 +62,9 @@ export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
   const staff = scope.courses.some(c => courseCapability(context, c)) || supported.length > 0 || context.memberships.some(m => m.status === 'active' && ['owner', 'admin'].includes(m.role) && (!search.organization || search.organization === m.organization_id));
 
   return <div className="space-y-8"><LimitNotice limited={scope.limited} />
-    {staff && <nav className="flex flex-wrap gap-4 text-sm text-sky-700" aria-label="Teaching tools">{context.memberships.some(m=>m.status==='active'&&['owner','admin','teacher'].includes(m.role))&&<Link href="/teacher/create">Create a course</Link>}</nav>}
+    {staff && <nav className="flex flex-wrap gap-4 text-sm text-sky-700" aria-label="Teaching tools">{context.memberships.some(m=>m.status==='active'&&['owner','admin','teacher'].includes(m.role))&&<Link href="/teacher/create">Create a course</Link>}<Link href="/teacher/programs">Academic programs</Link><Link href="/teacher/website">Website studio</Link></nav>}
     {staff ? <AdminHome phase1 adminName={context.viewer.displayName} metrics={await studentAdministration<AdminMetrics>('metrics',search.organization?{organizationId:search.organization}:{})} recentSignups={[]} recentSubmissions={[]} /> :
-    <StudentHome phase1 summaryAvailable={!scope.limited} lessons={scope.limited ? [] : v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} groupName={null} />}
+    <StudentLearning home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={scope.offerings} lessons={scope.limited ? [] : v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} />}
     {scope.limited && <p className="text-sm text-slate-500">Open a course for its available lessons. Dashboard lesson progress is not calculated on partial data.</p>}
     {!staff&&<p className="text-sm text-slate-600">Need course access? Use your teacher&apos;s invitation link. <Link className="underline" href="/access">View your access requests</Link>.</p>}
     <Offerings scope={scope} hideEmpty /><Assessments scope={scope} />
@@ -75,7 +75,7 @@ export async function WebsiteCourses({ search = {}, teacher = false }: { search?
     const { scope } = await scopeFor(search);
     if (search.offering && !scope.offerings.some(o => o.id === search.offering)) notFound();
     const enrolled=scope.offerings.filter(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'&&(!e.expires_at||Date.parse(e.expires_at)>Date.now())&&(!e.enrolled_at||Date.parse(e.enrolled_at)<=Date.now())));
-    return <><LimitNotice limited={scope.limited}/><SelfLearningView chapters={scope.limited ? [] : v2OfferingChapters({...scope,offerings:enrolled}, search.offering)}/><Offerings scope={scope} hideEmpty/></>;
+    return <><LimitNotice limited={scope.limited}/><StudentLearning organizationId={search.organization} limited={scope.limited} offerings={enrolled} lessons={[]} chapters={scope.limited ? [] : v2OfferingChapters({...scope,offerings:enrolled}, search.offering)}/><Offerings scope={scope} hideEmpty/></>;
   }
   const context = await requireWebsiteContext();
   if (Object.values(search).some(v => v !== undefined && (typeof v !== 'string' || v.length > 200)) || (search.organization && !context.organizations.some(o => o.id === search.organization))) notFound();

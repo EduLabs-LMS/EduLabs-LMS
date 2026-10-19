@@ -14,6 +14,191 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_programs: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          label: string
+          organization_id: string
+          position: number
+          revision: number
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          label: string
+          organization_id: string
+          position?: number
+          revision?: number
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          label?: string
+          organization_id?: string
+          position?: number
+          revision?: number
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_programs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academic_stages: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          label: string
+          organization_id: string
+          position: number
+          program_id: string
+          revision: number
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          label: string
+          organization_id: string
+          position?: number
+          program_id: string
+          revision?: number
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          label?: string
+          organization_id?: string
+          position?: number
+          program_id?: string
+          revision?: number
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_stages_organization_id_program_id_fkey"
+            columns: ["organization_id", "program_id"]
+            isOneToOne: false
+            referencedRelation: "academic_programs"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      course_stage_assignments: {
+        Row: {
+          course_id: string
+          created_at: string
+          organization_id: string
+          stage_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          organization_id: string
+          stage_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          organization_id?: string
+          stage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_stage_assignments_organization_id_course_id_fkey"
+            columns: ["organization_id", "course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "course_stage_assignments_organization_id_stage_id_fkey"
+            columns: ["organization_id", "stage_id"]
+            isOneToOne: false
+            referencedRelation: "academic_stages"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      student_stage_preferences: {
+        Row: {
+          created_at: string
+          organization_id: string
+          program_id: string
+          revision: number
+          stage_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          organization_id: string
+          program_id: string
+          revision?: number
+          stage_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          organization_id?: string
+          program_id?: string
+          revision?: number
+          stage_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_stage_preferences_organization_id_program_id_fkey"
+            columns: ["organization_id", "program_id"]
+            isOneToOne: false
+            referencedRelation: "academic_programs"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "student_stage_preferences_organization_id_program_id_stage_fkey"
+            columns: ["organization_id", "program_id", "stage_id"]
+            isOneToOne: false
+            referencedRelation: "academic_stages"
+            referencedColumns: ["organization_id", "program_id", "id"]
+          },
+          {
+            foreignKeyName: "student_stage_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_profiles: {
         Row: { user_id: string; first_name: string; last_name: string; avatar_id: string | null; onboarding_completed_at: string | null; revision: number; updated_at: string }
         Insert: { user_id: string; first_name?: string; last_name?: string; avatar_id?: string | null; onboarding_completed_at?: string | null; revision?: number; updated_at?: string }
@@ -2052,6 +2237,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      academic_command: {
+        Args: { p_action: string; p_organization_id: string; p_entity_id?: string; p_revision?: number; p_data?: Json }
+        Returns: Json
+      }
+      course_stage_classification: { Args: { p_course_id: string }; Returns: Json }
+      set_student_stage_preference: { Args: { p_program_id: string; p_stage_id: string | null; p_revision?: number }; Returns: Json }
       account_profile: { Args: { p_action: string; p_revision?: number | null; p_data?: Json }; Returns: Json }
       student_administration: { Args: { p_action: string; p_offering?: string | null; p_subject?: string | null; p_version?: number | null; p_request?: string | null; p_data?: Json }; Returns: Json }
       notification_command: { Args: { p_action: string; p_data?: Json }; Returns: Json }

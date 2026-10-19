@@ -25,6 +25,7 @@ test('middleware protects student, teacher and API routes, allowing only explici
     'next/server': {},
     '@/shared/auth-config': { isFirebaseStaging: () => false },
     '@/shared/website-routes': load('shared/website-routes.ts', {}),
+    '@/shared/public-website': load('shared/public-website.ts', { zod: require('zod') }),
     '@clerk/nextjs/server': {
       clerkMiddleware: callback => request => callback({ protect: async () => { protects++; } }, request),
       createRouteMatcher: patterns => request => patterns.some(pattern => new RegExp(`^${pattern}$`).test(new URL(request.url).pathname)),
@@ -87,6 +88,7 @@ test('Supabase client awaits request cookies and passes only the publishable key
     '@supabase/supabase-js': {},
     '@/shared/auth-config': { isFirebaseStaging: () => false },
     '@/shared/website-routes': load('shared/website-routes.ts', {}),
+    '@/shared/public-website': load('shared/public-website.ts', { zod: require('zod') }),
     '@/server/services/firebase-auth': {},
     'next/headers': { cookies: async () => ({ getAll: () => [{ name: 'session', value: 'test' }], set: (...args) => writes.push(args) }) },
     '@/shared/supabase-config': { getSupabaseConfig: () => ({ url: 'https://example.supabase.co', publishableKey: 'sb_publishable_test' }) },
