@@ -1,3 +1,4 @@
+import { publicWebsiteRoute } from '@/shared/public-website';
 import { isPhaseOneRoute } from '@/shared/website-routes';
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse, type NextRequest, type NextFetchEvent } from 'next/server';
@@ -16,6 +17,12 @@ const legacyMiddleware = clerkMiddleware(async (auth, request) => {
 
 export default function middleware(request: NextRequest, event: NextFetchEvent) {
   const path = request.nextUrl.pathname;
+  if (path === '/t' || path.startsWith('/t/')) {
+    const route=publicWebsiteRoute(path);
+    if(!route || !isFirebaseStaging())return new NextResponse('Not found',{status:404,headers:{'Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow'}});
+    return NextResponse.next();
+  }
+  if (path === '/teacher/website') {const response=NextResponse.next();response.headers.set('X-Robots-Tag','noindex, nofollow');if(isFirebaseStaging())return response;}
   if (path === '/api/health') return NextResponse.next();
   if (path.startsWith('/api/auth/firebase/')) return NextResponse.next();
   if (!isFirebaseStaging()) {
@@ -36,5 +43,5 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
 }
 
 export const config = {
-	matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+	matcher: ['/t/:path*', '/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
 };
