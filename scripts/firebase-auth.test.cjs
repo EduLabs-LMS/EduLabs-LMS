@@ -88,6 +88,7 @@ test('Firebase staging never routes legacy APIs to Clerk or Prisma', () => {
     '@clerk/nextjs/server': { clerkMiddleware: () => () => assert.fail('Legacy handler'), createRouteMatcher: () => () => false },
     '@/shared/auth-config': { isFirebaseStaging: () => true },
     '@/shared/website-routes': load('shared/website-routes.ts', {}),
+    '@/shared/public-website': load('shared/public-website.ts', { zod: require('zod') }),
     'next/server': { NextResponse: { next: () => 'allowed', redirect: url => url.pathname, json: (_, options) => options.status } },
   });
   const request = path => ({ url: `http://localhost${path}`, nextUrl: new URL(`http://localhost${path}`) });

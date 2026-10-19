@@ -112,3 +112,26 @@ Git blob SHA: `c42fc6cd44dd2627466f95fc427bb7a003efdff8`.
 **Do not reapply this migration.** Git version `20261018203119` differs from remote history version `20261018210950` even though the SHA-256 exactly matches. All prior migration-version discrepancies remain unresolved; do not run `supabase db push`, `supabase migration up` or manual history repair without separately reviewed authorization. The code for 5B–5D and real authenticated end-to-end tests are still pending; no website/VPS deployment or production modification occurred.
 
 This ledger-only commit will move the milestone branch past `2836416`; Codex must fast-forward its local branch before making further commits. No original SQL migration or historical database row is changed by recording this information.
+
+## Milestone 6A development application — 2026-10-19
+
+The exact locally audited M6A migration from source commit `b46faff6619e7bb0a664c0e9253a233140c3e231` was independently verified against the uploaded approved source and applied **once** to **development** Supabase project `gmvouqgjbtbkbhrdruzu` using the migration interface. Supabase returned `success: true`. No previous schema migration was replayed.
+
+| Git migration file | Supabase applied version | History name | Stored SQL SHA-256 |
+| --- | --- | --- | --- |
+| `20261019004546_teacher_websites_public_catalogs.sql` | `20261019132423` | `teacher_websites_public_catalogs` | `e5588657408c7d56364e59cf7d423fb44ab3db073931da7b6a261e3e66149cec` |
+
+Verified GitHub blob SHA: `ffb266022381ba1faa5b1bb1665fee3d9723adad`. The Git file has 34,903 UTF-8 bytes. It exactly matches the approved uploaded source.
+
+**Read-only checks after applying:**
+- Total recorded migrations **31**. The M6 history record's persisted SQL SHA-256 matches the source above.
+- All **11 new tables** exist with RLS; the five new public-schema tables are authenticated SELECT-only and anonymous table SELECT denied. The six private-schema tables are inaccessible to anon/authenticated table reads/writes and have no permissive policies.
+- Five contextual `website_staff_read` RLS policies exist on the new public-schema tables. The `website_public` projection schema exists; anon has USAGE on it, not on `private`.
+- All **14 functions** exist: six private helpers/commands, three `website_public` projections and five public wrappers. Public anonymous projection wrappers grant EXECUTE to anon/authenticated; the teacher authoring wrapper denies anon and permits authenticated. Other trusted review grants require continued testing through the actual service boundary before any upload/DNS features are enabled.
+- The `lms-website-assets` Storage bucket is **private**, limited to 2,097,152 bytes and PNG/JPEG/WebP. Existing permissive object policies apply only to earlier buckets and the broad `lms_trusted_identity` object policy is **RESTRICTIVE**, not an independent grant. No anonymous image delivery or browser upload route was enabled.
+- Original record counts unchanged: 10 profiles, 2 organizations, 2 courses, 3 offerings, 3 enrollments; existing academic programs and stages unchanged (0). New website/publication/domain/asset tables and Storage object contents all start at 0.
+- Security advisor: informational `rls_enabled_no_policy` includes the six intentionally deny-by-default private website tables; the prior native Supabase Auth leaked-password-protection warning remains (application uses Firebase). Performance advisor notes a new informational missing-FK-prefix index on `organization_websites(id,published_version_id)`; review during future performance tuning, not an authorization finding. Unused indexes on zero-row fresh tables are expected.
+
+**Never reapply M6A.** Git version `20261019004546` and remote history version `20261019132423` differ. The **six** Git/remote version differences through M6 must be respected. Do not run `supabase db push`, `supabase migration up`, or history repair without separately approved reconciliation. No staging/VPS/production website, Caddy or external DNS/TLS change occurred. M6B editor, M6C public routes, M6D domain verifier and real authenticated/Storage acceptance remain pending.
+
+This is a **ledger-only GitHub commit** made after source commit `b46faff6619e7bb0a664c0e9253a233140c3e231`; the Codex M6 worktree must fetch and **fast-forward** before developing M6B. Do not reset or force-push its local changes. The reviewed SQL and prior migrations remain unchanged.
