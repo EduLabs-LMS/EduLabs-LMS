@@ -80,3 +80,10 @@ test('buffered public rendering rejection produces sanitized 503 rather than esc
  const {publicWebsiteHTTP}=load('app/t/_render.tsx',{'react-dom/server.browser':{renderToReadableStream:async element=>{if(!calls++)throw Error('PRIVATE_RENDER_SENTINEL');return renderer.renderToReadableStream(element);}},'@/shared/auth-config':{isFirebaseStaging:()=>true},'@/shared/public-website':c,'@/server/services/public-website':{publicRequestOrigin:()=> 'https://platform.example',allowPublicRequest:async()=>{},readPublicWebsite:async()=>page,publicFailure:(message,status)=>Object.assign(Error(message),{status})},'@/frontend/features/public-website/teacher-site':components});
  const response=await publicWebsiteHTTP(new Request('https://platform.example/t/'+page.slug));assert.equal(response.status,503);const html=await response.text();assert.equal(html.includes('PRIVATE_RENDER_SENTINEL'),false);assert.ok(html.includes('temporarily unavailable'));assert.equal(response.headers.get('cache-control'),'no-store, max-age=0');
 });
+
+test('only landing forms normalize empty stages; detail and sitemap reject even empty query fields',async()=>{
+ const renderer=require('react-dom/server.browser'),components=load('frontend/features/public-website/teacher-site.tsx',{'@/shared/public-website':c});let admitted=0;
+ const {publicWebsiteHTTP}=load('app/t/_render.tsx',{'react-dom/server.browser':renderer,'@/shared/auth-config':{isFirebaseStaging:()=>true},'@/shared/public-website':c,'@/server/services/public-website':{publicRequestOrigin:()=> 'https://platform.example',allowPublicRequest:async()=>{admitted++;},readPublicWebsite:async()=>page,publicFailure:(message,status)=>Object.assign(Error(message),{status})},'@/frontend/features/public-website/teacher-site':components});
+ for(const path of ['/courses/'+course,'/sitemap.xml'])assert.equal((await publicWebsiteHTTP(new Request('https://platform.example/t/'+page.slug+path+'?stage='))).status,400);
+ assert.equal(admitted,0);assert.equal((await publicWebsiteHTTP(new Request('https://platform.example/t/'+page.slug+'?stage='))).status,200);assert.equal(admitted,1);
+});

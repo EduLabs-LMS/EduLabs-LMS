@@ -28,7 +28,7 @@ export async function resolveCustomDomainRequest(request:Request,settings:Settin
  const authority=request.headers.get('x-edulabs-authority')??'',issued=request.headers.get('x-edulabs-issued-at')??'',nonce=request.headers.get('x-edulabs-nonce')??'',signature=request.headers.get('x-edulabs-signature')??'';
  let host:string;try{host=websiteDomainHostname.parse(authority);}catch{throw failure('Invalid public hostname.',421);}
  if(host!==authority||isReservedWebsiteHostname(host,[new URL(origin).hostname,...settings.reservedHosts]))throw failure('Reserved or noncanonical public hostname.',421);
- if(!/^\d{13}$/.test(issued)||Number(issued)>now+5000||now-Number(issued)>30000||!/^[a-f0-9]{32}$/.test(nonce)||!/^[a-f0-9]{64}$/.test(signature))throw failure('Invalid or expired proxy proof.',403);
+ if(!/^\d{13}$/.test(issued)||Number(issued)>now+5000||now-Number(issued)>=30000||!/^[a-f0-9]{32}$/.test(nonce)||!/^[a-f0-9]{64}$/.test(signature))throw failure('Invalid or expired proxy proof.',403);
  const target=url.pathname+url.search;if(target.length>1024)throw failure('Invalid public route.',400);
  const payload=['edulabs-domain-v1',host,request.method,target,issued,nonce].join('\n');
  const expected=createHmac('sha256',settings.proxySecret).update(payload).digest();
@@ -38,8 +38,9 @@ export async function resolveCustomDomainRequest(request:Request,settings:Settin
  }
  if(Array.from(url.searchParams.keys()).some(k=>url.searchParams.getAll(k).length!==1)||url.pathname!=='/'&&url.search)throw failure('Invalid public query.',400);
  const query=visitorQuery.safeParse(Object.fromEntries(url.searchParams));if(!query.success)throw failure('Invalid public query.',400);
- // Both ports must be durable/atomic and available across all ingress instances. No in-process production fallback.
- let unique:boolean,budget:boolean;try{unique=await ports.consumeNonce(nonce,Number(issued)+30000);budget=unique?await ports.consumeBudget(host):false;}catch{throw failure('Durable ingress controls are unavailable.',503);}
+ // Retain nonce beyond the signature window and permitted clock skew, even for near-expiry proofs.
+ // Admission ports must be durable/atomic and available across all ingress instances. No in-process production fallback.
+ let unique:boolean,budget:boolean;try{unique=await ports.consumeNonce(nonce,now+40000);budget=unique?await ports.consumeBudget(host):false;}catch{throw failure('Durable ingress controls are unavailable.',503);}
  if(!unique)throw failure('Proxy proof was replayed or could not be recorded.',403);
  if(!budget)throw failure('Domain request budget exceeded.',429);
  async function lookup(){let raw:unknown;try{raw=await ports.lookup(host);}catch{throw failure('Domain lookup is temporarily unavailable.',503);}if(raw===null)throw failure('Public domain not found.',404);const value=publicDomainBindingDto.safeParse(raw);if(!value.success)throw failure('Invalid public domain mapping.',503);return value.data;}

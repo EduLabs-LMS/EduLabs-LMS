@@ -17,7 +17,7 @@ export async function publicWebsiteHTTP(request:Request){
   origin=publicRequestOrigin(request);
   const params=new URL(request.url).searchParams;if(Array.from(params.keys()).some(k=>params.getAll(k).length!==1))throw publicFailure('Invalid public query.',400);
   // Native GET forms submit an empty stage for All stages; normalize only this deliberate value.
-  if(params.get('stage')==='')params.delete('stage');
+  if(route.kind==='home'&&params.get('stage')==='')params.delete('stage');
   if(route.kind!=='home'&&params.size)throw publicFailure('This public route does not accept query parameters.',400);
   const parsed=visitorQuery.safeParse(Object.fromEntries(params));if(!parsed.success)throw publicFailure('Invalid stage, cursor or page size.',400);
   await allowPublicRequest(route.slug,route.kind==='sitemap'?4:parsed.data.after?2:1);
