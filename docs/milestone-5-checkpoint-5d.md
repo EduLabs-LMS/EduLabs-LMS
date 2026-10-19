@@ -165,15 +165,17 @@ required. Immutable local logs/build artifacts remain Git-ignored under `.local/
 
 ## Screenshot evidence
 
-Fresh 5D renders below are byte-identical to the committed evidence, so duplicate
-binary copies were not added:
+Fresh 5D teacher and Self Learning renders are byte-identical to the committed
+evidence, so duplicate binaries were not added for those four images. Home
+captures were not byte-identical; fresh desktop/mobile evidence is included
+separately and was visually inspected:
 
 - [Teacher desktop](evidence/milestone5b/programs-desktop.png)
 - [Teacher mobile](evidence/milestone5b/programs-mobile.png)
 - [Student Self Learning desktop](evidence/milestone5c/self-learning-desktop.png)
 - [Student Self Learning mobile](evidence/milestone5c/self-learning-mobile.png)
-- [Student Home desktop](evidence/milestone5c/home-desktop.png)
-- [Student Home mobile](evidence/milestone5c/home-mobile.png)
+- [Student Home desktop](evidence/milestone5d/home-desktop.png)
+- [Student Home mobile](evidence/milestone5d/home-mobile.png)
 
 These are component evidence with synthetic data, not screenshots of an approved
 deployment or real authenticated account.
