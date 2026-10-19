@@ -54,7 +54,7 @@ const runtime = process.env.LMS_SQL_RUNTIME || path.resolve('.local/step03a/runt
   }
   if(!seeded)await db.exec(fs.readFileSync('supabase/seed.sql','utf8'));
   const baseline = (await db.query('select count(*)::int n from public.assessment_attempts')).rows[0].n;
-  for (const name of ['authorization','hardening','firebase-identity','organization-owner-cascade','organization-provisioning','teacher-editor','exam-attempts-results','exam-authoring','exam-completion','lessons','homework','groups-attendance','notifications-support','group-notifications','student-administration','lesson-covers','chapter-metadata','group-presentation-summary','account-profiles','academic-programs-stages','teacher-websites']) {
+  for (const name of ['authorization','hardening','firebase-identity','organization-owner-cascade','organization-provisioning','teacher-editor','exam-attempts-results','exam-authoring','exam-completion','lessons','homework','groups-attendance','notifications-support','group-notifications','student-administration','lesson-covers','chapter-metadata','group-presentation-summary','account-profiles','academic-programs-stages','teacher-websites','website-domains']) {
    let sql=fs.readFileSync(`supabase/tests/${name}.sql`,'utf8');
    try {
     const results=await db.exec(sql);
@@ -62,7 +62,7 @@ const runtime = process.env.LMS_SQL_RUNTIME || path.resolve('.local/step03a/runt
    } catch(e) { throw new Error(`Suite ${name}: ${e.message}`,{cause:e}); }
    assert.equal((await db.query('select count(*)::int n from public.assessment_attempts')).rows[0].n,baseline,`${name} rolled back`);
   }
-  if(admin) {await require('./website-concurrency.cjs')(makeClient,db);await require('./academic-programs-concurrency.cjs')(makeClient,db);await require('./account-concurrency.cjs')(makeClient,db);await require('./milestone2-concurrency.cjs')(makeClient,db);await require('./group-presentation-concurrency.cjs')(makeClient,db);await require('./exam-concurrency.cjs')(makeClient,db);await require('./lesson-concurrency.cjs')(makeClient,db);await require('./homework-concurrency.cjs')(makeClient,db);await require('./group-concurrency.cjs')(makeClient,db);await require('./communications-concurrency.cjs')(makeClient,db);await require('./group-notification-concurrency.cjs')(makeClient,db);await require('./student-administration-concurrency.cjs')(makeClient,db);}
+  if(admin) {await require('./website-concurrency.cjs')(makeClient,db);await require('./domain-concurrency.cjs')(makeClient,db);await require('./academic-programs-concurrency.cjs')(makeClient,db);await require('./account-concurrency.cjs')(makeClient,db);await require('./milestone2-concurrency.cjs')(makeClient,db);await require('./group-presentation-concurrency.cjs')(makeClient,db);await require('./exam-concurrency.cjs')(makeClient,db);await require('./lesson-concurrency.cjs')(makeClient,db);await require('./homework-concurrency.cjs')(makeClient,db);await require('./group-concurrency.cjs')(makeClient,db);await require('./communications-concurrency.cjs')(makeClient,db);await require('./group-notification-concurrency.cjs')(makeClient,db);await require('./student-administration-concurrency.cjs')(makeClient,db);}
   if(admin && process.argv.includes('--timers')) await require('./exam-deadline.cjs')(makeClient,db);
   console.log('All local SQL suites passed. No connected Supabase database accessed.');
  } finally {

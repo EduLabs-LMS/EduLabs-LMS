@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { CustomDomains } from './custom-domains';
 import { websiteEditorRequest } from '@/frontend/lib/website-editor';
 import { initialWebsiteConfig, draftWebsitePreview, websiteWrite } from '@/shared/contracts/website-editor';
 import type { WebsiteEditorState, WebsiteConfig, CatalogEntry, WebsiteWrite } from '@/shared/contracts/website-editor';
@@ -20,18 +21,18 @@ function WebsiteEditor({organizationId}:{organizationId:string}) {
  const dirty=!!state&&(!same(config,state.website?.draft_config??initialWebsiteConfig)||!same(catalog,state.catalog)||!same(selectedStages,state.selectedStages));
  useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
  function reload(){if(!dirty||window.confirm('Discard your unsaved changes and load the latest website?')){setState(null);setEpoch(v=>v+1);}}
- async function commit(action:WebsiteWrite['action']) {
-  if(operation.current||!state)return;setError('');setMessage('');
-  const parsed=websiteWrite.safeParse({organizationId,revision:state.website?.revision??0,action,data:action==='create'?{slug,config}:action==='draft'?{config}:action==='catalog'?{courses:catalog,stages:selectedStages}:{}});
-  if(!parsed.success){setError('Check required copy, plain-text limits, slug and selected catalog entries.');return;}
-  if(action==='publish'&&!window.confirm('Publish the saved website and selected public catalog?'))return;
-  if(action==='unpublish'&&!window.confirm('Unpublish the website? Public visitors will no longer be able to view it.'))return;
+ async function commit(action:WebsiteWrite['action'],dataOverride?:Record<string,unknown>) {
+  if(operation.current||!state)return false;setError('');setMessage('');
+  const parsed=websiteWrite.safeParse({organizationId,revision:state.website?.revision??0,action,data:dataOverride??(action==='create'?{slug,config}:action==='draft'?{config}:action==='catalog'?{courses:catalog,stages:selectedStages}:{})});
+  if(!parsed.success){setError('Check required copy, plain-text limits, slug and selected catalog entries.');return false;}
+  if(action==='publish'&&!window.confirm('Publish the saved website and selected public catalog?'))return false;
+  if(action==='unpublish'&&!window.confirm('Unpublish the website? Public visitors will no longer be able to view it.'))return false;
   operation.current=true;setBusy(true);
-  try {await websiteEditorRequest(organizationId,parsed.data);if(!mounted.current)return;
+  try {await websiteEditorRequest(organizationId,parsed.data);if(!mounted.current)return false;
    // Preserve other unsaved fields when saving only one portion of the site.
-   const next=await websiteEditorRequest(organizationId) as WebsiteEditorState;if(!mounted.current)return;
-   setState(next);if(action==='create'||action==='draft')setConfig(next.website!.draft_config);if(action==='catalog'){setCatalog(next.catalog);setStages(next.selectedStages);}setMessage(action==='publish'?'Website published.':action==='unpublish'?'Website unpublished.':'Saved successfully.');setConflict(false);
-  }catch(e){if(mounted.current){setError((e as Error).message);setConflict((e as {status?:number}).status===409);}}
+   const next=await websiteEditorRequest(organizationId) as WebsiteEditorState;if(!mounted.current)return false;
+   setState(next);if(action==='create'||action==='draft')setConfig(next.website!.draft_config);if(action==='catalog'){setCatalog(next.catalog);setStages(next.selectedStages);}setMessage(action==='publish'?'Website published.':action==='unpublish'?'Website unpublished.':'Saved successfully.');setConflict(false);return true;
+  }catch(e){if(mounted.current){setError((e as Error).message);setConflict((e as {status?:number}).status===409);}return false;}
   finally{operation.current=false;if(mounted.current)setBusy(false);}
  }
  if(!state)return <section className={panel}>{error?<div role="alert">{error}<button className="ml-3 underline" onClick={()=>setEpoch(v=>v+1)}>Retry loading</button></div>:<p role="status">Loading website…</p>}</section>;
@@ -50,6 +51,7 @@ function WebsiteEditor({organizationId}:{organizationId:string}) {
     <div><h3 className="text-sm font-bold">Page sections</h3><ul className="mt-2 space-y-2">{config.sections.map((s,index)=><li key={s} className="flex items-center gap-3 rounded-xl border-2 border-black p-2 text-sm"><span className="flex-1 capitalize">{s}</span><button type="button" aria-label={`Move ${s} up`} disabled={index===0} className="underline disabled:opacity-30" onClick={()=>{const next=[...config.sections];[next[index-1],next[index]]=[next[index],next[index-1]];change('sections',next);}}>Up</button><button type="button" aria-label={`Move ${s} down`} disabled={index===config.sections.length-1} className="underline disabled:opacity-30" onClick={()=>{const next=[...config.sections];[next[index+1],next[index]]=[next[index],next[index+1]];change('sections',next);}}>Down</button><button type="button" aria-label={`Hide ${s}`} className="underline" disabled={config.sections.length===1} onClick={()=>change('sections',config.sections.filter(v=>v!==s))}>Hide</button></li>)}</ul><div className="mt-2 flex flex-wrap gap-3">{(['hero','about','programs','courses'] as const).filter(s=>!config.sections.includes(s)).map(s=><button key={s} type="button" className="text-sm underline" onClick={()=>change('sections',[...config.sections,s])}>Show {s}</button>)}</div></div>
     {state.canManage&&<button className={button} type="submit">{busy?'Saving…':website?'Save website draft':'Create website'}</button>}
    </fieldset></form></section>
+   <CustomDomains domains={state.domains} canManage={state.canManage} editable={editable} created={!!website} commit={commit}/>
    <section className={panel}><h2 className="font-display text-xl">Branding images</h2><p className="mt-3 text-sm">Uploads pending: the trusted image-review and delivery service is not configured and verified. No private classroom media is reused here.</p><button className={`${button} mt-3`} disabled>Image upload unavailable</button></section>
    <section className={panel}><h2 className="font-display text-xl">Your public catalog</h2><p className="mt-2 text-sm">Select courses explicitly and write visitor-facing copy. Private, unlisted, draft or archived courses cannot be published. Course visibility is managed separately in the course editor.</p><fieldset disabled={!editable||!website} className="mt-4 space-y-4"><label className="block text-sm font-bold">Find a course<input type="search" className={field} value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/></label>
     {coursePage.map(c=>{const entry=catalog.find(e=>e.id===c.id),eligible=c.status==='published'&&c.visibility==='public';return <article className="rounded-2xl border-2 border-black p-3" key={c.id}><label className="flex items-start gap-3 font-bold"><input type="checkbox" checked={!!entry} disabled={!entry&&!eligible} onChange={e=>setCatalog(e.target.checked?[...catalog,{id:c.id,title:'',summary:'',assetId:null}]:catalog.filter(v=>v.id!==c.id))}/><span className="min-w-0 break-words">{c.title}</span></label><p className="mt-2 text-xs">{c.status} · {c.visibility}{!eligible?' · Ineligible for publication':''}</p>{entry&&<div className="mt-3 space-y-3"><label className="block text-sm">Public title<input className={field} maxLength={160} value={entry.title} onChange={e=>setCatalog(catalog.map(v=>v.id===c.id?{...v,title:e.target.value}:v))}/></label><label className="block text-sm">Public summary<textarea className={field} maxLength={1200} value={entry.summary} onChange={e=>setCatalog(catalog.map(v=>v.id===c.id?{...v,summary:e.target.value}:v))}/></label><p className="text-xs">{state.assignments.some(a=>a.course_id===c.id)?'Stage labels appear only when explicitly selected below.':'General · no stage assignment'}</p></div>}</article>;})}

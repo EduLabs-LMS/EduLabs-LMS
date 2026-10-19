@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { websiteConfig, publicCatalogDto } from './teacher-websites';
+import { websiteDomainHostname } from './website-domains';
+import type { WebsiteDomain } from './website-domains';
 const uuid=z.string().uuid(), revision=z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const plain=(max:number)=>z.string().max(max).regex(/^[^<>\u0000-\u001f\u007f]*$/);
 export const catalogEntry=z.object({id:uuid,title:plain(160).refine(v=>!!v.trim()),summary:plain(1200),assetId:uuid.nullable()}).strict();
@@ -10,6 +12,9 @@ export const websiteWrite=z.discriminatedUnion('action',[
  z.object({...scope,action:z.literal('catalog'),data:z.object({courses:z.array(catalogEntry).max(200).refine(v=>new Set(v.map(c=>c.id)).size===v.length),stages:z.array(uuid).max(100).refine(v=>new Set(v).size===v.length)}).strict()}).strict(),
  z.object({...scope,action:z.literal('publish'),data:z.object({}).strict()}).strict(),
  z.object({...scope,action:z.literal('unpublish'),data:z.object({}).strict()}).strict(),
+ z.object({...scope,action:z.literal('domain.claim'),data:z.object({hostname:websiteDomainHostname}).strict()}).strict(),
+ z.object({...scope,action:z.literal('domain.rotate'),data:z.object({id:uuid,revision}).strict()}).strict(),
+ z.object({...scope,action:z.literal('domain.disable'),data:z.object({id:uuid,revision}).strict()}).strict(),
 ]);
 export const websiteQuery=z.object({organizationId:uuid}).strict();
 export type WebsiteWrite=z.infer<typeof websiteWrite>;
@@ -19,7 +24,7 @@ export type EditorWebsite={id:string;organization_id:string;slug:string;status:s
 export type EditorCourse={id:string;title:string;status:string;visibility:string};
 export type EditorStage={id:string;label:string;status:string;program_id:string;position:number};
 export type EditorProgram={id:string;label:string;status:string;position:number};
-export type WebsiteEditorState={canManage:boolean;website:EditorWebsite|null;courses:EditorCourse[];stages:EditorStage[];programs:EditorProgram[];assignments:{course_id:string;stage_id:string}[];catalog:CatalogEntry[];selectedStages:string[];published:z.infer<typeof publicCatalogDto>|null;uploadsEnabled:false};
+export type WebsiteEditorState={canManage:boolean;website:EditorWebsite|null;courses:EditorCourse[];stages:EditorStage[];programs:EditorProgram[];assignments:{course_id:string;stage_id:string}[];catalog:CatalogEntry[];selectedStages:string[];published:z.infer<typeof publicCatalogDto>|null;uploadsEnabled:false;domains:WebsiteDomain[];domainVerificationEnabled:false;domainRoutingEnabled:false};
 export const initialWebsiteConfig:WebsiteConfig={displayName:'',heroTitle:'',heroSubtitle:'',about:'',locale:'en',theme:'green',accent:'green',ctaLabel:'Join the classroom',ctaTarget:'sign-up',sections:['hero','about','programs','courses']};
 /** Draft simulation uses the same publication boundaries. Public snapshot comes from the actual projection RPC. */
 export function draftWebsitePreview(state:WebsiteEditorState,config:WebsiteConfig,catalog:CatalogEntry[],selectedStages:string[]) {
