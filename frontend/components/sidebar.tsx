@@ -84,7 +84,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		<div className="p-4 border-b-[2.5px] border-black flex items-center gap-3 bg-white text-black shrink-0">
 		<EduLabsMark className="h-10 w-10 shrink-0" />
 		<div className="flex flex-col min-w-0">
-		<span className="text-2xl font-normal leading-none text-black truncate" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+		<span className="font-display text-2xl font-normal leading-none text-black truncate">
 		EduLabs
 		</span>
 		<span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
