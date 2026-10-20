@@ -27,3 +27,22 @@ test('missing saved photo remains replaceable without hiding the account profile
  const service=load('server/services/account.ts',{'@/server/integrations/supabase':{getSupabaseServerClient:async()=>client},'@/server/integrations/firebase-admin':{},'@/server/services/firebase-auth':{},'@/shared/supabase-config':{},'@/shared/contracts/account':contracts});
  const value=await(await service.accountService()).read();assert.equal(value.avatar_id,'owned-avatar');assert.equal(value.avatarUrl,null);assert.match(value.avatarError,/replace or remove/);assert.equal(value.first_name,'Ada');
 });
+
+test('Firebase sign-in keeps form subtree mounted and scopes account state per UID',()=>{
+ const provider=fs.readFileSync('frontend/components/providers/application-auth-provider.tsx','utf8');
+ const bridge=fs.readFileSync('frontend/features/auth/firebase-account-bridge.tsx','utf8');
+ const form=fs.readFileSync('frontend/features/auth/firebase-form.tsx','utf8');
+ assert.doesNotMatch(provider,/<FirebaseAccountBridge\s+key=/);
+ assert.match(bridge,/scopedProfile\?\.uid===uid/);
+ assert.match(bridge,/dialog\?\.uid===uid/);
+ assert.match(bridge,/getFirebaseAuth\(\)\.currentUser\?\.uid!==uid/);
+ assert.match(form,/router\.replace\(destination\)/);
+ assert.doesNotMatch(form,/window\.location\.replace\(destination\)/);
+});
+test('opening splash runs only on initial public landing and does not restart after sign-in',()=>{
+ const source=fs.readFileSync('frontend/components/intro-splash.tsx','utf8');
+ assert.match(source,/initialPath\.current === '\/' && pathname === '\/'/);
+ assert.match(source,/if \(!playIntro\) return;/);
+ assert.match(source,/window\.setTimeout\(leave, SPLASH_MIN_MS\)/);
+ assert.doesNotMatch(source,/SPLASH_MIN_MS - performance\.now\(\)/);
+});

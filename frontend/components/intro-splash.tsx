@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { usePathname } from 'next/navigation';
 
 import EduLabsMark from '@/frontend/components/edulabs-mark';
 import { cn } from '@/shared/utils';
@@ -17,10 +18,16 @@ type Phase = 'show' | 'leave' | 'gone';
  * page-coloured curtain lift away. It plays when the site is first opened. Tap to skip.
  */
 const IntroSplash = () => {
+	const pathname = usePathname();
+	// The opening curtain is a first-landing experience, not an auth/navigation overlay.
+	// Keeping the initial path stable prevents replay on client navigation.
+	const initialPath = useRef(pathname);
+	const playIntro = initialPath.current === '/' && pathname === '/';
 	const [phase, setPhase] = useState<Phase>('show');
 	const leaveRef = useRef<() => void>(() => {});
 
 	useEffect(() => {
+		if (!playIntro) return;
 		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
 			setPhase('gone');
 			return;
@@ -42,16 +49,16 @@ const IntroSplash = () => {
 		};
 
 		leaveRef.current = leave;
-		leaveTimer = window.setTimeout(leave, Math.max(0, SPLASH_MIN_MS - performance.now()));
+		leaveTimer = window.setTimeout(leave, SPLASH_MIN_MS);
 
 		return () => {
 			window.clearTimeout(leaveTimer);
 			window.clearTimeout(goneTimer);
 			root.style.overflow = '';
 		};
-	}, []);
+	}, [playIntro]);
 
-	if (phase === 'gone') return null;
+	if (!playIntro || phase === 'gone') return null;
 	const leaving = phase === 'leave';
 
 	return (
