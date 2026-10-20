@@ -14,6 +14,7 @@ function load(file, deps, env = {}) {
 const env = { NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'diagonproduction' };
 test('restored-session and form completion navigate home only once', async () => {
   const effects = [], navigations = [];
+  let refreshes = 0;
   let finishSync;
   const syncing = new Promise(resolve => { finishSync = resolve; });
   const user = { emailVerified: true };
@@ -26,6 +27,7 @@ test('restored-session and form completion navigate home only once', async () =>
     react: { useState: initial => [initial, () => {}], useEffect: effect => effects.push(effect), useRef: value => ({ current: value }), useCallback: callback => callback },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'next/link': { default: 'Link' },
+    'next/navigation': { useRouter: () => ({ replace: path => navigations.push(path), refresh: () => { refreshes++; } }) },
     'lucide-react': {},
     '@/shared/contracts/account': {},
     '@/frontend/lib/signup-recovery': {},
@@ -41,7 +43,7 @@ test('restored-session and form completion navigate home only once', async () =>
     },
   };
   vm.runInNewContext(source, { module, exports: module.exports,URLSearchParams,process:{env:{}},sessionStorage:{getItem:()=>null,removeItem(){}},
-    window: { location: { search:'',replace: path => navigations.push(path), assign: path => navigations.push(path) } },
+    window: { location: { search:'',replace: () => assert.fail('Hard page reload is forbidden'),assign: () => assert.fail('Hard navigation is forbidden') } },
     require: name => { assert.ok(name in dependencies, name); return dependencies[name]; },
   });
   const tree = module.exports.FirebaseForm({});
@@ -53,6 +55,7 @@ test('restored-session and form completion navigate home only once', async () =>
   finishSync();
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(navigations, ['/home']);
+  assert.equal(refreshes, 1, 'router.refresh should run once for the authenticated destination');
 });
 const identity = () => ({ uid: 'firebase-string-uid', sub: 'firebase-string-uid', aud: 'diagonproduction', iss: 'https://securetoken.google.com/diagonproduction', exp: Date.now() / 1000 + 60 });
 function authService(admin, staging = true) {
