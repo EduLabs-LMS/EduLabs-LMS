@@ -22,7 +22,7 @@ export const MobileSidebar = ({ initialRole }: MobileSidebarProps) => {
 		<div className="flex items-center gap-2.5">
 		<EduLabsMark className="h-9 w-9 shrink-0" />
 		<div className="flex flex-col">
-		<span className="text-2xl font-normal text-black leading-none" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+		<span className="font-display text-2xl font-normal text-black leading-none">
 		EduLabs
 		</span>
 		<span className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600"><L id="navigation.learning_platform"/></span>
