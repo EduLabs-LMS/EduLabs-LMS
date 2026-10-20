@@ -55,7 +55,7 @@ test('restored-session and form completion navigate home only once', async () =>
   finishSync();
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(navigations, ['/home']);
-  assert.equal(refreshes, 1, 'router.refresh should run once for the authenticated destination');
+  assert.equal(refreshes, 0, 'successful login should not force a redundant refresh');
 });
 const identity = () => ({ uid: 'firebase-string-uid', sub: 'firebase-string-uid', aud: 'diagonproduction', iss: 'https://securetoken.google.com/diagonproduction', exp: Date.now() / 1000 + 60 });
 function authService(admin, staging = true) {
