@@ -18,7 +18,7 @@ function ClerkBridge({ children }: { children: React.ReactNode }) {
 }
 function FirebaseBridge({ children }: { children: React.ReactNode }) {
   const { user, logout } = useFirebaseAuth();
-  return <FirebaseAccountBridge key={user?.uid??'signed-out'} provide={({profile,open})=><AuthContext.Provider value={{user:user?{id:user.uid,lastName:profile?.last_name||null,imageUrl:profile?.avatarUrl??null,firstName:profile?.first_name||user.displayName?.split(' ')[0]||null,username:null,fullName:profile&&(profile.first_name||profile.last_name)?`${profile.first_name} ${profile.last_name}`.trim():user.displayName,email:user.email}:null,signOut:logout,openUserProfile:open}}>{children}</AuthContext.Provider>}/>;
+  return <FirebaseAccountBridge provide={({profile,open})=><AuthContext.Provider value={{user:user?{id:user.uid,lastName:profile?.last_name||null,imageUrl:profile?.avatarUrl??null,firstName:profile?.first_name||user.displayName?.split(' ')[0]||null,username:null,fullName:profile&&(profile.first_name||profile.last_name)?`${profile.first_name} ${profile.last_name}`.trim():user.displayName,email:user.email}:null,signOut:logout,openUserProfile:open}}>{children}</AuthContext.Provider>}/>;
 }
 export function ApplicationAuthProvider({ children }: { children: React.ReactNode }) {
   return isFirebaseStaging() ? <FirebaseBridge>{children}</FirebaseBridge> : <ClerkBridge>{children}</ClerkBridge>;
