@@ -29,6 +29,7 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
     if (path === '/lms-staging') return NextResponse.redirect(new URL('/sign-in', request.url));
     return legacyMiddleware(request, event);
   }
+  if (path === '/api/personalization') return NextResponse.next();
   if (path === '/api/student-academics') return NextResponse.next();
   if (/^\/api\/teacher\/(website|academics|organizations|courses(?:\/[0-9a-f-]{36})?)$/.test(path)) return NextResponse.next();
   if (/^\/api\/homework\/(new|[0-9a-f-]{36})\/(list|offerings|save|get|lifecycle|copy-media|assignments|revisions|inbox|history|work|upload-intent|finish-upload|cleanup|media)$/.test(path)) return NextResponse.next();

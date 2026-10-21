@@ -81,3 +81,20 @@ Do not run legacy inspection/migration scripts. Do not reset or reseed the conne
 6. Reviewed cleanup of dormant Clerk/Prisma code/dependencies after parity checks.
 
 No global teacher/admin access will be introduced. Each slice must include RLS tests and a complete UI-to-database flow. No push, merge or deployment is part of this phase.
+
+## Backlog — student academic-stage selection (temporarily hidden, 2026-10-20)
+
+The student-facing “Your academic stages” panel is paused on Home and Self Learning.
+The existing selector/component, program/stage schema, preference records, APIs,
+teacher management and RLS remain intact. No academic records or saved preferences
+are deleted. All authorized courses remain available; no invisible discovery filter
+is applied while the panel is hidden. This is not an enrollment/access change.
+
+Before re-enabling, review and complete the student selection experience: proper
+program/stage interface; correctly persisted per-program, per-organization student
+preferences; loading, genuine empty, error/retry, saved and recovery states; useful
+course discovery/filtering; tenant isolation and authorization. Tests must cover
+persistence across refresh/new sessions and switching programs/organizations,
+archived-choice recovery, failed saves and forbidden cross-tenant requests.
+Keep the UI disabled until that review is approved; do not implement it in the
+current Settings task. Existing API/SQL preference tests remain active.

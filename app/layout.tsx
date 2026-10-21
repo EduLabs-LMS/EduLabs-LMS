@@ -2,6 +2,7 @@ import { ApplicationAuthProvider } from '@/frontend/components/providers/applica
 import { ClerkProvider } from '@clerk/nextjs';
 import { auth } from '@clerk/nextjs/server';
 import './globals.css';
+import '@/frontend/styles/appearance.css';
 import type { Metadata } from 'next';
 import { Figtree, Caprasimo } from 'next/font/google';
 import { ToastProvider } from '@/frontend/components/providers/toast-provider';
@@ -36,13 +37,12 @@ export default async function RootLayout({
 
 	return (
 		<AuthProvider {...(firebase ? {} : { afterSignOutUrl: '/', appearance: { options: { showOptionalFields: true } } })}>
-			<html lang="en" suppressHydrationWarning>
+			<html lang="en" data-lms-appearance suppressHydrationWarning>
 				<body className={`${figtree.variable} ${caprasimo.variable} font-sans`}>
 					<ThemeProvider
 						attribute="class"
 						defaultTheme="light"
-						forcedTheme="light"
-						enableSystem={false}
+						enableSystem
 						disableTransitionOnChange
 					>
 						<ApplicationAuthProvider><LoadingProvider><IntroSplash />

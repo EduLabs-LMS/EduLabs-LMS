@@ -48,7 +48,7 @@ const SidebarItem = ({ icon: Icon, label, href, badge }: SidebarItemProps) => {
 	}
 
 	return (
-		<Link href={href} className={className}>
+		<Link href={href} aria-current={isActive?'page':undefined} className={className}>
 			{content}
 		</Link>
 	);

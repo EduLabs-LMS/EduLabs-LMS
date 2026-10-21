@@ -7,9 +7,9 @@ export const ToastProvider = () => {
 		<Toaster
 			toastOptions={{
 				style: {
-					background: '#f6f9f2',
-					color: '#1c2418',
-					border: '2.5px solid #000',
+					background: 'hsl(var(--popover))',
+					color: 'hsl(var(--popover-foreground))',
+					border: '2.5px solid hsl(var(--lms-outline, 0 0% 0%))',
 					borderRadius: '999px',
 					boxShadow: '3px 3px 0 #000',
 					fontWeight: 600,

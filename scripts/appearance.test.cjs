@@ -1,0 +1,14 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm'),ts=require('typescript');
+function contract(){const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('shared/appearance.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{module:m,exports:m.exports});return m.exports;}
+const c=contract();
+test('appearance contract supports only three browser-local modes',()=>{assert.deepEqual(Array.from(c.appearanceModes),['light','dark','system']);for(const v of ['light','dark','system'])assert.equal(c.isAppearanceMode(v),true);for(const v of [null,undefined,'automatic','dark light','<script>',{},''])assert.equal(c.isAppearanceMode(v),false);assert.notEqual(c.appearanceStorageKey,'theme');});
+for(const stored of [null,'light','dark','system','automatic','dark light','<script>'])test('pre-paint bootstrap safely normalizes '+JSON.stringify(stored),()=>{let value=stored;vm.runInNewContext(c.appearanceBootstrap,{localStorage:{getItem:()=>value,removeItem:key=>{assert.equal(key,c.appearanceStorageKey);value=null;}}});assert.equal(value,[null,'light','dark','system'].includes(stored)?stored:null);});
+test('pre-paint bootstrap tolerates disabled browser storage',()=>{assert.doesNotThrow(()=>vm.runInNewContext(c.appearanceBootstrap,{localStorage:{getItem(){throw Error('Storage blocked');}}}));});
+test('dark semantic foreground and control colors meet AA contrast',()=>{
+ const css=fs.readFileSync('frontend/styles/appearance.css','utf8').split('/* Website Studio')[0],vars=Object.fromEntries([...css.matchAll(/--([\w-]+):\s*([\d.]+) ([\d.]+)% ([\d.]+)%/g)].map(m=>[m[1],m.slice(2).map(Number)]));
+ function lum([h,s,l]){s/=100;l/=100;const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1));};return [f(0),f(8),f(4)].map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((v,x,i)=>v+x*[.2126,.7152,.0722][i],0);}
+ const ratio=(a,b)=>(Math.max(lum(vars[a]),lum(vars[b]))+.05)/(Math.min(lum(vars[a]),lum(vars[b]))+.05);
+ for(const [fg,bg]of [['foreground','background'],['card-foreground','card'],['popover-foreground','popover'],['muted-foreground','card'],['primary-foreground','primary'],['destructive-foreground','destructive']])assert.ok(ratio(fg,bg)>=4.5,fg+'/'+bg+' '+ratio(fg,bg));
+ assert.ok(ratio('input','card')>=3);assert.ok(ratio('ring','background')>=3);
+});
+test('appearance has no remote persistence or image inversion',()=>{const ui=fs.readFileSync('frontend/features/personalization/appearance-settings.tsx','utf8'),css=fs.readFileSync('frontend/styles/appearance.css','utf8');assert.doesNotMatch(ui,/fetch\(|axios|accountRequest/);assert.doesNotMatch(css,/filter\s*:.*invert/);assert.match(css,/data-appearance-island/);assert.match(fs.readFileSync('frontend/features/teacher/website/website-workspace.tsx','utf8'),/data-appearance-island/);});

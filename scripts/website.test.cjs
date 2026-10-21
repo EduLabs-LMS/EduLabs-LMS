@@ -44,7 +44,8 @@ test('progress belongs to an offering and is not copied into another run of a co
 test('unmigrated routes never enter legacy handlers in Firebase staging', () => {
   const { isPhaseOneRoute } = load('shared/website-routes.ts');
   for (const route of ['/home', '/self-learning', '/group', '/teacher/courses', '/teacher/create', '/onboarding/organization', '/courses/c', '/courses/c/detail', '/offerings/o']) assert.equal(isPhaseOneRoute(route), true);
-  for (const route of ['/api/courses', '/api/uploadthing', '/courses/c/chapters/l', '/personalization', '/channel']) assert.equal(isPhaseOneRoute(route), false);
+  for (const route of ['/settings','/personalization']) assert.equal(isPhaseOneRoute(route), true);
+  for (const route of ['/api/courses', '/api/uploadthing', '/courses/c/chapters/l', '/channel']) assert.equal(isPhaseOneRoute(route), false);
   assert.equal(isPhaseOneRoute('/admin/users'),true);
 });
 test('roster pagination is bounded and rejects malformed or excessive offsets', () => {

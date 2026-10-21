@@ -9,6 +9,7 @@ import {
 	LifeBuoy,
 	LogOut,
 	Users,
+	Settings,
 } from 'lucide-react';
 
 import SupportModal from '@/frontend/components/support-modal';
@@ -72,6 +73,7 @@ const SidebarRoutes = () => {
 				);
 			})}
 
+			<SidebarItem icon={Settings} label="Settings" href="/settings"/>
 			{!isStaff && (
 				<SupportModal
 					trigger={

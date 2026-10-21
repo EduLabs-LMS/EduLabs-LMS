@@ -16,6 +16,7 @@ import {
 	LogOut,
 	CheckSquare,
 	ShieldCheck,
+	Settings,
 } from 'lucide-react';
 
 import EduLabsMark from '@/frontend/components/edulabs-mark';
@@ -60,6 +61,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	pathname === '/sessions-groups' || pathname === '/sessions' || pathname === '/group' ||
 	pathname === '/groups' ||
 	pathname.startsWith('/group');
+	const isSettingsActive = pathname === '/settings' || pathname.startsWith('/settings/') || pathname === '/personalization';
 	const isExamsActive = pathname.startsWith('/exams');
 	const isSupportActive = pathname.startsWith('/support');
 	const isTeacherActive = pathname.startsWith('/teacher');
@@ -190,6 +192,8 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		/>
 		<span>Support</span>
 		</a>
+
+		<Link href="/settings" onClick={() => onNavigate?.()} aria-current={isSettingsActive?'page':undefined} className={cn('relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',isSettingsActive?'bg-primary text-black border-black font-semibold shadow-hard-sm':'text-slate-700 hover:text-black hover:bg-slate-100')}><Settings aria-hidden className={cn('w-[22px] h-[22px] shrink-0',isSettingsActive?'text-black':'text-slate-500')}/><span>Settings</span></Link>
 
 		{isAdminOrTeacher && (
 			<div className="pt-3 mt-1 border-t border-slate-200/80 flex flex-col space-y-1.5">

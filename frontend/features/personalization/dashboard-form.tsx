@@ -1,148 +1,35 @@
 'use client';
+import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { Bell,LogOut,ShieldCheck,User } from 'lucide-react';
+import { AppearanceSettings } from './appearance-settings';
+import { useApplicationAuth } from '@/frontend/components/providers/application-auth-provider';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-
-import { Button } from '@/frontend/components/ui/button';
-import { Checkbox } from '@/frontend/components/ui/checkbox';
-import {
-	Form,
-	FormControl,
-	FormDescription,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from '@/frontend/components/ui/form';
-import { api } from '@/frontend/lib/api';
-import { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
-import { DASHBOARD_ITEM_ID } from '@/shared/constants/dashboard-item-id';
-
-const items = [
-	{
-		id: DASHBOARD_ITEM_ID.inProgress,
-		label: 'In Progress',
-	},
-	{
-		id: DASHBOARD_ITEM_ID.completed,
-		label: 'Completed',
-	},
-] as const;
-
-const FormSchema = z.object({
-	items: z.array(z.string()).refine((value) => value.some((item) => item), {
-		message: 'You have to select at least one item.',
-	}),
-});
-
-const DashboardForm = () => {
-	const [isSaving, setIsSaving] = useState(false);
-
-	const form = useForm<z.infer<typeof FormSchema>>({
-		resolver: zodResolver(FormSchema),
-		defaultValues: {
-			items: [],
-		},
-	});
-
-	const onSubmit = async (data: z.infer<typeof FormSchema>) => {
-		try {
-			setIsSaving(true);
-
-			const stringnifiedItems = JSON.stringify(data.items);
-
-			await api.put(`/api/personalization`, { dashboard: stringnifiedItems });
-
-			toast.success('Dashboard updated successfully.');
-		} catch (error) {
-			console.log(error);
-			toast.error('Something went wrong.');
-		} finally {
-			setIsSaving(false);
-		}
-	};
-
-	useEffect(() => {
-		(async () => {
-			try {
-				const res = await api.get(`/api/personalization`);
-
-				if (res?.data?.dashboard) {
-					const parsed = JSON.parse(res.data.dashboard);
-
-					form.setValue('items', parsed);
-				}
-			} catch (error) {
-				console.log(error);
-			}
-		})();
-	}, [form]);
-
-	return (
-		<div className="mt-6 border bg-slate-100 dark:bg-transparent rounded-md p-4">
-			<Form {...form}>
-				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-					<FormField
-						control={form.control}
-						name="items"
-						render={() => (
-							<FormItem>
-								<div className="mb-4">
-									<FormLabel className="text-base">Dashboard</FormLabel>
-
-									<FormDescription>
-										Select the items you want to display in the dashboard.
-									</FormDescription>
-								</div>
-
-								{items.map((item) => (
-									<FormField
-										key={item.id}
-										control={form.control}
-										name="items"
-										render={({ field }) => {
-											return (
-												<FormItem
-													key={item.id}
-													className="flex flex-row items-start space-x-3 space-y-0"
-												>
-													<FormControl>
-														<Checkbox
-															checked={field.value?.includes(item.id)}
-															onCheckedChange={(checked) => {
-																return checked
-																	? field.onChange([...field.value, item.id])
-																	: field.onChange(
-																			field.value?.filter(
-																				(value) => value !== item.id
-																			)
-																	  );
-															}}
-														/>
-													</FormControl>
-
-													<FormLabel className="font-normal">
-														{item.label}
-													</FormLabel>
-												</FormItem>
-											);
-										}}
-									/>
-								))}
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-
-					<Button disabled={isSaving} type="submit">
-						Save
-					</Button>
-				</form>
-			</Form>
-		</div>
-	);
-};
-
-export default DashboardForm;
+/** A discoverable entry to the existing identity-bound account editor. No duplicate account logic. */
+export default function DashboardForm(){
+ const {user,openUserProfile,signOut,accountStatus}=useApplicationAuth();
+ const [failedImage,setFailedImage]=useState<string|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const button='rounded-xl border-2 border-black bg-primary px-5 py-3 text-sm font-bold shadow-hard-sm disabled:opacity-50';
+ async function logout(){if(busy)return;setBusy(true);setError('');try{await signOut();}catch{setError('Sign-out could not be confirmed. Retry, or sign in again if you were signed out locally.');}finally{setBusy(false);}}
+ return <div className="space-y-6">
+  <section aria-label="Account and profile" className="rounded-3xl border-2 border-black bg-white p-5 shadow-hard-sm sm:p-6">
+   <h2 className="flex items-center gap-2 font-display text-2xl"><User aria-hidden className="h-6 w-6"/>Account &amp; profile</h2>
+   {accountStatus?.loading&&!user?<p role="status" className="mt-5">Loading your account…</p>:!user?<div className="mt-5"><p>Your account could not be loaded. Sign in again to manage your profile.</p><Link className="mt-3 inline-block underline" href="/sign-in">Sign in again</Link></div>:<>
+    <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center">
+     <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl border-2 border-black bg-primary/20">
+      {user.imageUrl&&failedImage!==user.imageUrl?<Image unoptimized width={96} height={96} src={user.imageUrl} alt="Your profile photo" className="h-full w-full object-cover" onError={()=>setFailedImage(user.imageUrl)}/>:<User aria-label="No profile photo available" className="h-10 w-10"/>}
+     </div>
+     <dl className="min-w-0 space-y-3 text-sm"><div><dt className="text-slate-600">Display name</dt><dd className="break-words text-lg font-bold">{user.fullName?.trim()||'Name not set'}</dd></div><div><dt className="text-slate-600">Email address</dt><dd className="break-all font-semibold">{user.email||'Email not available'}</dd>{user.email&&<dd className="mt-1 text-xs text-slate-600">{user.emailVerified===true?'Email verified':user.emailVerified===false?'Email not verified':'Verification status unavailable'}</dd>}</div></dl>
+    </div>
+    {accountStatus?.loading&&<p role="status" className="mt-4 text-sm">Refreshing your profile…</p>}
+    <p className="mt-5 text-sm text-slate-600">Manage your name, photo and sign-in security using your existing account editor. Email and password changes keep their verification and identity checks.</p>
+    <button type="button" className={button+' mt-4'} onClick={openUserProfile} disabled={busy}>Manage account</button>
+   </>}
+   {accountStatus?.error&&<div role="alert" className="mt-4 text-sm text-red-800"><p>Your profile details could not be loaded. Please retry, or sign in again if the problem continues.</p>{accountStatus.reload&&<button type="button" className="mt-2 font-semibold underline" onClick={()=>void accountStatus.reload?.()}>Retry profile</button>}<Link href="/sign-in" className="ml-3 underline">Sign in again</Link></div>}
+  </section>
+  <AppearanceSettings/>
+  <section aria-label="Notifications destination" className="rounded-3xl border-2 border-black bg-white p-5 shadow-hard-sm sm:p-6"><h2 className="flex items-center gap-2 font-display text-2xl"><Bell aria-hidden className="h-6 w-6"/>Notifications</h2><p className="mt-3 text-sm text-slate-600">View your notifications and manage event preferences and browser-push registration on the Notifications page.</p><Link href="/notifications" className={button+' mt-4 inline-block'}>Open Notifications</Link></section>
+  {user&&<section aria-label="Session" className="rounded-3xl border-2 border-black bg-white p-5 shadow-hard-sm sm:p-6"><h2 className="flex items-center gap-2 font-display text-2xl"><ShieldCheck aria-hidden className="h-6 w-6"/>Your session</h2><p className="mt-3 text-sm text-slate-600">Sign out of EduLabs on this device.</p><button type="button" className={button.replace('bg-primary','bg-card')+' mt-4 inline-flex items-center gap-2'} onClick={()=>void logout()} disabled={busy}><LogOut aria-hidden className="h-4 w-4"/>{busy?'Signing out…':'Sign out'}</button>{error&&<p role="alert" className="mt-3 text-sm text-red-800">{error}</p>}</section>}
+ </div>;
+}

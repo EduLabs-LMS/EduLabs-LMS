@@ -1,0 +1,129 @@
+/* EduLabs appearance. Light tokens/layouts remain in globals.css.
+ * Dark compatibility maps EXISTING visual utilities to semantic surface/text roles.
+ * No media inversion; [data-appearance-island] and its descendants are excluded.
+ * Public teacher sites are standalone documents and do not load this stylesheet. */
+:root { --lms-outline: 0 0% 0%; --link: 104 64% 24%; }
+html[data-lms-appearance] { color-scheme: light; }
+html.dark[data-lms-appearance] {
+ color-scheme: dark;
+ --background: 140 19% 8%; --foreground: 90 25% 93%;
+ --card: 140 14% 13%; --card-foreground: 90 25% 93%;
+ --popover: 140 12% 17%; --popover-foreground: 90 25% 93%;
+ --primary: 102 63% 60%; --primary-foreground: 0 0% 0%;
+ --secondary: 140 12% 21%; --secondary-foreground: 90 25% 93%;
+ --muted: 140 12% 21%; --muted-foreground: 90 14% 75%;
+ --accent: 115 19% 23%; --accent-foreground: 90 25% 93%;
+ --destructive: 0 64% 39%; --destructive-foreground: 0 0% 100%;
+ --border: 100 13% 42%; --input: 100 13% 52%; --ring: 102 63% 65%;
+ --link: 102 63% 72%; --lms-outline: 100 15% 55%;
+ --lms-text: var(--foreground); --lms-muted: var(--muted-foreground);
+ --lms-focus: var(--ring); --progress-accent: #7ed957; --progress-track: #354330;
+}
+/* Website Studio preview owns its configuration, even within a dark LMS. */
+[data-appearance-island] {
+ --background: 90 23% 91%; --foreground: 100 20% 12%;
+ --card: 86 37% 96%; --card-foreground: 100 20% 12%;
+ --popover: 86 37% 96%; --popover-foreground: 100 20% 12%;
+ --primary: 102 63% 60%; --primary-foreground: 0 0% 0%;
+ --secondary: 93 24% 85%; --secondary-foreground: 100 20% 12%;
+ --muted: 93 24% 85%; --muted-foreground: 100 15% 28%;
+ --accent: 96 40% 88%; --accent-foreground: 100 20% 12%;
+ --border: 98 18% 72%; --input: 0 0% 0%; --ring: 104 64% 24%;
+ --lms-outline: 0 0% 0%; --link: 104 64% 24%;
+ --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-focus: var(--ring);
+}
+
+html.dark[data-lms-appearance] :is(.bg-white, .bg-slate-50, .bg-physics-charcoal, .bg-card, .bg-popover):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--card)); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.bg-slate-100, .bg-slate-200, .bg-slate-300, .bg-physics-panel, .bg-secondary, .bg-muted):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--secondary)); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.bg-physics-black):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--background)); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.bg-slate-50\/40):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--card) / 0.4); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.bg-slate-50\/50):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--card) / 0.5); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.bg-slate-50\/60):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--card) / 0.6); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.bg-slate-50\/70):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--card) / 0.7); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.bg-slate-50\/80):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--card) / 0.8); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.bg-slate-100\/90):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--secondary) / .9); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.text-black, .text-slate-700, .text-slate-800, .text-slate-900, .text-slate-950, .text-physics-white):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.text-slate-300, .text-slate-400, .text-slate-500, .text-slate-600, .text-physics-muted):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(var(--lms-muted)); }
+
+html.dark[data-lms-appearance] :is(.border-black, .border-slate-300, .border-slate-400, .border-slate-500):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(var(--lms-outline)); }
+
+html.dark[data-lms-appearance] :is(.border-slate-100, .border-slate-200, .border-slate-200\/80, .border-slate-200\/60):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(var(--border)); }
+
+html.dark[data-lms-appearance] :is(.divide-slate-100, .divide-slate-200):not(:where([data-appearance-island], [data-appearance-island] *)) > :not([hidden]) ~ :not([hidden]) { --tw-divide-opacity: 1; border-color: hsl(var(--border)); }
+
+html.dark[data-lms-appearance] :is(.bg-primary, .bg-physics-cyan, .bg-sky-400, .bg-sky-500, .bg-cyan-400, .bg-cyan-500):not(:where([data-appearance-island], [data-appearance-island] *)) { --lms-text: 0 0% 0%; --lms-muted: 100 25% 13%; --lms-outline: 100 20% 7%; --lms-focus: 100 25% 9%; color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.bg-sky-50, .bg-sky-100, .bg-sky-200, .bg-cyan-50, .bg-cyan-100, .bg-cyan-200, .bg-blue-50, .bg-blue-100, .bg-blue-200):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(175 24% 17%); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.text-sky-600, .text-sky-700, .text-sky-800, .text-sky-900, .text-cyan-600, .text-cyan-700, .text-cyan-800, .text-blue-600, .text-blue-700, .text-blue-800):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(160 55% 78%); }
+
+html.dark[data-lms-appearance] :is(.bg-amber-50, .bg-amber-100, .bg-amber-200, .bg-yellow-50, .bg-yellow-100):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(38 42% 16%); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900, .text-yellow-700, .text-yellow-800):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(44 88% 77%); }
+
+html.dark[data-lms-appearance] :is(.bg-red-50, .bg-red-100, .bg-red-200, .bg-rose-50, .bg-rose-100):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(5 35% 17%); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.text-red-500, .text-red-600, .text-red-700, .text-red-800, .text-red-900, .text-rose-600, .text-rose-700):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(8 100% 82%); }
+
+html.dark[data-lms-appearance] :is(.bg-red-500, .bg-red-600, .bg-rose-500):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); }
+
+html.dark[data-lms-appearance] :is(.border-red-100, .border-red-200, .border-red-300, .border-red-500, .border-rose-200):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(8 43% 57%); }
+
+html.dark[data-lms-appearance] :is(.bg-green-50, .bg-green-100, .bg-green-200, .bg-emerald-50, .bg-emerald-100, .bg-emerald-200):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(135 30% 16%); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.text-green-600, .text-green-700, .text-green-800, .text-emerald-600, .text-emerald-700, .text-emerald-800):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(110 57% 78%); }
+
+html.dark[data-lms-appearance] :is(.border-green-200, .border-green-300, .border-emerald-200, .border-emerald-300):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(110 27% 48%); }
+
+html.dark[data-lms-appearance] :is(.bg-purple-50, .bg-purple-100, .bg-violet-50, .bg-violet-100, .bg-indigo-50, .bg-indigo-100):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(260 23% 20%); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
+
+html.dark[data-lms-appearance] :is(.text-purple-700, .text-purple-800, .text-violet-700, .text-indigo-700):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(260 75% 84%); }
+
+html.dark[data-lms-appearance] :is(.hover\:bg-white:hover, .hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover, .hover\:bg-slate-200:hover):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--accent)); }
+
+html.dark[data-lms-appearance] :is(.hover\:bg-red-50:hover, .hover\:bg-rose-50:hover):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(5 35% 22%); }
+
+html.dark[data-lms-appearance] :is(button, a, input, select, textarea, [tabindex]):focus-visible:not(:where([data-appearance-island], [data-appearance-island] *)) { outline: 2px solid hsl(var(--lms-focus)); outline-offset: 3px; }
+html.dark[data-lms-appearance] :is(input, textarea):not(:where([data-appearance-island], [data-appearance-island] *))::placeholder { color: hsl(var(--muted-foreground)); opacity: 1; }
+html.dark[data-lms-appearance] :is(input, textarea, select):not(:where([data-appearance-island], [data-appearance-island] *)) { color-scheme: dark; }
+html.dark[data-lms-appearance] :is(select option):not(:where([data-appearance-island], [data-appearance-island] *)) { background: hsl(var(--popover)); color: hsl(var(--popover-foreground)); }
+/* Existing Quill authoring controls use third-party literal colors. Media is untouched. */
+html.dark[data-lms-appearance] :is(.ql-toolbar, .ql-container, .ql-picker-options, .ql-tooltip):not(:where([data-appearance-island], [data-appearance-island] *)) { background: hsl(var(--card)); color: hsl(var(--foreground)); border-color: hsl(var(--border)); }
+html.dark[data-lms-appearance] .ql-snow .ql-stroke:not(:where([data-appearance-island], [data-appearance-island] *)) { stroke: hsl(var(--foreground)); }
+html.dark[data-lms-appearance] .ql-snow .ql-fill:not(:where([data-appearance-island], [data-appearance-island] *)) { fill: hsl(var(--foreground)); }
+html.dark[data-lms-appearance] .ql-snow .ql-picker:not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(var(--foreground)); }
+html.dark[data-lms-appearance] .ql-editor.ql-blank:not(:where([data-appearance-island], [data-appearance-island] *))::before { color: hsl(var(--muted-foreground)); }
+
+/* The existing loading/banner gradients also retain their semantic surface role. */
+html.dark[data-lms-appearance] :is(.from-physics-charcoal, .from-slate-200):not(:where([data-appearance-island], [data-appearance-island] *)) { --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position); --tw-gradient-to: hsl(var(--card) / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+html.dark[data-lms-appearance] :is(.to-physics-black, .to-slate-200):not(:where([data-appearance-island], [data-appearance-island] *)) { --tw-gradient-to: hsl(var(--background)) var(--tw-gradient-to-position); }
+html.dark[data-lms-appearance] .via-slate-100:not(:where([data-appearance-island], [data-appearance-island] *)) { --tw-gradient-stops: var(--tw-gradient-from), hsl(var(--card)) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+
+html.dark[data-lms-appearance] :is(.bg-yellow-200\/80, .bg-amber-50\/40, .bg-amber-50\/50):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(38 35% 17%); color: hsl(44 88% 77%); }
+
+html.dark[data-lms-appearance] :is(.bg-sky-50\/70, .bg-sky-50\/50, .bg-cyan-100\/80):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(150 25% 16%); }
+
+html.dark[data-lms-appearance] :is(.border-amber-100, .border-amber-200, .border-amber-200\/90, .border-yellow-200):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(40 40% 49%); }
+
+html.dark[data-lms-appearance] :is(.border-sky-100, .border-sky-200, .border-sky-200\/80, .border-sky-300, .border-cyan-200, .border-blue-200):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(150 28% 47%); }
+
+html.dark[data-lms-appearance] :is(.bg-sky-600, .bg-cyan-600, .bg-sky-700):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(108 52% 25%); color: hsl(0 0% 100%); }
+
+html.dark[data-lms-appearance] :is(.bg-emerald-600, .bg-emerald-700, .bg-emerald-800):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(145 50% 24%); color: hsl(0 0% 100%); }
+
+html.dark[data-lms-appearance] .bg-emerald-700.text-secondary:not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(0 0% 100%); }
+/* High-emphasis status totals and translucent dashboard metric panels. */
+html.dark[data-lms-appearance] .text-amber-950:not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(44 88% 77%); }
+html.dark[data-lms-appearance] :is(.text-sky-950, .text-cyan-950, .text-cyan-900):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(152 54% 80%); }
+html.dark[data-lms-appearance] .bg-sky-50\/40:not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(150 25% 16%); }
+html.dark[data-lms-appearance] :is(.hover\:bg-primary:hover, .hover\:bg-physics-cyan:hover):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--primary)); --lms-text: 0 0% 0%; --lms-muted: 100 25% 13%; --lms-outline: 100 20% 7%; --lms-focus: 100 25% 9%; color: hsl(var(--lms-text)); }

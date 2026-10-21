@@ -18,7 +18,7 @@ const buttonVariants = cva(
 					'bg-secondary text-secondary-foreground hover:bg-secondary/80',
 				ghost:
 					'border-transparent shadow-none hover:translate-x-0 hover:translate-y-0 hover:shadow-none hover:bg-accent hover:text-accent-foreground active:shadow-none',
-				link: 'border-transparent shadow-none text-[#2b6416] underline-offset-4 hover:translate-x-0 hover:translate-y-0 hover:shadow-none hover:underline active:shadow-none',
+				link: 'border-transparent shadow-none text-[hsl(var(--link))] underline-offset-4 hover:translate-x-0 hover:translate-y-0 hover:shadow-none hover:underline active:shadow-none',
 				success: 'bg-physics-cyan text-black hover:bg-physics-cyan-bright',
 			},
 			size: {

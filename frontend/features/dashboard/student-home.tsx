@@ -473,7 +473,7 @@ const StudentHome = ({
 						<div
 							className="grid h-36 w-36 shrink-0 place-items-center rounded-full"
 							style={{
-								background: `conic-gradient(#0284c7 ${summaryAvailable ? `${progress}%` : "Unavailable"}, #e2e8f0 0)`,
+								background: `conic-gradient(var(--progress-accent, #0284c7) ${summaryAvailable ? `${progress}%` : "Unavailable"}, var(--progress-track, #e2e8f0) 0)`,
 							}}
 						>
 							<div className="grid h-[108px] w-[108px] place-items-center rounded-full bg-white text-center">

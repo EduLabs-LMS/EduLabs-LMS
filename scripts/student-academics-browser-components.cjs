@@ -1,7 +1,9 @@
+// Deferred-selector compatibility harness: test-only enablement, NEVER shipped student visibility.
 // Actual V2 components; synthetic HTTP/identity/group adapters, NOT provider acceptance.
+// Current hidden-panel behavior is tested separately in settings-browser-components.cjs.
 const fs=require('fs'),path=require('path'),http=require('http'),assert=require('node:assert/strict'),cp=require('child_process');
 const runtime=process.env.LMS_BROWSER_RUNTIME;if(!runtime)throw Error('LMS_BROWSER_RUNTIME required');
-const{chromium}=require(path.join(runtime,'playwright')),esbuild=require(path.join(runtime,'esbuild'));
+const{chromium}=require(path.join(runtime,'playwright')),esbuild=require(path.join(process.env.LMS_ESBUILD_RUNTIME||runtime,'esbuild'));
 const out=path.resolve('.local/m5c-browser');fs.mkdirSync(out,{recursive:true});
 const org='20000000-0000-0000-0000-000000000001',program='40000000-0000-0000-0000-000000000001',second='40000000-0000-0000-0000-000000000002',stage='50000000-0000-0000-0000-000000000001';
 let state,fail=false,conflict=false;function reset(){state={organizations:[{id:org,name:'Fictional Learning Academy'}],programs:[{id:program,label:'National curriculum',organization_id:org},{id:second,label:'International curriculum',organization_id:org}],stages:[{id:stage,label:'Foundation',program_id:program},{id:'other',label:'Advanced',program_id:program},{id:'diploma',label:'Diploma',program_id:second}],preferences:[],assignments:[{course_id:'c1',stage_id:stage},{course_id:'c2',stage_id:'other'}]};}reset();
@@ -9,6 +11,7 @@ const entry=`import React from'react';import{createRoot}from'react-dom/client';i
 (async()=>{
  cp.execFileSync(process.execPath,['node_modules/tailwindcss/lib/cli.js','-i','app/globals.css','-o',path.join(out,'styles.css')],{stdio:'ignore',windowsHide:true});
  const stubs={
+ '@/shared/contracts/student-academics':`export * from './shared/contracts/student-academics';export const studentAcademicSelectionEnabled=true;`,
  'next/link':`import React from'react';export default function Link(p){return <a {...p}/>};`,
  'next/image':`export default function Image(){return null};`,
  'next/navigation':`export const useRouter=()=>({refresh(){},push(){}});`,
@@ -32,7 +35,7 @@ const entry=`import React from'react';import{createRoot}from'react-dom/client';i
  }
  res.setHeader('Content-Type','text/html');res.end('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body class="'+Array.from(fontCss.matchAll(/\.(__variable_\w+)\{--font-(?:body|display)/g),m=>m[1]).join(' ')+' font-sans"><div id="root"></div><script src="/app.js"></script></body></html>');
  });
- await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port,browser=await chromium.launch({headless:true}),context=await browser.newContext(),errors=[],results=[];
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port,browser=await chromium.launch({headless:true,...(process.env.LMS_CHROMIUM_EXECUTABLE?{executablePath:process.env.LMS_CHROMIUM_EXECUTABLE}:{})}),context=await browser.newContext(),errors=[],results=[];
  await context.route('**/*',r=>r.request().url().startsWith(origin)?r.continue():r.abort());const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
  const choice=()=>page.getByLabel('National curriculum stage',{exact:true});
  const form=()=>page.locator('div.rounded-2xl').filter({has:choice()});
@@ -51,6 +54,6 @@ const entry=`import React from'react';import{createRoot}from'react-dom/client';i
  reset();await page.goto(origin+'?home');await waitLoaded();await page.getByRole('heading',{name:'Your Journey',exact:true}).waitFor();await overflow();await page.screenshot({path:path.join(out,'home-mobile.png'),fullPage:true});await page.setViewportSize({width:1440,height:1000});await overflow();await page.screenshot({path:path.join(out,'home-desktop.png'),fullPage:true});await choice().focus();await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.tagName),'BUTTON');results.push('Actual StudentHome, mobile/desktop and native keyboard navigation with mocked identity/group hooks');
  await choice().selectOption(stage);await form().getByRole('button',{name:'Save stage',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[aria-label="National curriculum stage"]')?.value==='50000000-0000-0000-0000-000000000001');await page.getByRole('button',{name:'My selected stages & general'}).click();await page.getByRole('heading',{name:'Advanced lesson',exact:true}).waitFor({state:'detached'});await page.getByText('of 3 lessons',{exact:true}).waitFor();assert.equal(await page.getByRole('link').filter({has:page.getByRole('heading',{name:'Foundations lesson',exact:true})}).getAttribute('href'),'/courses/c1?offering=o1');await page.getByRole('button',{name:'All My Courses',exact:true}).click();await page.getByRole('heading',{name:'Advanced lesson',exact:true}).waitFor();results.push('Home filtering preserves global progress totals, original lesson links and other-stage recovery');
  state.preferences=[];state.assignments.push({course_id:'general',stage_id:stage});await page.goto(origin);await waitLoaded();await page.getByRole('button',{name:'My selected stages & general'}).click();await page.getByText('No lessons match this discovery filter.',{exact:false}).waitFor();await page.getByRole('button',{name:'All My Courses',exact:true}).click();await page.getByRole('heading',{name:/General lesson/}).waitFor();results.push('No matching discovery content has accurate empty state and All My Courses recovery');
- assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({coverage:'Actual Chromium V2 components; synthetic transport/identity/groups, NOT Firebase/Supabase E2E',passed:results.length,results,errors},null,2));console.log(JSON.stringify({passed:results.length,results,errors},null,2));
+ assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({coverage:'Retained deferred selector explicitly enabled only in harness; synthetic transport/identity/groups, NOT shipped UI or Firebase/Supabase E2E',passed:results.length,results,errors},null,2));console.log(JSON.stringify({passed:results.length,results,errors},null,2));
  }finally{await context.close();await browser.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -68,7 +68,7 @@ const LoadingOverlay = ({
 			exit={{ opacity: 0 }}
 			transition={{ duration: 0.25, ease: 'easeOut' }}
 			className={cn(
-				'fixed inset-0 z-[100] flex select-none flex-col items-center justify-center bg-[#e9eee4]/45 backdrop-blur-xl',
+				'fixed inset-0 z-[100] flex select-none flex-col items-center justify-center bg-background/45 backdrop-blur-xl',
 				blocking ? 'pointer-events-auto' : 'pointer-events-none'
 			)}
 		>

@@ -21,3 +21,6 @@ export function academicCourseIds(courseIds:string[], data:StudentAcademics, fil
  const selected=new Set(data.preferences.flatMap(p=>p.stage_id&&visible.has(p.stage_id)?[p.stage_id]:[]));
  return courseIds.filter(id=>general(id)||links.some(a=>a.course_id===id&&selected.has(a.stage_id)));
 }
+
+/** Paused student UI only; taxonomy, preferences and authorization remain intact. */
+export const studentAcademicSelectionEnabled=false;
