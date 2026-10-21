@@ -1,5 +1,6 @@
 'use client';
 
+import { Localized } from '@/frontend/components/language-provider';
 import { Search } from 'lucide-react';
 import { Input } from '@/frontend/components/ui/input';
 import { useEffect, useState } from 'react';
@@ -40,11 +41,10 @@ const SearchInput = () => {
 		<div className="relative">
 			<Search className="w-4 h-4 absolute top-3 left-3 text-slate-600" />
 
-			<Input
+			<Localized as={Input} labels={{"placeholder":"common.search_for_a_course"}}
 				value={value}
 				onChange={(e) => setValue(e.target.value)}
 				className="w-full md:w[300px] pl-9 rounded-full bg-slate-100 dark:bg-transparent focus-visible:ring-slate-200"
-				placeholder="Search for a course"
 			/>
 		</div>
 	);

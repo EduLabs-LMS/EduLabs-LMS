@@ -1,3 +1,4 @@
+import { L } from '@/frontend/components/language-provider';
 // use client to avoid SSR error
 'use client';
 
@@ -79,7 +80,7 @@ const SidebarRoutes = () => {
 					trigger={
 						<button className={actionClassName} type="button">
 							<LifeBuoy className="h-5 w-5 shrink-0 text-slate-500" />
-							<span>Website Help</span>
+							<span><L id="navigation.website_help"/></span>
 						</button>
 					}
 				/>
@@ -92,7 +93,7 @@ const SidebarRoutes = () => {
 					type="button"
 				>
 					<LogOut className="h-5 w-5 shrink-0" />
-					<span>Sign out</span>
+					<span><L id="navigation.sign_out"/></span>
 				</button>
 			</div>
 		</div>

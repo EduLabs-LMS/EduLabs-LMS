@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
-function load(file,deps={},globals={}){const mod={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:mod,exports:mod.exports,URL,...globals,require:n=>deps[n]??require(n)});return mod.exports;}
+function load(file,deps={},globals={}){const mod={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:mod,exports:mod.exports,URL,...globals,require:n=>n==='@/frontend/components/language-provider'?require('./localization-test-loader.cjs').language():deps[n]??require(n)});return mod.exports;}
 const c=load('shared/contracts/lessons.ts');const id='10000000-0000-0000-0000-000000000001';
 test('lesson edit contract rejects forged tenant/user fields and invalid status',()=>{
  const v={action:'edit_segment',id,parentId:null,updatedAt:'2026-10-12T00:00:00Z',data:{title:'Part',status:'draft'}};

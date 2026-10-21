@@ -1,5 +1,6 @@
 'use client';
 
+import { L, LocalCount } from '@/frontend/components/language-provider';
 import { useRef,useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -100,10 +101,10 @@ export const LessonCard = ({
 					hasImage ? 'text-sky-200' : 'text-sky-700'
 				)}
 			>
-				{formatChapterLabel(chapterType, chapterNumber)} • Lesson {lessonNumber}
+				{formatChapterLabel(chapterType, chapterNumber)}{" "}<L id="common.lesson"/>{" "}{lessonNumber}
 			</p>
 
-			<h3 className={cn('mt-3 line-clamp-2 text-lg font-bold leading-snug', hasImage && 'drop-shadow-sm')}>
+			<h3 dir="auto" className={cn('mt-3 line-clamp-2 text-lg font-bold leading-snug', hasImage && 'drop-shadow-sm')}>
 				{title}
 			</h3>
 
@@ -126,7 +127,7 @@ export const LessonCard = ({
 					)}
 				>
 					<Layers className="h-3.5 w-3.5" aria-hidden="true" />
-					{partsCount} {partsCount === 1 ? 'part' : 'parts'}
+					<LocalCount count={partsCount} noun="parts"/>
 				</span>}
 				<span
 					className={cn(

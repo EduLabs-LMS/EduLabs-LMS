@@ -1,5 +1,6 @@
 'use client';
 
+import { L, Localized } from '@/frontend/components/language-provider';
 import { Preview } from '@/frontend/components/preview';
 import { Button } from '@/frontend/components/ui/button';
 import { cn } from '@/shared/utils';
@@ -66,7 +67,7 @@ const CourseDetailPage = ({ initialCourse }: { initialCourse?: {id:string;title:
 
 	return (
 		<div className="p-8">
- {isFirebaseStaging() && <p role="status" className="mb-4 text-xs text-slate-500">Feedback is awaiting integration. The original V2 rating display is a template placeholder.</p>}
+ {isFirebaseStaging() && <p role="status" className="mb-4 text-xs text-slate-500"><L id="common.feedback_is_awaiting_integration_the"/></p>}
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-8 center-content">
 				<div>
 					<div className="px-[15px] py-[12px] text-3xl font-bold">
@@ -85,17 +86,16 @@ const CourseDetailPage = ({ initialCourse }: { initialCourse?: {id:string;title:
 					</div>
 
 					<div className="px-4">
-						<Button className="mt-4 w-full">Continue Studying</Button>
+						<Button className="mt-4 w-full"><L id="common.continue_studying"/></Button>
 					</div>
 				</div>
 
 				<div>
 					{course?.imageUrl && (
 						<div className="w-full h-[350px] relative">
-							<Image
+							<Localized as={Image} labels={{"alt":"common.course_image"}}
 								className="rounded-md shadow-md object-cover "
 								src={course.imageUrl}
-								alt="course-image"
 								fill
 							/>
 						</div>
@@ -113,7 +113,7 @@ const CourseDetailPage = ({ initialCourse }: { initialCourse?: {id:string;title:
 			</div>
 
 			<div className="mt-12 pl-4">
-				<div className="text-2xl font-bold mt-8 mb-4">Feedbacks</div>
+				<div className="text-2xl font-bold mt-8 mb-4"><L id="common.feedbacks"/></div>
 
 				<div className="grid grid-cols-1 gap-y-3">
 					{feedbacks.map((feedback, index) => (

@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { L, useLanguage } from '@/frontend/components/language-provider';
 import { useState, useEffect } from 'react';
 import { getRemainingTime, type RemainingTime } from '@/shared/countdown';
 import { cn } from '@/shared/utils';
@@ -12,6 +13,7 @@ interface SessionCountdownProps {
 }
 
 export const SessionCountdown = ({ targetDate, endDate, serverNow, className }: SessionCountdownProps) => {
+    const { ui } = useLanguage();
     const target = targetDate ? new Date(targetDate).getTime() : NaN;
     const end = endDate ? new Date(endDate).getTime() : NaN;
     const [sessionEnded,setSessionEnded] = useState(false);
@@ -52,9 +54,9 @@ export const SessionCountdown = ({ targetDate, endDate, serverNow, className }: 
     return (
         <div className={cn('w-full min-w-0 max-w-sm space-y-2.5', className)}>
             <p className="text-xs font-medium text-slate-500">
-                {sessionEnded ? 'Session completed' : timeLeft?.hasStarted ? (endDate ? 'In Progress' : 'Scheduled start time reached') : 'Class starts in'}
+                <L text={sessionEnded ? 'Session completed' : timeLeft?.hasStarted ? (endDate ? 'In Progress' : 'Scheduled start time reached') : 'Class starts in'}/>
             </p>
-            <div role="timer" aria-label="Time until your next class" aria-live="off" className="grid grid-cols-4 gap-2 sm:gap-3">
+            <div role="timer" aria-label={ui('Time until your next class')} aria-live="off" className="grid grid-cols-4 gap-2 sm:gap-3">
                 {units.map(({ key, label }) => (
                     <div key={key} className={cn(
                         'flex min-h-[76px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-3 sm:min-h-[88px]',
@@ -63,11 +65,11 @@ export const SessionCountdown = ({ targetDate, endDate, serverNow, className }: 
                         <span className="text-2xl font-semibold leading-none tracking-tight tabular-nums sm:text-3xl">
                             {timeLeft ? String(timeLeft[key]).padStart(2, '0') : '--'}
                         </span>
-                        <span className="text-[10px] font-medium text-slate-500 sm:text-xs">{label}</span>
+                        <span className="text-[10px] font-medium text-slate-500 sm:text-xs"><L text={label}/></span>
                     </div>
                 ))}
             </div>
-            {!Number.isFinite(target) && <p className="text-xs text-slate-500">Class time is not available yet.</p>}
+            {!Number.isFinite(target) && <p className="text-xs text-slate-500"><L id="countdown.unavailable"/></p>}
         </div>
     );
 };

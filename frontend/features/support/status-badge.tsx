@@ -1,3 +1,4 @@
+import { L } from '@/frontend/components/language-provider';
 import { STATUS_LABEL, type TicketStatus } from '@/shared/support';
 import { cn } from '@/shared/utils';
 
@@ -15,6 +16,6 @@ export const StatusBadge = ({ status, className }: { status: TicketStatus; class
 			className
 		)}
 	>
-		{STATUS_LABEL[status]}
+		<L id={status==='OPEN'?'support.open':status==='IN_PROGRESS'?'support.inProgress':'support.resolved'}/>
 	</span>
 );

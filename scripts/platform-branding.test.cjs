@@ -3,7 +3,7 @@ const fs=require('fs'),vm=require('vm'),ts=require('typescript'),React=require('
 const {renderToStaticMarkup}=require('react-dom/server');
 function footer(firebase){
  const module={exports:{}};
- vm.runInNewContext(ts.transpileModule(fs.readFileSync('frontend/components/footer.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{module,exports:module.exports,require:name=>name==='@/shared/auth-config'?{isFirebaseStaging:()=>firebase}:name==='@/shared/constants/contact'?{TEACHER_CONTACT:{name:'Mrs. Ghada Ali',displayPhone:'01094683366',whatsappUrl:'https://wa.me/201094683366',phoneUrl:'tel:+201094683366'}}:name==='lucide-react'?{HelpCircle:()=>null,MessageCircle:()=>null,Phone:()=>null}:require(name)});
+ vm.runInNewContext(ts.transpileModule(fs.readFileSync('frontend/components/footer.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{module,exports:module.exports,require:name=>name==='@/frontend/components/language-provider'?require('./localization-test-loader.cjs').language():name==='@/shared/auth-config'?{isFirebaseStaging:()=>firebase}:name==='@/shared/constants/contact'?{TEACHER_CONTACT:{name:'Mrs. Ghada Ali',displayPhone:'01094683366',whatsappUrl:'https://wa.me/201094683366',phoneUrl:'tel:+201094683366'}}:name==='lucide-react'?{HelpCircle:()=>null,MessageCircle:()=>null,Phone:()=>null}:require(name)});
  return renderToStaticMarkup(React.createElement(module.exports.default));
 }
 test('Firebase footer enables real support and keeps unavailable teacher contacts disabled',()=>{

@@ -1,0 +1,20 @@
+/* Direction-only compatibility. The approved English geometry and both palettes are unchanged. */
+html[data-language-pending] [data-lms-shell] { visibility: hidden; }
+html[data-lms-appearance][lang="ar"] body { font-family: var(--font-arabic-body), system-ui, sans-serif; }
+html[data-lms-appearance][lang="ar"] :is(h1,h2,h3,.font-display):not(:where([data-appearance-island], [data-appearance-island] *)) { font-family: var(--font-arabic-display), var(--font-arabic-body), sans-serif; letter-spacing: normal; }
+[data-appearance-island] { font-family: var(--font-body), system-ui, sans-serif; text-align: start; }
+html[data-lms-appearance][dir="rtl"] :is(.text-left,.sm\:text-left):not(:where([data-appearance-island], [data-appearance-island] *)) { text-align: start; }
+html[data-lms-appearance][dir="rtl"] .text-right:not(:where([data-appearance-island], [data-appearance-island] *)) { text-align: end; }
+/* Only navigation arrows mirror. Logos, artwork, media and other icons never do. */
+html[data-lms-appearance][dir="rtl"] :is(.lucide-arrow-left,.lucide-arrow-right,.lucide-chevron-left,.lucide-chevron-right):not(:where([data-appearance-island], [data-appearance-island] *)) { scale: -1 1; }
+html[data-lms-appearance][dir="rtl"] :is(.mr-1,.mr-1\.5,.mr-2,.mr-3):not(:where([data-appearance-island], [data-appearance-island] *)) { margin-right: 0; margin-left: var(--rtl-gap, .5rem); }
+html[data-lms-appearance][dir="rtl"] .mr-1 { --rtl-gap: .25rem; }
+html[data-lms-appearance][dir="rtl"] .mr-1\.5 { --rtl-gap: .375rem; }
+html[data-lms-appearance][dir="rtl"] .mr-3 { --rtl-gap: .75rem; }
+html[data-lms-appearance][dir="rtl"] :is(.ml-2,.ml-3):not(:where([data-appearance-island], [data-appearance-island] *)) { margin-left: 0; margin-right: .5rem; }
+html[data-lms-appearance][dir="rtl"] .ml-3 { margin-right: .75rem; }
+html[data-lms-appearance][dir="rtl"] :is(.space-x-2,.sm\:space-x-2):not(:where([data-appearance-island], [data-appearance-island] *)) > :not([hidden]) ~ :not([hidden]) { --tw-space-x-reverse: 1; }
+html[data-lms-appearance] :is(input[type=email],input[type=url],input[type=tel]) { direction: ltr; unicode-bidi: isolate; text-align: start; }
+html[data-lms-appearance] :is(input[type=search],textarea) { unicode-bidi: plaintext; }
+/* Rich text remains authored content, not forced into the shell's direction. */
+html[data-lms-appearance] .ql-editor { unicode-bidi: plaintext; text-align: start; }

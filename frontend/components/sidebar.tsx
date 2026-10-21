@@ -1,5 +1,6 @@
 'use client';
 
+import { L } from '@/frontend/components/language-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -89,9 +90,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		<span className="text-2xl font-normal leading-none text-black truncate" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
 		EduLabs
 		</span>
-		<span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-		Learning Platform
-		</span>
+		<span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-600"><L id="navigation.learning_platform"/></span>
 		</div>
 		</div>
 
@@ -113,7 +112,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			isHomeActive ? 'text-black' : 'text-slate-500'
 		)}
 		/>
-		<span>Home</span>
+		<span><L id="navigation.home"/></span>
 		</Link>
 
 		<Link
@@ -132,7 +131,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			isSelfLearningActive ? 'text-black' : 'text-slate-500'
 		)}
 		/>
-		<span>Self Learning</span>
+		<span><L id="navigation.self_learning"/></span>
 		</Link>
 
 		<Link
@@ -151,7 +150,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			isGroupActive ? 'text-black' : 'text-slate-500'
 		)}
 		/>
-		<span>Sessions &amp; Groups</span>
+		<span><L id="navigation.sessions_groups"/></span>
 		</Link>
 
 		<Link
@@ -170,7 +169,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			isExamsActive ? 'text-black' : 'text-slate-500'
 		)}
 		/>
-		<span>Exams</span>
+		<span><L id="navigation.exams"/></span>
 		</Link>
 
 		<a role="link"
@@ -190,16 +189,14 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			isSupportActive ? 'text-black' : 'text-slate-500'
 		)}
 		/>
-		<span>Support</span>
+		<span><L id="navigation.support"/></span>
 		</a>
 
-		<Link href="/settings" onClick={() => onNavigate?.()} aria-current={isSettingsActive?'page':undefined} className={cn('relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',isSettingsActive?'bg-primary text-black border-black font-semibold shadow-hard-sm':'text-slate-700 hover:text-black hover:bg-slate-100')}><Settings aria-hidden className={cn('w-[22px] h-[22px] shrink-0',isSettingsActive?'text-black':'text-slate-500')}/><span>Settings</span></Link>
+		<Link href="/settings" onClick={() => onNavigate?.()} aria-current={isSettingsActive?'page':undefined} className={cn('relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',isSettingsActive?'bg-primary text-black border-black font-semibold shadow-hard-sm':'text-slate-700 hover:text-black hover:bg-slate-100')}><Settings aria-hidden className={cn('w-[22px] h-[22px] shrink-0',isSettingsActive?'text-black':'text-slate-500')}/><span><L id="navigation.settings"/></span></Link>
 
 		{isAdminOrTeacher && (
 			<div className="pt-3 mt-1 border-t border-slate-200/80 flex flex-col space-y-1.5">
-			<span className="px-4 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-			Admin &amp; Teacher
-			</span>
+			<span className="px-4 text-[11px] font-bold uppercase tracking-wider text-slate-400"><L id="navigation.admin_teacher"/></span>
 			<Link
 			href="/admin/users"
 			onClick={() => onNavigate?.()}
@@ -216,7 +213,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 				 isAdminUsersActive ? 'text-black' : 'text-slate-500'
 			)}
 			/>
-			<span>Users &amp; Groups</span>
+			<span><L id="navigation.users_groups"/></span>
 			</Link>
 
 			<Link
@@ -235,7 +232,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 				 isAdminSubmissionsActive ? 'text-black' : 'text-slate-500'
 			)}
 			/>
-			<span>Homework Queue</span>
+			<span><L id="navigation.homework_queue"/></span>
 			</Link>
 
 			<Link
@@ -254,7 +251,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 				 isTeacherActive ? 'text-black' : 'text-slate-500'
 			)}
 			/>
-			<span>Teacher Courses</span>
+			<span><L id="navigation.teacher_courses"/></span>
 			</Link>
 			</div>
 		)}
@@ -276,7 +273,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		/>
 		<div className="flex flex-col min-w-0 flex-1">
 		<span className="text-xs font-bold text-slate-900 truncate leading-tight">
-		{displayName}
+		<bdi dir="auto">{displayName}</bdi>
 		</span>
 		<div className="flex items-center gap-1.5 mt-0.5">
 		<span
@@ -289,7 +286,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			: 'bg-primary text-black border-black'
 		)}
 		>
-		{isFirebaseStaging() ? (isAdminOrTeacher ? 'STAFF' : 'STUDENT') : role ? role.toUpperCase() : 'STUDENT'}
+		<L text={isFirebaseStaging() ? (isAdminOrTeacher ? 'STAFF' : 'STUDENT') : role ? role.toUpperCase() : 'STUDENT'}/>
 		</span>
 		</div>
 		</div>
@@ -305,7 +302,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		className="flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-150 w-full text-left cursor-pointer active:scale-[0.97]"
 		>
 		<LogOut className="w-4 h-4 shrink-0 text-slate-500" />
-		<span>Sign out</span>
+		<span><L id="navigation.sign_out"/></span>
 		</button>
 		</div>
 		</aside>

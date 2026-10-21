@@ -1,5 +1,6 @@
 'use client';
 
+import { L, Localized } from '@/frontend/components/language-provider';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { HelpCircle, MessageCircle, Phone } from 'lucide-react';
 import { TEACHER_CONTACT } from '@/shared/constants/contact';
@@ -15,26 +16,23 @@ const Footer = () => {
 					<div className="space-y-1">
 						<p className="font-display text-xl text-slate-900">EduLabs</p>
 						<p className="text-xs leading-relaxed text-slate-500">
-							{firebase ? 'Platform help: EduLabs · Course questions: your authorized teacher.' : <>Lesson questions? Contact {TEACHER_CONTACT.name} · {TEACHER_CONTACT.displayPhone}</>}
+							{firebase ? <L id="dynamic.platformHelp"/> : <><L id="common.lesson_questions_contact"/>{" "}{TEACHER_CONTACT.name} · {TEACHER_CONTACT.displayPhone}</>}
 						</p>
 					</div>
-					<nav aria-label="Contact and support" className="flex flex-wrap items-center gap-2">
+					<Localized as="nav" labels={{"aria-label":"common.contact_and_support"}} className="flex flex-wrap items-center gap-2">
 						<a role="link" href={firebase ? undefined : TEACHER_CONTACT.whatsappUrl} aria-disabled={firebase || undefined} tabIndex={0} title={firebase ? 'Course help routing is not yet available.' : undefined} target={firebase ? undefined : '_blank'} rel="noopener noreferrer" className={`${contactClass} bg-emerald-50 text-emerald-800 hover:bg-emerald-100`}>
 							<MessageCircle className="h-4 w-4" aria-hidden="true" />
-							{firebase ? 'Course help — soon' : 'WhatsApp Mrs. Ghada'}
+							{firebase ? <L id="dynamic.courseHelp"/> : <L id="dynamic.whatsapp"/>}
 						</a>
 						<a role="link" href={firebase ? undefined : TEACHER_CONTACT.phoneUrl} aria-disabled={firebase || undefined} tabIndex={0} title={firebase ? 'Course contact routing is not yet available.' : undefined} className={`${contactClass} bg-white text-slate-700 hover:bg-slate-100`}>
 							<Phone className="h-4 w-4" aria-hidden="true" />
-							{firebase ? 'Contact — soon' : 'Call Mrs. Ghada'}
+							{firebase ? <L id="dynamic.contactSoon"/> : <L id="dynamic.call"/>}
 						</a>
 						<a role="link" href="/support" tabIndex={0} className={`${contactClass} text-sky-700 hover:bg-sky-50`}>
-							<HelpCircle className="h-4 w-4" aria-hidden="true" />
-							Support
-						</a>
-					</nav>
+							<HelpCircle className="h-4 w-4" aria-hidden="true" /><L id="navigation.support"/></a>
+					</Localized>
 				</div>
-				<p className="mt-5 border-t border-slate-100 pt-4 text-xs leading-relaxed text-slate-500">
-					Made by: <span className="font-medium text-slate-700">Mohamed Ahmed Yehia</span> &amp; <span className="font-medium text-slate-700">Mohamed Tamer Mohamed</span>
+				<p className="mt-5 border-t border-slate-100 pt-4 text-xs leading-relaxed text-slate-500"><L id="common.made_by"/>{" "}<span className="font-medium text-slate-700">Mohamed Ahmed Yehia</span> &amp; <span className="font-medium text-slate-700">Mohamed Tamer Mohamed</span>
 				</p>
 			</div>
 		</footer>

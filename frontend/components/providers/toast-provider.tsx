@@ -1,9 +1,11 @@
 'use client';
 
-import { Toaster } from 'react-hot-toast';
+import { useLanguage } from '@/frontend/components/language-provider';
+import { Toaster, ToastBar } from 'react-hot-toast';
 
 export const ToastProvider = () => {
-	return (
+	const { ui }=useLanguage();
+ return (
 		<Toaster
 			toastOptions={{
 				style: {
@@ -16,6 +18,6 @@ export const ToastProvider = () => {
 				},
 				success: { iconTheme: { primary: '#7ed957', secondary: '#000' } },
 			}}
-		/>
+		>{toast=><ToastBar toast={{...toast,message:typeof toast.message==='string'?ui(toast.message):toast.message}}/>}</Toaster>
 	);
 };

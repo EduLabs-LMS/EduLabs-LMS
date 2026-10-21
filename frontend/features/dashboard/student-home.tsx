@@ -1,5 +1,6 @@
 'use client';
 
+import { L, useLanguage } from '@/frontend/components/language-provider';
 import type { StudentLesson } from '@/shared/contracts/dashboard';
 export type { StudentLesson } from '@/shared/contracts/dashboard';
 
@@ -110,6 +111,7 @@ const StudentHome = ({
 	groupSchedule,
 	homeworkInfo,
 }: StudentHomeProps) => {
+ const { ui, t, direction } = useLanguage();
 	const { user } = useUser();
 	const [activeSlide, setActiveSlide] = useState(0);
 	const [isPaused, setIsPaused] = useState(false);
@@ -162,8 +164,9 @@ const StudentHome = ({
 
 		if (drag.axis === 'x') {
 			// Add resistance at the first/last edges
-			const atStart = activeSlide === 0 && dx > 0;
-			const atEnd = activeSlide === heroSlides.length - 1 && dx < 0;
+			const logicalDx = direction === 'rtl' ? -dx : dx;
+			const atStart = activeSlide === 0 && logicalDx > 0;
+			const atEnd = activeSlide === heroSlides.length - 1 && logicalDx < 0;
 			setDragOffset(atStart || atEnd ? dx * 0.35 : dx);
 		}
 	};
@@ -176,7 +179,8 @@ const StudentHome = ({
 		if (drag.axis === 'x') {
 			const dx = e.clientX - drag.startX;
 			if (!cancelled && Math.abs(dx) >= SWIPE_THRESHOLD_PX) {
-				const next = activeSlide + (dx < 0 ? 1 : -1);
+				const logicalDx = direction === 'rtl' ? -dx : dx;
+				const next = activeSlide + (logicalDx < 0 ? 1 : -1);
 				// Don't wrap with a swipe past the ends; clamp instead
 				setActiveSlide(Math.min(Math.max(next, 0), heroSlides.length - 1));
 			}
@@ -244,7 +248,7 @@ const StudentHome = ({
 						isDragging ? 'cursor-grabbing' : 'cursor-grab transition-transform duration-700 ease-out'
 					)}
 					style={{
-						transform: `translateX(calc(-${activeSlide * 100}% + ${dragOffset}px))`,
+						transform: `translateX(calc(${direction === 'rtl' ? '' : '-'}${activeSlide * 100}% + ${dragOffset}px))`,
 					}}
 					onPointerDown={handlePointerDown}
 					onPointerMove={handlePointerMove}
@@ -259,7 +263,7 @@ const StudentHome = ({
 							{/* Background Image */}
 							<Image
 								src={slide.image}
-								alt={slide.title}
+								alt={ui(slide.title)}
 								fill
 								priority={index === 0}
 								draggable={false}
@@ -274,16 +278,16 @@ const StudentHome = ({
 							<div className="relative z-10 flex max-w-2xl flex-col gap-3.5">
 								<div className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
 									<Sparkles className="h-4 w-4" />
-									{slide.eyebrow}
+									<L text={slide.eyebrow}/>
 								</div>
 								<h1 className="text-2xl font-bold tracking-tight sm:text-4xl text-white">
-									{slide.title}
+									<L text={slide.title}/>
 								</h1>
 								<p className="max-w-xl text-sm sm:text-base text-slate-200 leading-relaxed">
-									{slide.description}
+									<L text={slide.description}/>
 								</p>
 								<span className="mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-white/15 backdrop-blur-xs px-3.5 py-1.5 text-xs sm:text-sm font-medium ring-1 ring-white/25 text-white">
-									{slide.badge} <ArrowUpRight className="h-4 w-4" />
+									<L text={slide.badge}/> <ArrowUpRight className="h-4 w-4" />
 								</span>
 							</div>
 
@@ -300,7 +304,7 @@ const StudentHome = ({
 				<div className="absolute bottom-4 inset-x-0 z-20 flex justify-center items-center gap-2">
 					{heroSlides.map((slide, index) => (
 						<button
-							aria-label={`Go to slide ${index + 1}`}
+							aria-label={t('home.slide',{count:index+1})}
 							aria-pressed={activeSlide === index}
 							className={cn(
 								'h-2.5 rounded-full transition-all duration-300 cursor-pointer',
@@ -319,8 +323,8 @@ const StudentHome = ({
 			{/* LIVE SESSION & HOMEWORK REMINDER BANNER */}
 			<section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
 				<div className="flex min-w-0 flex-col justify-between gap-6 xl:flex-row xl:items-center">
-					{phase1 && liveGroups.error && <p role="alert" className="text-sm text-red-700">{liveGroups.error} <button className="underline" onClick={liveGroups.retry}>Retry schedule</button></p>}
-					{phase1 && liveGroups.loading && <p role="status" className="text-sm text-slate-500">Loading your class schedule…</p>}
+					{phase1 && liveGroups.error && <p role="alert" className="text-sm text-red-700">{liveGroups.error} <button className="underline" onClick={liveGroups.retry}><L id="home.retry_schedule"/></button></p>}
+					{phase1 && liveGroups.loading && <p role="status" className="text-sm text-slate-500"><L id="home.loading_your_class_schedule"/></p>}
 					{(!phase1 || (!liveGroups.error && !liveGroups.loading)) && <UpcomingSession
 						serverNow={phase1 ? liveGroups.serverNow : undefined}
 						session={nextSession}
@@ -337,12 +341,9 @@ const StudentHome = ({
 								</div>
 								<div className="space-y-0.5">
 									<span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/90 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
-										<CheckCircle2 className="h-3 w-3" />
-										Homework Approved
-									</span>
+										<CheckCircle2 className="h-3 w-3" /><L id="home.homework_approved"/></span>
 									<p className="text-xs text-slate-600">
-										{homeworkInfo.chapterTitle} verified! Great job.
-									</p>
+										{homeworkInfo.chapterTitle}{" "}<L id="home.verified_great_job"/></p>
 								</div>
 							</>
 						) : homeworkInfo?.status === 'PENDING_APPROVAL' ? (
@@ -352,11 +353,8 @@ const StudentHome = ({
 								</div>
 								<div className="space-y-0.5">
 									<span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
-										<Clock className="h-3 w-3" />
-										Homework Submitted — Pending Review
-									</span>
-									<p className="text-xs text-slate-600">
-										Under review for {homeworkInfo.chapterTitle}.
+										<Clock className="h-3 w-3" /><L id="home.homework_submitted_pending_review"/></span>
+									<p className="text-xs text-slate-600"><L id="home.under_review_for"/>{" "}{homeworkInfo.chapterTitle}.
 									</p>
 								</div>
 							</>
@@ -368,18 +366,16 @@ const StudentHome = ({
 								<div className="space-y-1">
 									<span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-800">
 										<AlertCircle className="h-3 w-3" />
-										{phase1 ? (attendance.loading?"Loading homework…":attendance.error?"Homework unavailable":attendance.data?.pendingHomework?`${attendance.data.pendingHomework} homework awaiting submission`:"No pending homework") : "Homework Pending — Upload before your next session!"}
+										{phase1 ? (attendance.loading?<L id="home.loadingHomework"/>:attendance.error?<L id="home.homeworkUnavailable"/>:attendance.data?.pendingHomework?<L id="home.pendingCount" values={{count:attendance.data.pendingHomework}}/>:<L id="home.noneHomework"/>) : <L id="home.pendingHomework"/>}
 									</span>
 									<p className="text-xs text-slate-600">
-										{phase1 ? <>Current authorized assignments only. {attendance.error&&<button className="underline" onClick={attendance.refresh}>Retry</button>}</> : <>Submit textbook photos for {homeworkInfo?.chapterTitle || 'current lesson'}.</>}
+										{phase1 ? <><L id="home.current_authorized_assignments_only"/>{" "}{attendance.error&&<button className="underline" onClick={attendance.refresh}><L id="home.retry"/></button>}</> : <><L id="home.submit_textbook_photos_for"/>{" "}{homeworkInfo?.chapterTitle || <L id="home.currentLesson"/>}.</>}
 									</p>
 									{homeworkInfo?.chapterUrl && (
 										<Link
 											href={homeworkInfo.chapterUrl}
 											className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700 hover:text-rose-800 hover:underline pt-0.5"
-										>
-											Upload Homework Now &rarr;
-										</Link>
+										><L id="home.upload_homework_now"/></Link>
 									)}
 								</div>
 							</>
@@ -390,18 +386,18 @@ const StudentHome = ({
 
 			<section className="space-y-5">
 				<div>
-					<h2 className="text-2xl font-bold tracking-tight text-slate-950">Hey {firstName}!</h2>
-					<p className="mt-1 text-sm text-slate-500">Here&apos;s your learning journey</p>
+					<h2 className="text-2xl font-bold tracking-tight text-slate-950"><L id="home.hey"/>{" "}<bdi dir="auto">{firstName}</bdi>!</h2>
+					<p className="mt-1 text-sm text-slate-500"><L id="home.here_s_your_learning_journey"/></p>
 				</div>
 
 				<div className="grid gap-4 md:grid-cols-3">
 					<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
 						<div className="flex items-start justify-between gap-4">
 							<div>
-								<p className="text-sm font-medium text-slate-500">Lessons Done</p>
+								<p className="text-sm font-medium text-slate-500"><L id="home.lessons_done"/></p>
 								<p className="mt-2 text-2xl font-bold text-slate-950">
-									{summaryAvailable ? completedLessons : "Unavailable"} / {summaryAvailable ? lessons.length : "Unavailable"}{' '}
-									<span className="text-base font-medium text-slate-500">Lessons</span>
+									{summaryAvailable ? completedLessons : <L id="common.unavailable"/>} / {summaryAvailable ? lessons.length : <L id="common.unavailable"/>}{' '}
+									<span className="text-base font-medium text-slate-500"><L id="home.lessons"/></span>
 								</p>
 							</div>
 							<span className="grid h-11 w-11 place-items-center rounded-xl bg-sky-50 text-sky-700">
@@ -417,8 +413,8 @@ const StudentHome = ({
 						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default" key={label}>
 							<div className="flex items-start justify-between gap-4">
 								<div>
-									<p className="text-sm font-medium text-slate-500">{label}</p>
-									<p className="mt-2 text-lg font-semibold text-slate-950">{phase1&&attendance.loading?'Loading…':value??'Unavailable'}</p>
+									<p className="text-sm font-medium text-slate-500"><L text={label}/></p>
+									<p className="mt-2 text-lg font-semibold text-slate-950">{phase1&&attendance.loading?<L id="common.loading"/>:value??<L id="common.unavailable"/>}</p>
 								</div>
 								<span className={cn('grid h-11 w-11 place-items-center rounded-xl', tone)}>
 									<Icon className="h-5 w-5" />
@@ -431,8 +427,8 @@ const StudentHome = ({
 
 			<section>
 				<div className="mb-4 flex items-center justify-between gap-4">
-					<h2 className="text-xl font-bold text-slate-950">Your Journey</h2>
-					<span className="text-sm text-slate-500">{summaryAvailable ? discoveryCount : "Unavailable"} lessons available</span>
+					<h2 className="text-xl font-bold text-slate-950"><L id="home.your_journey"/></h2>
+					<span className="text-sm text-slate-500">{summaryAvailable ? discoveryCount : <L id="common.unavailable"/>}{" "}<L id="home.lessons_available"/></span>
 				</div>
 
 				<div className="flex gap-4 overflow-x-auto py-2 pb-4">
@@ -458,7 +454,7 @@ const StudentHome = ({
 						})
 					) : (
 						<div className="flex min-h-[174px] w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
-							{discoveryLessonIds ? 'No lessons match this discovery filter. Choose All My Courses to view your other lessons.' : 'Your lessons will appear here as soon as they are published.'}
+							{discoveryLessonIds ? <L id="learning.noFilter"/> : <L id="learning.noPublished"/>}
 						</div>
 					)}
 				</div>
@@ -468,7 +464,7 @@ const StudentHome = ({
 				<div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0">
 					<TextbookWaveBottomLeft opacity={0.2} />
 					<div className="relative z-10">
-						<h2 className="text-xl font-bold text-slate-950">Progress Overview</h2>
+						<h2 className="text-xl font-bold text-slate-950"><L id="home.progress_overview"/></h2>
 					<div className="mt-6 flex flex-col items-center gap-6 sm:flex-row">
 						<div
 							className="grid h-36 w-36 shrink-0 place-items-center rounded-full"
@@ -478,16 +474,14 @@ const StudentHome = ({
 						>
 							<div className="grid h-[108px] w-[108px] place-items-center rounded-full bg-white text-center">
 								<span className="text-2xl font-bold text-slate-950">{progress}%</span>
-								<span className="text-xs text-slate-500">complete</span>
+								<span className="text-xs text-slate-500"><L id="home.complete"/></span>
 							</div>
 						</div>
 						<div>
 							<p className="text-2xl font-bold text-slate-950">
-								{summaryAvailable ? completedLessons : "Unavailable"} <span className="text-base font-medium text-slate-500">of {summaryAvailable ? lessons.length : "Unavailable"} lessons</span>
+								{summaryAvailable ? completedLessons : <L id="common.unavailable"/>} <span className="text-base font-medium text-slate-500"><L id="home.of"/>{" "}{summaryAvailable ? lessons.length : <L id="common.unavailable"/>}{" "}<L id="home.lessons_"/></span>
 							</p>
-							<p className="mt-2 text-sm leading-6 text-slate-500">
-								Every completed lesson moves your overall journey forward.
-							</p>
+							<p className="mt-2 text-sm leading-6 text-slate-500"><L id="home.every_completed_lesson_moves_your"/></p>
 						</div>
 					</div>
 					</div>
@@ -495,11 +489,11 @@ const StudentHome = ({
 
 				<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0">
 					<div className="flex items-center justify-between gap-3">
-						<h2 className="text-xl font-bold text-slate-950">Upcoming Sessions</h2>
+						<h2 className="text-xl font-bold text-slate-950"><L id="home.upcoming_sessions"/></h2>
 						<CalendarClock className="h-5 w-5 text-sky-700" />
 					</div>
 					<div className="mt-5 max-h-60 space-y-3 overflow-y-auto pr-1">
-						{phase1 && (liveGroups.error || liveGroups.loading) ? <p role={liveGroups.error ? 'alert' : 'status'} className="text-sm text-slate-500">{liveGroups.error || 'Loading your class schedule…'}</p> : upcomingSessions.length ? (
+						{phase1 && (liveGroups.error || liveGroups.loading) ? <p role={liveGroups.error ? 'alert' : 'status'} className="text-sm text-slate-500">{liveGroups.error || <L id="home.loading_your_class_schedule"/>}</p> : upcomingSessions.length ? (
 							upcomingSessions.map((session) => (
 								<div
 									className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4"
@@ -517,10 +511,8 @@ const StudentHome = ({
 						) : (
 							<div className="flex min-h-[142px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 px-6 text-center">
 								<CircleDashed className="h-8 w-8 text-slate-400" />
-								<p className="mt-3 text-sm font-medium text-slate-700">No upcoming sessions yet</p>
-								<p className="mt-1 text-xs text-slate-500">
-									Your group schedule will appear here when it is available.
-								</p>
+								<p className="mt-3 text-sm font-medium text-slate-700"><L id="home.no_upcoming_sessions_yet"/></p>
+								<p className="mt-1 text-xs text-slate-500"><L id="home.your_group_schedule_will_appear"/></p>
 							</div>
 						)}
 					</div>

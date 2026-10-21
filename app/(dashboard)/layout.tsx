@@ -21,10 +21,10 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
           courses.some(c => c.organization_id === o.id && (courseCapability(context,c) || offerings.some(f => f.course_id === c.id && offeringCapability(context,c,f.id))))
         ).map(o => o.id);
         return <WebsiteNavigationProvider value={{ viewer: context.viewer, organizations: context.organizations.slice(0,100), staffOrganizationIds }}>
-          <div className="min-h-screen bg-slate-50 w-full relative">
+          <div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
             <MobileSidebar />
-            <aside className="hidden md:block fixed left-4 top-4 bottom-4 w-64 z-50"><Sidebar /></aside>
-            <main className="md:pl-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between">
+            <aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50"><Sidebar /></aside>
+            <main className="md:ps-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between">
               <div className="flex-1 w-full p-4 sm:p-6 md:p-8">{children}</div><Footer />
             </main>
           </div>
@@ -55,17 +55,17 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
 	}
 
 	return (
-		<div className="min-h-screen bg-slate-50 w-full relative">
+		<div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
 		{/* Sticky Mobile Header & Drawer Trigger */}
 		<MobileSidebar initialRole={userRole} />
 
 		{/* Floating Desktop Sidebar */}
-		<aside className="hidden md:block fixed left-4 top-4 bottom-4 w-64 z-50">
+		<aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50">
 		<Sidebar initialRole={userRole} />
 		</aside>
 
 		{/* Main Content Canvas: Removed overflow-y-auto so native mobile window scroll works 100% */}
-		<main className="md:pl-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between">
+		<main className="md:ps-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between">
 		<div className="flex-1 w-full p-4 sm:p-6 md:p-8">
 		{children}
 		</div>

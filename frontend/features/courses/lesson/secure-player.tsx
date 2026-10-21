@@ -1,4 +1,5 @@
 'use client';
+import { L, Localized } from '@/frontend/components/language-provider';
 import { useCallback,useEffect,useRef,useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/frontend/components/ui/button';
@@ -33,11 +34,11 @@ export function SecureLessonPlayer({courseId,segmentId,url,data}:{courseId:strin
     onLoadedMetadata={()=>{const player=video.current;if(player){const duration=Number.isFinite(player.duration)?player.duration:position.current;player.currentTime=Math.min(position.current,Math.max(0,duration));}}}
     onPlay={()=>void save()} onTimeUpdate={()=>{position.current=video.current?.currentTime??position.current;if(Date.now()-lastSave.current>15000)void save();}}
     onPause={()=>void save()} onEnded={()=>void save(true)} onError={()=>setError('This video is unavailable. Retry or contact your teacher.')}/>
-   :playback?.kind==='embed'?<iframe title="Lesson explanation video" className="aspect-video w-full bg-black" src={playback.url} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen onLoad={()=>void save()}/>
-   :<div className="flex aspect-video items-center justify-center p-6 text-center text-slate-400">{url?'This video source is not supported. Contact your teacher.':'This part contains notes or resources. No video is attached.'}</div>}
+   :playback?.kind==='embed'?<Localized as="iframe" labels={{"title":"common.lesson_explanation_video"}} className="aspect-video w-full bg-black" src={playback.url} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen onLoad={()=>void save()}/>
+   :<div className="flex aspect-video items-center justify-center p-6 text-center text-slate-400">{url?<L id="lesson.unsupported"/>:<L id="lesson.noVideo"/>}</div>}
   </div>
-  {!data.preview&&<div className="flex flex-wrap gap-3 items-center"><Button disabled={busy||completed} onClick={()=>void save(true)}>{completed?'Completed':'Mark part complete'}</Button>{!completed&&<Button variant="outline" disabled={busy} onClick={()=>void save()}>Save progress</Button>}<span className="text-xs text-slate-500">{completed?'Completed':revision.current>0?'In Progress':'Not Started'}</span></div>}
-  {playback?.kind==='embed'&&<p className="text-xs text-slate-500">External video providers do not report playback position here. Mark this part complete when you finish.</p>}
+  {!data.preview&&<div className="flex flex-wrap gap-3 items-center"><Button disabled={busy||completed} onClick={()=>void save(true)}>{completed?<L id="common.completed"/>:<L id="lesson.complete"/>}</Button>{!completed&&<Button variant="outline" disabled={busy} onClick={()=>void save()}><L id="common.save_progress"/></Button>}<span className="text-xs text-slate-500">{completed?<L id="common.completed"/>:revision.current>0?<L id="common.inProgressTitle"/>:<L id="common.notStartedTitle"/>}</span></div>}
+  {playback?.kind==='embed'&&<p className="text-xs text-slate-500"><L id="common.external_video_providers_do_not"/></p>}
   {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}
  </div>;
 }

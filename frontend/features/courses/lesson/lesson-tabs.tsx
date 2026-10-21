@@ -1,5 +1,6 @@
 'use client';
 
+import { L } from '@/frontend/components/language-provider';
 import { formatChapterLabel } from '@/shared/chapter-label';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -145,7 +146,7 @@ const LessonTabs = ({
 					className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors"
 				>
 					<ArrowLeft className="h-4 w-4" />
-					<span>Back to Home</span>
+					<span><L id="common.back_to_home"/></span>
 				</Link>
 
 				<div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
@@ -171,22 +172,17 @@ const LessonTabs = ({
 						<div className="relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-slate-100 pb-5">
 							<div className="space-y-1.5">
 								<div className="flex flex-wrap items-center gap-2">
-									<span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-										Segment {currentSegmentIndex >= 0 ? currentSegmentIndex + 1 : 1} of{' '}
+									<span className="text-xs font-bold uppercase tracking-wider text-slate-500"><L id="common.segment"/>{" "}{currentSegmentIndex >= 0 ? currentSegmentIndex + 1 : 1}{" "}<L id="home.of"/>{' '}
 										{segments.length || 1}
 									</span>
 									<span className="text-slate-300">·</span>
 
 									{activeContentType === 'VIDEO_EXPLANATION' ? (
 										<span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 border border-sky-200/80">
-											<Video className="h-3.5 w-3.5" />
-											Video Explanation
-										</span>
+											<Video className="h-3.5 w-3.5" /><L id="common.video_explanation"/></span>
 									) : (
 										<span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200/80">
-											<ClipboardCheck className="h-3.5 w-3.5" />
-											Homework Assignment
-										</span>
+											<ClipboardCheck className="h-3.5 w-3.5" /><L id="common.homework_assignment"/></span>
 									)}
 								</div>
 
@@ -205,8 +201,7 @@ const LessonTabs = ({
 							>
 								<div className="flex items-center gap-2">
 									<Layers className="h-4 w-4 text-sky-600" />
-									<span>
-										Playlist ({currentSegmentIndex + 1}/{segments.length}): {title}
+									<span><L id="common.playlist"/>{currentSegmentIndex + 1}/{segments.length}): {title}
 									</span>
 								</div>
 								<ChevronDown
@@ -241,8 +236,7 @@ const LessonTabs = ({
 													) : (
 														<ClipboardCheck className="h-3.5 w-3.5 shrink-0 text-amber-600" />
 													)}
-													<span className="truncate">
-														Segment {idx + 1}: {seg.title}
+													<span className="truncate"><L id="common.segment"/>{" "}{idx + 1}: {seg.title}
 													</span>
 												</div>
 												{seg.isCompleted && (
@@ -291,9 +285,7 @@ const LessonTabs = ({
 									) : (
 										<div className="flex aspect-video w-full flex-col items-center justify-center gap-3 rounded-xl bg-slate-900 text-slate-400">
 											<PlayCircle className="h-12 w-12 text-slate-600" />
-											<p className="text-sm font-medium">
-												The explanation video for this segment is not available yet.
-											</p>
+											<p className="text-sm font-medium"><L id="common.the_explanation_video_for_this"/></p>
 										</div>
 									)}
 								</div>}
@@ -309,8 +301,7 @@ const LessonTabs = ({
 								{/* Downloadable PDF Notes & Resource Attachments list */}
 								{attachments.length > 0 && (
 									<div className="space-y-3 pt-2">
-										<h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-											Downloadable PDF Notes &amp; Resources ({attachments.length})
+										<h2 className="text-xs font-bold uppercase tracking-wider text-slate-700"><L id="common.downloadable_pdf_notes_resources"/>{attachments.length})
 										</h2>
 										<div className="grid gap-3 sm:grid-cols-2">
 											{attachments.map((attachment) => (
@@ -353,7 +344,7 @@ const LessonTabs = ({
 								<div className="space-y-4">
 									<div className="flex items-center gap-2 text-slate-900 font-bold text-base">
 										<ClipboardCheck className="h-5 w-5 text-amber-600" />
-										<span>Textbook Homework Submission</span>
+										<span><L id="common.textbook_homework_submission"/></span>
 									</div>
 
 									<HomeworkSubmissionForm
@@ -370,7 +361,7 @@ const LessonTabs = ({
 								<div className="border-t border-slate-200 pt-6 space-y-4">
 									<div className="flex items-center gap-2 text-slate-900 font-bold text-base">
 										<PlayCircle className="h-5 w-5 text-sky-600" />
-										<span>Homework Solution Walkthrough</span>
+										<span><L id="common.homework_solution_walkthrough"/></span>
 									</div>
 
 									{!hasSubmission ? (
@@ -378,12 +369,8 @@ const LessonTabs = ({
 											<div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
 												<Lock className="h-6 w-6" />
 											</div>
-											<h2 className="text-base font-bold text-slate-900">
-												Solution Video is Locked
-											</h2>
-											<p className="max-w-md text-sm text-slate-500 leading-relaxed">
-												Upload a clear photo or PDF of your completed textbook homework above to immediately unlock the solution walkthrough video.
-											</p>
+											<h2 className="text-base font-bold text-slate-900"><L id="common.solution_video_is_locked"/></h2>
+											<p className="max-w-md text-sm text-slate-500 leading-relaxed"><L id="common.upload_a_clear_photo_or"/></p>
 										</div>
 									) : solutionEmbedUrl ? (
 										<div className="aspect-video w-full rounded-xl overflow-hidden border border-slate-200 bg-black shadow-sm">
@@ -403,9 +390,7 @@ const LessonTabs = ({
 										/>
 									) : (
 										<div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-slate-500">
-											<p className="text-sm font-medium">
-												Your homework is submitted! The teacher has not uploaded the solution video for this assignment yet.
-											</p>
+											<p className="text-sm font-medium"><L id="common.your_homework_is_submitted_the"/></p>
 										</div>
 									)}
 								</div>
@@ -420,7 +405,7 @@ const LessonTabs = ({
 									className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
 								>
 									<ChevronLeft className="h-4 w-4" />
-									<span>Previous: Segment {currentSegmentIndex}</span>
+									<span><L id="common.previous_segment"/>{" "}{currentSegmentIndex}</span>
 								</Link>
 							) : (
 								<div />
@@ -431,12 +416,12 @@ const LessonTabs = ({
 									href={segmentHref(nextSegment.id)}
 									className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs hover:bg-slate-800 transition ml-auto"
 								>
-									<span>Next: Segment {currentSegmentIndex + 2}</span>
+									<span><L id="common.next_segment"/>{" "}{currentSegmentIndex + 2}</span>
 									<ChevronRight className="h-4 w-4" />
 								</Link>
 							)}
-       {!prevSegment&&previousLesson&&<Link href={previousLesson.href} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700"><ChevronLeft className="h-4 w-4"/><span className="truncate">Previous lesson: {previousLesson.title}</span></Link>}
-       {!nextSegment&&nextLesson&&<Link href={nextLesson.href} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white ml-auto"><span className="truncate">Next lesson: {nextLesson.title}</span><ChevronRight className="h-4 w-4"/></Link>}
+       {!prevSegment&&previousLesson&&<Link href={previousLesson.href} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700"><ChevronLeft className="h-4 w-4"/><span className="truncate"><L id="common.previous_lesson"/>{" "}{previousLesson.title}</span></Link>}
+       {!nextSegment&&nextLesson&&<Link href={nextLesson.href} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white ml-auto"><span className="truncate"><L id="common.next_lesson"/>{" "}{nextLesson.title}</span><ChevronRight className="h-4 w-4"/></Link>}
 						</div>
 					</div>
 				</div>
@@ -447,16 +432,13 @@ const LessonTabs = ({
 						{/* Playlist Header */}
 						<div className="flex items-center justify-between border-b border-slate-100 pb-3">
 							<div className="space-y-0.5">
-								<h2 className="text-sm font-bold uppercase tracking-wider text-slate-900">
-									Lesson Segments
-								</h2>
+								<h2 className="text-sm font-bold uppercase tracking-wider text-slate-900"><L id="common.lesson_segments"/></h2>
 								<p className="text-xs text-slate-500">
-									{completedCount} of {segments.length} completed
-								</p>
+									{completedCount}{" "}<L id="home.of"/>{" "}{segments.length}{" "}<L id="common.completed_"/></p>
 							</div>
 
 							<div className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-								{segments.length} {segments.length === 1 ? 'part' : 'parts'}
+								{segments.length} {segments.length === 1 ? <L id="lesson.part"/> : <L id="lesson.parts"/>}
 							</div>
 						</div>
 
@@ -494,14 +476,10 @@ const LessonTabs = ({
 												<div className="flex items-center gap-1.5 text-[11px] font-semibold">
 													{segType === 'VIDEO_EXPLANATION' ? (
 														<span className="inline-flex items-center gap-1 text-sky-700">
-															<Video className="h-3 w-3" />
-															Explanation
-														</span>
+															<Video className="h-3 w-3" /><L id="common.explanation"/></span>
 													) : (
 														<span className="inline-flex items-center gap-1 text-amber-700">
-															<ClipboardCheck className="h-3 w-3" />
-															Homework
-														</span>
+															<ClipboardCheck className="h-3 w-3" /><L id="homework.homework"/></span>
 													)}
 												</div>
 

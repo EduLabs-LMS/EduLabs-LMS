@@ -1,3 +1,4 @@
+import { L, LocalSessionDate } from '@/frontend/components/language-provider';
 import { CalendarDays } from 'lucide-react';
 import SessionCountdown from '@/frontend/components/session-countdown';
 import { cn } from '@/shared/utils';
@@ -25,14 +26,14 @@ export default function UpcomingSession({
 				</div>
 				<div className="min-w-0 space-y-1.5">
 					<div className="flex flex-wrap items-center gap-2">
-						<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Next class</p>
+						<p className="text-xs font-semibold uppercase tracking-wider text-slate-500"><L id="common.next_class"/></p>
 						{groupName && <span className="max-w-full break-words rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700">{groupName}</span>}
 					</div>
 					<h3 className="break-words text-lg font-semibold leading-snug tracking-tight text-slate-900 sm:text-xl">
-						{session ? session.fullFormatted : 'Your next class will appear here'}
+						{session ? <LocalSessionDate value={session.date} englishFallback={session.fullFormatted}/> : <L id="dynamic.nextClass"/>}
 					</h3>
 					<p className="text-sm leading-relaxed text-slate-500">
-						{session ? description : groupName ? 'Waiting for your group schedule to be confirmed.' : 'You will see your class time once you are assigned to a group.'}
+						{session ? <L text={description}/> : groupName ? <L id="dynamic.schedulePending"/> : <L id="dynamic.scheduleAssignment"/>}
 					</p>
 				</div>
 			</div>

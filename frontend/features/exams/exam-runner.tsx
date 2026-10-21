@@ -1,5 +1,6 @@
 'use client';
 
+import { L, Localized } from '@/frontend/components/language-provider';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, ArrowLeft, Clock, Loader2, RotateCcw, Send, X } from 'lucide-react';
@@ -92,11 +93,8 @@ export const ExamRunner = ({ examId, secure = false }: { examId: string; secure?
 	}
 	if (!state) {
 		return (
-			<div className="mx-auto max-w-xl rounded-2xl border-2 border-black bg-white p-6 text-center shadow-hard-sm">
-				This exam is not available.{' '}
-				<Link href="/exams" className="font-semibold underline">
-					Back to exams
-				</Link>
+			<div className="mx-auto max-w-xl rounded-2xl border-2 border-black bg-white p-6 text-center shadow-hard-sm"><L id="exams.this_exam_is_not_available"/>{' '}
+				<Link href="/exams" className="font-semibold underline"><L id="exams.back_to_exams_"/></Link>
 			</div>
 		);
 	}
@@ -112,20 +110,17 @@ export const ExamRunner = ({ examId, secure = false }: { examId: string; secure?
 							<AlertTriangle className="h-5 w-5" />
 						</div>
 						<div>
-							<h1 className="font-display text-2xl leading-tight">{state.exam.title}</h1>
-							<p className="mt-2 text-base font-medium leading-relaxed">{RETRY_PROMPT}</p>
+							<h1 dir="auto" className="font-display text-2xl leading-tight">{state.exam.title}</h1>
+							<p className="mt-2 text-base font-medium leading-relaxed"><L id="exam.retryPrompt"/></p>
 						</div>
 					</div>
 					<div className="flex flex-col gap-2 sm:flex-row">
-						<Button variant="outline" className="flex-1" disabled={isBusy || (secure && !state.canDecide)} onClick={() => decide('FINALIZE')}>
-							View my final mark
-						</Button>
+						<Button variant="outline" className="flex-1" disabled={isBusy || (secure && !state.canDecide)} onClick={() => decide('FINALIZE')}><L id="exams.view_my_final_mark"/></Button>
 						<Button className="flex-1" disabled={isBusy || (secure && !state.canDecide)} onClick={() => decide('RETRY')}>
-							<RotateCcw className="mr-2 h-4 w-4" /> Take 2nd attempt
-						</Button>
+							<RotateCcw className="mr-2 h-4 w-4" />{" "}<L id="exams.take_2nd_attempt"/></Button>
 					</div>
 					<p className="text-xs text-slate-600">
-						{secure ? 'Taking the 2nd attempt replaces your 1st attempt as your final answers. All answers start blank; Attempt 2 determines your final score even if it is lower. Both attempts are saved for later review.' : 'Taking the 2nd attempt replaces your 1st attempt as your final answers. Your multiple-choice answers start blank; written answers are kept.'}
+						{secure ? <L id="exam.retryExplanation"/> : <L id="exam.retryLegacy"/>}
 					</p>
 				</div>
 			</div>
@@ -136,24 +131,21 @@ export const ExamRunner = ({ examId, secure = false }: { examId: string; secure?
 		return (
 			<div className="mx-auto w-full max-w-xl space-y-5 pt-2">
 				<Link href="/exams" className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-black">
-					<ArrowLeft className="h-4 w-4" /> All exams
-				</Link>
+					<ArrowLeft className="h-4 w-4" />{" "}<L id="exams.all_exams"/></Link>
 				<div className="space-y-4 rounded-3xl border-2 border-black bg-white p-6 shadow-hard">
 					<h1 className="font-display text-3xl leading-tight">{state.exam.title}</h1>
 					{state.exam.description && <p className="whitespace-pre-wrap text-sm text-slate-700">{state.exam.description}</p>}
 					<ul className="space-y-1.5 text-sm font-medium">
-						<li>• {state.exam.questionCount} questions</li>
-						<li>• Time limit: {formatDuration(state.exam.durationMinutes)}{state.exam.durationMinutes !== null && ' (the timer starts when you press Start)'}</li>
+						<li>• {state.exam.questionCount}{" "}<L id="exams.questions"/></li>
+						<li><L id="exams.time_limit"/>{" "}{formatDuration(state.exam.durationMinutes)}{state.exam.durationMinutes !== null && ' (the timer starts when you press Start)'}</li>
 						<li>
 							• {state.exam.maxAttempts === 2
-								? 'You may take this exam up to 2 times. After your 1st attempt you can choose to view your mark or try again.'
-								: 'You have 1 attempt only.'}
+								? <L id="exam.twoAttempts"/>
+								: <L id="exam.oneAttempt"/>}
 						</li>
 					</ul>
 					<Button size="lg" className="w-full" disabled={isBusy || (secure && !state.canStart)} onClick={start}>
-						{isBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						Start exam
-					</Button>
+						{isBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}<L id="exams.start_exam"/></Button>
 				</div>
 			</div>
 		);
@@ -287,13 +279,13 @@ const AttemptView = ({
 
 	return (
 		<div className="mx-auto w-full max-w-3xl space-y-4 pb-24">
-			{saveError && <p role="alert" className="rounded-xl border-2 border-black bg-rose-100 p-3 text-sm">{saveError} Reload to resolve a stale tab; unsaved changes will be lost.</p>}
+			{saveError && <p role="alert" className="rounded-xl border-2 border-black bg-rose-100 p-3 text-sm">{saveError}{" "}<L id="exams.reload_to_resolve_a_stale"/></p>}
 			<div className="sticky top-2 z-30 flex items-center justify-between gap-3 rounded-2xl border-2 border-black bg-white p-3 shadow-hard-sm md:top-4">
 				<div className="min-w-0">
 					<p className="truncate text-sm font-bold">{state.exam.title}</p>
 					<p className="text-xs font-semibold text-slate-600">
 						{attemptLabel(state.attemptNumber)}
-						{state.exam.maxAttempts === 2 ? ' of 2' : ''}
+						{state.exam.maxAttempts === 2 ? <L id="exam.ofTwo"/> : ''}
 					</p>
 				</div>
 				<div
@@ -303,7 +295,7 @@ const AttemptView = ({
 					)}
 				>
 					<Clock className="h-4 w-4" />
-					{secondsLeft === null ? 'No Time Limit' : formatClock(secondsLeft)}
+					{secondsLeft === null ? <L id="exam.unlimited"/> : formatClock(secondsLeft)}
 				</div>
 			</div>
 
@@ -325,9 +317,7 @@ const AttemptView = ({
 
 			<div className="flex justify-end">
 				<Button size="lg" disabled={isSubmitting} onClick={onSubmitClick}>
-					{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-					Submit answers
-				</Button>
+					{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}<L id="exams.submit_answers"/></Button>
 			</div>
 		</div>
 	);
@@ -353,17 +343,17 @@ const QuestionCard = ({
 	<div className="space-y-3 rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm">
 		<div className="flex items-start justify-between gap-3">
 			<p className="font-semibold leading-snug">
-				<span className="mr-1.5 text-slate-500">Q{index + 1}.</span>
+				<span className="mr-1.5 text-slate-500"><L id="homework.q"/>{index + 1}.</span>
 				{q.text}
 			</p>
-			<span className="shrink-0 text-xs font-bold text-slate-600">{q.points} pt{q.points > 1 ? 's' : ''}</span>
+			<span className="shrink-0 text-xs font-bold text-slate-600">{q.points}{" "}<L id="exams.pt"/>{q.points > 1 ? 's' : ''}</span>
 		</div>
 		{q.imageUrl && (
 			// eslint-disable-next-line @next/next/no-img-element
 			<img src={q.imageUrl} alt="" className="max-h-64 rounded-xl border-2 border-black object-contain" />
 		)}
 
-		{q.questionType==='numeric'?<label className="block text-sm font-semibold">Numeric answer<Input type="number" step="any" value={answer?.value??''} disabled={disabled} onChange={event=>onChange({value:event.target.value===''?null:Number(event.target.value)})} /></label>:q.type === 'MCQ' ? (
+		{q.questionType==='numeric'?<label className="block text-sm font-semibold"><L id="exams.numeric_answer"/><Input type="number" step="any" value={answer?.value??''} disabled={disabled} onChange={event=>onChange({value:event.target.value===''?null:Number(event.target.value)})} /></label>:q.type === 'MCQ' ? (
 			<div className="space-y-2">
 				{(q.choices ?? []).map((choice, cIndex) => {
 					const selected = q.questionType==='multiple_choice' ? answer?.choices?.includes(cIndex)===true : answer?.choice === cIndex;
@@ -404,20 +394,19 @@ const QuestionCard = ({
 				{answer?.imageUrl ? (
 					<div className="relative inline-block">
 						{/* eslint-disable-next-line @next/next/no-img-element */}
-						<img src={answer.imageUrl} alt="Your handwritten answer" className="max-h-60 rounded-xl border-2 border-black object-contain" />
-						<button
+						<Localized as="img" labels={{"alt":"exams.your_handwritten_answer"}} src={answer.imageUrl} className="max-h-60 rounded-xl border-2 border-black object-contain" />
+						<Localized as="button" labels={{"aria-label":"account.remove_photo"}}
 							type="button"
-							aria-label="Remove photo"
 						disabled={disabled}
 							onClick={() => onChange({ imageUrl: null, imageKey: null })}
 							className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border-2 border-black bg-white shadow-hard-sm"
 						>
 							<X className="h-4 w-4" />
-						</button>
+						</Localized>
 					</div>
 				) : (
 					<div className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-3">
-						{secure ? q.photoAllowed ? <input type="file" aria-label="Upload handwritten answer" accept="image/png,image/jpeg,image/webp" disabled={disabled} onChange={async (event) => { const file=event.target.files?.[0]; if(!file)return; event.target.value=''; if(file.size>5*1024*1024){toast.error('Photo exceeds 5 MB');return;} try{onChange(await uploadPhoto(file));}catch(error){toast.error(errorMessage(error,'Photo upload failed.'));} }} /> : <p className="text-xs text-slate-600">This question accepts a typed answer.</p> : <FileUpload
+						{secure ? q.photoAllowed ? <Localized as="input" labels={{"aria-label":"exams.upload_handwritten_answer"}} type="file" accept="image/png,image/jpeg,image/webp" disabled={disabled} onChange={async (event) => { const file=event.target.files?.[0]; if(!file)return; event.target.value=''; if(file.size>5*1024*1024){toast.error('Photo exceeds 5 MB');return;} try{onChange(await uploadPhoto(file));}catch(error){toast.error(errorMessage(error,'Photo upload failed.'));} }} /> : <p className="text-xs text-slate-600"><L id="exams.this_question_accepts_a_typed"/></p> : <FileUpload
 							endpoint="examAnswerImage"
 							onChange={(url, meta) => {
 								if (url) onChange({ imageUrl: url, imageKey: meta?.key ?? null });

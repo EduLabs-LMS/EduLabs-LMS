@@ -13,7 +13,12 @@ function AppearanceGuard() {
  React.useEffect(() => {
   // Reject invalid cross-tab values before next-themes 0.2's permissive listener.
   const validate = (event: StorageEvent) => {
-   if (event.key === null || (event.key === appearanceStorageKey && event.newValue !== null && !isAppearanceMode(event.newValue))) {
+   if (event.key === null) {
+    // A clear affects both independent preferences; let the language listener run.
+    setTheme('light');
+    return;
+   }
+   if (event.key === appearanceStorageKey && event.newValue !== null && !isAppearanceMode(event.newValue)) {
     event.stopImmediatePropagation();
     setTheme('light');
    }

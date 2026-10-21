@@ -1,5 +1,6 @@
 'use client';
 
+import { L, Localized } from '@/frontend/components/language-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Hourglass, Loader2, X } from 'lucide-react';
@@ -32,12 +33,12 @@ export const ExamResultView = ({ examId, secure = false }: { examId: string; sec
 	if (!result) return null;
 	if (secure) return (
 		<div className="mx-auto w-full max-w-3xl space-y-5 pb-16">
-			<Link href="/exams" className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-black"><ArrowLeft className="h-4 w-4" /> All exams</Link>
+			<Link href="/exams" className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-black"><ArrowLeft className="h-4 w-4" />{" "}<L id="exams.all_exams"/></Link>
 			<div className="space-y-3 rounded-3xl border-2 border-black bg-white p-6 shadow-hard">
 				<h1 className="font-display text-3xl leading-tight">{result.title}</h1>
-				{result.resultReleased ? <p className="text-3xl font-extrabold">Final mark: {result.finalScore} / {result.finalPossible}</p> : <p className="flex items-center gap-2 text-lg font-extrabold"><Hourglass className="h-5 w-5" />{result.writtenStatus === 'UNDER_CORRECTION' ? 'Under Correction' : 'Results have not been released yet.'}</p>}
-				{result.gradeChanges&&result.gradeChanges.length>0&&<div className="space-y-2 rounded-xl border-2 border-black bg-sky-50 p-3 text-sm"><p className="font-bold">Grading history</p>{result.gradeChanges.map(change=><p key={change.id}>{change.reason} — {change.previousScore??'Pending'} → {change.score??'Pending'} ({new Date(change.changedAt).toLocaleString()})</p>)}</div>}
-                {!result.reviewReleased && <p className="text-sm text-slate-600">Answer history and teacher feedback will appear after your teacher releases the review.</p>}
+				{result.resultReleased ? <p className="text-3xl font-extrabold"><L id="exams.final_mark"/>{" "}<bdi dir="ltr">{result.finalScore} / {result.finalPossible}</bdi></p> : <p className="flex items-center gap-2 text-lg font-extrabold"><Hourglass className="h-5 w-5" />{result.writtenStatus === 'UNDER_CORRECTION' ? <L id="exams.under_correction_"/> : <L id="exams.results_have_not_been_released"/>}</p>}
+				{result.gradeChanges&&result.gradeChanges.length>0&&<div className="space-y-2 rounded-xl border-2 border-black bg-sky-50 p-3 text-sm"><p className="font-bold"><L id="exams.grading_history"/></p>{result.gradeChanges.map(change=><p key={change.id}>{change.reason} — {change.previousScore??<L id="teacher.pending"/>} → {change.score??<L id="teacher.pending"/>} ({new Date(change.changedAt).toLocaleString()})</p>)}</div>}
+                {!result.reviewReleased && <p className="text-sm text-slate-600"><L id="exams.answer_history_and_teacher_feedback"/></p>}
 			</div>
 			{result.reviewReleased && <><Legend />{result.questions.map(q => <ExamQuestionHistory key={q.id} question={q} />)}</>}
 		</div>
@@ -51,46 +52,41 @@ export const ExamResultView = ({ examId, secure = false }: { examId: string; sec
 	return (
 		<div className="mx-auto w-full max-w-3xl space-y-5 pb-16">
 			<Link href="/exams" className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-black">
-				<ArrowLeft className="h-4 w-4" /> All exams
-			</Link>
+				<ArrowLeft className="h-4 w-4" />{" "}<L id="exams.all_exams"/></Link>
 
 			<div className="space-y-3 rounded-3xl border-2 border-black bg-white p-6 shadow-hard">
 				<h1 className="font-display text-3xl leading-tight">{result.title}</h1>
 				<div className="grid gap-3 sm:grid-cols-2">
 					<div className="rounded-2xl border-2 border-black bg-primary p-4">
-						<p className="text-xs font-bold uppercase tracking-wider">Multiple choice</p>
+						<p className="text-xs font-bold uppercase tracking-wider"><L id="exams.multiple_choice_"/></p>
 						<p className="text-3xl font-extrabold">
 							{result.mcqScore} <span className="text-lg font-semibold">/ {result.mcqTotal}</span>
 						</p>
 					</div>
 					{hasWritten && (
 						<div className={cn('rounded-2xl border-2 border-black p-4', graded ? 'bg-primary' : 'bg-sky-200')}>
-							<p className="text-xs font-bold uppercase tracking-wider">Written</p>
+							<p className="text-xs font-bold uppercase tracking-wider"><L id="exams.written"/></p>
 							{graded ? (
 								<p className="text-3xl font-extrabold">
 									{result.writtenScore} <span className="text-lg font-semibold">/ {result.writtenTotal}</span>
 								</p>
 							) : (
 								<p className="flex items-center gap-2 pt-1 text-lg font-extrabold">
-									<Hourglass className="h-5 w-5" /> Under Correction
-								</p>
+									<Hourglass className="h-5 w-5" />{" "}<L id="exams.under_correction_"/></p>
 							)}
 						</div>
 					)}
 				</div>
 				{(graded || !hasWritten) && (
-					<p className="text-sm font-bold">
-						Final mark: {total} / {possible}
+					<p className="text-sm font-bold"><L id="exams.final_mark"/>{" "}{total} / {possible}
 					</p>
 				)}
 				{hasWritten && !graded && (
-					<p className="text-sm text-slate-600">
-						Your written answers will be marked by your teacher. Your final mark appears here once the correction is done.
-					</p>
+					<p className="text-sm text-slate-600"><L id="exams.your_written_answers_will_be"/></p>
 				)}
 				{result.reviewNote && (
 					<div className="rounded-xl border-2 border-black bg-sky-50 p-3 text-sm">
-						<p className="mb-1 text-xs font-bold uppercase tracking-wider text-sky-800">Teacher feedback</p>
+						<p className="mb-1 text-xs font-bold uppercase tracking-wider text-sky-800"><L id="exams.teacher_feedback"/></p>
 						<p className="whitespace-pre-wrap">{result.reviewNote}</p>
 					</div>
 				)}
@@ -108,14 +104,11 @@ export const ExamResultView = ({ examId, secure = false }: { examId: string; sec
 const Legend = () => (
 	<div className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-black bg-white p-3 text-xs font-semibold shadow-hard-sm">
 		<span className="flex items-center gap-1.5">
-			<span className="h-3.5 w-3.5 rounded border-2 border-black bg-emerald-300" /> Correct answer
-		</span>
+			<span className="h-3.5 w-3.5 rounded border-2 border-black bg-emerald-300" />{" "}<L id="exams.correct_answer"/></span>
 		<span className="flex items-center gap-1.5">
-			<span className="h-3.5 w-3.5 rounded border-2 border-black bg-rose-300" /> Your wrong choice
-		</span>
+			<span className="h-3.5 w-3.5 rounded border-2 border-black bg-rose-300" />{" "}<L id="exams.your_wrong_choice"/></span>
 		<span className="flex items-center gap-1.5">
-			<span className="rounded-full border-2 border-black bg-white px-1.5 text-[10px]">1st Try</span> which attempt you picked it
-		</span>
+			<span className="rounded-full border-2 border-black bg-white px-1.5 text-[10px]"><L id="exams.1st_try"/></span>{" "}<L id="exams.which_attempt_you_picked_it"/></span>
 	</div>
 );
 
@@ -128,10 +121,10 @@ export const ExamQuestionHistory = ({ question: q }: { question: ExamResultQuest
 		<div className="space-y-3 rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm">
 			<div className="flex items-start justify-between gap-3">
 				<p className="font-semibold leading-snug">
-					<span className="mr-1.5 text-slate-500">Q{q.position}.</span>
-					{q.text}
+					<span className="mr-1.5 text-slate-500"><L id="homework.q"/>{q.position}.</span>
+					<bdi dir="auto">{q.text}</bdi>
 				</p>
-				<span className="shrink-0 text-xs font-bold text-slate-600">{q.points} pt{q.points > 1 ? 's' : ''}</span>
+				<span className="shrink-0 text-xs font-bold text-slate-600">{q.points}{" "}<L id="exams.pt"/>{q.points > 1 ? 's' : ''}</span>
 			</div>
 			{q.imageUrl && (
 				// eslint-disable-next-line @next/next/no-img-element
@@ -183,28 +176,26 @@ export const ExamQuestionHistory = ({ question: q }: { question: ExamResultQuest
 				</>
 			) : (
 				<div className="space-y-2 rounded-xl border-2 border-slate-200 bg-slate-50 p-3">
-					<p className="text-xs font-bold uppercase tracking-wider text-slate-600">{q.questionType==='numeric'?'Your numeric answer':'Your written answer'}</p>
-                    {q.questionType==='numeric'&&<><p className="rounded-lg border-2 border-emerald-600 bg-emerald-100 p-2 text-sm">Correct answer: {q.numericKey?.value} (tolerance ±{q.numericKey?.absolute_tolerance})</p>{q.picks.map(pick=><p key={pick.attemptNumber} className={cn('rounded-lg border-2 p-2 text-sm',pick.value!=null&&q.numericKey&&Math.abs(pick.value-q.numericKey.value)<=q.numericKey.absolute_tolerance?'border-emerald-600 bg-emerald-100':'border-rose-600 bg-rose-100')}><strong>{attemptLabel(pick.attemptNumber)}</strong>: {pick.value??'No answer'}</p>)}</>}
+					<p className="text-xs font-bold uppercase tracking-wider text-slate-600">{q.questionType==='numeric'?<L id="exam.numeric"/>:<L id="exam.written"/>}</p>
+                    {q.questionType==='numeric'&&<><p className="rounded-lg border-2 border-emerald-600 bg-emerald-100 p-2 text-sm"><L id="exams.correct_answer_"/>{" "}{q.numericKey?.value}{" "}<L id="exams.tolerance"/>{q.numericKey?.absolute_tolerance})</p>{q.picks.map(pick=><p key={pick.attemptNumber} className={cn('rounded-lg border-2 p-2 text-sm',pick.value!=null&&q.numericKey&&Math.abs(pick.value-q.numericKey.value)<=q.numericKey.absolute_tolerance?'border-emerald-600 bg-emerald-100':'border-rose-600 bg-rose-100')}><strong>{attemptLabel(pick.attemptNumber)}</strong>: {pick.value??<L id="exam.noAnswer"/>}</p>)}</>}
 					{q.written?.text && <p className="whitespace-pre-wrap text-sm">{q.written.text}</p>}
 					{q.written?.imageUrl && (
 						// eslint-disable-next-line @next/next/no-img-element
-						<img src={q.written.imageUrl} alt="Your handwritten answer" className="max-h-72 rounded-lg border-2 border-black object-contain" />
+						<Localized as="img" labels={{"alt":"exams.your_handwritten_answer"}} src={q.written.imageUrl} className="max-h-72 rounded-lg border-2 border-black object-contain" />
 					)}
-					{!q.written?.text && !q.written?.imageUrl && <p className="text-sm italic text-slate-500">No answer given.</p>}
+					{!q.written?.text && !q.written?.imageUrl && <p className="text-sm italic text-slate-500"><L id="exams.no_answer_given"/></p>}
 					<p className="flex items-center gap-1.5 text-sm font-bold">
 						{q.writtenScore !== null ? (
-							<>
-								Mark: {q.writtenScore} / {q.points}
+							<><L id="homework.mark"/>{" "}{q.writtenScore} / {q.points}
 							</>
 						) : (
 							<span className="inline-flex items-center gap-1.5 rounded-full border-2 border-black bg-sky-200 px-2.5 py-0.5 text-xs">
-								<Hourglass className="h-3.5 w-3.5" /> Under Correction
-							</span>
+								<Hourglass className="h-3.5 w-3.5" />{" "}<L id="exams.under_correction_"/></span>
 						)}
 					</p>
 				</div>
 			)}
-            {q.feedback&&<p className="rounded-xl border-2 border-black bg-sky-50 p-3 text-sm">Teacher feedback: {q.feedback}</p>}
+            {q.feedback&&<p className="rounded-xl border-2 border-black bg-sky-50 p-3 text-sm"><L id="exams.teacher_feedback_"/>{" "}<bdi dir="auto">{q.feedback}</bdi></p>}
 		</div>
 	);
 };

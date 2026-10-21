@@ -3,7 +3,7 @@ const {renderToStaticMarkup:render}=require('react-dom/server');
 function load(path,resolve){const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:m,exports:m.exports,require:resolve});return m.exports}
 const context={viewer:{displayName:'Learner'},memberships:[],courseStaff:[],offeringStaff:[]};
 const empty={courses:[],offerings:[],enrollments:[],modules:[],lessons:[],progress:[],scheduled:[],assessments:[],limited:false};
-function pages(scope,failure){return load('app/(dashboard)/_components/website-pages.tsx',n=>{
+function pages(scope,failure){return load('app/(dashboard)/_components/website-pages.tsx',n=>{if(n==='@/frontend/components/language-provider')return require('./localization-test-loader.cjs').language();
  if(n==='@/server/services/website')return {getWebsiteContext:async()=>context,loadWebsiteScope:async()=>{if(failure)throw Error('Load failed');return scope},courseCapability:()=>false,offeringCapability:()=>false};
  if(n==='react/jsx-runtime')return require(n);
  if(n==='next/link')return props=>React.createElement('a',props);
@@ -27,7 +27,7 @@ test('organization HTTP provisioning fails closed without reaching the existing 
  const route=load('server/http/managed-provisioning.ts',()=>({NextResponse:{json:(body,options)=>({body,...options})}}));assert.equal(route.managedOrganizationPOST().status,403);
 });
 test('real shared desktop/mobile sidebar exposes learner routes without staff affordances',()=>{
- const m=load('frontend/components/sidebar.tsx',n=>{
+ const m=load('frontend/components/sidebar.tsx',n=>{if(n==='@/frontend/components/language-provider')return require('./localization-test-loader.cjs').language();
   if(n==='react'||n==='react/jsx-runtime')return require(n);
   if(n==='next/link')return props=>React.createElement('a',props);
   if(n==='next/navigation')return {usePathname:()=>'/home'};

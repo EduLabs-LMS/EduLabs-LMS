@@ -8,7 +8,7 @@ const ts = require('typescript');
 function load(file, requires = {}) {
   const mod = { exports: {} };
   const out = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  vm.runInNewContext(out, { module: mod, exports: mod.exports, require: n => { if (n in requires) return requires[n]; throw new Error('unexpected import ' + n); } });
+  vm.runInNewContext(out, { module: mod, exports: mod.exports, require:n=>{if(n==='@/frontend/components/language-provider')return require('./localization-test-loader.cjs').language(); if (n in requires) return requires[n]; throw new Error('unexpected import ' + n); } });
   return mod.exports;
 }
 

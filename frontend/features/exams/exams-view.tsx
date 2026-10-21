@@ -1,5 +1,6 @@
 'use client';
 
+import { L, Localized } from '@/frontend/components/language-provider';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -121,33 +122,32 @@ export const ExamsView = ({ isStaff }: ExamsViewProps) => {
 						<FileText className="h-6 w-6" />
 					</div>
 					<div>
-						<h1 className="font-display text-3xl leading-none">Exams</h1>
+						<h1 className="font-display text-3xl leading-none"><L id="navigation.exams"/></h1>
 						<p className="mt-1 text-sm text-slate-600">
 							{isStaff
-								? 'Create exams, set time limits and attempts, and correct written answers.'
-								: 'Take your exams and review your answer history.'}
+								? <L id="exam.staffLegacy"/>
+								: <L id="exam.studentLegacy"/>}
 						</p>
 					</div>
 				</div>
 				{isStaff && (
 					<Button onClick={() => setMode({ type: 'builder', examId: null })}>
-						<PlusCircle className="mr-2 h-4 w-4" /> New exam
-					</Button>
+						<PlusCircle className="mr-2 h-4 w-4" />{" "}<L id="exams.new_exam"/></Button>
 				)}
 			</div>
 
 			{isLoading ? (
-				<div role="status" aria-label="Loading exams" className="flex justify-center py-16">
+				<Localized as="div" labels={{"aria-label":"exams.loading_exams"}} role="status" className="flex justify-center py-16">
 					<Loader2 className="h-6 w-6 animate-spin text-slate-500" />
-				</div>
+				</Localized>
 			) : loadError ? (
 				<div role="alert" className={cn(cardClass, 'text-center')}>
 					<p>{loadError}</p>
-					<Button className="mt-3" variant="outline" onClick={() => void load()}>Try again</Button>
+					<Button className="mt-3" variant="outline" onClick={() => void load()}><L id="exams.try_again"/></Button>
 				</div>
 			) : exams.length === 0 ? (
 				<div className={cn(cardClass, 'text-center text-slate-600')}>
-					{isStaff ? 'No exams yet. Create the first one.' : 'No exams are available right now.'}
+					{isStaff ? <L id="exam.noneLegacyStaff"/> : <L id="exam.noneLegacyStudent"/>}
 				</div>
 			) : (
 				<div className="grid gap-4 md:grid-cols-2">
@@ -162,33 +162,29 @@ export const ExamsView = ({ isStaff }: ExamsViewProps) => {
 											exam.isPublished ? 'bg-primary' : 'bg-white'
 										)}
 									>
-										{exam.isPublished ? 'Published' : 'Draft'}
+										{exam.isPublished ? <L id="common.published"/> : <L id="common.draft"/>}
 									</span>
 								</div>
 								<ExamFacts exam={exam} />
 								<div className="mt-3 flex items-center gap-4 text-xs font-medium text-slate-600">
 									<span className="flex items-center gap-1">
-										<Users className="h-3.5 w-3.5" /> {exam.sessionCount ?? 0} students
-									</span>
+										<Users className="h-3.5 w-3.5" /> {exam.sessionCount ?? 0}{" "}<L id="exams.students"/></span>
 									{!!exam.underCorrectionCount && (
 										<span className="flex items-center gap-1 text-sky-800">
-											<Hourglass className="h-3.5 w-3.5" /> {exam.underCorrectionCount} under correction
-										</span>
+											<Hourglass className="h-3.5 w-3.5" /> {exam.underCorrectionCount}{" "}<L id="exams.under_correction"/></span>
 									)}
 								</div>
 								<div className="mt-4 flex flex-wrap gap-2">
 									<Button size="sm" variant="outline" onClick={() => setMode({ type: 'builder', examId: exam.id })}>
-										<Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
-									</Button>
+										<Pencil className="mr-1.5 h-3.5 w-3.5" />{" "}<L id="exams.edit"/></Button>
 									<Button size="sm" variant="outline" onClick={() => setMode({ type: 'grading', examId: exam.id })}>
-										<CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Written answers
-									</Button>
+										<CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />{" "}<L id="exams.written_answers"/></Button>
 									<Button size="sm" variant="secondary" onClick={() => togglePublish(exam)}>
-										{exam.isPublished ? 'Unpublish' : 'Publish'}
+										{exam.isPublished ? <L id="common.unpublish"/> : <L id="common.publish"/>}
 									</Button>
-									<Button size="sm" variant="ghost" aria-label="Delete exam" onClick={() => remove(exam)}>
+									<Localized as={Button} labels={{"aria-label":"exams.delete_exam"}} size="sm" variant="ghost" onClick={() => remove(exam)}>
 										<Trash2 className="h-4 w-4 text-rose-600" />
-									</Button>
+									</Localized>
 								</div>
 							</div>
 						) : (
@@ -208,14 +204,11 @@ export const ExamsView = ({ isStaff }: ExamsViewProps) => {
 								</div>
 								<ExamFacts exam={exam} />
 								{exam.totalScore !== null && exam.totalScore !== undefined && (
-									<p className="mt-3 text-sm font-bold">
-										Final mark: {exam.totalScore} / {exam.totalPossible}
+									<p className="mt-3 text-sm font-bold"><L id="exams.final_mark"/>{" "}{exam.totalScore} / {exam.totalPossible}
 									</p>
 								)}
 								{exam.state === 'UNDER_CORRECTION' && (
-									<p className="mt-3 text-sm font-medium text-slate-700">
-										Multiple choice: {exam.mcqScore} / {exam.mcqTotal} · Written part is being corrected.
-									</p>
+									<p className="mt-3 text-sm font-medium text-slate-700"><L id="exams.multiple_choice"/>{" "}{exam.mcqScore} / {exam.mcqTotal}{" "}<L id="exams.written_part_is_being_corrected"/></p>
 								)}
 							</Link>
 						)
@@ -234,9 +227,9 @@ const ExamFacts = ({ exam }: { exam: ExamSummary }) => (
 				<Clock className="h-3.5 w-3.5" /> {formatDuration(exam.durationMinutes)}
 			</span>
 			<span className="flex items-center gap-1">
-				<RotateCcw className="h-3.5 w-3.5" /> {exam.maxAttempts} attempt{exam.maxAttempts > 1 ? 's' : ''}
+				<RotateCcw className="h-3.5 w-3.5" /> {exam.maxAttempts}{" "}<L id="exams.attempt_"/>{exam.maxAttempts > 1 ? 's' : ''}
 			</span>
-			<span>{exam.questionCount} questions</span>
+			<span>{exam.questionCount}{" "}<L id="exams.questions"/></span>
 		</div>
 	</>
 );
