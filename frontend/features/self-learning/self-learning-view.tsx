@@ -146,7 +146,7 @@ export const SelfLearningView = ({ chapters }: SelfLearningViewProps) => {
 										<div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-500">
 											<span><L id="learning.published_lessons"/>{totalLessons})</span>
 											<span>
-												{chapter.progressAvailable === false ? <L id="lesson.selectOffering"/> : <L id="learning.progress" values={{completed:completedLessons,total:totalLessons}}/>}
+												{chapter.progressUnavailable ? <L id="resume.progressUnavailable"/> : chapter.progressAvailable === false ? <L id="lesson.selectOffering"/> : <L id="learning.progress" values={{completed:completedLessons,total:totalLessons}}/>}
 											</span>
 										</div>
 

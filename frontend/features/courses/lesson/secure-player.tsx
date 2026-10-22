@@ -4,11 +4,22 @@ import { useCallback,useEffect,useRef,useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/frontend/components/ui/button';
 import { lessonPlayback } from '@/shared/contracts/lessons';
+import { markLearningOverviewDirty, clearLearningOverviewDirty } from '@/frontend/features/self-learning/learning-overview-freshness';
 
 export type SecurePlayerData={offeringId:string;revision:number;position:number;assetId:string|null;status:string;thumbnailUrl?:string|null;preview?:boolean};
 export function SecureLessonPlayer({courseId,segmentId,url,data}:{courseId:string;segmentId:string;url:string|null;data:SecurePlayerData}) {
  const router=useRouter(),video=useRef<HTMLVideoElement>(null),revision=useRef(data.revision),position=useRef(data.position),saving=useRef(false),lastSave=useRef(0),pendingComplete=useRef(false),active=useRef(false),savedPosition=useRef(data.position),recorded=useRef(data.revision>0);
  const [error,setError]=useState(''),[busy,setBusy]=useState(false),[source,setSource]=useState(url),[completed,setCompleted]=useState(data.status==='completed');
+ const restored=useRef(false);
+ const restorePosition=useCallback(()=>{
+  const player=video.current;
+  if(!player||player.readyState<1||restored.current)return;
+  restored.current=true;
+  const duration=Number.isFinite(player.duration)?player.duration:position.current;
+  player.currentTime=Math.min(position.current,Math.max(0,duration));
+ },[]);
+ // SSR/preloaded media can fire loadedmetadata before hydration attaches handlers.
+ useEffect(()=>{restored.current=false;restorePosition();},[source,restorePosition]);
  const playback=lessonPlayback(source);
  const save=useCallback(async(complete=false):Promise<void>=>{
   if(data.preview)return;
@@ -16,7 +27,7 @@ export function SecureLessonPlayer({courseId,segmentId,url,data}:{courseId:strin
   active.current=true;
   if(saving.current){if(complete)pendingComplete.current=true;return;} saving.current=true;setBusy(true);setError('');
   const saved=Math.floor(position.current);
-  try {const r=await fetch(`/api/learning/${courseId}/progress`,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({offeringId:data.offeringId,segmentId,position:saved,complete,revision:revision.current})});const v=await r.json();if(!r.ok)throw new Error(v.error);revision.current=v.revision;savedPosition.current=saved;recorded.current=true;lastSave.current=Date.now();setCompleted(v.status==='completed');if(complete){active.current=false;router.refresh();}}
+  try {const r=await fetch(`/api/learning/${courseId}/progress`,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({offeringId:data.offeringId,segmentId,position:saved,complete,revision:revision.current})});const v=await r.json();if(!r.ok)throw new Error(v.error);revision.current=v.revision;savedPosition.current=saved;recorded.current=true;lastSave.current=Date.now();setCompleted(v.status==='completed');if(complete){active.current=false;clearLearningOverviewDirty();router.refresh();}else markLearningOverviewDirty({key:`${data.offeringId}:${segmentId}`,revision:v.revision});}
   catch(e){setError(e instanceof Error?e.message:'Progress could not be saved');}finally{saving.current=false;setBusy(false);if(pendingComplete.current){pendingComplete.current=false;void save(true);}}
  },[courseId,data.offeringId,data.preview,segmentId,router]);
  useEffect(()=>{
@@ -31,8 +42,8 @@ export function SecureLessonPlayer({courseId,segmentId,url,data}:{courseId:strin
  return <div className="space-y-3">
   <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-200 shadow-sm">
    {playback?.kind==='video'?<video ref={video} controls preload="metadata" className="aspect-video w-full bg-black" src={playback.url} poster={data.thumbnailUrl??undefined}
-    onLoadedMetadata={()=>{const player=video.current;if(player){const duration=Number.isFinite(player.duration)?player.duration:position.current;player.currentTime=Math.min(position.current,Math.max(0,duration));}}}
-    onPlay={()=>void save()} onTimeUpdate={()=>{position.current=video.current?.currentTime??position.current;if(Date.now()-lastSave.current>15000)void save();}}
+    onLoadedMetadata={()=>{restored.current=false;restorePosition();}}
+    onPlay={()=>{restorePosition();void save();}} onTimeUpdate={()=>{if(!restored.current)return;position.current=video.current?.currentTime??position.current;if(Date.now()-lastSave.current>15000)void save();}}
     onPause={()=>void save()} onEnded={()=>void save(true)} onError={()=>setError('This video is unavailable. Retry or contact your teacher.')}/>
    :playback?.kind==='embed'?<Localized as="iframe" labels={{"title":"common.lesson_explanation_video"}} className="aspect-video w-full bg-black" src={playback.url} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen onLoad={()=>void save()}/>
    :<div className="flex aspect-video items-center justify-center p-6 text-center text-slate-400">{url?<L id="lesson.unsupported"/>:<L id="lesson.noVideo"/>}</div>}

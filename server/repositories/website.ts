@@ -8,6 +8,17 @@ async function rows<T>(query: PromiseLike<{ data: T | null; error: unknown }>): 
   return data;
 }
 
+// PostgREST may enforce a row ceiling lower than the requested limit. Never
+// interpret a truncated progress set as zero activity or completed parts.
+async function completeProgress<T>(query: PromiseLike<{ data: T[] | null; error: unknown; count: number | null }>): Promise<{ rows: T[]; incomplete: boolean }> {
+  const { data, error, count } = await query;
+  if (error || data === null) throw new Error('Unable to load learning progress');
+  // Missing count is unknown completeness, not a proven empty/complete result.
+  // Never recover provider/auth/network failures as "incomplete" progress.
+  const incomplete = !Number.isSafeInteger(count) || count !== data.length;
+  return { rows: incomplete ? [] : data, incomplete };
+}
+
 /** Read-only Phase 1 port. Caller JWT + RLS remain authoritative on every query. */
 export function createWebsiteRepository(client: SupabaseClient<Database>, profileId: string) {
   return {
@@ -33,13 +44,13 @@ export function createWebsiteRepository(client: SupabaseClient<Database>, profil
       const result = await Promise.all(batches.map(batch => rows(client.from('lessons').select('id,module_id,title,description,cover_asset_id,position,status,estimated_duration_seconds').in('module_id', batch).eq('status', 'published').order('position').order('id').limit(501))));
       return result.flat().sort((a, b) => a.position - b.position || a.id.localeCompare(b.id)).slice(0, 501);
     },
-    progress: (offeringIds: string[]) => offeringIds.length ? rows(client.from('lesson_progress').select('offering_id,lesson_id,status').eq('user_id', profileId).in('offering_id', offeringIds).order('offering_id').order('lesson_id').limit(1001)) : Promise.resolve([]),
+    progress: (offeringIds: string[]) => offeringIds.length ? completeProgress(client.from('lesson_progress').select('offering_id,lesson_id,status,last_accessed_at', { count: 'exact' }).eq('user_id', profileId).in('offering_id', offeringIds).order('offering_id').order('lesson_id').limit(1001)) : Promise.resolve({ rows: [], incomplete: false }),
     segments: async(lessonIds:string[]) => {
       const result=[];
       for(let i=0;i<lessonIds.length;i+=50){const batch=await rows(client.from('lesson_segments').select('id,lesson_id,title,position,status,thumbnail_asset_id').in('lesson_id',lessonIds.slice(i,i+50)).eq('status','published').order('position').limit(1001));if(batch.length>1000)throw new Error('Lesson part overview is incomplete');result.push(...batch);}
       return result;
     },
-    segmentProgress: (offeringIds:string[]) => offeringIds.length?rows(client.from('lesson_segment_progress').select('offering_id,lesson_id,segment_id,status,video_position_seconds,revision').eq('user_id',profileId).in('offering_id',offeringIds).limit(5001)):Promise.resolve([]),
+    segmentProgress: (offeringIds:string[]) => offeringIds.length?completeProgress(client.from('lesson_segment_progress').select('offering_id,lesson_id,segment_id,status,video_position_seconds,revision,updated_at', { count: 'exact' }).eq('user_id',profileId).in('offering_id',offeringIds).order('offering_id').order('segment_id').limit(5001)):Promise.resolve({ rows: [], incomplete: false }),
     scheduledAssessments: (offeringIds: string[]) => offeringIds.length ? rows(client.from('offering_assessments').select('id,offering_id,assessment_id,opens_at,closes_at,published').in('offering_id', offeringIds).eq('published', true).order('id').limit(101)) : Promise.resolve([]),
     assessments: (ids: string[]) => ids.length ? rows(client.from('assessments').select('id,title,type').in('id', ids).order('id').limit(101)) : Promise.resolve([]),
     roster: (offeringId: string, page: number) => rows(client.from('enrollments').select('id,user_id,status,enrolled_at,profiles!enrollments_user_id_fkey(display_name)').eq('offering_id', offeringId).order('id').range(page * 50, page * 50 + 50)),

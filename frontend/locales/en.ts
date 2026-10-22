@@ -1,5 +1,17 @@
 // Platform copy only; never teacher/student content.
 export const en = {
+  "resume.heading": "Continue Learning",
+  "resume.progressUnavailable": "Progress overview unavailable",
+  "resume.partialOverview": "Your progress overview is incomplete. Course content, groups and assessments remain available; progress totals and Continue Learning are temporarily unavailable.",
+  "resume.action": "Continue lesson",
+  "resume.actionLabel": "Continue {lesson} — {offering}",
+  "resume.parts": "Parts completed: {done} / {total}",
+  "resume.empty": "No unfinished lessons to resume. Open an available lesson to start learning.",
+  "resume.order": "Up to three unfinished lessons from your saved progress.",
+  "resume.positionHint": "Saved video positions resume in supported players. External video providers may start from the beginning.",
+  "resume.loading": "Loading your learning progress…",
+  "resume.error": "Your learning progress could not be loaded completely. Retry, or open an individual course to check its lessons.",
+  "resume.retry": "Retry loading lessons",
   "settings.account_and_profile": "Account and profile",
   "settings.account_profile": "Account & profile",
   "settings.loading_your_account": "Loading your account…",

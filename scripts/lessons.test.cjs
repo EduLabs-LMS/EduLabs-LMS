@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
-function load(file,deps={},globals={}){const mod={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:mod,exports:mod.exports,URL,...globals,require:n=>n==='@/frontend/components/language-provider'?require('./localization-test-loader.cjs').language():deps[n]??require(n)});return mod.exports;}
+function load(file,deps={},globals={}){const mod={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:mod,exports:mod.exports,URL,...globals,require:n=>n==='@/frontend/features/self-learning/learning-overview-freshness'?require('./localization-test-loader.cjs').load('frontend/features/self-learning/learning-overview-freshness.ts'):n==='@/frontend/components/language-provider'?require('./localization-test-loader.cjs').language():deps[n]??require(n)});return mod.exports;}
 const c=load('shared/contracts/lessons.ts');const id='10000000-0000-0000-0000-000000000001';
 test('lesson edit contract rejects forged tenant/user fields and invalid status',()=>{
  const v={action:'edit_segment',id,parentId:null,updatedAt:'2026-10-12T00:00:00Z',data:{title:'Part',status:'draft'}};
@@ -54,7 +54,7 @@ test('video completion queues behind autosave and refresh does not create an ext
  const {SecureLessonPlayer}=load('frontend/features/courses/lesson/secure-player.tsx',{'@/shared/contracts/lessons':c,'react':hooks,'next/navigation':{useRouter:()=>({refresh:()=>refreshes++})},'@/frontend/components/ui/button':{Button:()=>null}},{fetch:api});
  const tree=SecureLessonPlayer({courseId:id,segmentId:id,url:'https://cdn.example.invalid/video.mp4',data:{offeringId:id,revision:0,position:0,assetId:null,status:'not_started'}});
  function find(node){if(node?.type==='video')return node;for(const child of [node?.props?.children].flat(Infinity)){const match=child&&find(child);if(match)return match;}}
- const player=find(tree);assert.ok(player);refs[0].current={currentTime:10,duration:20};player.props.onTimeUpdate();assert.equal(requests.length,1);
+ const player=find(tree);assert.ok(player);refs[0].current={currentTime:0,duration:20,readyState:1};player.props.onLoadedMetadata();refs[0].current.currentTime=10;player.props.onTimeUpdate();assert.equal(requests.length,1);
  refs[0].current.currentTime=20;player.props.onTimeUpdate();player.props.onEnded();assert.equal(requests.length,1);
  requests[0].resolve({ok:true,json:async()=>({revision:1,status:'in_progress'})});await new Promise(setImmediate);
  assert.equal(requests.length,2);assert.equal(requests[1].body.complete,true);assert.equal(requests[1].body.revision,1);assert.equal(requests[1].body.position,20);

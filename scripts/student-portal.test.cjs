@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const {renderToStaticMarkup:render}=require('react-dom/server');
 function load(path,resolve){const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:m,exports:m.exports,require:resolve});return m.exports}
 const context={viewer:{displayName:'Learner'},memberships:[],courseStaff:[],offeringStaff:[]};
-const empty={courses:[],offerings:[],enrollments:[],modules:[],lessons:[],progress:[],scheduled:[],assessments:[],limited:false};
+const empty={courses:[],offerings:[],enrollments:[],modules:[],lessons:[],progress:[],scheduled:[],assessments:[],limited:false,contentLimited:false,progressLimited:false};
 function pages(scope,failure){return load('app/(dashboard)/_components/website-pages.tsx',n=>{if(n==='@/frontend/components/language-provider')return require('./localization-test-loader.cjs').language();
  if(n==='@/server/services/website')return {getWebsiteContext:async()=>context,loadWebsiteScope:async()=>{if(failure)throw Error('Load failed');return scope},courseCapability:()=>false,offeringCapability:()=>false};
  if(n==='react/jsx-runtime')return require(n);
@@ -15,7 +15,7 @@ test('learner Home and Self Learning omit genuinely empty summaries and organiza
  const p=pages(empty);for(const html of [render(await p.WebsiteHome({})),render(await p.WebsiteCourses({}))])assert.doesNotMatch(html,/Groups &amp; Offerings|Upcoming Assessments|Teaching tools|onboarding|Create an organization/);
 });
 test('incomplete scope keeps warning and cannot be mistaken for a genuine empty overview',async()=>{
- const p=pages({...empty,limited:true}),html=render(await p.WebsiteHome({}));assert.match(html,/Progress totals are unavailable/);assert.match(html,/Groups &amp; Offerings/);assert.match(html,/Assessment data is incomplete/);
+ const p=pages({...empty,limited:true,contentLimited:true}),html=render(await p.WebsiteHome({}));assert.match(html,/Progress totals are unavailable/);assert.match(html,/Groups &amp; Offerings/);assert.match(html,/Assessment data is incomplete/);
 });
 test('failed authorized loads propagate instead of rendering empty results',async()=>{
  const p=pages(empty,true);await assert.rejects(p.WebsiteHome({}),/Load failed/);await assert.rejects(p.WebsiteCourses({}),/Load failed/);

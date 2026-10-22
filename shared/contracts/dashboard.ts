@@ -35,6 +35,7 @@ export interface SelfLearningLesson {
 
 export interface SelfLearningChapter {
 	progressAvailable?: boolean;
+	progressUnavailable?: boolean;
 	id?: string;
 	/** Prefix such as "Chapter" or "Month". */
 	type?: string;

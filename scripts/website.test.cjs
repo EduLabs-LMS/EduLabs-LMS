@@ -11,7 +11,7 @@ function load(file, dependencies = {}) {
   return module.exports;
 }
 const { courseCapability, offeringCapability, loadWebsiteScope } = load('server/services/website.ts', {
-  react: { cache: fn => fn }, '@/server/services/application-auth': {}, '@/server/integrations/supabase': {}, '@/server/repositories/website': {}, '@/shared/auth-config': {}, '@/server/services/lesson-media': {},
+  react: { cache: fn => fn }, 'node:crypto': require('node:crypto'), '@/server/services/application-auth': {}, '@/server/integrations/supabase': {}, '@/server/repositories/website': {}, '@/shared/auth-config': {}, '@/server/services/lesson-media': {},
 });
 test('navigation capabilities require active membership and assignments in the specific organization', () => {
   const courseA = { id: 'a', organization_id: 'orgA' }, courseB = { id: 'b', organization_id: 'orgB' };
@@ -55,7 +55,7 @@ test('roster pagination is bounded and rejects malformed or excessive offsets', 
 });
 test('website reads are allowlisted, bounded, and pinned to the verified profile', async () => {
   const calls = [];
-  const query = new Proxy({}, { get: (_, method) => method === 'then' ? (resolve => resolve({ data: [], error: null })) : (...args) => { calls.push([method, ...args]); return query; } });
+  const query = new Proxy({}, { get: (_, method) => method === 'then' ? (resolve => resolve({ data: [], error: null, count: 0 })) : (...args) => { calls.push([method, ...args]); return query; } });
   const repository = load('server/repositories/website.ts').createWebsiteRepository({ from: table => { calls.push(['from', table]); return query; } }, 'trusted-profile');
   await repository.myEnrollments(); await repository.progress(['o']); await repository.lessons(['m']); await repository.roster('o', 2);
   assert.ok(calls.some(c => c[0] === 'eq' && c[1] === 'user_id' && c[2] === 'trusted-profile'));

@@ -1,5 +1,17 @@
 import type { en } from './en';
 export const ar: Record<keyof typeof en, string> = {
+  "resume.heading": "متابعة التعلّم",
+  "resume.progressUnavailable": "ملخّص التقدّم غير متاح",
+  "resume.partialOverview": "ملخّص تقدّمك غير مكتمل. ما زال محتوى المقررات والمجموعات والتقييمات متاحًا؛ إجماليات التقدّم ومتابعة التعلّم غير متاحة مؤقتًا.",
+  "resume.action": "متابعة الدرس",
+  "resume.actionLabel": "متابعة {lesson} — {offering}",
+  "resume.parts": "الأجزاء المكتملة: {done} / {total}",
+  "resume.empty": "لا توجد دروس غير مكتملة للمتابعة. افتح درسًا متاحًا لبدء التعلّم.",
+  "resume.order": "حتى ثلاثة دروس غير مكتملة من تقدّمك المحفوظ.",
+  "resume.positionHint": "يُستأنف الفيديو من الموضع المحفوظ في المشغّلات المدعومة. قد تبدأ فيديوهات المنصّات الخارجية من البداية.",
+  "resume.loading": "جارٍ تحميل تقدّمك الدراسي…",
+  "resume.error": "تعذّر تحميل تقدّمك الدراسي بالكامل. أعد المحاولة، أو افتح مقررًا للتحقّق من دروسه.",
+  "resume.retry": "إعادة تحميل الدروس",
   "settings.account_and_profile": "الحساب والملف الشخصي",
   "settings.account_profile": "الحساب والملف الشخصي",
   "settings.loading_your_account": "جارٍ تحميل حسابك…",
