@@ -1,15 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronRight, LifeBuoy, Loader2, MessageCircle, PlusCircle } from 'lucide-react';
+import { Loader2, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { api } from '@/frontend/lib/api';
-import { Button } from '@/frontend/components/ui/button';
 import { Avatar } from '@/frontend/features/support/avatar';
 import { NewTicketModal } from '@/frontend/features/support/new-ticket-modal';
 import { StatusBadge } from '@/frontend/features/support/status-badge';
 import { SupportChat } from '@/frontend/features/support/support-chat';
+import { FilterPills, SupportHeaderCard, TicketCard } from '@/frontend/features/support/support-ui';
 import type {
 	SupportListPayload,
 	SupportTicketDetail,
@@ -17,7 +17,6 @@ import type {
 } from '@/shared/contracts/support';
 import { STATUS_LABEL, TICKET_STATUSES, type TicketStatus } from '@/shared/support';
 import { TEACHER_CONTACT } from '@/shared/constants/contact';
-import { cn } from '@/shared/utils';
 
 const formatDate = (iso: string) =>
 	new Date(iso).toLocaleDateString(undefined, { dateStyle: 'medium' });
@@ -75,27 +74,19 @@ export const SupportView = () => {
 
 	return (
 		<div className="mx-auto w-full max-w-4xl space-y-6 pb-12">
-			<div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border-2 border-black bg-white p-5 shadow-hard">
-				<div className="flex items-center gap-3">
-					<div className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-black bg-primary">
-						<LifeBuoy className="h-6 w-6" />
-					</div>
-					<div>
-						<h1 className="font-display text-3xl leading-none">Support</h1>
-						<p className="mt-1 text-sm text-slate-600">
-							{isAdmin
-								? 'Website tickets from students. Open one to reply or change its status.'
-								: 'Problems with login, videos, uploads or exams? Open a ticket and our admins will reply here.'}
-						</p>
-					</div>
-				</div>
-				<Button onClick={() => setIsModalOpen(true)}>
-					<PlusCircle className="mr-2 h-4 w-4" /> New Ticket
-				</Button>
-			</div>
+			<SupportHeaderCard
+				title="Support"
+				subtitle={
+					isAdmin
+						? 'Website tickets from students. Open one to reply or change its status.'
+						: 'Problems with login, videos, uploads or exams? Open a ticket and our admins will reply here.'
+				}
+				newTicketLabel="New Ticket"
+				onNewTicket={() => setIsModalOpen(true)}
+			/>
 
 			{!isAdmin && (
-				<p className="rounded-2xl border-2 border-dashed border-slate-300 bg-white px-4 py-3 text-xs text-slate-600">
+				<p className="rounded-2xl border-2 border-dashed border-slate-300 bg-white px-4 py-3 text-xs text-slate-700">
 					Support tickets are for website problems. For lesson or curriculum questions, contact{' '}
 					{TEACHER_CONTACT.name} on{' '}
 					<a
@@ -110,32 +101,24 @@ export const SupportView = () => {
 				</p>
 			)}
 
-			<div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter tickets by status">
-				{(['ALL', ...TICKET_STATUSES] as const).map((value) => (
-					<button
-						key={value}
-						type="button"
-						role="tab"
-						aria-selected={filter === value}
-						onClick={() => setFilter(value)}
-						className={cn(
-							'rounded-full border-2 border-black px-3.5 py-1 text-xs font-bold transition-colors',
-							filter === value ? 'bg-primary shadow-hard-sm' : 'bg-white hover:bg-slate-100'
-						)}
-					>
-						{value === 'ALL' ? 'All' : STATUS_LABEL[value]}
-					</button>
-				))}
-			</div>
+			<FilterPills
+				ariaLabel="Filter tickets by status"
+				value={filter}
+				onChange={(value) => setFilter(value as TicketStatus | 'ALL')}
+				options={(['ALL', ...TICKET_STATUSES] as const).map((value) => ({
+					value,
+					label: value === 'ALL' ? 'All' : STATUS_LABEL[value],
+				}))}
+			/>
 
 			{isLoading ? (
-				<div className="flex justify-center py-16">
-					<Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+				<div role="status" aria-label="Loading tickets" className="flex justify-center py-16">
+					<Loader2 className="h-6 w-6 animate-spin text-slate-600" />
 				</div>
 			) : tickets.length === 0 ? (
-				<div className="rounded-2xl border-2 border-black bg-white p-8 text-center shadow-hard-sm">
-					<MessageCircle className="mx-auto mb-2 h-8 w-8 text-slate-400" />
-					<p className="text-sm text-slate-600">
+				<div className="rounded-[28px] border-[2.5px] border-black bg-white p-8 text-center shadow-hard-sm">
+					<MessageCircle className="mx-auto mb-2 h-8 w-8 text-slate-600" />
+					<p className="text-sm text-slate-700">
 						{filter === 'ALL'
 							? isAdmin
 								? 'No tickets yet.'
@@ -144,40 +127,35 @@ export const SupportView = () => {
 					</p>
 				</div>
 			) : (
-				<ul className="space-y-3">
+				<ul className="space-y-4">
 					{tickets.map((ticket) => (
 						<li key={ticket.id}>
-							<button
-								type="button"
-								onClick={() => openTicket(ticket)}
-								disabled={isOpening === ticket.id}
-								className="flex w-full items-center gap-3 rounded-2xl border-2 border-black bg-white p-4 text-left shadow-hard-sm transition-all hover:-translate-x-px hover:-translate-y-px hover:shadow-hard disabled:opacity-60"
-							>
-								{isAdmin && <Avatar name={ticket.studentName} url={ticket.studentAvatarUrl} />}
-								<div className="min-w-0 flex-1">
-									<div className="flex flex-wrap items-center gap-2">
-										<span className="truncate font-semibold">{ticket.subject}</span>
-										<StatusBadge status={ticket.status} />
-									</div>
-									{isAdmin && (
-										<p className="truncate text-xs text-slate-600">
-											{ticket.studentName} · {ticket.studentEmail}
-										</p>
-									)}
-									<p className="mt-0.5 truncate text-xs text-slate-500">
-										{ticket.lastMessagePreview ?? 'No messages yet'}
-									</p>
-									<p className="mt-1 text-[11px] text-slate-400">
+							<TicketCard
+								busy={isOpening === ticket.id}
+								onOpen={() => openTicket(ticket)}
+								avatar={
+									isAdmin ? (
+										<Avatar name={ticket.studentName} url={ticket.studentAvatarUrl} />
+									) : (
+										<span
+											aria-hidden
+											className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-black bg-primary text-primary-foreground"
+										>
+											<MessageCircle className="h-5 w-5" />
+										</span>
+									)
+								}
+								title={<bdi dir="auto">{ticket.subject}</bdi>}
+								badges={<StatusBadge status={ticket.status} />}
+								meta={isAdmin ? <bdi>{ticket.studentName} · {ticket.studentEmail}</bdi> : undefined}
+								preview={<bdi dir="auto">{ticket.lastMessagePreview ?? 'No messages yet'}</bdi>}
+								footer={
+									<>
 										Opened {formatDate(ticket.createdAt)} · {ticket.messageCount}{' '}
 										{ticket.messageCount === 1 ? 'message' : 'messages'}
-									</p>
-								</div>
-								{isOpening === ticket.id ? (
-									<Loader2 className="h-4 w-4 animate-spin" />
-								) : (
-									<ChevronRight className="h-5 w-5 shrink-0 text-slate-400" />
-								)}
-							</button>
+									</>
+								}
+							/>
 						</li>
 					))}
 				</ul>

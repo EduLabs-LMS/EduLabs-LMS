@@ -86,7 +86,7 @@ export const NewTicketModal = ({ open, onOpenChange, onCreated }: NewTicketModal
 							id="support-subject"
 							value={subject}
 							onChange={(event) => setSubject(event.target.value)}
-							className="h-10 w-full rounded-xl border-2 border-black bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+							className="h-11 w-full rounded-xl border-2 border-black bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
 						>
 							{SUBJECT_PRESETS.map((preset) => (
 								<option key={preset} value={preset}>
@@ -115,7 +115,7 @@ export const NewTicketModal = ({ open, onOpenChange, onCreated }: NewTicketModal
 							Cancel
 						</Button>
 						<Button type="submit" disabled={!canSubmit}>
-							{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							{isSubmitting && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
 							Create Ticket
 						</Button>
 					</DialogFooter>
