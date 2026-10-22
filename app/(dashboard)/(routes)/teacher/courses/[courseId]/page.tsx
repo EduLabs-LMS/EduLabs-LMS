@@ -17,8 +17,8 @@ import ChapterNumberForm from '@/frontend/features/teacher/courses/editor/chapte
 import ChaptersForm from '@/frontend/features/teacher/courses/editor/chapters-form';
 import Actions from '@/frontend/features/teacher/courses/editor/actions';
 
-const CourseIdPage = async ({ params: paramsPromise }: { params: Promise<{ courseId: string }> }) => {
-	const params = await paramsPromise; if (isFirebaseStaging()) return <TeacherEditor courseId={params.courseId} />;
+const CourseIdPage = async ({ params: paramsPromise, searchParams }: { params: Promise<{ courseId: string }>; searchParams?: Promise<{ lesson?: string }> }) => {
+	const params = await paramsPromise; if (isFirebaseStaging()) return <TeacherEditor courseId={params.courseId} lessonId={(await searchParams)?.lesson} />;
 	const courseBase = await getCourseManagementPath();
 	const { userId } = await auth();
 
