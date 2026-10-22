@@ -2,14 +2,14 @@
 
 /**
  * Chapter details: "[Type] [Number] - [Name]" plus a short summary and a full description.
- * Same fields, limits and save call as before (the caller passes `onSave`); this is only the new look,
- * a clearer live preview, a reason whenever Save is off, and a warning of how many lessons change.
+ * Same fields, limits and save call as before (the caller passes `onSave`); this matches the
+ * target design with side-by-side Type and Number, live preview, reason whenever Save is off,
+ * and a warning of how many lessons change.
  */
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Check } from 'lucide-react';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 import { useLanguage } from '@/frontend/components/language-provider';
-import { Editor } from '@/frontend/components/editor';
 import { Button } from '@/frontend/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog';
 import { Input } from '@/frontend/components/ui/input';
@@ -47,70 +47,47 @@ const TYPE_KEY: Record<string, MessageKey> = {
 	Revision: 'teach.type.revision',
 };
 
-/** Large, keyboard-friendly choice of chapter type (replaces the native drop-down). */
-function TypePicker({ value, onChange, disabled, invalid }: { value: string; onChange: (value: string) => void; disabled?: boolean; invalid?: boolean }) {
-	const { t, direction, language } = useLanguage();
+/** Accessible branded select for chapter type, matching the target mockup. */
+function TypeSelect({
+	value,
+	onChange,
+	disabled,
+	invalid,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+	disabled?: boolean;
+	invalid?: boolean;
+}) {
+	const { t } = useLanguage();
 	const labelId = useId();
-	const options = [...CHAPTER_TYPE_PRESETS, CUSTOM];
-	const refs = useRef<(HTMLButtonElement | null)[]>([]);
-	const index = Math.max(0, options.indexOf(value));
-	const move = (to: number) => {
-		const next = (to + options.length) % options.length;
-		onChange(options[next]);
-		refs.current[next]?.focus();
-	};
 	return (
 		<div>
-			<span id={labelId} className="text-sm font-medium text-slate-900">
+			<label htmlFor={labelId} className="block text-sm font-medium text-slate-900">
 				{t('teach.chapter.type')}
-			</span>
-			<div
-				role="radiogroup"
-				aria-labelledby={labelId}
-				aria-invalid={invalid || undefined}
-				className="mt-1.5 grid grid-cols-2 gap-2 sm:grid-cols-4"
-				onKeyDown={(event) => {
-					const forward = direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
-					const back = direction === 'rtl' ? 'ArrowRight' : 'ArrowLeft';
-					if (event.key === 'ArrowDown' || event.key === forward) {
-						event.preventDefault();
-						move(index + 1);
-					} else if (event.key === 'ArrowUp' || event.key === back) {
-						event.preventDefault();
-						move(index - 1);
-					}
-				}}
-			>
-				{options.map((option, i) => {
-					const selected = option === value;
-					return (
-						<button
-							key={option}
-							ref={(node) => {
-								refs.current[i] = node;
-							}}
-							type="button"
-							role="radio"
-							aria-checked={selected}
-							tabIndex={selected || (!options.includes(value) && i === 0) ? 0 : -1}
-							disabled={disabled}
-							onClick={() => onChange(option)}
-							className={cn(
-								'flex min-h-[48px] items-center justify-center gap-1.5 rounded-xl border-2 px-3 text-sm font-semibold transition-colors',
-								FOCUS,
-								selected ? 'border-black bg-primary text-primary-foreground shadow-hard-sm' : 'border-slate-400 bg-white text-slate-900 hover:bg-slate-100'
-							)}
-						>
-							{selected && <Check className="h-4 w-4" aria-hidden />}
-							<span>{option === CUSTOM ? t('teach.type.custom') : t(TYPE_KEY[option])}</span>
-							{language === 'ar' && option !== CUSTOM && (
-								<span lang="en" dir="ltr" className="sr-only">
-									{option}
-								</span>
-							)}
-						</button>
-					);
-				})}
+			</label>
+			<div className="relative mt-1">
+				<select
+					id={labelId}
+					aria-label={t('teach.chapter.type')}
+					aria-invalid={invalid || undefined}
+					value={value}
+					disabled={disabled}
+					onChange={(e) => onChange(e.target.value)}
+					className={cn(
+						'block min-h-[48px] w-full appearance-none rounded-xl border-2 border-black bg-white pe-10 ps-3 text-sm font-medium transition-colors',
+						FOCUS,
+						invalid && 'border-red-600'
+					)}
+				>
+					{CHAPTER_TYPE_PRESETS.map((option) => (
+						<option key={option} value={option}>
+							{t(TYPE_KEY[option])}
+						</option>
+					))}
+					<option value={CUSTOM}>{t('teach.type.custom')}</option>
+				</select>
+				<ChevronDown className="pointer-events-none absolute end-3 top-3.5 h-4 w-4 text-slate-700 rtl:start-3 rtl:end-auto" aria-hidden />
 			</div>
 		</div>
 	);
@@ -244,14 +221,37 @@ export function ChapterDetailsDialog({
 						void submit();
 					}}
 				>
-					<div className="rounded-2xl border-2 border-black bg-emerald-100 px-4 py-3" aria-live="polite">
-						<p className="text-xs font-semibold uppercase tracking-wider text-emerald-950">{t('teach.chapter.preview_label')}</p>
-						<p dir="auto" className="mt-0.5 text-lg font-bold text-emerald-950 [overflow-wrap:anywhere]">
-							{preview}
+					<div className="rounded-xl border-2 border-black bg-emerald-100 px-4 py-2.5 text-center sm:text-start" aria-live="polite">
+						<p className="sr-only">{t('teach.chapter.preview_label')}</p>
+						<p dir="auto" className="font-semibold text-emerald-950 [overflow-wrap:anywhere]">
+							{preview || '—'}
 						</p>
 					</div>
 
-					<TypePicker value={choice} onChange={setChoice} disabled={saving} invalid={touched && !parsedType} />
+					<div className="flex gap-3">
+						<div className="flex-1">
+							<TypeSelect value={choice} onChange={setChoice} disabled={saving} invalid={touched && !parsedType} />
+						</div>
+						<div className="w-28 sm:w-32">
+							<label className="block text-sm font-medium text-slate-900">
+								{t('teach.chapter.number')}
+								<Input
+									type="number"
+									inputMode="numeric"
+									min={1}
+									max={MAX_CHAPTER_NUMBER}
+									step={1}
+									value={number}
+									disabled={saving}
+									aria-invalid={touched && parsedNumber === null}
+									aria-describedby={reasonId}
+									className="mt-1 min-h-[48px]"
+									onChange={(event) => setNumber(event.target.value)}
+								/>
+							</label>
+						</div>
+					</div>
+
 					{choice === CUSTOM && (
 						<label className="block text-sm font-medium text-slate-900">
 							{t('teach.chapter.custom_type')}
@@ -262,28 +262,11 @@ export function ChapterDetailsDialog({
 								disabled={saving}
 								placeholder={t('teach.chapter.custom_placeholder')}
 								aria-invalid={touched && !parsedType}
-								className="mt-1"
+								className="mt-1 min-h-[48px]"
 								onChange={(event) => setCustom(event.target.value)}
 							/>
 						</label>
 					)}
-
-					<label className="block text-sm font-medium text-slate-900">
-						{t('teach.chapter.number')}
-						<Input
-							type="number"
-							inputMode="numeric"
-							min={1}
-							max={MAX_CHAPTER_NUMBER}
-							step={1}
-							value={number}
-							disabled={saving}
-							aria-invalid={touched && parsedNumber === null}
-							aria-describedby={reasonId}
-							className="mt-1 w-32"
-							onChange={(event) => setNumber(event.target.value)}
-						/>
-					</label>
 
 					<label className="block text-sm font-medium text-slate-900">
 						{t('teach.chapter.name')}
@@ -295,32 +278,38 @@ export function ChapterDetailsDialog({
 							placeholder={t('teach.chapter.name_placeholder')}
 							aria-invalid={touched && !name.trim()}
 							aria-describedby={reasonId}
-							className="mt-1"
+							className="mt-1 min-h-[48px]"
 							onChange={(event) => setName(event.target.value)}
 						/>
 					</label>
 
 					<label className="block text-sm font-medium text-slate-900">
 						{t('teach.chapter.summary')}
-						<Textarea
+						<Input
 							dir="auto"
 							value={summary}
-							rows={2}
 							maxLength={MAX_CHAPTER_SUMMARY_LENGTH + 20}
 							disabled={saving}
 							placeholder={t('teach.chapter.summary_placeholder')}
-							className="mt-1"
+							className="mt-1 min-h-[48px]"
 							onChange={(event) => setSummary(event.target.value)}
 						/>
 					</label>
 
 					<div>
 						<span className="text-sm font-medium text-slate-900">
-							{t('teach.chapter.description')} <span className="font-normal text-slate-700">({t('teach.optional')})</span>
+							{t('teach.chapter.description')}
 						</span>
-						<fieldset disabled={saving} className="mt-1">
-							<Editor value={description} onChange={setDescription} />
-						</fieldset>
+						<Textarea
+							dir="auto"
+							value={description}
+							rows={3}
+							maxLength={MAX_CHAPTER_DESCRIPTION_LENGTH}
+							disabled={saving}
+							placeholder={t('teach.chapter.description_placeholder')}
+							className="mt-1 min-h-[80px]"
+							onChange={(event) => setDescription(event.target.value)}
+						/>
 					</div>
 
 					{mode === 'edit' && lessonCount > 0 && (
@@ -341,11 +330,11 @@ export function ChapterDetailsDialog({
 						{reason && <>{t('teach.chapter.save_off')} {reason}</>}
 					</p>
 
-					<DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-						<Button type="button" variant="outline" className="min-h-[44px]" disabled={saving} onClick={() => onOpenChange(false)}>
+					<DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end pt-2">
+						<Button type="button" variant="outline" className="min-h-[44px] rounded-full border-2 border-black bg-white px-6 font-semibold hover:bg-slate-100" disabled={saving} onClick={() => onOpenChange(false)}>
 							{t('teach.cancel')}
 						</Button>
-						<Button type="submit" className="min-h-[44px]" disabled={Boolean(problem) || saving}>
+						<Button type="submit" className="min-h-[44px] rounded-full border-2 border-black bg-emerald-200 text-emerald-950 px-7 font-semibold shadow-hard-sm hover:bg-emerald-300 disabled:opacity-50" disabled={Boolean(problem) || saving}>
 							{saving ? <Spinner label={t('teach.saving')} /> : t('teach.chapter.save')}
 						</Button>
 					</DialogFooter>
