@@ -1,10 +1,20 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { api } from '@/frontend/lib/api';
+/**
+ * Homework Approval Queue (legacy runtime) — redesign.
+ * Presentation only: the API calls, payloads, statuses and permissions are exactly the ones this screen
+ * used before (GET /api/admin/submissions, PATCH /api/admin/submissions with { id, status, note? }).
+ * Layout uses logical utilities (ms/me/ps/pe/start/end) so Arabic RTL mirrors by itself.
+ */
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
+	AlertTriangle,
 	Check,
 	CheckCircle2,
+	ChevronDown,
+	ChevronLeft,
+	ChevronRight,
 	Clock,
 	ExternalLink,
 	Eye,
@@ -12,26 +22,27 @@ import {
 	Layers,
 	Loader2,
 	MessageSquare as MessageSquareText,
-	RefreshCw,
 	Search,
-	ShieldCheck,
-	User,
-	Users,
 	XCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { api } from '@/frontend/lib/api';
+import { useLanguage, LocalDate } from '@/frontend/components/language-provider';
 import { Button } from '@/frontend/components/ui/button';
 import { Input } from '@/frontend/components/ui/input';
 import { Textarea } from '@/frontend/components/ui/textarea';
+import { Skeleton } from '@/frontend/components/ui/skeleton';
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from '@/frontend/components/ui/dialog';
 import { cn } from '@/shared/utils';
 import { StudentMirrorDrawer } from '@/frontend/features/admin/users/student-mirror-drawer';
+import { FOCUS, Initial, PageHeader, Pill } from '@/frontend/features/admin/users/users-ui';
 
 interface EnrichedSubmission {
 	id: string;
@@ -77,14 +88,108 @@ interface ChapterOption {
 	};
 }
 
+const PAGE_SIZE = 25;
+const IMAGE_FILE = /\.(jpeg|jpg|gif|png|webp)($|\?)/i;
+/** The API currently returns the approver's raw account id. Never show that to a teacher. */
+const looksLikeRawId = (value: string) => /^user_/i.test(value) || /^[0-9a-f-]{24,}$/i.test(value) || /^[A-Za-z0-9_-]{24,}$/.test(value);
+
+const FIELD =
+	'h-11 w-full rounded-xl border border-slate-300 bg-white text-sm font-medium text-slate-900 transition-colors hover:border-slate-400';
+
+const StatTile = ({
+	label,
+	value,
+	icon,
+	iconTone,
+	valueTone,
+	highlight,
+	onClick,
+	active,
+}: {
+	label: ReactNode;
+	value: ReactNode;
+	icon: ReactNode;
+	iconTone: string;
+	valueTone?: string;
+	highlight?: boolean;
+	onClick?: () => void;
+	active?: boolean;
+}) => {
+	const body = (
+		<div className="flex items-center justify-between gap-3">
+			<div className="min-w-0 text-start">
+				<p
+					className={cn(
+						'text-xs font-semibold uppercase tracking-wider',
+						highlight ? 'text-amber-900' : 'text-slate-700'
+					)}
+				>
+					{label}
+				</p>
+				<p className={cn('mt-1.5 text-2xl font-bold', valueTone ?? 'text-slate-900')}>{value}</p>
+			</div>
+			<span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', iconTone)} aria-hidden>
+				{icon}
+			</span>
+		</div>
+	);
+	const shell = cn(
+		'block w-full rounded-2xl border p-5',
+		highlight ? 'border-amber-300 bg-amber-50' : 'border-slate-300 bg-white',
+		active && 'ring-2 ring-black'
+	);
+	return onClick ? (
+		<button
+			type="button"
+			aria-pressed={active}
+			onClick={onClick}
+			className={cn(shell, 'transition-colors hover:border-slate-500', FOCUS)}
+		>
+			{body}
+		</button>
+	) : (
+		<div className={shell}>{body}</div>
+	);
+};
+
+const SelectField = ({
+	label,
+	value,
+	onChange,
+	children,
+}: {
+	label: string;
+	value: string;
+	onChange: (value: string) => void;
+	children: ReactNode;
+}) => (
+	<div className="relative">
+		<select
+			aria-label={label}
+			value={value}
+			onChange={(event) => onChange(event.target.value)}
+			className={cn(FIELD, 'appearance-none truncate ps-3 pe-10', FOCUS)}
+		>
+			{children}
+		</select>
+		<ChevronDown
+			className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600"
+			aria-hidden
+		/>
+	</div>
+);
+
 export const SubmissionsView = () => {
+	const { t, number } = useLanguage();
+
 	const [submissions, setSubmissions] = useState<EnrichedSubmission[]>([]);
 	const [groups, setGroups] = useState<GroupOption[]>([]);
 	const [chapters, setChapters] = useState<ChapterOption[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
+	const [loadFailed, setLoadFailed] = useState(false);
 
-	// Action loading states
+	// Action loading state
 	const [actionId, setActionId] = useState<string | null>(null);
 
 	// Filters
@@ -92,34 +197,21 @@ export const SubmissionsView = () => {
 	const [selectedChapterId, setSelectedChapterId] = useState('ALL');
 	const [selectedStatus, setSelectedStatus] = useState('ALL');
 	const [searchQuery, setSearchQuery] = useState('');
+	const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
 	// Strictly filter for homework segments only (no pure explanation videos like P1, P2)
 	const homeworkChapters = useMemo(() => {
 		return chapters.filter(
 			(ch) =>
-				ch.contentType === 'HOMEWORK_ASSIGNMENT' ||
-				/homework|hw|assignment/i.test(ch.title)
+				ch.contentType === 'HOMEWORK_ASSIGNMENT' || /homework|hw|assignment/i.test(ch.title)
 		);
 	}, [chapters]);
 
-	// File Preview Modal
-	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-	const [previewTitle, setPreviewTitle] = useState<string>('');
-	const [previewSubmission, setPreviewSubmission] = useState<EnrichedSubmission | null>(null);
-	const [noteDraft, setNoteDraft] = useState('');
-
-	const openPreview = (sub: EnrichedSubmission) => {
-		setPreviewUrl(sub.fileUrl);
-		setPreviewTitle(`${sub.studentName} — ${sub.chapter.title}`);
-		setPreviewSubmission(sub);
-		setNoteDraft(sub.reviewNote ?? '');
-	};
-
-	const closePreview = () => {
-		setPreviewUrl(null);
-		setPreviewSubmission(null);
-		setNoteDraft('');
-	};
+	// File preview panel. Drafts are kept per submission so nothing is lost when moving between files.
+	const [previewId, setPreviewId] = useState<string | null>(null);
+	const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+	const [confirmClose, setConfirmClose] = useState(false);
+	const [fileState, setFileState] = useState<'loading' | 'ready' | 'failed'>('loading');
 
 	// Student Profile Mirror Drawer
 	const [mirrorStudentId, setMirrorStudentId] = useState<string | null>(null);
@@ -134,9 +226,11 @@ export const SubmissionsView = () => {
 			setSubmissions(res.data.submissions || []);
 			setGroups(res.data.groups || []);
 			setChapters(res.data.chapters || []);
+			setLoadFailed(false);
 		} catch (error) {
 			console.error(error);
-			toast.error('Failed to load homework queue.');
+			setLoadFailed(true);
+			toast.error(t('hq.toast.load_failed'));
 		} finally {
 			setIsLoading(false);
 			setIsRefreshing(false);
@@ -145,10 +239,11 @@ export const SubmissionsView = () => {
 
 	useEffect(() => {
 		loadSubmissions();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// 1-Tap Approve Homework
-	const handleApproveHomework = async (submissionId: string, note?: string) => {
+	// 1-Tap Approve Homework (same request as before). Returns true when the server accepted it.
+	const handleApproveHomework = async (submissionId: string, note?: string): Promise<boolean> => {
 		try {
 			setActionId(submissionId);
 			await api.patch('/api/admin/submissions', {
@@ -157,7 +252,7 @@ export const SubmissionsView = () => {
 				...(note !== undefined ? { note } : {}),
 			});
 
-			toast.success('Homework marked as approved!');
+			toast.success(t('hq.toast.approved'));
 
 			// Optimistic local update
 			setSubmissions((prev) =>
@@ -172,9 +267,11 @@ export const SubmissionsView = () => {
 				)
 			);
 			loadSubmissions(true);
+			return true;
 		} catch (error) {
 			console.error(error);
-			toast.error('Failed to update submission status.');
+			toast.error(t('hq.toast.approve_failed'));
+			return false;
 		} finally {
 			setActionId(null);
 		}
@@ -185,18 +282,16 @@ export const SubmissionsView = () => {
 		try {
 			setActionId(submissionId);
 			await api.patch('/api/admin/submissions', { id: submissionId, note });
-			toast.success('Feedback saved');
+			toast.success(t('hq.toast.note_saved'));
 			setSubmissions((prev) =>
 				prev.map((sub) =>
 					sub.id === submissionId ? { ...sub, reviewNote: note.trim() || null } : sub
 				)
 			);
-			setPreviewSubmission((prev) =>
-				prev && prev.id === submissionId ? { ...prev, reviewNote: note.trim() || null } : prev
-			);
+			setNoteDrafts((prev) => ({ ...prev, [submissionId]: note.trim() }));
 		} catch (error) {
 			console.error(error);
-			toast.error('Failed to save feedback.');
+			toast.error(t('hq.toast.note_failed'));
 		} finally {
 			setActionId(null);
 		}
@@ -204,480 +299,685 @@ export const SubmissionsView = () => {
 
 	// Filtered submissions
 	const filteredSubmissions = useMemo(() => {
+		const q = searchQuery.trim().toLowerCase();
 		return submissions.filter((sub) => {
-			if (selectedGroupId !== 'ALL') {
-				if (sub.groupId !== selectedGroupId) return false;
-			}
+			if (selectedGroupId !== 'ALL' && sub.groupId !== selectedGroupId) return false;
+			if (selectedChapterId !== 'ALL' && sub.chapterId !== selectedChapterId) return false;
+			if (selectedStatus !== 'ALL' && sub.status !== selectedStatus) return false;
 
-			if (selectedChapterId !== 'ALL') {
-				if (sub.chapterId !== selectedChapterId) return false;
+			if (q) {
+				const matches =
+					sub.studentName.toLowerCase().includes(q) ||
+					sub.studentEmail.toLowerCase().includes(q) ||
+					(sub.chapter?.title ?? '').toLowerCase().includes(q) ||
+					(sub.groupName ?? '').toLowerCase().includes(q);
+				if (!matches) return false;
 			}
-
-			if (selectedStatus !== 'ALL') {
-				if (sub.status !== selectedStatus) return false;
-			}
-
-			if (searchQuery.trim()) {
-				const q = searchQuery.toLowerCase();
-				const matchName = sub.studentName.toLowerCase().includes(q);
-				const matchEmail = sub.studentEmail.toLowerCase().includes(q);
-				const matchChapter = sub.chapter?.title.toLowerCase().includes(q);
-				if (!matchName && !matchEmail && !matchChapter) return false;
-			}
-
 			return true;
 		});
 	}, [submissions, selectedGroupId, selectedChapterId, selectedStatus, searchQuery]);
 
-	const pendingCount = submissions.filter(
-		(s) => s.status === 'PENDING_APPROVAL'
-	).length;
+	useEffect(() => {
+		setVisibleCount(PAGE_SIZE);
+	}, [selectedGroupId, selectedChapterId, selectedStatus, searchQuery]);
+
+	const visibleSubmissions = filteredSubmissions.slice(0, visibleCount);
+
+	const pendingCount = submissions.filter((s) => s.status === 'PENDING_APPROVAL').length;
 	const approvedCount = submissions.filter((s) => s.status === 'APPROVED').length;
+	const rejectedCount = submissions.filter((s) => s.status === 'REJECTED').length;
+	const filtersActive =
+		selectedGroupId !== 'ALL' ||
+		selectedChapterId !== 'ALL' ||
+		selectedStatus !== 'ALL' ||
+		searchQuery.trim() !== '';
+
+	// ---- Preview navigation (works over the currently filtered list, so filters are never lost) ----
+	const previewIndex = previewId ? filteredSubmissions.findIndex((s) => s.id === previewId) : -1;
+	const previewSub = previewIndex >= 0 ? filteredSubmissions[previewIndex] : null;
+	const savedNote = previewSub?.reviewNote ?? '';
+	const draft = previewSub ? (noteDrafts[previewSub.id] ?? savedNote) : '';
+	const draftDirty = (id: string, value: string) => {
+		const sub = submissions.find((s) => s.id === id);
+		return value.trim() !== (sub?.reviewNote ?? '').trim();
+	};
+	const hasUnsavedNotes = Object.entries(noteDrafts).some(([id, value]) => draftDirty(id, value));
+
+	const openPreview = (sub: EnrichedSubmission) => {
+		setFileState('loading');
+		setConfirmClose(false);
+		setPreviewId(sub.id);
+	};
+	const goTo = useCallback(
+		(index: number) => {
+			const target = filteredSubmissions[index];
+			if (!target) return;
+			setFileState('loading');
+			setConfirmClose(false);
+			setPreviewId(target.id);
+		},
+		[filteredSubmissions]
+	);
+	const closePreview = () => {
+		setPreviewId(null);
+		setConfirmClose(false);
+	};
+	const requestClose = () => {
+		if (hasUnsavedNotes) setConfirmClose(true);
+		else closePreview();
+	};
+	const discardAndClose = () => {
+		setNoteDrafts({});
+		closePreview();
+	};
+
+	const approveFromPreview = async (andNext: boolean) => {
+		if (!previewSub) return;
+		const current = previewSub;
+		const ok = await handleApproveHomework(current.id, draft);
+		if (!ok) return;
+		setNoteDrafts((prev) => {
+			const next = { ...prev };
+			delete next[current.id];
+			return next;
+		});
+		if (!andNext) {
+			closePreview();
+			return;
+		}
+		// Next waiting submission after this one, otherwise the next one in the list.
+		const after = filteredSubmissions.slice(previewIndex + 1);
+		const target =
+			after.find((s) => s.status === 'PENDING_APPROVAL') ?? after[0] ?? null;
+		if (target) {
+			setFileState('loading');
+			setPreviewId(target.id);
+		} else {
+			closePreview();
+		}
+	};
+
+	const statusBadge = (sub: EnrichedSubmission) => {
+		if (sub.status === 'APPROVED') {
+			const approver =
+				sub.reviewerName && !looksLikeRawId(sub.reviewerName) ? sub.reviewerName : null;
+			return (
+				<div className="space-y-1">
+					<Pill
+						tone="border-emerald-300 bg-emerald-50 text-emerald-900"
+						icon={<CheckCircle2 className="h-3.5 w-3.5" aria-hidden />}
+					>
+						{t('hq.status.approved')}
+					</Pill>
+					{approver && (
+						<p className="text-xs text-slate-700">
+							{t('hq.by', { name: approver })}
+						</p>
+					)}
+				</div>
+			);
+		}
+		if (sub.status === 'REJECTED') {
+			return (
+				<Pill
+					tone="border-rose-300 bg-rose-50 text-rose-900"
+					icon={<XCircle className="h-3.5 w-3.5" aria-hidden />}
+				>
+					{t('hq.status.rejected')}
+				</Pill>
+			);
+		}
+		return (
+			<Pill
+				tone="border-amber-300 bg-amber-50 text-amber-900"
+				icon={<Clock className="h-3.5 w-3.5" aria-hidden />}
+			>
+				{t('hq.status.pending')}
+			</Pill>
+		);
+	};
+
+	const actionCell = (sub: EnrichedSubmission) =>
+		sub.status !== 'APPROVED' ? (
+			<Button
+				size="sm"
+				disabled={actionId === sub.id}
+				onClick={() => handleApproveHomework(sub.id)}
+				className="min-h-[44px] bg-emerald-700 px-4 text-xs font-semibold text-white hover:bg-emerald-800 md:min-h-[36px]"
+			>
+				{actionId === sub.id ? (
+					<Loader2 className="h-3.5 w-3.5 animate-spin" aria-label={t('hq.loading')} />
+				) : (
+					<>
+						<Check className="me-1 h-3.5 w-3.5" aria-hidden />
+						{t('hq.action.approve')}
+					</>
+				)}
+			</Button>
+		) : (
+			<Pill
+				tone="border-emerald-300 bg-emerald-50 text-emerald-900"
+				icon={<Check className="h-3.5 w-3.5" aria-hidden />}
+			>
+				{t('hq.action.verified')}
+			</Pill>
+		);
+
+	const studentCell = (sub: EnrichedSubmission) => (
+		<button
+			type="button"
+			onClick={() => {
+				setMirrorStudentId(sub.userId);
+				setIsMirrorOpen(true);
+			}}
+			className={cn('group flex min-w-0 items-center gap-2.5 rounded-lg text-start', FOCUS)}
+		>
+			{sub.studentImage ? (
+				// eslint-disable-next-line @next/next/no-img-element
+				<img
+					src={sub.studentImage}
+					alt=""
+					className="h-8 w-8 shrink-0 rounded-full border border-slate-300 object-cover"
+				/>
+			) : (
+				<Initial name={sub.studentName} />
+			)}
+			<span className="min-w-0">
+				<span className="block truncate font-semibold text-slate-900 group-hover:underline">
+					{sub.studentName}
+				</span>
+				<bdi className="block truncate font-mono text-xs text-slate-700">{sub.studentEmail}</bdi>
+			</span>
+		</button>
+	);
+
+	const fileCell = (sub: EnrichedSubmission) => (
+		<div className="flex items-center gap-2">
+			<button
+				type="button"
+				onClick={() => openPreview(sub)}
+				className={cn(
+					'inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-900 transition-colors hover:bg-slate-100 md:min-h-[36px]',
+					FOCUS
+				)}
+			>
+				<Eye className="h-3.5 w-3.5" aria-hidden />
+				{t('hq.preview')}
+			</button>
+			<a
+				href={sub.fileUrl}
+				target="_blank"
+				rel="noopener noreferrer"
+				aria-label={t('hq.open_new_tab')}
+				title={t('hq.open_new_tab')}
+				className={cn(
+					'grid h-11 w-11 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 hover:text-slate-900 md:h-9 md:w-9',
+					FOCUS
+				)}
+			>
+				<ExternalLink className="h-4 w-4" aria-hidden />
+			</a>
+		</div>
+	);
+
+	const dateOptions: Intl.DateTimeFormatOptions = {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+		hour: 'numeric',
+		minute: '2-digit',
+	};
+
+	const groupLabel = (sub: EnrichedSubmission) => (sub.groupId ? sub.groupName : t('hq.unassigned'));
 
 	return (
-		<div className="mx-auto w-full max-w-7xl space-y-8 pb-16 pt-2 animate-in fade-in-50 duration-200">
-			{/* Top Header */}
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-				<div className="space-y-1">
-					<div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
-						<ShieldCheck className="h-3.5 w-3.5" />
-						Assistant Review Board
-					</div>
-					<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-						Homework Approval Queue
-					</h1>
-					<p className="text-sm text-slate-500">
-						Verify textbook homework uploads, approve assignments, and monitor student completion.
-					</p>
-				</div>
+		<div className="mx-auto w-full max-w-7xl space-y-6 pb-16 pt-2 animate-in fade-in-50 duration-200">
+			<PageHeader
+				pill={t('hq.pill')}
+				title={t('hq.title')}
+				subtitle={t('hq.subtitle')}
+				refreshLabel={t('hq.refresh')}
+				refreshing={isRefreshing}
+				onRefresh={() => loadSubmissions(true)}
+			/>
 
-				<div className="flex items-center gap-2.5">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => loadSubmissions(true)}
-						disabled={isRefreshing}
-						className="border-slate-200 text-slate-700 hover:bg-slate-100"
-					>
-						<RefreshCw
-							className={cn('h-3.5 w-3.5 mr-1.5', isRefreshing && 'animate-spin')}
-						/>
-						Refresh
-					</Button>
-				</div>
-			</div>
-
-			{/* Metric Badges */}
+			{/* Stat cards */}
 			<div className="grid gap-4 sm:grid-cols-3">
-				<div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-5 shadow-xs">
-					<div className="flex items-center justify-between">
-						<div>
-							<p className="text-xs font-semibold uppercase tracking-wider text-amber-800">
-								Pending Approvals
-							</p>
-							<p className="mt-1.5 text-2xl font-bold text-amber-950">
-								{pendingCount}
-							</p>
-						</div>
-						<div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-100 text-amber-800">
-							<Clock className="h-5 w-5" />
-						</div>
-					</div>
-				</div>
-
-				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-					<div className="flex items-center justify-between">
-						<div>
-							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-								Approved Homework
-							</p>
-							<p className="mt-1.5 text-2xl font-bold text-emerald-600">
-								{approvedCount}
-							</p>
-						</div>
-						<div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
-							<CheckCircle2 className="h-5 w-5" />
-						</div>
-					</div>
-				</div>
-
-				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-					<div className="flex items-center justify-between">
-						<div>
-							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-								Total Submissions
-							</p>
-							<p className="mt-1.5 text-2xl font-bold text-slate-900">
-								{submissions.length}
-							</p>
-						</div>
-						<div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-sky-700">
-							<Layers className="h-5 w-5" />
-						</div>
-					</div>
-				</div>
+				<StatTile
+					highlight
+					label={t('hq.stat.pending')}
+					value={number(pendingCount)}
+					valueTone="text-amber-950"
+					icon={<Clock className="h-5 w-5" />}
+					iconTone="bg-amber-100 text-amber-900"
+					active={selectedStatus === 'PENDING_APPROVAL'}
+					onClick={() =>
+						setSelectedStatus((s) => (s === 'PENDING_APPROVAL' ? 'ALL' : 'PENDING_APPROVAL'))
+					}
+				/>
+				<StatTile
+					label={t('hq.stat.approved')}
+					value={number(approvedCount)}
+					valueTone="text-emerald-800"
+					icon={<CheckCircle2 className="h-5 w-5" />}
+					iconTone="bg-emerald-50 text-emerald-900"
+					active={selectedStatus === 'APPROVED'}
+					onClick={() => setSelectedStatus((s) => (s === 'APPROVED' ? 'ALL' : 'APPROVED'))}
+				/>
+				<StatTile
+					label={t('hq.stat.total')}
+					value={number(submissions.length)}
+					icon={<Layers className="h-5 w-5" />}
+					iconTone="bg-sky-50 text-sky-900"
+				/>
 			</div>
 
-			{/* Filters Bar */}
-			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
-				<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-					<Filter className="h-3.5 w-3.5 text-slate-400" />
-					Filter Submissions
+			{/* Filters */}
+			<section
+				aria-label={t('hq.filter.title')}
+				className="space-y-3 rounded-2xl border border-slate-300 bg-white p-4"
+			>
+				<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700">
+					<Filter className="h-3.5 w-3.5" aria-hidden />
+					{t('hq.filter.title')}
 				</div>
 
-				<div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
-					{/* Search by Student */}
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 					<div className="relative">
-						<Search className="h-4 w-4 text-slate-400 absolute left-3 top-3" />
+						<Search
+							className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600"
+							aria-hidden
+						/>
 						<Input
-							placeholder="Search student or lesson..."
+							type="search"
+							aria-label={t('hq.search.placeholder')}
+							placeholder={t('hq.search.placeholder')}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-9 h-10 text-xs border-slate-200 bg-slate-50 focus:bg-white"
+							className={cn(FIELD, 'ps-9 text-sm')}
 						/>
 					</div>
 
-					{/* Group Filter */}
-					<div>
-						<select
-							value={selectedGroupId}
-							onChange={(e) => setSelectedGroupId(e.target.value)}
-							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
-						>
-							<option value="ALL">All Groups</option>
-							{groups.map((g) => (
-								<option key={g.id} value={g.id}>
-									{g.name}
-								</option>
-							))}
-						</select>
-					</div>
+					<SelectField label={t('hq.filter.group')} value={selectedGroupId} onChange={setSelectedGroupId}>
+						<option value="ALL">{t('hq.filter.all_groups')}</option>
+						{groups.map((g) => (
+							<option key={g.id} value={g.id}>
+								{g.name}
+							</option>
+						))}
+					</SelectField>
 
-					{/* Lesson Segment Filter */}
-					<div>
-						<select
-							value={selectedChapterId}
-							onChange={(e) => setSelectedChapterId(e.target.value)}
-							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
-						>
-							<option value="ALL">All Homework Segments</option>
-							{homeworkChapters.map((ch) => (
-								<option key={ch.id} value={ch.id}>
-									{ch.course?.title ? `${ch.course.title} - ` : ''}
-									{ch.title}
-								</option>
-							))}
-						</select>
-					</div>
+					<SelectField
+						label={t('hq.filter.segment')}
+						value={selectedChapterId}
+						onChange={setSelectedChapterId}
+					>
+						<option value="ALL">{t('hq.filter.all_segments')}</option>
+						{homeworkChapters.map((ch) => (
+							<option key={ch.id} value={ch.id}>
+								{ch.course?.title ? `${ch.course.title} - ` : ''}
+								{ch.title}
+							</option>
+						))}
+					</SelectField>
 
-					{/* Status Filter */}
-					<div>
-						<select
-							value={selectedStatus}
-							onChange={(e) => setSelectedStatus(e.target.value)}
-							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
-						>
-							<option value="ALL">All Statuses</option>
-							<option value="PENDING_APPROVAL">Pending Review ({pendingCount})</option>
-							<option value="APPROVED">Approved ({approvedCount})</option>
-						</select>
-					</div>
+					<SelectField label={t('hq.filter.status')} value={selectedStatus} onChange={setSelectedStatus}>
+						<option value="ALL">{t('hq.filter.all_statuses')}</option>
+						<option value="PENDING_APPROVAL">
+							{t('hq.filter.pending', { count: number(pendingCount) })}
+						</option>
+						<option value="APPROVED">{t('hq.filter.approved', { count: number(approvedCount) })}</option>
+						<option value="REJECTED">{t('hq.filter.rejected', { count: number(rejectedCount) })}</option>
+					</SelectField>
 				</div>
-			</div>
+			</section>
 
-			{/* Submissions Table */}
-			<section className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-				<div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-6 py-4">
-					<h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-						Submissions List
-						<span className="text-xs font-semibold text-slate-500">
-							({filteredSubmissions.length} results)
+			{/* Submissions list */}
+			<section className="overflow-hidden rounded-2xl border border-slate-300 bg-white">
+				<div className="flex items-center justify-between border-b border-slate-300 bg-slate-50 px-4 py-4 sm:px-6">
+					<h2 className="flex flex-wrap items-baseline gap-2 font-display text-lg text-slate-900">
+						{t('hq.list.title')}
+						<span aria-live="polite" className="text-xs font-semibold text-slate-700">
+							({t('hq.list.results', { count: number(filteredSubmissions.length) })})
 						</span>
 					</h2>
 				</div>
 
 				{isLoading ? (
-					<div className="flex min-h-[220px] items-center justify-center p-8">
-						<Loader2 className="h-8 w-8 animate-spin text-sky-600" />
+					<div role="status" aria-label={t('hq.loading')} className="space-y-3 p-4 sm:p-6">
+						{[0, 1, 2, 3].map((i) => (
+							<Skeleton key={i} className="h-14 w-full rounded-xl" />
+						))}
+					</div>
+				) : loadFailed && submissions.length === 0 ? (
+					<div role="alert" className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+						<AlertTriangle className="h-10 w-10 text-rose-700" aria-hidden />
+						<p className="text-sm font-semibold text-slate-900">{t('hq.error.title')}</p>
+						<p className="max-w-sm text-xs text-slate-700">{t('hq.error.hint')}</p>
+						<Button variant="outline" className="min-h-[44px]" onClick={() => loadSubmissions()}>
+							{t('hq.retry')}
+						</Button>
 					</div>
 				) : filteredSubmissions.length === 0 ? (
-					<div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-						<CheckCircle2 className="h-10 w-10 text-slate-300 mb-2" />
-						<p className="text-sm font-semibold text-slate-800">
-							No submissions match your filters
+					<div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+						<CheckCircle2 className="mb-2 h-10 w-10 text-slate-500" aria-hidden />
+						<p className="text-sm font-semibold text-slate-900">
+							{filtersActive ? t('hq.empty.filtered') : t('hq.empty.none')}
 						</p>
-						<p className="text-xs text-slate-400 mt-0.5">
-							Try changing group or status filters to view other homework uploads.
+						<p className="mt-0.5 max-w-sm text-xs text-slate-700">
+							{filtersActive ? t('hq.empty.filtered_hint') : t('hq.empty.none_hint')}
 						</p>
+						{filtersActive && (
+							<Button
+								variant="outline"
+								className="mt-4 min-h-[44px]"
+								onClick={() => {
+									setSelectedGroupId('ALL');
+									setSelectedChapterId('ALL');
+									setSelectedStatus('ALL');
+									setSearchQuery('');
+								}}
+							>
+								{t('hq.clear_filters')}
+							</Button>
+						)}
 					</div>
 				) : (
-					<div className="overflow-x-auto">
-						<table className="w-full text-left border-collapse">
-							<thead>
-								<tr className="border-b border-slate-100 bg-slate-50/40 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-									<th className="py-3.5 px-6">Student</th>
-									<th className="py-3.5 px-6">Group</th>
-									<th className="py-3.5 px-6">Lesson Segment</th>
-									<th className="py-3.5 px-6">Uploaded File</th>
-									<th className="py-3.5 px-6">Date / Time</th>
-									<th className="py-3.5 px-6">Status</th>
-									<th className="py-3.5 px-6 text-right">Actions</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-slate-100 text-sm">
-								{filteredSubmissions.map((sub) => {
-									const isApproved = sub.status === 'APPROVED';
-									const isPending = sub.status === 'PENDING_APPROVAL';
-									const dateFormatted = new Date(sub.createdAt).toLocaleString(
-										'en-US',
-										{
-											month: 'short',
-											day: 'numeric',
-											year: 'numeric',
-											hour: 'numeric',
-											minute: '2-digit',
-										}
-									);
-
-									return (
-										<tr
-											key={sub.id}
-											className="hover:bg-slate-50/80 transition-colors"
-										>
-											{/* Student */}
-											<td className="py-3.5 px-6">
-												<button
-													type="button"
-													onClick={() => {
-														setMirrorStudentId(sub.userId);
-														setIsMirrorOpen(true);
-													}}
-													className="flex items-center gap-2.5 text-left group cursor-pointer"
-												>
-													{sub.studentImage ? (
-														<img
-															src={sub.studentImage}
-															alt={sub.studentName}
-															className="h-8 w-8 rounded-full border border-slate-200 object-cover"
-														/>
-													) : (
-														<div className="grid h-8 w-8 place-items-center rounded-full bg-sky-100 text-sky-700 font-bold text-xs shrink-0">
-															{sub.studentName.charAt(0)}
-														</div>
-													)}
-													<div className="min-w-0">
-														<p className="font-semibold text-slate-900 group-hover:text-sky-700 transition">
-															{sub.studentName}
-														</p>
-														<p className="text-[11px] text-slate-400 font-mono">
-															{sub.studentEmail}
-														</p>
-													</div>
-												</button>
+					<>
+						{/* Desktop / tablet table */}
+						<div className="hidden overflow-x-auto md:block">
+							<table className="w-full border-collapse text-start">
+								<caption className="sr-only">{t('hq.list.title')}</caption>
+								<thead>
+									<tr className="border-b border-slate-300 text-xs font-bold uppercase tracking-wider text-slate-700">
+										<th scope="col" className="px-6 py-3.5 text-start">{t('hq.col.student')}</th>
+										<th scope="col" className="px-4 py-3.5 text-start">{t('hq.col.group')}</th>
+										<th scope="col" className="px-4 py-3.5 text-start">{t('hq.col.segment')}</th>
+										<th scope="col" className="px-4 py-3.5 text-start">{t('hq.col.file')}</th>
+										<th scope="col" className="px-4 py-3.5 text-start">{t('hq.col.date')}</th>
+										<th scope="col" className="px-4 py-3.5 text-start">{t('hq.col.status')}</th>
+										<th scope="col" className="px-6 py-3.5 text-end">{t('hq.col.actions')}</th>
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-slate-200 text-sm">
+									{visibleSubmissions.map((sub) => (
+										<tr key={sub.id} className="transition-colors hover:bg-slate-50">
+											<td className="max-w-[16rem] px-6 py-3.5">{studentCell(sub)}</td>
+											<td className="px-4 py-3.5">
+												<Pill tone="border-slate-300 bg-slate-100 text-slate-900">
+													{groupLabel(sub)}
+												</Pill>
 											</td>
-
-											{/* Group */}
-											<td className="py-3.5 px-6">
-												<span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-													{sub.groupName}
-												</span>
+											<td className="max-w-[14rem] px-4 py-3.5">
+												<p className="truncate text-xs font-bold uppercase tracking-wider text-emerald-900">
+													{sub.chapter.course?.title || t('hq.lesson')}
+												</p>
+												<p className="truncate text-sm font-semibold text-slate-900">
+													{sub.chapter.title}
+												</p>
 											</td>
-
-											{/* Lesson Segment Title */}
-											<td className="py-3.5 px-6">
-												<div className="space-y-0.5 max-w-xs">
-													<p className="text-[11px] font-bold text-sky-700 uppercase tracking-wider truncate">
-														{sub.chapter.course?.title || 'Lesson'}
-													</p>
-													<p className="text-xs font-semibold text-slate-800 line-clamp-1">
-														{sub.chapter.title}
-													</p>
-												</div>
+											<td className="px-4 py-3.5">{fileCell(sub)}</td>
+											<td className="whitespace-nowrap px-4 py-3.5 text-xs text-slate-700">
+												<LocalDate value={sub.createdAt} options={dateOptions} />
 											</td>
-
-											{/* Uploaded File Link */}
-											<td className="py-3.5 px-6">
-												<div className="flex items-center gap-2">
-													<button
-														type="button"
-														onClick={() => openPreview(sub)}
-														className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition"
-													>
-														<Eye className="h-3.5 w-3.5 text-slate-500" />
-														Preview
-													</button>
-													<a
-														href={sub.fileUrl}
-														target="_blank"
-														rel="noopener noreferrer"
-														className="text-slate-400 hover:text-slate-700"
-														title="Open in new tab"
-													>
-														<ExternalLink className="h-3.5 w-3.5" />
-													</a>
-												</div>
-											</td>
-
-											{/* Date */}
-											<td className="py-3.5 px-6 text-xs text-slate-500 whitespace-nowrap">
-												{dateFormatted}
-											</td>
-
-											{/* Status Badge */}
-											<td className="py-3.5 px-6">
-												{isApproved ? (
-													<div className="space-y-0.5">
-														<span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
-															<CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-															Approved
-														</span>
-														{sub.reviewerName && (
-															<p className="text-[10px] text-slate-400">
-																by {sub.reviewerName}
-															</p>
-														)}
-													</div>
-												) : (
-													<span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 border border-amber-200">
-														<Clock className="h-3.5 w-3.5 text-amber-600" />
-														Pending Review
-													</span>
-												)}
-											</td>
-
-											{/* Actions: Strictly 1-Tap Mark as Approved */}
-											<td className="py-3.5 px-6 text-right">
-												<div className="flex items-center justify-end gap-1.5">
-													{!isApproved ? (
-														<Button
-															size="sm"
-															disabled={actionId === sub.id}
-															onClick={() =>
-																handleApproveHomework(sub.id)
-															}
-															className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs"
-														>
-															{actionId === sub.id ? (
-																<Loader2 className="h-3.5 w-3.5 animate-spin" />
-															) : (
-																<>
-																	<Check className="h-3.5 w-3.5 mr-1" />
-																	Mark as Approved
-																</>
-															)}
-														</Button>
-													) : (
-														<span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-semibold py-1 px-2.5 rounded-lg bg-emerald-50/70 border border-emerald-100">
-															<Check className="h-3.5 w-3.5" />
-															Verified
-														</span>
-													)}
-												</div>
+											<td className="px-4 py-3.5">{statusBadge(sub)}</td>
+											<td className="px-6 py-3.5">
+												<div className="flex justify-end">{actionCell(sub)}</div>
 											</td>
 										</tr>
-									);
-								})}
-							</tbody>
-						</table>
-					</div>
+									))}
+								</tbody>
+							</table>
+						</div>
+
+						{/* Mobile: one card per submission, every column and action kept */}
+						<ul className="divide-y divide-slate-200 md:hidden">
+							{visibleSubmissions.map((sub) => (
+								<li key={sub.id} className="space-y-3 p-4">
+									<div className="flex items-start justify-between gap-3">
+										{studentCell(sub)}
+										<div className="shrink-0">{statusBadge(sub)}</div>
+									</div>
+									<div className="min-w-0">
+										<p className="truncate text-xs font-bold uppercase tracking-wider text-emerald-900">
+											{sub.chapter.course?.title || t('hq.lesson')}
+										</p>
+										<p className="text-sm font-semibold text-slate-900">{sub.chapter.title}</p>
+									</div>
+									<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700">
+										<Pill tone="border-slate-300 bg-slate-100 text-slate-900">{groupLabel(sub)}</Pill>
+										<LocalDate value={sub.createdAt} options={dateOptions} />
+									</div>
+									<div className="flex flex-wrap items-center justify-between gap-2">
+										{fileCell(sub)}
+										{actionCell(sub)}
+									</div>
+								</li>
+							))}
+						</ul>
+
+						{filteredSubmissions.length > visibleCount && (
+							<div className="flex justify-center border-t border-slate-200 p-4">
+								<Button
+									variant="outline"
+									className="min-h-[44px]"
+									onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+								>
+									{t('hq.show_more', {
+										count: number(Math.min(PAGE_SIZE, filteredSubmissions.length - visibleCount)),
+									})}
+								</Button>
+							</div>
+						)}
+					</>
 				)}
 			</section>
 
-			{/* Inline File Preview Modal */}
-			<Dialog open={!!previewUrl} onOpenChange={(open) => !open && closePreview()}>
-				<DialogContent className="sm:max-w-3xl border-slate-200 bg-white text-slate-900 shadow-2xl rounded-2xl p-6">
-					<DialogHeader>
-						<DialogTitle className="text-base font-bold text-slate-900">
-							{previewTitle || 'Homework File Preview'}
-						</DialogTitle>
-					</DialogHeader>
+			{/* File preview + review panel */}
+			<Dialog open={!!previewSub} onOpenChange={(open) => !open && requestClose()}>
+				<DialogContent className="max-h-[95vh] overflow-y-auto rounded-2xl border-slate-300 bg-white p-4 text-slate-900 sm:max-w-3xl sm:p-6">
+					{previewSub && (
+						<>
+							<DialogHeader className="text-start">
+								<DialogTitle className="font-display text-lg">
+									{previewSub.studentName} — {previewSub.chapter.title}
+								</DialogTitle>
+								<DialogDescription className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
+									{statusBadge(previewSub)}
+									<span>
+										{t('hq.position', {
+											index: number(previewIndex + 1),
+											total: number(filteredSubmissions.length),
+										})}
+									</span>
+								</DialogDescription>
+							</DialogHeader>
 
-					<div className="mt-2 min-h-[350px] max-h-[70vh] flex items-center justify-center overflow-auto rounded-xl bg-slate-950 p-2">
-						{previewUrl && (
-							previewUrl.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) ? (
-								<img
-									src={previewUrl}
-									alt="Homework Preview"
-									className="max-h-[65vh] w-auto object-contain rounded-lg"
-								/>
-							) : (
-								<iframe
-									src={previewUrl}
-									title="Homework Document Preview"
-									className="h-[65vh] w-full rounded-lg bg-white"
-								/>
-							)
-						)}
-					</div>
-
-					{previewSubmission && (
-						<div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-							<label
-								htmlFor="review-note"
-								className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-600"
+							<div
+								data-appearance-island
+								className="relative flex min-h-[260px] max-h-[60vh] items-center justify-center overflow-auto rounded-xl bg-slate-950 p-2"
 							>
-								<MessageSquareText className="h-3.5 w-3.5" />
-								Feedback note <span className="font-normal normal-case text-slate-400">(optional)</span>
-							</label>
-							<Textarea
-								id="review-note"
-								value={noteDraft}
-								maxLength={4000}
-								onChange={(event) => setNoteDraft(event.target.value)}
-								placeholder="Guidance or corrections for the student..."
-								className="bg-white text-sm"
-							/>
-							<div className="flex flex-wrap justify-end gap-2">
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									disabled={
-										actionId === previewSubmission.id ||
-										noteDraft.trim() === (previewSubmission.reviewNote ?? '')
-									}
-									onClick={() => handleSaveNote(previewSubmission.id, noteDraft)}
-								>
-									Save note only
-								</Button>
-								{previewSubmission.status !== 'APPROVED' && (
-									<Button
-										type="button"
-										size="sm"
-										disabled={actionId === previewSubmission.id}
-										className="bg-emerald-600 text-white hover:bg-emerald-700"
-										onClick={async () => {
-											await handleApproveHomework(previewSubmission.id, noteDraft);
-											closePreview();
-										}}
+								{fileState === 'loading' && (
+									<div
+										role="status"
+										aria-label={t('hq.loading')}
+										className="absolute inset-0 grid place-items-center"
 									>
-										<Check className="mr-1 h-3.5 w-3.5" />
-										{noteDraft.trim() ? 'Approve with note' : 'Mark as Approved'}
-									</Button>
+										<Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+									</div>
+								)}
+								{fileState === 'failed' ? (
+									<div className="space-y-2 p-6 text-center text-sm text-slate-100">
+										<p>{t('hq.file.failed')}</p>
+										<a
+											href={previewSub.fileUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="font-semibold underline"
+										>
+											{t('hq.open_new_tab')}
+										</a>
+									</div>
+								) : IMAGE_FILE.test(previewSub.fileUrl) ? (
+									// eslint-disable-next-line @next/next/no-img-element
+									<img
+										key={previewSub.id}
+										src={previewSub.fileUrl}
+										alt={t('hq.file.alt')}
+										decoding="async"
+										onLoad={() => setFileState('ready')}
+										onError={() => setFileState('failed')}
+										className="max-h-[56vh] w-auto rounded-lg object-contain"
+									/>
+								) : (
+									<iframe
+										key={previewSub.id}
+										src={previewSub.fileUrl}
+										title={t('hq.file.title')}
+										loading="lazy"
+										onLoad={() => setFileState('ready')}
+										className="h-[56vh] w-full rounded-lg bg-white"
+									/>
 								)}
 							</div>
-						</div>
-					)}
 
-					<div className="flex justify-between items-center pt-2">
-						<a
-							href={previewUrl || '#'}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-700 hover:underline"
-						>
-							<ExternalLink className="h-3.5 w-3.5" />
-							Open in Full New Window
-						</a>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={closePreview}
-						>
-							Close Preview
-						</Button>
-					</div>
+							<div className="space-y-2 rounded-xl border border-slate-300 bg-slate-50 p-3">
+								<label
+									htmlFor="review-note"
+									className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700"
+								>
+									<MessageSquareText className="h-3.5 w-3.5" aria-hidden />
+									{t('hq.note.label')}{' '}
+									<span className="font-normal normal-case">({t('hq.note.optional')})</span>
+								</label>
+								<Textarea
+									id="review-note"
+									value={draft}
+									maxLength={4000}
+									onChange={(event) =>
+										setNoteDrafts((prev) => ({ ...prev, [previewSub.id]: event.target.value }))
+									}
+									placeholder={t('hq.note.placeholder')}
+									className="bg-white text-sm"
+								/>
+								{draftDirty(previewSub.id, draft) && (
+									<p className="text-xs font-medium text-amber-900">{t('hq.note.unsaved')}</p>
+								)}
+								<div className="flex flex-wrap justify-end gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										className="min-h-[44px]"
+										disabled={actionId === previewSub.id || !draftDirty(previewSub.id, draft)}
+										onClick={() => handleSaveNote(previewSub.id, draft)}
+									>
+										{t('hq.note.save')}
+									</Button>
+									{previewSub.status !== 'APPROVED' && (
+										<>
+											<Button
+												type="button"
+												variant="outline"
+												className="min-h-[44px]"
+												disabled={actionId === previewSub.id}
+												onClick={() => approveFromPreview(false)}
+											>
+												<Check className="me-1 h-3.5 w-3.5" aria-hidden />
+												{draft.trim() ? t('hq.note.approve_with') : t('hq.action.approve')}
+											</Button>
+											<Button
+												type="button"
+												className="min-h-[44px] bg-emerald-700 text-white hover:bg-emerald-800"
+												disabled={actionId === previewSub.id}
+												onClick={() => approveFromPreview(true)}
+											>
+												{actionId === previewSub.id ? (
+													<Loader2 className="me-1 h-3.5 w-3.5 animate-spin" aria-hidden />
+												) : (
+													<Check className="me-1 h-3.5 w-3.5" aria-hidden />
+												)}
+												{t('hq.action.approve_next')}
+											</Button>
+										</>
+									)}
+								</div>
+							</div>
+
+							{confirmClose && (
+								<div
+									role="alertdialog"
+									aria-label={t('hq.close.title')}
+									className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between"
+								>
+									<div>
+										<p className="text-sm font-semibold text-amber-950">{t('hq.close.title')}</p>
+										<p className="text-xs text-amber-950">{t('hq.close.body')}</p>
+									</div>
+									<div className="flex gap-2">
+										<Button
+											variant="outline"
+											className="min-h-[44px]"
+											onClick={() => setConfirmClose(false)}
+										>
+											{t('hq.close.keep')}
+										</Button>
+										<Button
+											variant="outline"
+											className="min-h-[44px]"
+											onClick={discardAndClose}
+										>
+											{t('hq.close.discard')}
+										</Button>
+									</div>
+								</div>
+							)}
+
+							<div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+								<a
+									href={previewSub.fileUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									className={cn(
+										'inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-1 text-xs font-semibold text-slate-900 underline',
+										FOCUS
+									)}
+								>
+									<ExternalLink className="h-3.5 w-3.5" aria-hidden />
+									{t('hq.open_full')}
+								</a>
+								<div className="flex items-center gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										className="min-h-[44px]"
+										disabled={previewIndex <= 0}
+										onClick={() => goTo(previewIndex - 1)}
+									>
+										<ChevronLeft className="me-1 h-4 w-4 rtl:rotate-180" aria-hidden />
+										{t('hq.prev')}
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										className="min-h-[44px]"
+										disabled={previewIndex >= filteredSubmissions.length - 1}
+										onClick={() => goTo(previewIndex + 1)}
+									>
+										{t('hq.next')}
+										<ChevronRight className="ms-1 h-4 w-4 rtl:rotate-180" aria-hidden />
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										className="min-h-[44px]"
+										onClick={requestClose}
+									>
+										{t('hq.close.button')}
+									</Button>
+								</div>
+							</div>
+						</>
+					)}
 				</DialogContent>
 			</Dialog>
 
