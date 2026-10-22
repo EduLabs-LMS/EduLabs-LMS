@@ -10,9 +10,10 @@ import EduLabsMark from '@/frontend/components/edulabs-mark';
 
 interface MobileSidebarProps {
 	initialRole?: string | null;
+	teacherSide?: boolean;
 }
 
-export const MobileSidebar = ({ initialRole }: MobileSidebarProps) => {
+export const MobileSidebar = ({ initialRole, teacherSide }: MobileSidebarProps) => {
 	const { direction } = useLanguage();
  const [open, setOpen] = useState(false);
 
@@ -44,6 +45,7 @@ export const MobileSidebar = ({ initialRole }: MobileSidebarProps) => {
 		>
 		<Sidebar
 		initialRole={initialRole}
+		teacherSide={teacherSide}
 		className="static h-full w-full overflow-hidden"
 		onNavigate={() => setOpen(false)}
 		/>

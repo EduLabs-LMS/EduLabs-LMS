@@ -9,6 +9,8 @@ import Footer from '@/frontend/components/footer';
 import SupportModal from '@/frontend/components/support-modal';
 import WaitlistOverlay from '@/frontend/components/waitlist-overlay';
 import { syncCurrentUser } from '@/server/services/user';
+import { CourseManagementPathProvider } from '@/frontend/components/providers/course-management-path';
+import { isTeacherSide, isTeacherSideContext } from '@/server/services/teacher-side';
 
 const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
 	if (isFirebaseStaging()) {
@@ -20,15 +22,15 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
           context.memberships.some(m => m.organization_id === o.id && m.status === 'active' && ['owner','admin'].includes(m.role)) ||
           courses.some(c => c.organization_id === o.id && (courseCapability(context,c) || offerings.some(f => f.course_id === c.id && offeringCapability(context,c,f.id))))
         ).map(o => o.id);
-        return <WebsiteNavigationProvider value={{ viewer: context.viewer, organizations: context.organizations.slice(0,100), staffOrganizationIds }}>
+        return <CourseManagementPathProvider teacherSide={isTeacherSideContext(context)}><WebsiteNavigationProvider value={{ viewer: context.viewer, organizations: context.organizations.slice(0,100), staffOrganizationIds }}>
           <div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
-            <MobileSidebar />
-            <aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50"><Sidebar /></aside>
+            <MobileSidebar teacherSide={isTeacherSideContext(context)} />
+            <aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50"><Sidebar teacherSide={isTeacherSideContext(context)} /></aside>
             <main className="md:ps-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between">
               <div className="flex-1 w-full p-4 sm:p-6 md:p-8">{children}</div><Footer />
             </main>
           </div>
-        </WebsiteNavigationProvider>;
+        </WebsiteNavigationProvider></CourseManagementPathProvider>;
     }
 	const { userId } = await auth();
 	let initialIsApproved = true;
@@ -54,14 +56,17 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
 		}
 	}
 
+	const teacherSide = await isTeacherSide();
+
 	return (
+		<CourseManagementPathProvider teacherSide={teacherSide}>
 		<div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
 		{/* Sticky Mobile Header & Drawer Trigger */}
-		<MobileSidebar initialRole={userRole} />
+		<MobileSidebar initialRole={userRole} teacherSide={teacherSide} />
 
 		{/* Floating Desktop Sidebar */}
 		<aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50">
-		<Sidebar initialRole={userRole} />
+		<Sidebar initialRole={userRole} teacherSide={teacherSide} />
 		</aside>
 
 		{/* Main Content Canvas: Removed overflow-y-auto so native mobile window scroll works 100% */}
@@ -83,6 +88,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
 			/>
 		)}
 		</div>
+		</CourseManagementPathProvider>
 	);
 };
 

@@ -1,4 +1,5 @@
 'use client';
+import { useCourseManagementPath } from '@/frontend/components/providers/course-management-path';
 
 import ConfirmModal from '@/frontend/components/modals/confirm-modal';
 import { Button } from '@/frontend/components/ui/button';
@@ -22,6 +23,7 @@ const ChapterActions = ({
 	chapterId,
 	isPublished,
 }: ChapterActionsProps) => {
+	const courseBase = useCourseManagementPath();
 	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(false);
 	const { startLoading, stopLoading } = useGlobalLoading();
@@ -64,7 +66,7 @@ const ChapterActions = ({
 			toast.success('Lesson segment deleted');
 
 			router.refresh();
-			router.push(`/teacher/courses/${courseId}`);
+			router.push(`${courseBase}/${courseId}`);
 		} catch {
 			toast.error('Something went wrong');
 		} finally {

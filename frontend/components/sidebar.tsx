@@ -18,19 +18,27 @@ import {
 	CheckSquare,
 	ShieldCheck,
 	Settings,
+	Eye,
 } from 'lucide-react';
 
 import EduLabsMark from '@/frontend/components/edulabs-mark';
 import { NotificationBell } from '@/frontend/features/notifications/notifications-view';
 import { cn } from '@/shared/utils';
 
+// Mirrors shared/student-preview.ts and shared/course-management-path.ts (kept local so the shared sidebar has no extra imports).
+const PREVIEW_PATH = '/preview';
+const COURSE_MANAGEMENT_PATH = '/self-learning';
+const isPreviewPath = (path: string) => path === PREVIEW_PATH || path.startsWith(`${PREVIEW_PATH}/`);
+
 interface SidebarProps {
 	className?: string;
+	/** Teacher-side roles (set by the dashboard layout, which checks it on the server). */
+	teacherSide?: boolean;
 	initialRole?: string | null;
 	onNavigate?: () => void;
 }
 
-const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
+const Sidebar = ({ className, initialRole, onNavigate, teacherSide = false }: SidebarProps) => {
 	const pathname = usePathname();
 	const navigation = useWebsiteNavigation();
 	const { user: clerkUser } = useUser();
@@ -54,10 +62,14 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	const isAdminOrTeacher = isFirebaseStaging() ? !!navigation?.staffOrganizationIds.length : role === 'admin' || role === 'teacher';
 
 	const isHomeActive = pathname === '/' || pathname === '/home';
+	// Teacher-side roles manage courses under Self-learning (including create, programs and website pages).
 	const isSelfLearningActive =
 	pathname === '/self-learning' ||
 	pathname.startsWith('/self-learning') ||
-	pathname.startsWith('/courses');
+	pathname.startsWith('/courses') ||
+	(teacherSide && pathname.startsWith('/teacher'));
+	// Teacher-side only: look-only "View as student" and its way back. Display only; access is enforced on the server.
+	const inPreview = isPreviewPath(pathname);
 	const isGroupActive =
 	pathname === '/sessions-groups' || pathname === '/sessions' || pathname === '/group' ||
 	pathname === '/groups' ||
@@ -133,6 +145,23 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		/>
 		<span><L id="navigation.self_learning"/></span>
 		</Link>
+
+		{teacherSide && (
+		<Link
+		href={inPreview ? COURSE_MANAGEMENT_PATH : PREVIEW_PATH}
+		data-student-preview-toggle
+		onClick={() => onNavigate?.()}
+		className={cn(
+			'relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',
+			inPreview
+			? 'bg-primary text-black border-black font-semibold shadow-hard-sm'
+			: 'border-transparent text-slate-700 hover:text-black hover:bg-slate-100'
+		)}
+		>
+		<Eye aria-hidden className={cn('w-[22px] h-[22px] shrink-0 transition-colors', inPreview ? 'text-black' : 'text-slate-500')} />
+		<span><L id={inPreview ? 'navigation.back_to_teacher_view' : 'navigation.view_as_student'}/></span>
+		</Link>
+		)}
 
 		<Link
 		href="/sessions-groups"
@@ -235,6 +264,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			<span><L id="navigation.homework_queue"/></span>
 			</Link>
 
+			{!teacherSide && (
 			<Link
 			href="/teacher/courses"
 			onClick={() => onNavigate?.()}
@@ -253,6 +283,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			/>
 			<span><L id="navigation.teacher_courses"/></span>
 			</Link>
+			)}
 			</div>
 		)}
 		</div>

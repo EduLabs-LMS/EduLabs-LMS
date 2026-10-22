@@ -1,4 +1,5 @@
 'use client';
+import { useCourseManagementPath } from '@/frontend/components/providers/course-management-path';
 
 import { Button } from '@/frontend/components/ui/button';
 import type { Course } from '@/shared/contracts/courses';
@@ -14,6 +15,18 @@ import {
 import Link from 'next/link';
 import { Badge } from '@/frontend/components/ui/badge';
 import { cn } from '@/shared/utils';
+
+const CourseEditLink = ({ id }: { id: string }) => {
+	const courseBase = useCourseManagementPath();
+	return (
+		<Link href={`${courseBase}/${id}`}>
+							<DropdownMenuItem>
+								<Pencil className="h-4 w-4 mr-2" />
+								Edit
+							</DropdownMenuItem>
+						</Link>
+	);
+};
 
 export type CourseListRow = Pick<Course, 'id' | 'title' | 'isPublished'>;
 export const columns: ColumnDef<CourseListRow>[] = [
@@ -70,12 +83,7 @@ export const columns: ColumnDef<CourseListRow>[] = [
 					</DropdownMenuTrigger>
 
 					<DropdownMenuContent>
-						<Link href={`/teacher/courses/${id}`}>
-							<DropdownMenuItem>
-								<Pencil className="h-4 w-4 mr-2" />
-								Edit
-							</DropdownMenuItem>
-						</Link>
+						<CourseEditLink id={id} />
 					</DropdownMenuContent>
 				</DropdownMenu>
 			);

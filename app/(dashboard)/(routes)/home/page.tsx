@@ -9,6 +9,7 @@ import AdminHome from '@/frontend/features/dashboard/admin-home';
 import { getAdminHomeData, getStudentHomeData } from '@/server/queries/home';
 import { isTeacher } from '@/server/services/teacher';
 import { getDbUser } from '@/server/services/user';
+import { isTeacherSide } from '@/server/services/teacher-side';
 
 const HomePage = async ({ searchParams }: { searchParams: Promise<WebsiteSearch> }) => {
 	if (isFirebaseStaging()) return <WebsiteHome search={await searchParams} />;
@@ -33,6 +34,7 @@ const HomePage = async ({ searchParams }: { searchParams: Promise<WebsiteSearch>
 		return (
 			<AdminHome
 				adminName={dbUser?.name || 'Mrs. Ghada'}
+				teacherSide={await isTeacherSide()}
 				metrics={{
 					totalStudents,
 					pendingWaitlistCount,

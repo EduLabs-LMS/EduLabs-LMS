@@ -1,4 +1,5 @@
 import { LearningPartPage } from '../../../../../../_components/learning-part-page';
+import { getCourseManagementPath } from '@/server/services/teacher-side';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { auth } from '@clerk/nextjs/server';
 import { ArrowLeft, FileText, LayoutDashboard, ShieldCheck } from 'lucide-react';
@@ -23,6 +24,7 @@ const ChapterIdPage = async ({
 }) => {
 	const params = await paramsPromise;
 	if (isFirebaseStaging()) return <LearningPartPage courseId={params.courseId} segmentId={params.chapterId} preview={(await searchParams).preview==='1'}/>;
+	const courseBase = await getCourseManagementPath();
 	const { userId } = await auth();
 
 	if (!userId) {
@@ -50,7 +52,7 @@ const ChapterIdPage = async ({
 		<div className="mx-auto w-full max-w-7xl space-y-6 pt-2 pb-16">
 			{/* Back Link */}
 			<Link
-				href={`/teacher/courses/${params.courseId}`}
+				href={`${courseBase}/${params.courseId}`}
 				className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
 			>
 				<ArrowLeft className="h-4 w-4 mr-1.5" />

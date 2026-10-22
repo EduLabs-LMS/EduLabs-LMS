@@ -1,4 +1,5 @@
 'use client';
+import { useCourseManagementPath } from '@/frontend/components/providers/course-management-path';
 import { CourseStages } from '@/frontend/features/teacher/academics/course-stages';
 import { LearningTreeEditor } from '@/frontend/features/teacher/chapters/editor/learning-editor';
 import type { LearningTree } from '@/shared/contracts/lessons';
@@ -20,6 +21,7 @@ import { Button } from '@/frontend/components/ui/button';
 import { CapabilityGate } from '@/frontend/components/capability-gate';
 type Record = {id:string;organization_id:string;title:string;description:string|null;slug:string;status:string;visibility:string;updated_at:string};
 export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:LearningTree}) {
+	const courseBase = useCourseManagementPath();
  const [busy,setBusy]=useState(false);
  const course={...record,isPublished:record.status==='published'};
  const completionText='Course metadata';
@@ -36,7 +38,7 @@ export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:Learning
 		<div className="mx-auto w-full max-w-7xl space-y-6 pt-2 pb-16">
 			{/* Back Link */}
 			<Link
-				href="/teacher/courses"
+				href={courseBase}
 				className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
 			>
 				<ArrowLeft className="h-4 w-4 mr-1.5" />

@@ -47,6 +47,10 @@ test('unmigrated routes never enter legacy handlers in Firebase staging', () => 
   for (const route of ['/settings','/personalization']) assert.equal(isPhaseOneRoute(route), true);
   for (const route of ['/api/courses', '/api/uploadthing', '/courses/c/chapters/l', '/channel']) assert.equal(isPhaseOneRoute(route), false);
   assert.equal(isPhaseOneRoute('/admin/users'),true);
+  const id='20000000-0000-0000-0000-000000000001';
+  assert.equal(isPhaseOneRoute('/self-learning/'+id),true);
+  assert.equal(isPhaseOneRoute('/self-learning/'+id+'/chapters/'+id),true);
+  assert.equal(isPhaseOneRoute('/self-learning/not-an-id'),false);
 });
 test('roster pagination is bounded and rejects malformed or excessive offsets', () => {
   const { validRosterPage } = load('shared/website-model.ts');

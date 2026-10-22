@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { PlusCircle, ShieldCheck } from 'lucide-react';
+import { Eye, PlusCircle, ShieldCheck } from 'lucide-react';
+import { L } from '@/frontend/components/language-provider';
+import { PREVIEW_PATH } from '@/shared/student-preview';
 import { Button } from '@/frontend/components/ui/button';
 import { DataTable } from '@/frontend/features/teacher/courses/list/data-table';
 import { columns, type CourseListRow } from '@/frontend/features/teacher/courses/list/columns';
@@ -21,7 +23,7 @@ export const V2TeacherCourseList = ({ courses }: {courses:CourseListRow[]}) => {
 					</p>
 				</div>
 
-				<div className="flex flex-wrap gap-3"><Link className="rounded-xl border-2 border-black bg-primary px-4 py-2 text-sm font-bold shadow-hard-sm" href="/teacher/programs">Academic programs</Link><Link className="rounded-xl border-2 border-black bg-primary px-4 py-2 text-sm font-bold shadow-hard-sm" href="/teacher/website">Website studio</Link><Link href="/teacher/create">
+				<div className="flex flex-wrap gap-3"><Link data-student-preview-toggle className="inline-flex items-center gap-2 rounded-xl border-2 border-black bg-white px-4 py-2 text-sm font-bold text-black shadow-hard-sm" href={PREVIEW_PATH}><Eye aria-hidden className="h-4 w-4" /><L id="navigation.view_as_student" /></Link><Link className="rounded-xl border-2 border-black bg-primary px-4 py-2 text-sm font-bold shadow-hard-sm" href="/teacher/programs">Academic programs</Link><Link className="rounded-xl border-2 border-black bg-primary px-4 py-2 text-sm font-bold shadow-hard-sm" href="/teacher/website">Website studio</Link><Link href="/teacher/create">
 					<Button className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-xs">
 						<PlusCircle className="h-4 w-4 mr-1.5" />
 						New Lesson

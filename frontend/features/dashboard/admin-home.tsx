@@ -23,6 +23,8 @@ import { Button } from '@/frontend/components/ui/button';
 
 interface AdminHomeProps {
 	phase1?: boolean;
+	/** Teachers and their assistants get the simplified dashboard; platform roles keep the full one. */
+	teacherSide?: boolean;
 	adminName?: string | null;
 	metrics: {
 		totalStudents: number | null;
@@ -51,25 +53,26 @@ interface AdminHomeProps {
 export const AdminHome = ({
 	adminName = 'Teacher',
 	phase1 = false,
+	teacherSide = false,
 	metrics,
 	recentSignups,
 	recentSubmissions,
 }: AdminHomeProps) => {
- const attendance=useGroupSummary(phase1);
+ const attendance=useGroupSummary(phase1&&!teacherSide);
 	return (
 		<div className="mx-auto w-full max-w-[1600px] space-y-8 pt-2 animate-in fade-in-50 slide-in-from-bottom-2 duration-200">
-			{phase1&&<GroupSummaryPanel summary={attendance} staff homework={false}/>}
+			{phase1&&!teacherSide&&<GroupSummaryPanel summary={attendance} staff homework={false}/>}
 			{/* Top Welcome Hero Banner */}
-			<section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
-				<div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+			<section className={teacherSide ? "w-full" : "relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm"}>
+				<div className={cn("flex flex-col md:flex-row md:items-center justify-between", teacherSide ? "gap-4" : "gap-6")}>
 					<div className="space-y-2">
-						<div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
+						{!teacherSide && <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
 							<ShieldCheck className="h-3.5 w-3.5" />
 							<span><L id="teacher.teacher_administrator_command_center"/></span>
-						</div>
+						</div>}
 						<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900"><L id="teacher.welcome_back"/>{" "}{adminName}!
 						</h1>
-						<p className="text-sm text-slate-500 max-w-2xl leading-relaxed"><L id="teacher.here_is_an_overview_of"/></p>
+						{!teacherSide && <p className="text-sm text-slate-500 max-w-2xl leading-relaxed"><L id="teacher.here_is_an_overview_of"/></p>}
 					</div>
 
 					<div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -178,6 +181,8 @@ export const AdminHome = ({
 				</Link>
 			</section>
 
+			{!teacherSide && (
+			<>
 			{/* ============================================================== */}
 			{/* 2. QUICK ACTION CARDS                                          */}
 			{/* ============================================================== */}
@@ -227,6 +232,8 @@ export const AdminHome = ({
 					</Link>
 				</div>
 			</section>
+			</>
+			)}
 
 			{/* ============================================================== */}
 			{/* 3. RECENT ACTIVITY FEED                                       */}

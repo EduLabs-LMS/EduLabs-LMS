@@ -1,4 +1,5 @@
 'use client';
+import { useCourseManagementPath } from '@/frontend/components/providers/course-management-path';
 
 import ConfirmModal from '@/frontend/components/modals/confirm-modal';
 import { Button } from '@/frontend/components/ui/button';
@@ -18,6 +19,7 @@ interface ActionsProps {
 }
 
 const Actions = ({ disabled, courseId, isPublished, onPublishChange, allowDelete = true }: ActionsProps) => {
+	const courseBase = useCourseManagementPath();
 	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(false);
 	const { startLoading, stopLoading } = useGlobalLoading();
@@ -58,7 +60,7 @@ const Actions = ({ disabled, courseId, isPublished, onPublishChange, allowDelete
 			toast.success('Lesson deleted');
 
 			router.refresh();
-			router.push(`/teacher/courses`);
+			router.push(courseBase);
 		} catch {
 			toast.error('Something went wrong');
 		} finally {

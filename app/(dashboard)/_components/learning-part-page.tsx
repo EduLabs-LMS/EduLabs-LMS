@@ -1,4 +1,5 @@
 import { notFound,redirect } from 'next/navigation';
+import { getCourseManagementPath } from '@/server/services/teacher-side';
 import { getApplicationViewer } from '@/server/services/application-auth';
 import { learningService } from '@/server/services/lessons';
 import { lessonId,lessonPlayback } from '@/shared/contracts/lessons';
@@ -22,12 +23,13 @@ export async function LearningPartPage({courseId,segmentId,preview=false}:{cours
  const blockVideo=!videoUrl?blocks.find(b=>['video','embed'].includes(b.type)&&lessonPlayback(b.mediaUrl)):undefined;
  if(blockVideo)videoUrl=blockVideo.mediaUrl;
  const videoAssetId=segment.video_asset_id??(blockVideo?tree.blocks.find(b=>b.id===blockVideo.id)?.media_asset_id:null)??null;
- return <div className="mx-auto max-w-7xl space-y-4"><Link className="text-sm font-semibold text-sky-700" href={`/teacher/courses/${courseId}/chapters/${segment.id}`}>← Back to segment editor</Link><Banner variant="warning" label="Teacher preview includes drafts. No student progress is recorded."/>
+ const courseBase=await getCourseManagementPath();
+ return <div className="mx-auto max-w-7xl space-y-4"><Link className="text-sm font-semibold text-sky-700" href={`${courseBase}/${courseId}/chapters/${segment.id}`}>← Back to segment editor</Link><Banner variant="warning" label="Teacher preview includes drafts. No student progress is recorded."/>
   <LessonTabs courseId={courseId} chapterId={segment.id} title={segment.title} chapterNumber={tree.modules.indexOf(parent)+1} chapterType={parent.group_type} courseTitle={lesson.title}
    lessonBlocks={blocks.filter(b=>b.id!==blockVideo?.id)}
    description={segment.description} playbackId={null} videoUrl={videoUrl} solutionVideoUrl={null} contentType="VIDEO_EXPLANATION" completeOnEnd={false} isCompleted={false} isWatched={false} userId="" hasSubmission={false}
    secure={{offeringId:'',revision:0,position:0,assetId:videoAssetId,status:'preview',preview:true,thumbnailUrl}}
    attachments={tree.resources.filter(r=>r.segment_id===segment.id).map(r=>({id:r.id,name:r.name,url:`/api/learning/${courseId}/resources/${r.id}`}))}
-   segments={parts.map(x=>({...x,thumbnailUrl:x.thumbnail_asset_id?thumbnails[x.thumbnail_asset_id]:null,contentType:'VIDEO_EXPLANATION',href:`/teacher/courses/${courseId}/chapters/${x.id}?preview=1`}))}/>
+   segments={parts.map(x=>({...x,thumbnailUrl:x.thumbnail_asset_id?thumbnails[x.thumbnail_asset_id]:null,contentType:'VIDEO_EXPLANATION',href:`${courseBase}/${courseId}/chapters/${x.id}?preview=1`}))}/>
  </div>;
 }
