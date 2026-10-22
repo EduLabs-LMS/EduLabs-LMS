@@ -195,5 +195,20 @@ select pg_temp.claim(31);select pg_temp.ok(private.is_enrolled('60000000-0000-00
 reset role;
 select pg_temp.ok((select expires_at is null from public.enrollments where id=current_setting('sa.enrollment')::uuid),'unlimited expiry persisted as null');
 select pg_temp.ok(not exists(select * from sa_history except select * from sa_current_history) and not exists(select * from sa_current_history except select * from sa_history),'suspension and reactivation preserve all four academic history tables exactly');
+-- Explicit recipient-bound invitation boundaries (not just reusable request links).
+set local role authenticated;select pg_temp.claim(2);
+select set_config('sa.revoked_invite',public.student_administration('link','60000000-0000-0000-0000-000000000001',null,null,gen_random_uuid(),jsonb_build_object('token',repeat('F',43),'kind','invite','recipientId','10000000-0000-0000-0000-000000000033','expiresAt',now()+interval '7 days'))->>'id',true);
+select public.student_administration('revoke-link','60000000-0000-0000-0000-000000000001',null,null,gen_random_uuid(),jsonb_build_object('linkId',current_setting('sa.revoked_invite')));
+select pg_temp.claim(33);
+select pg_temp.denied($q$select public.student_administration('inspect',p_data=>jsonb_build_object('token',repeat('F',43)))$q$,'42501','intended recipient cannot inspect revoked invitation');
+select pg_temp.denied($q$select public.student_administration('accept',p_request=>gen_random_uuid(),p_data=>jsonb_build_object('token',repeat('F',43)))$q$,'42501','intended recipient cannot accept revoked invitation');
+select pg_temp.claim(2);
+select set_config('sa.expired_invite',public.student_administration('link','60000000-0000-0000-0000-000000000001',null,null,gen_random_uuid(),jsonb_build_object('token',repeat('G',43),'kind','invite','recipientId','10000000-0000-0000-0000-000000000033','expiresAt',now()+interval '7 days'))->>'id',true);
+reset role;
+update private.student_access_links set created_at=now()-interval '1 day',expires_at=now()-interval '1 minute' where id=current_setting('sa.expired_invite')::uuid;
+set local role authenticated;select pg_temp.claim(33);
+select pg_temp.denied($q$select public.student_administration('inspect',p_data=>jsonb_build_object('token',repeat('G',43)))$q$,'42501','intended recipient cannot inspect expired invitation');
+select pg_temp.denied($q$select public.student_administration('accept',p_request=>gen_random_uuid(),p_data=>jsonb_build_object('token',repeat('G',43)))$q$,'42501','intended recipient cannot accept expired invitation');
+reset role;
 select count(*) student_administration_tests from sa_checks;
 rollback;

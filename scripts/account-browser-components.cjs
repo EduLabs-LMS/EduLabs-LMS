@@ -26,7 +26,7 @@ const stubs={
  'firebase/auth':firebaseStub,
  '@/frontend/lib/firebase':`export const getFirebaseAuth=()=>window.__auth;export const restoreFirebaseAuth=async()=>{};`,
  '@/frontend/components/providers/firebase-auth-provider':`${userCode}export function useFirebaseAuth(){return{user:window.__auth?.currentUser??null,loading:false,error:null,refresh:async()=>{if(window.__auth.currentUser)window.__auth.currentUser.emailVerified=true;},logout:async()=>{window.__signedOut=true;window.__auth.currentUser=null;}};}export async function synchronizeFirebaseSession(){window.__synchronized=(window.__synchronized||0)+1;}`,
- 'next/navigation':`export const useRouter=()=>({refresh:()=>{window.__refreshes=(window.__refreshes||0)+1;}});`,
+ 'next/navigation':`export const usePathname=()=>location.pathname;export const useRouter=()=>({refresh:()=>{window.__refreshes=(window.__refreshes||0)+1;}});`,
  'next/link':`import React from'react';export default function Link(p){return <a {...p}/>}`,
 };
 (async()=>{

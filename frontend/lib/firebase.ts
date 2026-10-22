@@ -11,6 +11,11 @@ export function getFirebaseAuth() {
 }
 export function restoreFirebaseAuth() {
   const auth = getFirebaseAuth();
-  ready ??= setPersistence(auth, browserLocalPersistence).then(() => auth.authStateReady());
+  ready ??= setPersistence(auth, browserLocalPersistence).then(() => auth.authStateReady()).catch(failure => {
+    // A transient browser-storage failure must not poison every later retry.
+    // Keep the required persistence policy; never fall back to weaker storage.
+    ready = undefined;
+    throw failure;
+  });
   return ready;
 }
