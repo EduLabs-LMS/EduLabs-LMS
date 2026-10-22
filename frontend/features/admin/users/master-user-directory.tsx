@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { api } from '@/frontend/lib/api';
 import {
 	Check,
@@ -8,20 +8,17 @@ import {
 	Clock,
 	Filter,
 	Loader2,
-	MoreVertical,
 	Search,
 	Shield,
-	ShieldAlert,
 	ShieldCheck,
 	Trash2,
 	UserCheck,
 	UserMinus,
-	UserPlus,
 	Users,
-	X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { useLanguage } from '@/frontend/components/language-provider';
 import { Button } from '@/frontend/components/ui/button';
 import { Input } from '@/frontend/components/ui/input';
 import {
@@ -34,6 +31,18 @@ import {
 } from '@/frontend/components/ui/dialog';
 import { cn } from '@/shared/utils';
 import type { GroupItem } from '@/frontend/features/admin/users/group-form-modal';
+import {
+	ConfirmDialog,
+	EmptyBlock,
+	FOCUS,
+	Initial,
+	LoadingBlock,
+	Pill,
+	SectionHeading,
+	roleTone,
+	useCountText,
+	useRoleLabel,
+} from '@/frontend/features/admin/users/users-ui';
 
 export interface PlatformUser {
 	id: string;
@@ -59,6 +68,14 @@ interface MasterUserDirectoryProps {
 	onInspectStudent?: (studentId: string) => void;
 }
 
+/** Rows rendered at once. "Show more" adds another page, so very large directories stay fast. */
+const PAGE_SIZE = 50;
+
+const selectClass = cn(
+	'h-11 w-full cursor-pointer rounded-xl border-2 border-slate-300 bg-white px-3 text-sm text-slate-900',
+	FOCUS
+);
+
 export const MasterUserDirectory = ({
 	users,
 	groups,
@@ -66,9 +83,14 @@ export const MasterUserDirectory = ({
 	onRefresh,
 	onInspectStudent,
 }: MasterUserDirectoryProps) => {
+	const { t, language, number } = useLanguage();
+	const roleLabel = useRoleLabel();
+	const countText = useCountText();
+
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<'ALL' | 'APPROVED' | 'PENDING'>('ALL');
 	const [roleFilter, setRoleFilter] = useState<string>('ALL');
+	const [visible, setVisible] = useState(PAGE_SIZE);
 
 	// Group Assignment Modal State
 	const [groupModalUser, setGroupModalUser] = useState<PlatformUser | null>(null);
@@ -78,6 +100,9 @@ export const MasterUserDirectory = ({
 	// Delete Confirmation State
 	const [userToDelete, setUserToDelete] = useState<PlatformUser | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
+
+	// Revoke Confirmation State (new: revoking used to happen on a single tap)
+	const [userToRevoke, setUserToRevoke] = useState<PlatformUser | null>(null);
 
 	// 1-Tap Toggle Loading State
 	const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
@@ -105,6 +130,16 @@ export const MasterUserDirectory = ({
 		});
 	}, [users, searchQuery, statusFilter, roleFilter]);
 
+	const shownUsers = filteredUsers.slice(0, visible);
+	const filtersActive = searchQuery !== '' || statusFilter !== 'ALL' || roleFilter !== 'ALL';
+
+	const clearFilters = () => {
+		setSearchQuery('');
+		setStatusFilter('ALL');
+		setRoleFilter('ALL');
+		setVisible(PAGE_SIZE);
+	};
+
 	// 1-Tap Toggle Approval Status
 	const handleToggleApproval = async (user: PlatformUser) => {
 		try {
@@ -117,13 +152,13 @@ export const MasterUserDirectory = ({
 
 			toast.success(
 				newStatus
-					? `Approved ${user.name} for platform access.`
-					: `Revoked access for ${user.name} (account moved to waitlist).`
+					? t('users.toast.approved', { name: user.name })
+					: t('users.toast.revoked', { name: user.name })
 			);
 			onRefresh();
 		} catch (error) {
 			console.error(error);
-			toast.error('Failed to update approval status.');
+			toast.error(t('users.toast.approvalFail'));
 		} finally {
 			setTogglingUserId(null);
 		}
@@ -145,330 +180,396 @@ export const MasterUserDirectory = ({
 				groupId: selectedGroupId === 'NONE' ? null : selectedGroupId,
 			});
 
-			toast.success(`Group assignment updated for ${groupModalUser.name}.`);
+			toast.success(t('users.toast.groupSaved', { name: groupModalUser.name }));
 			setGroupModalUser(null);
 			onRefresh();
 		} catch (error) {
 			console.error(error);
-			toast.error('Failed to update group assignment.');
+			toast.error(t('users.toast.groupFail'));
 		} finally {
 			setIsSavingGroup(false);
 		}
 	};
 
-	// 1-Tap Delete User from Database
+	// Delete User from Database
 	const handleConfirmDelete = async () => {
 		if (!userToDelete) return;
 		try {
 			setIsDeleting(true);
 			await api.delete(`/api/admin/users?userId=${userToDelete.id}`);
-			toast.success(`Deleted user record for ${userToDelete.name}.`);
+			toast.success(t('users.toast.deleted', { name: userToDelete.name }));
 			setUserToDelete(null);
 			onRefresh();
 		} catch (error) {
 			console.error(error);
-			toast.error('Failed to delete user.');
+			toast.error(t('users.toast.deleteFail'));
 		} finally {
 			setIsDeleting(false);
 		}
 	};
 
+	const confirmRevoke = async () => {
+		const user = userToRevoke;
+		if (!user) return;
+		await handleToggleApproval(user);
+		setUserToRevoke(null);
+	};
+
+	const formatDate = (value: string | number) =>
+		value
+			? new Date(value).toLocaleDateString(language, {
+					month: 'short',
+					day: 'numeric',
+					year: 'numeric',
+			  })
+			: '—';
+
+	const roleIcon = (role: string) =>
+		role.toUpperCase() === 'ADMIN' ? (
+			<ShieldCheck className="h-3 w-3 shrink-0" aria-hidden />
+		) : role.toUpperCase() === 'TEACHER' ? (
+			<Shield className="h-3 w-3 shrink-0" aria-hidden />
+		) : null;
+
+	const approvalPill = (user: PlatformUser) =>
+		user.isApproved ? (
+			<Pill
+				tone="border-emerald-300 bg-emerald-50 text-emerald-800"
+				icon={<CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+			>
+				{t('users.status.approved')}
+			</Pill>
+		) : (
+			<Pill
+				tone="border-amber-300 bg-amber-50 text-amber-900"
+				icon={<Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+			>
+				{t('users.status.pending')}
+			</Pill>
+		);
+
+	const groupCell = (user: PlatformUser) =>
+		user.currentGroupName ? (
+			<Pill
+				tone="border-emerald-300 bg-emerald-50 text-emerald-800"
+				icon={<Users className="h-3 w-3 shrink-0" aria-hidden />}
+			>
+				<bdi>{user.currentGroupName}</bdi>
+			</Pill>
+		) : (
+			<span className="text-xs italic text-slate-600">{t('users.group.none')}</span>
+		);
+
+	/** Row actions. Same set as before: approve/revoke, Group (students only), delete. */
+	const actions = (user: PlatformUser) => {
+		const busy = togglingUserId === user.id;
+		return (
+			<div className="flex flex-wrap items-center gap-2">
+				<Button
+					type="button"
+					size="sm"
+					variant="outline"
+					disabled={busy}
+					onClick={() => (user.isApproved ? setUserToRevoke(user) : handleToggleApproval(user))}
+					className={cn(
+						'min-h-[44px] px-3 text-xs font-semibold md:min-h-9',
+						user.isApproved
+							? 'border-amber-500 bg-amber-50 text-amber-900 hover:bg-amber-100'
+							: 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+					)}
+				>
+					{busy ? (
+						<Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+					) : user.isApproved ? (
+						<>
+							<UserMinus className="me-1 h-3.5 w-3.5" aria-hidden />
+							{t('users.action.revoke')}
+						</>
+					) : (
+						<>
+							<Check className="me-1 h-3.5 w-3.5" aria-hidden />
+							{t('users.action.approve')}
+						</>
+					)}
+				</Button>
+				{user.role.toUpperCase() === 'STUDENT' && (
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onClick={() => openGroupModal(user)}
+						className="min-h-[44px] px-3 text-xs font-semibold md:min-h-9"
+					>
+						<Users className="me-1 h-3.5 w-3.5" aria-hidden />
+						{t('users.action.group')}
+					</Button>
+				)}
+				<Button
+					type="button"
+					size="sm"
+					variant="outline"
+					aria-label={t('users.action.delete')}
+					title={t('users.action.delete')}
+					onClick={() => setUserToDelete(user)}
+					className="min-h-[44px] min-w-[44px] border-red-300 px-3 text-red-700 hover:bg-red-50 md:min-h-9 md:min-w-9"
+				>
+					<Trash2 className="h-3.5 w-3.5" aria-hidden />
+				</Button>
+			</div>
+		);
+	};
+
+	const nameButton = (user: PlatformUser) => (
+		<button
+			type="button"
+			onClick={() => onInspectStudent?.(user.id)}
+			aria-label={t('users.action.profile', { name: user.name })}
+			className={cn('flex min-w-0 items-center gap-2.5 rounded-lg text-start hover:text-emerald-800', FOCUS)}
+		>
+			<Initial name={user.name} />
+			<span className="min-w-0">
+				<bdi className="block truncate text-sm font-bold text-slate-900">{user.name}</bdi>
+				{user.submissionsCount ? (
+					<span className="block text-[11px] font-normal text-slate-700">
+						{countText('submissions', user.submissionsCount)}
+					</span>
+				) : null}
+			</span>
+		</button>
+	);
+
 	return (
 		<div className="space-y-4">
-			{/* Section Header */}
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-				<div>
-					<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-						<Users className="h-5 w-5 text-sky-700" />
-						Master User Directory
-					</h2>
-					<p className="text-xs text-slate-500">
-						Comprehensive database of all registered students, teachers, and admins on the platform.
-					</p>
-				</div>
-
-				<div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
-					<UserCheck className="h-4 w-4 text-emerald-600" />
-					<span>Total Registered: {users.length}</span>
-				</div>
-			</div>
+			<SectionHeading
+				icon={<Users className="h-5 w-5" />}
+				title={t('users.dir.title')}
+				subtitle={t('users.dir.subtitle')}
+				trailing={
+					<span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800">
+						<UserCheck className="h-4 w-4 text-emerald-700" aria-hidden />
+						{t('users.dir.total', { count: number(users.length) })}
+					</span>
+				}
+			/>
 
 			{/* Search & Filter Toolbar */}
-			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
-				<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-					<Filter className="h-3.5 w-3.5 text-slate-400" />
-					Directory Search &amp; Filters
+			<div className="space-y-3 rounded-2xl border border-slate-300 bg-white p-4">
+				<div className="flex items-center justify-between gap-2">
+					<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700">
+						<Filter className="h-3.5 w-3.5" aria-hidden />
+						{t('users.dir.filters')}
+					</div>
+					{filtersActive && (
+						<button
+							type="button"
+							onClick={clearFilters}
+							className={cn('min-h-[44px] rounded-lg px-2 text-xs font-semibold text-emerald-800 underline', FOCUS)}
+						>
+							{t('users.dir.clear')}
+						</button>
+					)}
 				</div>
 
-				<div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-					{/* Search by Name or Email */}
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 					<div className="relative">
-						<Search className="h-4 w-4 text-slate-400 absolute left-3 top-3" />
+						<Search
+							className="pointer-events-none absolute start-3 top-3.5 h-4 w-4 text-slate-600"
+							aria-hidden
+						/>
 						<Input
-							placeholder="Search by student name or email..."
+							type="search"
+							aria-label={t('users.dir.searchLabel')}
+							placeholder={t('users.dir.search')}
 							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-9 h-10 text-xs border-slate-200 bg-slate-50 focus:bg-white"
+							onChange={(e) => {
+								setSearchQuery(e.target.value);
+								setVisible(PAGE_SIZE);
+							}}
+							className="h-11 ps-9 text-sm"
 						/>
 					</div>
 
-					{/* Approval Status Filter */}
-					<div>
-						<select
-							value={statusFilter}
-							onChange={(e) => setStatusFilter(e.target.value as any)}
-							aria-label="Filter by approval status"
-							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
-						>
-							<option value="ALL">All Approval Statuses</option>
-							<option value="APPROVED">Approved Only</option>
-							<option value="PENDING">Pending Approval (Waitlist)</option>
-						</select>
-					</div>
+					<select
+						value={statusFilter}
+						onChange={(e) => {
+							setStatusFilter(e.target.value as 'ALL' | 'APPROVED' | 'PENDING');
+							setVisible(PAGE_SIZE);
+						}}
+						aria-label={t('users.dir.filterStatus')}
+						className={selectClass}
+					>
+						<option value="ALL">{t('users.dir.statusAll')}</option>
+						<option value="APPROVED">{t('users.dir.statusApproved')}</option>
+						<option value="PENDING">{t('users.dir.statusPending')}</option>
+					</select>
 
-					{/* Role Filter */}
-					<div>
-						<select
-							value={roleFilter}
-							onChange={(e) => setRoleFilter(e.target.value)}
-							aria-label="Filter by role"
-							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
-						>
-							<option value="ALL">All Roles</option>
-							<option value="STUDENT">Students</option>
-							<option value="TEACHER">Teachers</option>
-							<option value="ADMIN">Admins</option>
-						</select>
-					</div>
+					<select
+						value={roleFilter}
+						onChange={(e) => {
+							setRoleFilter(e.target.value);
+							setVisible(PAGE_SIZE);
+						}}
+						aria-label={t('users.dir.filterRole')}
+						className={selectClass}
+					>
+						<option value="ALL">{t('users.dir.roleAll')}</option>
+						<option value="STUDENT">{t('users.dir.roleStudents')}</option>
+						<option value="TEACHER">{t('users.dir.roleTeachers')}</option>
+						<option value="ADMIN">{t('users.dir.roleAdmins')}</option>
+					</select>
 				</div>
 			</div>
 
-			{/* Master Table */}
-			<div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+			{/* Directory */}
+			<div className="overflow-hidden rounded-2xl border border-slate-300 bg-white">
 				{isLoading ? (
-					<div className="flex h-48 flex-col items-center justify-center gap-3">
-						<Loader2 className="h-6 w-6 animate-spin text-sky-600" />
-						<span className="text-xs text-slate-500 font-medium">
-							Loading platform user directory...
-						</span>
-					</div>
+					<LoadingBlock label={t('users.dir.loading')} className="h-48" />
 				) : filteredUsers.length === 0 ? (
-					<div className="flex min-h-[220px] flex-col items-center justify-center p-8 text-center">
-						<Users className="h-8 w-8 text-slate-300 mb-2" />
-						<p className="text-sm font-semibold text-slate-800">
-							No users match the selected criteria
-						</p>
-						<p className="text-xs text-slate-400 mt-1 max-w-sm">
-							Try adjusting your search query or reset the approval and role filters.
-						</p>
-					</div>
+					<EmptyBlock
+						icon={<Users className="h-6 w-6" />}
+						title={t('users.dir.emptyTitle')}
+						body={t('users.dir.emptyBody')}
+						className="min-h-[220px]"
+						action={
+							filtersActive ? (
+								<Button type="button" variant="outline" className="min-h-[44px]" onClick={clearFilters}>
+									{t('users.dir.clear')}
+								</Button>
+							) : undefined
+						}
+					/>
 				) : (
-					<div className="overflow-x-auto">
-						<table className="w-full text-left text-sm">
-							<thead className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-								<tr>
-									<th className="py-3 px-6">Student Name</th>
-									<th className="py-3 px-6">Email Address</th>
-									<th className="py-3 px-6">Role</th>
-									<th className="py-3 px-6">Approval Status</th>
-									<th className="py-3 px-6">Assigned Group</th>
-									<th className="py-3 px-6">Sign-Up Date</th>
-									<th className="py-3 px-6 text-right">Actions</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-slate-100">
-								{filteredUsers.map((user) => {
-									const isStudent = user.role.toUpperCase() === 'STUDENT';
-									const dateStr = user.createdAt
-										? new Date(user.createdAt).toLocaleDateString('en-US', {
-												month: 'short',
-												day: 'numeric',
-												year: 'numeric',
-										  })
-										: '—';
-
-									return (
-										<tr
-											key={user.id}
-											className="hover:bg-slate-50/80 transition-colors"
-										>
-											{/* Name */}
-											<td className="py-3.5 px-6 font-semibold text-slate-900">
-												<button
-													type="button"
-													onClick={() => onInspectStudent?.(user.id)}
-													className="flex items-center gap-2.5 text-left hover:text-sky-700 transition cursor-pointer"
-												>
-													<div className="grid h-8 w-8 place-items-center rounded-full bg-sky-100 text-sky-700 font-bold text-xs shrink-0">
-														{user.name.charAt(0)}
-													</div>
-													<div className="min-w-0">
-														<span className="block font-bold text-slate-900 text-xs sm:text-sm truncate">
-															{user.name}
-														</span>
-														{user.submissionsCount ? (
-															<span className="text-[10px] text-slate-400 font-normal">
-																{user.submissionsCount} submissions
-															</span>
-														) : null}
-													</div>
-												</button>
+					<>
+						{/* Desktop / tablet: table */}
+						<div className="hidden md:block">
+							<table className="w-full text-start text-sm">
+								<thead className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+									<tr>
+										<th scope="col" className="px-4 py-3 text-start">{t('users.col.name')}</th>
+										<th scope="col" className="px-4 py-3 text-start">{t('users.col.email')}</th>
+										<th scope="col" className="px-4 py-3 text-start">{t('users.col.role')}</th>
+										<th scope="col" className="px-4 py-3 text-start">{t('users.col.status')}</th>
+										<th scope="col" className="px-4 py-3 text-start">{t('users.col.group')}</th>
+										<th scope="col" className="px-4 py-3 text-start">{t('users.col.date')}</th>
+										<th scope="col" className="px-4 py-3 text-end">{t('users.col.actions')}</th>
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-slate-200">
+									{shownUsers.map((user) => (
+										<tr key={user.id} className="align-middle hover:bg-slate-50">
+											<td className="max-w-[14rem] px-4 py-3">{nameButton(user)}</td>
+											<td className="px-4 py-3 font-mono text-xs text-slate-800 [overflow-wrap:anywhere]">
+												<bdi>{user.email}</bdi>
 											</td>
-
-											{/* Email */}
-											<td className="py-3.5 px-6 text-xs text-slate-600 font-mono">
-												{user.email}
+											<td className="px-4 py-3">
+												<Pill tone={roleTone(user.role)} icon={roleIcon(user.role)}>
+													{roleLabel(user.role)}
+												</Pill>
 											</td>
-
-											{/* Role */}
-											<td className="py-3.5 px-6">
-												<span
-													className={cn(
-														'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide',
-														user.role.toUpperCase() === 'ADMIN'
-															? 'bg-purple-50 text-purple-700 border border-purple-200'
-															: user.role.toUpperCase() === 'TEACHER'
-															? 'bg-amber-50 text-amber-700 border border-amber-200'
-															: 'bg-slate-100 text-slate-700 border border-slate-200'
-													)}
-												>
-													{user.role.toUpperCase() === 'ADMIN' ? (
-														<ShieldCheck className="h-3 w-3" />
-													) : user.role.toUpperCase() === 'TEACHER' ? (
-														<Shield className="h-3 w-3" />
-													) : null}
-													{user.role}
-												</span>
+											<td className="px-4 py-3">{approvalPill(user)}</td>
+											<td className="px-4 py-3">{groupCell(user)}</td>
+											<td className="whitespace-nowrap px-4 py-3 text-xs text-slate-700">
+												{formatDate(user.createdAt)}
 											</td>
-
-											{/* Approval Status */}
-											<td className="py-3.5 px-6">
-												{user.isApproved ? (
-													<span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
-														<CheckCircle2 className="h-3.5 w-3.5" />
-														Approved
-													</span>
-												) : (
-													<span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200">
-														<Clock className="h-3.5 w-3.5" />
-														Pending
-													</span>
-												)}
-											</td>
-
-											{/* Assigned Group */}
-											<td className="py-3.5 px-6">
-												{user.currentGroupName ? (
-													<span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 border border-sky-200">
-														<Users className="h-3 w-3" />
-														{user.currentGroupName}
-													</span>
-												) : (
-													<span className="text-xs text-slate-400 italic">
-														No Group Assigned
-													</span>
-												)}
-											</td>
-
-											{/* Sign-up date */}
-											<td className="py-3.5 px-6 text-xs text-slate-500">
-												{dateStr}
-											</td>
-
-											{/* Actions */}
-											<td className="py-3.5 px-6 text-right">
-												<div className="flex items-center justify-end gap-1.5">
-													{/* 1-Tap Toggle Approval */}
-													<Button
-														size="sm"
-														variant="outline"
-														disabled={togglingUserId === user.id}
-														onClick={() => handleToggleApproval(user)}
-														className={cn(
-															'h-8 text-xs font-semibold',
-															user.isApproved
-																? 'border-amber-200 bg-amber-50/50 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
-																: 'border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800'
-														)}
-													>
-														{togglingUserId === user.id ? (
-															<Loader2 className="h-3.5 w-3.5 animate-spin" />
-														) : user.isApproved ? (
-															<>
-																<UserMinus className="h-3.5 w-3.5 mr-1" />
-																Revoke
-															</>
-														) : (
-															<>
-																<Check className="h-3.5 w-3.5 mr-1" />
-																Approve
-															</>
-														)}
-													</Button>
-
-													{/* Manage Group Assignment */}
-													{isStudent && (
-														<Button
-															size="sm"
-															variant="outline"
-															onClick={() => openGroupModal(user)}
-															className="h-8 border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-semibold"
-														>
-															<Users className="h-3.5 w-3.5 mr-1 text-slate-500" />
-															Group
-														</Button>
-													)}
-
-													{/* 1-Tap Delete User */}
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() => setUserToDelete(user)}
-														className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 text-xs"
-													>
-														<Trash2 className="h-3.5 w-3.5" />
-													</Button>
-												</div>
+											<td className="px-4 py-3">
+												<div className="flex justify-end">{actions(user)}</div>
 											</td>
 										</tr>
-									);
-								})}
-							</tbody>
-						</table>
-					</div>
+									))}
+								</tbody>
+							</table>
+						</div>
+
+						{/* Mobile: one card per user, every column and every action kept */}
+						<ul className="divide-y divide-slate-200 md:hidden">
+							{shownUsers.map((user) => (
+								<li key={user.id} className="space-y-3 p-4">
+									<div className="flex items-start justify-between gap-3">
+										{nameButton(user)}
+										<Pill tone={roleTone(user.role)} icon={roleIcon(user.role)} className="shrink-0">
+											{roleLabel(user.role)}
+										</Pill>
+									</div>
+									<dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+										<div className="col-span-2">
+											<dt className="font-semibold uppercase tracking-wider text-slate-700">{t('users.col.email')}</dt>
+											<dd className="mt-0.5 font-mono text-slate-900 [overflow-wrap:anywhere]">
+												<bdi>{user.email}</bdi>
+											</dd>
+										</div>
+										<div>
+											<dt className="font-semibold uppercase tracking-wider text-slate-700">{t('users.col.status')}</dt>
+											<dd className="mt-1">{approvalPill(user)}</dd>
+										</div>
+										<div>
+											<dt className="font-semibold uppercase tracking-wider text-slate-700">{t('users.col.group')}</dt>
+											<dd className="mt-1">{groupCell(user)}</dd>
+										</div>
+										<div className="col-span-2">
+											<dt className="font-semibold uppercase tracking-wider text-slate-700">{t('users.col.date')}</dt>
+											<dd className="mt-0.5 text-slate-900">{formatDate(user.createdAt)}</dd>
+										</div>
+									</dl>
+									{actions(user)}
+								</li>
+							))}
+						</ul>
+
+						{filteredUsers.length > PAGE_SIZE && (
+							<div className="flex flex-col items-center gap-2 border-t border-slate-200 p-4">
+								<p role="status" className="text-xs text-slate-700">
+									{t('users.dir.showing', {
+										shown: number(Math.min(visible, filteredUsers.length)),
+										total: number(filteredUsers.length),
+									})}
+								</p>
+								{visible < filteredUsers.length && (
+									<Button
+										type="button"
+										variant="outline"
+										className="min-h-[44px]"
+										onClick={() => setVisible((v) => v + PAGE_SIZE)}
+									>
+										{t('users.dir.showMore')}
+									</Button>
+								)}
+							</div>
+						)}
+					</>
 				)}
 			</div>
 
-			{/* ============================================================== */}
-			{/* MODAL 1: MANAGE GROUP ASSIGNMENT                              */}
-			{/* ============================================================== */}
-			<Dialog
-				open={!!groupModalUser}
-				onOpenChange={(open) => !open && setGroupModalUser(null)}
-			>
-				<DialogContent className="sm:max-w-md rounded-2xl bg-white border border-slate-200 p-6">
+			{/* MODAL 1: MANAGE GROUP ASSIGNMENT (behavior unchanged) */}
+			<Dialog open={!!groupModalUser} onOpenChange={(open) => !open && setGroupModalUser(null)}>
+				<DialogContent className="rounded-2xl border-2 border-black bg-white p-6 sm:max-w-md">
 					<DialogHeader>
-						<DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-							<Users className="h-5 w-5 text-sky-600" />
-							Manage Group Assignment
+						<DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
+							<Users className="h-5 w-5 text-emerald-800" aria-hidden />
+							{t('users.groupModal.title')}
 						</DialogTitle>
-						<DialogDescription className="text-xs text-slate-500">
-							Assign {groupModalUser?.name} ({groupModalUser?.email}) to a study group.
+						<DialogDescription className="text-sm text-slate-700">
+							{t('users.groupModal.desc', {
+								name: groupModalUser?.name ?? '',
+								email: groupModalUser?.email ?? '',
+							})}
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="space-y-4 my-2">
+					<div className="my-2 space-y-4">
 						<div className="space-y-1.5">
-							<label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-								Select Study Group
+							<label
+								htmlFor="users-group-select"
+								className="text-xs font-semibold uppercase tracking-wider text-slate-800"
+							>
+								{t('users.groupModal.select')}
 							</label>
 							<select
+								id="users-group-select"
 								value={selectedGroupId}
 								onChange={(e) => setSelectedGroupId(e.target.value)}
-								aria-label="Select study group"
-								className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+								className={selectClass}
 							>
-								<option value="NONE">— None (Unassigned) —</option>
+								<option value="NONE">{t('users.groupModal.none')}</option>
 								{groups.map((g) => (
 									<option key={g.id} value={g.id}>
 										{g.name}
@@ -478,91 +579,61 @@ export const MasterUserDirectory = ({
 						</div>
 
 						{selectedGroupId !== 'NONE' && (
-							<div className="rounded-xl border border-sky-100 bg-sky-50/70 p-3 text-xs text-sky-800 space-y-1">
+							<div className="space-y-1 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900">
 								<p className="font-semibold">
-									Assigned to:{' '}
-									{groups.find((g) => g.id === selectedGroupId)?.name}
+									{t('users.groupModal.assignedTo', {
+										group: groups.find((g) => g.id === selectedGroupId)?.name ?? '',
+									})}
 								</p>
-								<p className="text-[11px] text-sky-700">
-									Student will receive meeting schedules and countdown reminders for this group.
-								</p>
+								<p className="text-[11px]">{t('users.groupModal.hint')}</p>
 							</div>
 						)}
 					</div>
 
-					<DialogFooter className="mt-4 flex gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => setGroupModalUser(null)}
-						>
-							Cancel
+					<DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row">
+						<Button type="button" variant="outline" className="min-h-[44px]" onClick={() => setGroupModalUser(null)}>
+							{t('users.cancel')}
 						</Button>
 						<Button
 							type="button"
-							size="sm"
+							className="min-h-[44px]"
 							disabled={isSavingGroup}
 							onClick={handleSaveGroupAssignment}
-							className="bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-xs"
 						>
-							{isSavingGroup ? (
-								<Loader2 className="h-3.5 w-3.5 animate-spin" />
-							) : (
-								'Save Assignment'
-							)}
+							{isSavingGroup ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : t('users.groupModal.save')}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-			{/* ============================================================== */}
-			{/* MODAL 2: CONFIRM DELETE USER                                   */}
-			{/* ============================================================== */}
-			<Dialog
+			{/* CONFIRM: REVOKE ACCESS */}
+			<ConfirmDialog
+				open={!!userToRevoke}
+				onOpenChange={(open) => !open && setUserToRevoke(null)}
+				icon={<UserMinus className="h-6 w-6" />}
+				title={t('users.revoke.title')}
+				description={t('users.revoke.body', { name: userToRevoke?.name ?? '' })}
+				confirmLabel={t('users.revoke.confirm')}
+				cancelLabel={t('users.cancel')}
+				busy={togglingUserId !== null && togglingUserId === userToRevoke?.id}
+				onConfirm={confirmRevoke}
+			/>
+
+			{/* CONFIRM: DELETE USER */}
+			<ConfirmDialog
 				open={!!userToDelete}
 				onOpenChange={(open) => !open && setUserToDelete(null)}
-			>
-				<DialogContent className="sm:max-w-md rounded-2xl bg-white border border-slate-200 p-6">
-					<DialogHeader>
-						<div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 mb-2">
-							<Trash2 className="h-6 w-6" />
-						</div>
-						<DialogTitle className="text-lg font-bold text-slate-900 text-center">
-							Delete User Record?
-						</DialogTitle>
-						<DialogDescription className="text-xs text-slate-500 text-center leading-relaxed">
-							Are you sure you want to delete <span className="font-bold text-slate-800">{userToDelete?.name}</span> ({userToDelete?.email}) from the platform database? All group memberships and homework records will be purged.
-						</DialogDescription>
-					</DialogHeader>
-
-					<DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							disabled={isDeleting}
-							onClick={() => setUserToDelete(null)}
-							className="border-slate-200"
-						>
-							Cancel
-						</Button>
-						<Button
-							type="button"
-							size="sm"
-							disabled={isDeleting}
-							onClick={handleConfirmDelete}
-							className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-xs"
-						>
-							{isDeleting ? (
-								<Loader2 className="h-3.5 w-3.5 animate-spin" />
-							) : (
-								'Delete Permanently'
-							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				icon={<Trash2 className="h-6 w-6" />}
+				title={t('users.delete.title')}
+				description={t('users.delete.body', {
+					name: userToDelete?.name ?? '',
+					email: userToDelete?.email ?? '',
+				})}
+				confirmLabel={t('users.delete.confirm')}
+				cancelLabel={t('users.cancel')}
+				busy={isDeleting}
+				onConfirm={handleConfirmDelete}
+			/>
 		</div>
 	);
 };
