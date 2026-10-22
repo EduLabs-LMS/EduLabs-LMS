@@ -363,3 +363,33 @@ Read `IMPLEMENTATION_REPORT.md` first. Files changed: `frontend/features/admin/s
 (g) Done means: matches PDF at desktop; mobile cards keep all info/actions; approve still sends the same PATCH; no console errors; baseline tests unchanged.
 (h) Hard rules from sections 0 of this file still apply.
 (i) Lacked: git, network, database, browser, node_modules.
+
+---------------------------------------------------------------------------------------------------------------
+## FOLLOW-UP 6 — Teacher Panel Redesign (V2 runtime only)  [added; earlier sections untouched]
+
+Frontend-only redesign of the EduLabs teacher self-learning panel to match the prototype designs (Chapter details dialog, Lesson Editor, Segment Editor), following all hard constraints:
+
+(a) Scope & Verification:
+- All checks VERIFIED:
+  - `npm run check:boundaries`: VERIFIED (passed, architecture boundaries intact)
+  - `npm run typecheck`: VERIFIED (passed, 0 errors)
+  - `npm run lint`: VERIFIED (passed, 0 errors, 5 pre-existing img element warnings)
+  - `npm test`: VERIFIED (414 passed, 0 failed across all suites)
+  - `npm run build`: VERIFIED (Next.js production build succeeded)
+- Strictly FRONTEND ONLY: 0 backend, database, migration, or route files modified.
+- V2 / Firebase runtime only.
+
+(b) What was built:
+- Landing Page (`/self-learning`): Course list with "Create a course" CTA, neo-brutalist empty state, loading skeleton (`loading.tsx`), and error boundary (`error.tsx`).
+- V2 Course Page (`/self-learning/[courseId]`): Lessons grouped by chapter/module, draft/published status badges, "Create a lesson" flow with automatic slug generation, "Edit chapter details" with affected lessons warning.
+- Chapter Details Dialog (`chapter-details-dialog.tsx`): Side-by-side Type dropdown and Number input matching Images 1, 2, 4; live preview bar of the name students see; "This will update N lessons" notice; missing field / invalid number feedback; accessible focus styling.
+- Lesson Editor (`lesson-editor.tsx`): Matching Image 3 with "Lesson Editor" shield badge, 3-of-3 completion line, Publish/Unpublish control, destructive DeleteButton with confirmation, Customize fields (Title, Chapter, Description, Cover image), and drag-reorderable SegmentList with keyboard alternatives and RTL mirroring.
+- Segment Editor (`segment-editor.tsx`): Matching Images 5, 6, 7 with "← Back to Lesson Setup", high-contrast WCAG AAA unpublished yellow banner (`text-amber-950 bg-amber-100 border-2 border-amber-600`), "Segment Editor" badge, completion line, Publish/Unpublish, destructive DeleteButton with confirmation, Customize fields, and Segment content & media.
+- Segment Media & Homework (`segment-homework.tsx`): Content type toggle (Video Explanation vs Homework / Assignment):
+  - Video Explanation: Video Link with preview / camera placeholder box, Optional Resources / Attachments list with add/detach actions, and advanced private MP4 / thumbnail uploads.
+  - Homework / Assignment: Solution Video Link with preview / camera placeholder, format toggle (File upload vs Platform questions), Platform question builder with question count setter, add/save questions, and Student Submission Portal banner.
+
+(c) Backend-dependent items (not done — for backend partner):
+1. `delete_lesson` and `delete_segment` RPC: In `shared/contracts/lessons.ts` and Supabase RPC `edit_learning_content`, there are no delete actions. Front-end renders destructive DeleteButton with confirmation and catches the error gracefully. Backend change needed: add `'delete_lesson' | 'delete_segment'` actions to `edit_learning_content` RPC and `learningEdit` zod schema.
+2. Server-side lesson slug uniqueness: Front-end generates clean, URL-safe slugs with Arabic transliteration and collision suffixes based on in-memory course lessons. Backend change needed: add DB constraint or unique check in lesson insert/update.
+3. Server-side autosave: Front-end provides local storage draft recovery and unsaved changes warnings. Backend change needed: add draft auto-save endpoint or revision conflict resolution.

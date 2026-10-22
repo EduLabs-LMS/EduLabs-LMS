@@ -20,13 +20,14 @@ import { useLearningEdit } from '@/frontend/features/teacher/chapters/learning-e
 import { LessonCoverForm } from '@/frontend/features/teacher/chapters/editor/lesson-cover-form';
 import { EditableField } from '@/frontend/features/teacher/ui/editable-field';
 import { PublishControl } from '@/frontend/features/teacher/ui/publish-control';
-import { EmptyBlock, FOCUS, FieldCard, Notice, ReadinessList, SectionCard, Spinner, StatusPill, TeacherHeader, useLessonCount } from '@/frontend/features/teacher/ui/teacher-ui';
+import { DeleteButton, EmptyBlock, FOCUS, FieldCard, Notice, SectionCard, Spinner, StatusPill, TeacherHeader, useLessonCount } from '@/frontend/features/teacher/ui/teacher-ui';
 import { formatChapterTitle } from '@/shared/chapter-label';
 import type { LearningSegment, LearningTree } from '@/shared/contracts/lessons';
 import { cn } from '@/shared/utils';
 
 export function LessonEditor({ courseId, courseBase, tree, lessonId }: { courseId: string; courseBase: string; tree: LearningTree; lessonId: string }) {
 	const { t, number } = useLanguage();
+	const router = useRouter();
 	const lessonsText = useLessonCount();
 	const { run, error, busy } = useLearningEdit(courseId);
 	const lesson = tree.lessons.find((l) => l.id === lessonId)!;
@@ -71,10 +72,9 @@ export function LessonEditor({ courseId, courseBase, tree, lessonId }: { courseI
 			<TeacherHeader
 				pill={t('teach.lesson.pill')}
 				title={lesson.title}
-				subtitle={t('teach.completion', { done: number(completed), total: number(checks.length) })}
+				subtitle={t('teach.lesson.completion_line', { done: number(completed), total: number(checks.length) })}
 				actions={
 					<>
-						<StatusPill published={published} />
 						{firstSegment && (
 							<Button asChild variant="outline" className="min-h-[44px]">
 								<Link href={`${courseBase}/${courseId}/chapters/${firstSegment.id}?preview=1`}>
@@ -84,11 +84,24 @@ export function LessonEditor({ courseId, courseBase, tree, lessonId }: { courseI
 							</Button>
 						)}
 						<PublishControl kind="lesson" published={published} disabled={busy} blockedReason={blocked} onChange={(next) => editLesson({ status: next ? 'published' : 'draft' })} />
+						<DeleteButton
+							label={t('teach.lesson.delete')}
+							title={t('teach.lesson.delete')}
+							description={t('teach.lesson.delete_confirm')}
+							confirmLabel={t('teach.lesson.delete')}
+							onConfirm={async () => {
+								try {
+									await run({ action: 'delete_lesson' as any, id: lesson.id, parentId: null, updatedAt: lesson.updated_at, data: {} });
+									toast.success(t('teach.lesson.deleted'));
+									router.push(`${courseBase}/${courseId}`);
+								} catch (e) {
+									toast.error(e instanceof Error ? e.message : t('teach.save_failed'));
+								}
+							}}
+						/>
 					</>
 				}
-			>
-				<ReadinessList className="mt-4" title={published ? t('teach.lesson.ready.title_published') : t('teach.lesson.ready.title_label')} items={checks} />
-			</TeacherHeader>
+			/>
 
 			<SectionCard icon={<LayoutDashboard className="h-5 w-5" />} title={t('teach.lesson.customize')} subtitle={t('teach.lesson.customize_sub')}>
 				<EditableField label={t('teach.lesson.title_field')} required value={lesson.title} base={lesson.updated_at} draftScope={`lesson:${lesson.id}:title`} editLabel="teach.edit_title" placeholder={t('teach.lesson.title_placeholder')} maxLength={200} onSave={(title) => editLesson({ title })} />
@@ -196,33 +209,52 @@ function SegmentList({ courseId, courseBase, lessonId, segments }: { courseId: s
 	}
 
 	const row = (s: LearningSegment, index: number, handle?: React.ReactNode) => (
-		<div className={cn('flex flex-wrap items-center gap-2 rounded-xl border-2 p-2 sm:flex-nowrap', s.status === 'published' ? 'border-emerald-700 bg-emerald-50' : 'border-slate-400 bg-slate-100')}>
+		<div className={cn('flex flex-wrap items-center gap-2 rounded-xl border-2 p-2.5 sm:flex-nowrap', s.status === 'published' ? 'border-emerald-700 bg-emerald-50' : 'border-slate-300 bg-slate-50')}>
 			{handle ?? <span className="w-2" />}
-			<span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-xs font-bold" aria-hidden>
-				{number(index + 1)}
-			</span>
 			<Link href={`${courseBase}/${courseId}/chapters/${s.id}`} dir="auto" className={cn('min-w-0 flex-1 basis-40 font-semibold text-slate-900 underline-offset-2 hover:underline [overflow-wrap:anywhere]', FOCUS)}>
 				{s.title}
 			</Link>
 			<StatusPill published={s.status === 'published'} />
-			<span className="inline-flex gap-1">
-				<Button type="button" size="icon" variant="outline" className="h-11 w-11" aria-label={t('teach.move_up', { name: s.title })} disabled={busy || index === 0} onClick={() => move(index, -1)}>
+			<span className="inline-flex items-center gap-1">
+				<Button type="button" size="icon" variant="outline" className="h-10 w-10" aria-label={t('teach.move_up', { name: s.title })} disabled={busy || index === 0} onClick={() => move(index, -1)}>
 					<ArrowUp className="h-4 w-4" aria-hidden />
 				</Button>
-				<Button type="button" size="icon" variant="outline" className="h-11 w-11" aria-label={t('teach.move_down', { name: s.title })} disabled={busy || index === order.length - 1} onClick={() => move(index, 1)}>
+				<Button type="button" size="icon" variant="outline" className="h-10 w-10" aria-label={t('teach.move_down', { name: s.title })} disabled={busy || index === order.length - 1} onClick={() => move(index, 1)}>
 					<ArrowDown className="h-4 w-4" aria-hidden />
 				</Button>
-				<Button asChild size="icon" variant="outline" className="h-11 w-11">
+				<Button asChild size="icon" variant="outline" className="h-10 w-10">
 					<Link href={`${courseBase}/${courseId}/chapters/${s.id}`} aria-label={t('teach.segment.edit_named', { name: s.title })}>
 						<Pencil className="h-4 w-4" aria-hidden />
 					</Link>
 				</Button>
+				<DeleteButton
+					label={t('teach.segment.delete')}
+					title={t('teach.segment.delete')}
+					description={t('teach.segment.delete_confirm')}
+					confirmLabel={t('teach.segment.delete')}
+					onConfirm={async () => {
+						try {
+							await run({ action: 'delete_segment' as any, id: s.id, parentId: null, updatedAt: s.updated_at, data: {} });
+							toast.success(t('teach.segment.deleted'));
+						} catch (e) {
+							toast.error(e instanceof Error ? e.message : t('teach.save_failed'));
+						}
+					}}
+				/>
 			</span>
 		</div>
 	);
 
 	return (
 		<div className="space-y-3">
+			<div className="flex items-center justify-between pb-1">
+				<h3 className="font-semibold text-slate-900">{t('teach.segments.title')}</h3>
+				<Button type="button" variant="outline" className="min-h-[44px]" disabled={busy || adding} onClick={() => setAdding(true)}>
+					<PlusCircle className="me-2 h-4 w-4" aria-hidden />
+					{t('teach.segment.add')}
+				</Button>
+			</div>
+
 			{error && <Notice tone="danger">{error}</Notice>}
 			<p className="sr-only" role="status" aria-live="polite">{announce}</p>
 
@@ -242,7 +274,7 @@ function SegmentList({ courseId, courseBase, lessonId, segments }: { courseId: s
 												{row(
 													s,
 													index,
-													<span {...drag.dragHandleProps} aria-label={t('teach.segments.drag', { name: s.title })} className={cn('grid h-11 w-9 shrink-0 cursor-grab place-items-center rounded-lg text-slate-700 hover:bg-white', FOCUS)}>
+													<span {...drag.dragHandleProps} aria-label={t('teach.segments.drag', { name: s.title })} className={cn('grid h-10 w-8 shrink-0 cursor-grab place-items-center rounded-lg text-slate-700 hover:bg-slate-200/60', FOCUS)}>
 														<GripVertical className="h-5 w-5" aria-hidden />
 													</span>
 												)}
@@ -257,11 +289,11 @@ function SegmentList({ courseId, courseBase, lessonId, segments }: { courseId: s
 				</DragDropContext>
 			)}
 			{!mounted && order.length > 0 && <ul className="space-y-2">{order.map((s, i) => <li key={s.id}>{row(s, i)}</li>)}</ul>}
-			{order.length > 1 && <p className="text-xs text-slate-700">{t('teach.segments.reorder_help')}</p>}
+			{order.length > 1 && <p className="text-xs text-slate-600">{t('teach.segments.reorder_help')}</p>}
 
-			{adding ? (
+			{adding && (
 				<form
-					className="flex flex-col gap-2 sm:flex-row"
+					className="flex flex-col gap-2 rounded-2xl border-2 border-black bg-white p-4 shadow-hard-sm sm:flex-row"
 					onSubmit={(event) => {
 						event.preventDefault();
 						void create();
@@ -276,11 +308,6 @@ function SegmentList({ courseId, courseBase, lessonId, segments }: { courseId: s
 					</Button>
 					{createError && <p role="alert" className="text-sm font-medium text-red-800 sm:basis-full">{createError}</p>}
 				</form>
-			) : (
-				<Button type="button" className="min-h-[44px]" disabled={busy} onClick={() => setAdding(true)}>
-					<PlusCircle className="me-2 h-4 w-4" aria-hidden />
-					{t('teach.segment.add')}
-				</Button>
 			)}
 		</div>
 	);
