@@ -1,5 +1,4 @@
 'use client';
-import { useCourseManagementPath } from '@/frontend/components/providers/course-management-path';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/frontend/components/ui/button';
@@ -7,7 +6,6 @@ import { Input } from '@/frontend/components/ui/input';
 import { Editor } from '@/frontend/components/editor';
 type Course = {id:string;title:string;slug:string;description:string|null;status:string;visibility:string;updated_at:string};
 export function TeacherForm({course,organizations=[],onboarding=false}:{course?:Course;organizations?:{id:string;name:string}[];onboarding?:boolean}) {
-	const courseBase = useCourseManagementPath();
   const router=useRouter();
   const [title,setTitle]=useState(course?.title??'');
   const [slug,setSlug]=useState(course?.slug??'');
@@ -25,7 +23,7 @@ export function TeacherForm({course,organizations=[],onboarding=false}:{course?:
       const result=await response.json();
       if(!response.ok) throw new Error(result.error||'Unable to save');
       if(onboarding) router.push('/teacher/create');
-      else if(!course) router.push(courseBase+'/'+result.id);
+      else if(!course) router.push('/teacher/courses/'+result.id);
       router.refresh();
     } catch(caught) {setError(caught instanceof Error?caught.message:'Unable to save');}
     finally {setBusy(false);}

@@ -1,25 +1,31 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '@/frontend/lib/api';
 import {
+	AlertCircle,
+	Calendar,
+	Check,
 	CheckCircle2,
 	ChevronDown,
 	ChevronRight,
-	Check,
 	Clock,
 	Edit,
 	Layers,
+	Loader2,
 	Mail,
 	Plus,
+	RefreshCw,
+	ShieldCheck,
 	Trash2,
 	UserCheck,
 	UserPlus,
 	Users,
+	UserX,
+	X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { useLanguage } from '@/frontend/components/language-provider';
 import { Button } from '@/frontend/components/ui/button';
 import { cn } from '@/shared/utils';
 import { getNextUpcomingSession } from '@/shared/group-schedule';
@@ -28,25 +34,6 @@ import { ReassignModal } from '@/frontend/features/admin/users/reassign-modal';
 import { StudentMirrorDrawer } from '@/frontend/features/admin/users/student-mirror-drawer';
 import { AddStudentsModal } from '@/frontend/features/admin/users/add-students-modal';
 import { MasterUserDirectory, type PlatformUser } from '@/frontend/features/admin/users/master-user-directory';
-import {
-	ConfirmDialog,
-	EmptyBlock,
-	FOCUS,
-	Initial,
-	LoadingBlock,
-	PageHeader,
-	SectionHeading,
-	SectionTabs,
-	StatCard,
-	useCountText,
-} from '@/frontend/features/admin/users/users-ui';
-
-/**
- * Waitlist gate. The waitlist on/off flag does not exist yet (another developer is adding it).
- * When it lands, replace this constant with the flag: the Pending Waitlist card, the Waitlist tab
- * and the Waitlist Approvals section all read this one value. Shown as ON for now.
- */
-const WAITLIST_ENABLED = true;
 
 interface WaitlistUser {
 	id: string;
@@ -67,28 +54,20 @@ interface WaitlistInvitation {
 	createdAt: number | string;
 }
 
-type TabKey = 'ALL' | 'DIRECTORY' | 'WAITLIST' | 'GROUPS';
-
 export const AdminUsersView = () => {
-	const { t, language, number } = useLanguage();
-	const countText = useCountText();
-
 	const [waitlistUsers, setWaitlistUsers] = useState<WaitlistUser[]>([]);
-	const [waitlistInvitations, setWaitlistInvitations] = useState<WaitlistInvitation[]>([]);
+	const [waitlistInvitations, setWaitlistInvitations] = useState<
+		WaitlistInvitation[]
+	>([]);
 	const [groups, setGroups] = useState<GroupItem[]>([]);
 	const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
-	const [activeTab, setActiveTab] = useState<TabKey>('ALL');
+	const [activeTab, setActiveTab] = useState<'ALL' | 'DIRECTORY' | 'WAITLIST' | 'GROUPS'>('ALL');
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
 	// Action loading states
 	const [approvingId, setApprovingId] = useState<string | null>(null);
 	const [denyingId, setDenyingId] = useState<string | null>(null);
-
-	// Confirmations for destructive actions (waitlist deny and group delete used to be one tap / a browser confirm)
-	const [denyTarget, setDenyTarget] = useState<{ userId?: string; invitationId?: string; name: string } | null>(null);
-	const [groupToDelete, setGroupToDelete] = useState<{ id: string; name: string } | null>(null);
-	const [isDeletingGroup, setIsDeletingGroup] = useState(false);
 
 	// Modals
 	const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
@@ -100,7 +79,9 @@ export const AdminUsersView = () => {
 		name: string;
 		email?: string;
 	} | null>(null);
-	const [reassignCurrentGroupId, setReassignCurrentGroupId] = useState<string | null>(null);
+	const [reassignCurrentGroupId, setReassignCurrentGroupId] = useState<
+		string | null
+	>(null);
 
 	// Student Profile Mirror Drawer
 	const [mirrorStudentId, setMirrorStudentId] = useState<string | null>(null);
@@ -116,7 +97,9 @@ export const AdminUsersView = () => {
 	};
 
 	// Accordion open groups
-	const [expandedGroupIds, setExpandedGroupIds] = useState<Record<string, boolean>>({});
+	const [expandedGroupIds, setExpandedGroupIds] = useState<Record<string, boolean>>(
+		{}
+	);
 
 	const loadData = async (silent = false) => {
 		if (!silent) setIsLoading(true);
@@ -140,7 +123,7 @@ export const AdminUsersView = () => {
 			}
 		} catch (error) {
 			console.error(error);
-			toast.error(t('users.toast.loadFail'));
+			toast.error('Failed to load users and group data.');
 		} finally {
 			setIsLoading(false);
 			setIsRefreshing(false);
@@ -149,13 +132,7 @@ export const AdminUsersView = () => {
 
 	useEffect(() => {
 		loadData();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
-
-	// If the waitlist is switched off while its tab is selected, fall back to All Sections.
-	useEffect(() => {
-		if (!WAITLIST_ENABLED && activeTab === 'WAITLIST') setActiveTab('ALL');
-	}, [activeTab]);
 
 	const toggleGroupAccordion = (groupId: string) => {
 		setExpandedGroupIds((prev) => ({
@@ -173,23 +150,25 @@ export const AdminUsersView = () => {
 				userId: opts.userId,
 				invitationId: opts.invitationId,
 			});
-			toast.success(t('users.toast.waitApproved', { name: opts.name }));
+			toast.success(`Approved ${opts.name}! Account activated.`);
 			// Instant local filter
 			if (opts.userId) {
 				setWaitlistUsers((prev) => prev.filter((u) => u.id !== opts.userId));
 			} else if (opts.invitationId) {
-				setWaitlistInvitations((prev) => prev.filter((inv) => inv.id !== opts.invitationId));
+				setWaitlistInvitations((prev) =>
+					prev.filter((inv) => inv.id !== opts.invitationId)
+				);
 			}
 			loadData(true);
 		} catch (error) {
 			console.error(error);
-			toast.error(t('users.toast.waitApproveFail'));
+			toast.error('Failed to approve student.');
 		} finally {
 			setApprovingId(null);
 		}
 	};
 
-	// Waitlist Deny (runs after the person confirms)
+	// 1-Tap Waitlist Deny
 	const handleDeny = async (opts: { userId?: string; invitationId?: string; name: string }) => {
 		const actionKey = opts.userId || opts.invitationId || '';
 		try {
@@ -200,38 +179,47 @@ export const AdminUsersView = () => {
 					invitationId: opts.invitationId,
 				},
 			});
-			toast.success(t('users.toast.waitRemoved', { name: opts.name }));
+			toast.success(`Removed ${opts.name} from waitlist.`);
 			if (opts.userId) {
 				setWaitlistUsers((prev) => prev.filter((u) => u.id !== opts.userId));
 			} else if (opts.invitationId) {
-				setWaitlistInvitations((prev) => prev.filter((inv) => inv.id !== opts.invitationId));
+				setWaitlistInvitations((prev) =>
+					prev.filter((inv) => inv.id !== opts.invitationId)
+				);
 			}
 		} catch (error) {
 			console.error(error);
-			toast.error(t('users.toast.waitRemoveFail'));
+			toast.error('Failed to remove waitlist request.');
 		} finally {
 			setDenyingId(null);
 		}
 	};
 
-	// Delete Group (runs after the person confirms)
+	// Delete Group
 	const handleDeleteGroup = async (groupId: string, groupName: string) => {
+		if (
+			!confirm(
+				`Are you sure you want to delete "${groupName}"? Students will be unassigned.`
+			)
+		) {
+			return;
+		}
+
 		try {
-			setIsDeletingGroup(true);
 			await api.delete(`/api/admin/groups?groupId=${groupId}`);
-			toast.success(t('users.toast.groupDeleted', { name: groupName }));
+			toast.success(`Group "${groupName}" deleted.`);
 			loadData(true);
 		} catch (error) {
 			console.error(error);
-			toast.error(t('users.toast.groupDeleteFail'));
-		} finally {
-			setIsDeletingGroup(false);
-			setGroupToDelete(null);
+			toast.error('Failed to delete group.');
 		}
 	};
 
 	const totalWaitlistCount = waitlistUsers.length + waitlistInvitations.length;
-	const totalAssignedStudents = groups.reduce((sum, g) => sum + (g.students?.length || 0), 0);
+	const totalAssignedStudents = groups.reduce(
+		(sum, g) => sum + (g.students?.length || 0),
+		0
+	);
 
 	const openStudentMirror = (studentId: string) => {
 		setMirrorStudentId(studentId);
@@ -247,131 +235,168 @@ export const AdminUsersView = () => {
 		setIsReassignModalOpen(true);
 	};
 
-	const formatDate = (value: number | string | undefined) =>
-		value
-			? new Date(value).toLocaleDateString(language, { month: 'short', day: 'numeric', year: 'numeric' })
-			: t('users.wait.recent');
-
-	// Localized "Friday, Oct 23 @ 9:00 AM" built from the helper's Date (the helper's own text is English only).
-	const formatNext = (date: Date, fallback: string) => {
-		if (!(date instanceof Date) || Number.isNaN(date.getTime())) return fallback;
-		const day = date.toLocaleDateString(language, { weekday: 'long', month: 'short', day: 'numeric' });
-		const time = date.toLocaleTimeString(language, { hour: 'numeric', minute: '2-digit' });
-		return `${day} @ ${time}`;
-	};
-
-	const tabs: { value: TabKey; label: ReactNode }[] = [
-		{ value: 'ALL', label: t('users.tab.all') },
-		{ value: 'DIRECTORY', label: t('users.tab.directory', { count: number(platformUsers.length) }) },
-		...(WAITLIST_ENABLED
-			? [
-					{
-						value: 'WAITLIST' as TabKey,
-						label: (
-							<>
-								<span>{t('users.tab.waitlist')}</span>
-								{totalWaitlistCount > 0 && (
-									<span className="rounded-full bg-amber-200 px-1.5 text-[10px] font-bold text-amber-900">
-										{number(totalWaitlistCount)}
-									</span>
-								)}
-							</>
-						),
-					},
-			  ]
-			: []),
-		{ value: 'GROUPS', label: t('users.tab.groups', { count: number(groups.length) }) },
-	];
-
-	const approveButtons = (opts: { userId?: string; invitationId?: string; name: string; key: string }) => (
-		<div className="flex flex-wrap items-center gap-2 md:justify-end">
-			<Button
-				type="button"
-				size="sm"
-				disabled={approvingId === opts.key}
-				onClick={() => handleApprove({ userId: opts.userId, invitationId: opts.invitationId, name: opts.name })}
-				className="min-h-[44px] px-3 text-xs font-semibold md:min-h-9"
-			>
-				{approvingId === opts.key ? (
-					<span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
-				) : (
-					<>
-						<Check className="me-1 h-3.5 w-3.5" aria-hidden />
-						{t('users.wait.approve')}
-					</>
-				)}
-			</Button>
-			<Button
-				type="button"
-				size="sm"
-				variant="outline"
-				disabled={denyingId === opts.key}
-				onClick={() => setDenyTarget({ userId: opts.userId, invitationId: opts.invitationId, name: opts.name })}
-				className="min-h-[44px] border-red-300 px-3 text-xs font-semibold text-red-700 hover:bg-red-50 md:min-h-9"
-			>
-				{t('users.wait.deny')}
-			</Button>
-		</div>
-	);
-
 	return (
-		<div className="mx-auto w-full max-w-7xl space-y-8 pb-16 pt-2">
-			{/* Header */}
-			<PageHeader
-				pill={t('users.pill')}
-				title={t('users.title')}
-				subtitle={t('users.subtitle')}
-				refreshLabel={t('users.refresh')}
-				refreshing={isRefreshing}
-				onRefresh={() => loadData(true)}
-			/>
+		<div className="mx-auto w-full max-w-7xl space-y-8 pb-16 pt-2 animate-in fade-in-50 duration-200">
+			{/* Top Header & Quick Stats */}
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+				<div className="space-y-1">
+					<div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
+						<ShieldCheck className="h-3.5 w-3.5" />
+						Admin &amp; Teacher Portal
+					</div>
+					<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+						Users &amp; Study Groups
+					</h1>
+					<p className="text-sm text-slate-500">
+						Manage student admissions, configure recurring group schedules, and inspect student progress.
+					</p>
+				</div>
 
-			{/* Stat cards */}
-			<div
-				className={cn(
-					'grid grid-cols-1 gap-4 sm:grid-cols-2',
-					WAITLIST_ENABLED ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
-				)}
-			>
-				<StatCard
-					label={t('users.stat.total')}
-					value={number(platformUsers.length)}
-					icon={<Users className="h-5 w-5" />}
-					iconTone="bg-purple-50 text-purple-700"
-				/>
-				{WAITLIST_ENABLED && (
-					<StatCard
-						label={t('users.stat.waitlist')}
-						value={number(totalWaitlistCount)}
-						icon={<UserPlus className="h-5 w-5" />}
-						iconTone="bg-amber-50 text-amber-800"
-					/>
-				)}
-				<StatCard
-					label={t('users.stat.groups')}
-					value={number(groups.length)}
-					icon={<Layers className="h-5 w-5" />}
-					iconTone="bg-emerald-50 text-emerald-800"
-				/>
-				<StatCard
-					label={t('users.stat.assigned')}
-					value={number(totalAssignedStudents)}
-					icon={<UserCheck className="h-5 w-5" />}
-					iconTone="bg-teal-50 text-teal-800"
-				/>
+				<div className="flex items-center gap-2.5">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => loadData(true)}
+						disabled={isRefreshing}
+						className="border-slate-200 text-slate-700 hover:bg-slate-100"
+					>
+						<RefreshCw
+							className={cn('h-3.5 w-3.5 mr-1.5', isRefreshing && 'animate-spin')}
+						/>
+						Refresh
+					</Button>
+				</div>
 			</div>
 
-			{/* Section tabs */}
-			<SectionTabs
-				ariaLabel={t('users.tabs.label')}
-				tabs={tabs}
-				value={activeTab}
-				onChange={(value) => setActiveTab(value as TabKey)}
-			/>
+			{/* Quick Metric Cards with GPU-accelerated hover FX */}
+			<div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+								Total Users
+							</p>
+							<p className="mt-1.5 text-2xl font-bold text-slate-900">
+								{platformUsers.length}
+							</p>
+						</div>
+						<div className="grid h-10 w-10 place-items-center rounded-xl bg-purple-50 text-purple-700">
+							<Users className="h-5 w-5" />
+						</div>
+					</div>
+				</div>
 
-			{/* SECTION 1: MASTER USER DIRECTORY */}
+				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+								Pending Waitlist
+							</p>
+							<p className="mt-1.5 text-2xl font-bold text-slate-900">
+								{totalWaitlistCount}
+							</p>
+						</div>
+						<div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-700">
+							<UserPlus className="h-5 w-5" />
+						</div>
+					</div>
+				</div>
+
+				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+								Study Groups
+							</p>
+							<p className="mt-1.5 text-2xl font-bold text-slate-900">
+								{groups.length}
+							</p>
+						</div>
+						<div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-sky-700">
+							<Layers className="h-5 w-5" />
+						</div>
+					</div>
+				</div>
+
+				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+								Assigned Students
+							</p>
+							<p className="mt-1.5 text-2xl font-bold text-slate-900">
+								{totalAssignedStudents}
+							</p>
+						</div>
+						<div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+							<UserCheck className="h-5 w-5" />
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{/* Section Tabs Switcher */}
+			<div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl w-fit border border-slate-200/80">
+				<button
+					type="button"
+					onClick={() => setActiveTab('ALL')}
+					className={cn(
+						'px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer',
+						activeTab === 'ALL'
+							? 'bg-white text-slate-900 shadow-xs'
+							: 'text-slate-600 hover:text-slate-900'
+					)}
+				>
+					All Sections
+				</button>
+				<button
+					type="button"
+					onClick={() => setActiveTab('DIRECTORY')}
+					className={cn(
+						'px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer',
+						activeTab === 'DIRECTORY'
+							? 'bg-white text-slate-900 shadow-xs'
+							: 'text-slate-600 hover:text-slate-900'
+					)}
+				>
+					Master Directory ({platformUsers.length})
+				</button>
+				<button
+					type="button"
+					onClick={() => setActiveTab('WAITLIST')}
+					className={cn(
+						'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer',
+						activeTab === 'WAITLIST'
+							? 'bg-white text-slate-900 shadow-xs'
+							: 'text-slate-600 hover:text-slate-900'
+					)}
+				>
+					<span>Waitlist</span>
+					{totalWaitlistCount > 0 && (
+						<span className="rounded-full bg-amber-100 text-amber-900 px-1.5 py-0.2 text-[10px] font-bold">
+							{totalWaitlistCount}
+						</span>
+					)}
+				</button>
+				<button
+					type="button"
+					onClick={() => setActiveTab('GROUPS')}
+					className={cn(
+						'px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer',
+						activeTab === 'GROUPS'
+							? 'bg-white text-slate-900 shadow-xs'
+							: 'text-slate-600 hover:text-slate-900'
+					)}
+				>
+					Study Groups ({groups.length})
+				</button>
+			</div>
+
+			{/* ============================================================== */}
+			{/* SECTION 1 — MASTER USER DIRECTORY                             */}
+			{/* ============================================================== */}
 			{(activeTab === 'ALL' || activeTab === 'DIRECTORY') && (
-				<section>
+				<section className="transition-all duration-200">
 					<MasterUserDirectory
 						users={platformUsers}
 						groups={groups}
@@ -382,429 +407,478 @@ export const AdminUsersView = () => {
 				</section>
 			)}
 
-			{/* SECTION 2: WAITLIST APPROVALS (gated by WAITLIST_ENABLED) */}
-			{WAITLIST_ENABLED && (activeTab === 'ALL' || activeTab === 'WAITLIST') && (
-				<section className="overflow-hidden rounded-2xl border border-amber-300 bg-white">
-					<div className="flex items-center gap-2.5 border-b border-amber-200 bg-amber-50 px-5 py-4">
-						<span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-900" aria-hidden>
+			{/* ============================================================== */}
+			{/* SECTION 2 — WAITLIST APPROVALS (TOP PRIORITY)                 */}
+			{/* ============================================================== */}
+			{(activeTab === 'ALL' || activeTab === 'WAITLIST') && (
+				<section className="rounded-2xl border border-amber-200/90 bg-white shadow-sm overflow-hidden transition-all duration-200">
+				<div className="flex items-center justify-between border-b border-amber-100 bg-amber-50/50 px-6 py-4">
+					<div className="flex items-center gap-2.5">
+						<div className="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-800">
 							<UserPlus className="h-4 w-4" />
-						</span>
-						<div className="min-w-0">
-							<h2 className="flex flex-wrap items-center gap-2 font-display text-lg">
-								{t('users.wait.title')}
+						</div>
+						<div>
+							<h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+								Waitlist Approvals
 								{totalWaitlistCount > 0 && (
-									<span className="rounded-full bg-amber-200 px-2 py-0.5 font-sans text-xs font-bold text-amber-900">
-										{t('users.wait.pending', { count: number(totalWaitlistCount) })}
+									<span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-900">
+										{totalWaitlistCount} Pending
 									</span>
 								)}
 							</h2>
-							<p className="text-xs text-slate-700">{t('users.wait.subtitle')}</p>
+							<p className="text-xs text-slate-500">
+								Approve new student sign-ups to activate their account as an enrolled student.
+							</p>
 						</div>
 					</div>
+				</div>
 
-					{isLoading ? (
-						<LoadingBlock label={t('users.dir.loading')} className="min-h-[160px]" />
-					) : totalWaitlistCount === 0 ? (
-						<EmptyBlock
-							icon={<CheckCircle2 className="h-6 w-6" />}
-							title={t('users.wait.emptyTitle')}
-							body={t('users.wait.emptyBody')}
-						/>
-					) : (
-						<>
-							{/* Desktop / tablet: table */}
-							<div className="hidden md:block">
-								<table className="w-full text-start text-sm">
-									<thead className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-700">
-										<tr>
-											<th scope="col" className="px-5 py-3 text-start">{t('users.wait.colStudent')}</th>
-											<th scope="col" className="px-5 py-3 text-start">{t('users.wait.colEmail')}</th>
-											<th scope="col" className="px-5 py-3 text-start">{t('users.wait.colDate')}</th>
-											<th scope="col" className="px-5 py-3 text-end">{t('users.col.actions')}</th>
-										</tr>
-									</thead>
-									<tbody className="divide-y divide-slate-200">
-										{waitlistUsers.map((user) => {
-											const fullName =
-												user.name ||
-												`${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-												t('users.wait.applicant');
-											const email = user.email || user.emailAddresses?.[0]?.emailAddress || '';
-											return (
-												<tr key={user.id} className="hover:bg-slate-50">
-													<td className="px-5 py-3">
-														<button
-															type="button"
-															onClick={() => openStudentMirror(user.id)}
-															className={cn('flex items-center gap-2 rounded-lg text-start font-semibold hover:text-emerald-800', FOCUS)}
-														>
-															<Initial name={fullName} />
-															<bdi>{fullName}</bdi>
-														</button>
-													</td>
-													<td className="px-5 py-3 font-mono text-xs text-slate-800 [overflow-wrap:anywhere]">
-														<bdi>{email}</bdi>
-													</td>
-													<td className="whitespace-nowrap px-5 py-3 text-xs text-slate-700">{formatDate(user.createdAt)}</td>
-													<td className="px-5 py-3">
-														{approveButtons({ userId: user.id, name: fullName, key: user.id })}
-													</td>
-												</tr>
-											);
-										})}
-										{waitlistInvitations.map((inv) => (
-											<tr key={inv.id} className="hover:bg-slate-50">
-												<td className="px-5 py-3">
-													<div className="flex items-center gap-2">
-														<span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-800" aria-hidden>
-															<Mail className="h-3.5 w-3.5" />
-														</span>
-														<span className="italic text-slate-800">{t('users.wait.invited')}</span>
-													</div>
-												</td>
-												<td className="px-5 py-3 font-mono text-xs text-slate-800 [overflow-wrap:anywhere]">
-													<bdi>{inv.emailAddress}</bdi>
-												</td>
-												<td className="whitespace-nowrap px-5 py-3 text-xs text-slate-700">{formatDate(inv.createdAt)}</td>
-												<td className="px-5 py-3">
-													{approveButtons({ invitationId: inv.id, name: inv.emailAddress, key: inv.id })}
-												</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
-
-							{/* Mobile: one card per request */}
-							<ul className="divide-y divide-slate-200 md:hidden">
+				{isLoading ? (
+					<div className="flex min-h-[160px] items-center justify-center p-8">
+						<Loader2 className="h-6 w-6 animate-spin text-amber-600" />
+					</div>
+				) : totalWaitlistCount === 0 ? (
+					<div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+						<div className="grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-emerald-600 mb-3">
+							<CheckCircle2 className="h-6 w-6" />
+						</div>
+						<p className="text-sm font-semibold text-slate-800">
+							No pending waitlist requests
+						</p>
+						<p className="text-xs text-slate-400 mt-0.5">
+							All registered students have been approved and activated.
+						</p>
+					</div>
+				) : (
+					<div className="overflow-x-auto">
+						<table className="w-full text-left border-collapse">
+							<thead>
+								<tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+									<th className="py-3 px-6">Student</th>
+									<th className="py-3 px-6">Email</th>
+									<th className="py-3 px-6">Request Date</th>
+									<th className="py-3 px-6 text-right">Actions</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-slate-100 text-sm">
+								{/* Pending Users in Clerk */}
 								{waitlistUsers.map((user) => {
 									const fullName =
 										user.name ||
 										`${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-										t('users.wait.applicant');
+										'New Applicant';
 									const email = user.email || user.emailAddresses?.[0]?.emailAddress || '';
+									const dateStr = user.createdAt
+										? new Date(user.createdAt).toLocaleDateString('en-US', {
+												month: 'short',
+												day: 'numeric',
+												year: 'numeric',
+										  })
+										: 'Recent';
+
 									return (
-										<li key={user.id} className="space-y-2 p-4">
-											<button
-												type="button"
-												onClick={() => openStudentMirror(user.id)}
-												className={cn('flex items-center gap-2 rounded-lg text-start font-semibold', FOCUS)}
-											>
-												<Initial name={fullName} />
-												<bdi>{fullName}</bdi>
-											</button>
-											<p className="font-mono text-xs text-slate-800 [overflow-wrap:anywhere]"><bdi>{email}</bdi></p>
-											<p className="text-xs text-slate-700">
-												{t('users.wait.colDate')}: {formatDate(user.createdAt)}
-											</p>
-											{approveButtons({ userId: user.id, name: fullName, key: user.id })}
-										</li>
+										<tr key={user.id} className="hover:bg-slate-50/80 transition-colors">
+											<td className="py-3.5 px-6 font-semibold text-slate-900">
+												<button
+													type="button"
+													onClick={() => openStudentMirror(user.id)}
+													className="text-left font-semibold text-sky-700 hover:underline cursor-pointer flex items-center gap-2"
+												>
+													<div className="grid h-7 w-7 place-items-center rounded-full bg-sky-100 text-sky-700 text-xs font-bold">
+														{fullName.charAt(0)}
+													</div>
+													<span>{fullName}</span>
+												</button>
+											</td>
+											<td className="py-3.5 px-6 text-xs text-slate-600 font-mono">
+												{email}
+											</td>
+											<td className="py-3.5 px-6 text-xs text-slate-500">
+												{dateStr}
+											</td>
+											<td className="py-3.5 px-6 text-right">
+												<div className="flex items-center justify-end gap-2">
+													<Button
+														size="sm"
+														disabled={approvingId === user.id}
+														onClick={() =>
+															handleApprove({ userId: user.id, name: fullName })
+														}
+														className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs"
+													>
+														{approvingId === user.id ? (
+															<Loader2 className="h-3.5 w-3.5 animate-spin" />
+														) : (
+															<>
+																<Check className="h-3.5 w-3.5 mr-1" />
+																Approve Student
+															</>
+														)}
+													</Button>
+													<Button
+														size="sm"
+														variant="outline"
+														disabled={denyingId === user.id}
+														onClick={() =>
+															handleDeny({ userId: user.id, name: fullName })
+														}
+														className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-xs"
+													>
+														{denyingId === user.id ? (
+															<Loader2 className="h-3.5 w-3.5 animate-spin" />
+														) : (
+															'Deny'
+														)}
+													</Button>
+												</div>
+											</td>
+										</tr>
 									);
 								})}
-								{waitlistInvitations.map((inv) => (
-									<li key={inv.id} className="space-y-2 p-4">
-										<div className="flex items-center gap-2">
-											<span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-800" aria-hidden>
-												<Mail className="h-3.5 w-3.5" />
-											</span>
-											<span className="italic text-slate-800">{t('users.wait.invited')}</span>
-										</div>
-										<p className="font-mono text-xs text-slate-800 [overflow-wrap:anywhere]"><bdi>{inv.emailAddress}</bdi></p>
-										<p className="text-xs text-slate-700">
-											{t('users.wait.colDate')}: {formatDate(inv.createdAt)}
-										</p>
-										{approveButtons({ invitationId: inv.id, name: inv.emailAddress, key: inv.id })}
-									</li>
-								))}
-							</ul>
-						</>
-					)}
-				</section>
+
+								{/* Pending Invitations */}
+								{waitlistInvitations.map((inv) => {
+									const dateStr = inv.createdAt
+										? new Date(inv.createdAt).toLocaleDateString('en-US', {
+												month: 'short',
+												day: 'numeric',
+												year: 'numeric',
+										  })
+										: 'Recent';
+
+									return (
+										<tr key={inv.id} className="hover:bg-slate-50/80 transition-colors">
+											<td className="py-3.5 px-6 font-semibold text-slate-900">
+												<div className="flex items-center gap-2">
+													<div className="grid h-7 w-7 place-items-center rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
+														<Mail className="h-3.5 w-3.5" />
+													</div>
+													<span className="italic text-slate-700">Invited Student</span>
+												</div>
+											</td>
+											<td className="py-3.5 px-6 text-xs text-slate-600 font-mono">
+												{inv.emailAddress}
+											</td>
+											<td className="py-3.5 px-6 text-xs text-slate-500">
+												{dateStr}
+											</td>
+											<td className="py-3.5 px-6 text-right">
+												<div className="flex items-center justify-end gap-2">
+													<Button
+														size="sm"
+														disabled={approvingId === inv.id}
+														onClick={() =>
+															handleApprove({
+																invitationId: inv.id,
+																name: inv.emailAddress,
+															})
+														}
+														className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs"
+													>
+														{approvingId === inv.id ? (
+															<Loader2 className="h-3.5 w-3.5 animate-spin" />
+														) : (
+															<>
+																<Check className="h-3.5 w-3.5 mr-1" />
+																Approve Student
+															</>
+														)}
+													</Button>
+													<Button
+														size="sm"
+														variant="outline"
+														disabled={denyingId === inv.id}
+														onClick={() =>
+															handleDeny({
+																invitationId: inv.id,
+																name: inv.emailAddress,
+															})
+														}
+														className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-xs"
+													>
+														{denyingId === inv.id ? (
+															<Loader2 className="h-3.5 w-3.5 animate-spin" />
+														) : (
+															'Deny'
+														)}
+													</Button>
+												</div>
+											</td>
+										</tr>
+									);
+								})}
+							</tbody>
+						</table>
+					</div>
+				)}
+			</section>
 			)}
 
-			{/* SECTION 3: STUDY GROUPS & CUSTOM SCHEDULING */}
+			{/* ============================================================== */}
+			{/* SECTION 3 — GROUP CREATION & CUSTOM SCHEDULING                 */}
+			{/* ============================================================== */}
 			{(activeTab === 'ALL' || activeTab === 'GROUPS') && (
-				<section className="space-y-4">
-					<SectionHeading
-						icon={<Users className="h-5 w-5" />}
-						title={t('users.groups.title')}
-						subtitle={t('users.groups.subtitle')}
-						trailing={
-							<Button
-								type="button"
-								variant="outline"
-								className="min-h-[44px] self-start"
-								onClick={() => {
-									setEditingGroup(null);
-									setIsGroupModalOpen(true);
-								}}
-							>
-								<Plus className="me-1 h-4 w-4" aria-hidden />
-								{t('users.groups.new')}
-							</Button>
-						}
-					/>
+				<section className="space-y-4 transition-all duration-200">
+					<div className="flex items-center justify-between">
+						<div>
+							<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+								<Users className="h-5 w-5 text-sky-700" />
+								Study Groups &amp; Custom Scheduling
+							</h2>
+						<p className="text-xs text-slate-500">
+							Configure recurring weekly meeting times per group and assign enrolled students.
+						</p>
+					</div>
 
-					{groups.length === 0 ? (
-						isLoading ? (
-							<div className="rounded-2xl border border-slate-300 bg-white">
-								<LoadingBlock label={t('users.dir.loading')} />
-							</div>
-						) : (
-							<div className="rounded-2xl border border-dashed border-slate-400 bg-white">
-								<EmptyBlock
-									icon={<Users className="h-6 w-6" />}
-									title={t('users.groups.emptyTitle')}
-									body={t('users.groups.emptyBody')}
-									action={
-										<Button
-											type="button"
-											className="min-h-[44px]"
-											onClick={() => {
-												setEditingGroup(null);
-												setIsGroupModalOpen(true);
-											}}
+					<Button
+						size="sm"
+						onClick={() => {
+							setEditingGroup(null);
+							setIsGroupModalOpen(true);
+						}}
+						className="bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-xs text-xs"
+					>
+						<Plus className="h-3.5 w-3.5 mr-1" />
+						New Group
+					</Button>
+				</div>
+
+				{groups.length === 0 ? (
+					<div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+						<Users className="h-8 w-8 text-slate-300 mb-2" />
+						<p className="text-sm font-semibold text-slate-800">
+							No study groups created yet
+						</p>
+						<p className="text-xs text-slate-400 mt-1 max-w-sm">
+							Create your first group to start scheduling sessions and organizing students.
+						</p>
+						<Button
+							size="sm"
+							onClick={() => {
+								setEditingGroup(null);
+								setIsGroupModalOpen(true);
+							}}
+							className="mt-4 bg-slate-900 hover:bg-slate-800 text-white text-xs"
+						>
+							<Plus className="h-3.5 w-3.5 mr-1" />
+							Create First Group
+						</Button>
+					</div>
+				) : (
+					<div className="space-y-3.5">
+						{groups.map((group) => {
+							const isExpanded = !!expandedGroupIds[group.id];
+							const studentCount = group.students?.length || 0;
+							const nextSession = getNextUpcomingSession(
+								group.name,
+								group.schedule
+							);
+
+							return (
+								<div
+									key={group.id}
+									className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden transition"
+								>
+									{/* Group Header Card */}
+									<div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-3 border-b border-slate-100 bg-white">
+										<div
+											onClick={() => toggleGroupAccordion(group.id)}
+											className="flex items-center gap-3.5 cursor-pointer select-none flex-1 min-w-0"
 										>
-											<Plus className="me-1 h-4 w-4" aria-hidden />
-											{t('users.groups.createFirst')}
-										</Button>
-									}
-								/>
-							</div>
-						)
-					) : (
-						<div className="space-y-3.5">
-							{groups.map((group) => {
-								const isExpanded = !!expandedGroupIds[group.id];
-								const studentCount = group.students?.length || 0;
-								const nextSession = getNextUpcomingSession(group.name, group.schedule);
-								const panelId = `group-members-${group.id}`;
+											<div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700 font-bold">
+												{group.name.charAt(0)}
+											</div>
+											<div className="space-y-1 min-w-0">
+												<div className="flex items-center gap-2">
+													<h3 className="font-bold text-slate-900 text-base truncate">
+														{group.name}
+													</h3>
+													<span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600 shrink-0">
+														{studentCount} {studentCount === 1 ? 'student' : 'students'}
+													</span>
+												</div>
 
-								return (
-									<div key={group.id} className="overflow-hidden rounded-2xl border border-slate-300 bg-white">
-										{/* Group header card */}
-										<div className="flex flex-col gap-3 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+												{/* Next Session pill */}
+												{nextSession && (
+													<p className="text-xs text-sky-700 font-medium">
+														Next: {nextSession.fullFormatted}
+													</p>
+												)}
+											</div>
+										</div>
+
+										<div className="flex items-center gap-2 shrink-0">
+											{/* Schedule Tags */}
+											{Array.isArray(group.schedule) && group.schedule.length > 0 ? (
+												<div className="hidden md:flex items-center gap-1.5 flex-wrap">
+													{group.schedule.map((s: any, idx: number) => (
+														<span
+															key={idx}
+															className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700"
+														>
+															<Clock className="h-3 w-3 text-slate-400" />
+															{s.day} @ {s.time}
+														</span>
+													))}
+												</div>
+											) : null}
+
+											{/* Action Buttons */}
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={() => openAddStudentsModal(group)}
+												className="h-8 border-sky-200 bg-sky-50/70 text-sky-700 hover:bg-sky-100 hover:text-sky-800 text-xs font-semibold"
+											>
+												<UserPlus className="h-3.5 w-3.5 mr-1" />
+												Add Students
+											</Button>
+
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={() => {
+													setEditingGroup(group);
+													setIsGroupModalOpen(true);
+												}}
+												className="h-8 border-slate-200 text-slate-700 hover:bg-slate-100 text-xs"
+											>
+												<Edit className="h-3.5 w-3.5 mr-1" />
+												Schedule
+											</Button>
+
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={() => handleDeleteGroup(group.id, group.name)}
+												className="h-8 border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-200 text-xs"
+											>
+												<Trash2 className="h-3.5 w-3.5" />
+											</Button>
+
 											<button
 												type="button"
 												onClick={() => toggleGroupAccordion(group.id)}
-												aria-expanded={isExpanded}
-												aria-controls={panelId}
-												aria-label={t(isExpanded ? 'users.groups.collapse' : 'users.groups.expand', { name: group.name })}
-												className={cn('flex min-w-0 flex-1 items-center gap-3.5 rounded-xl text-start', FOCUS)}
+												className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
 											>
-												<Initial name={group.name} className="h-10 w-10 rounded-xl text-base" />
-												<span className="min-w-0 space-y-1">
-													<span className="flex flex-wrap items-center gap-2">
-														<bdi className="truncate font-display text-lg">{group.name}</bdi>
-														<span className="text-xs font-medium text-slate-700">
-															{countText('students', studentCount)}
-														</span>
-													</span>
-													{nextSession && (
-														<span className="block text-xs font-medium text-emerald-800">
-															{t('users.groups.next', { when: formatNext(nextSession.date, nextSession.fullFormatted) })}
-														</span>
-													)}
-												</span>
+												{isExpanded ? (
+													<ChevronDown className="h-4 w-4" />
+												) : (
+													<ChevronRight className="h-4 w-4" />
+												)}
 											</button>
+										</div>
+									</div>
 
-											<div className="flex flex-wrap items-center gap-2">
-												{Array.isArray(group.schedule) && group.schedule.length > 0
-													? group.schedule.map((s: { day: string; time: string }, idx: number) => (
-															<span
-																key={idx}
-																className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-800"
-															>
-																<Clock className="h-3 w-3 text-slate-600" aria-hidden />
-																<bdi>{s.day} @ {s.time}</bdi>
-															</span>
-													  ))
-													: null}
+									{/* Expanded Student List in Group */}
+									{isExpanded && (
+										<div className="bg-slate-50/50 p-5 space-y-3">
+											<div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-500">
+												<div className="flex items-center gap-2">
+													<span>Enrolled Group Members</span>
+													<span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+														{studentCount} Students
+													</span>
+												</div>
 												<Button
-													type="button"
 													size="sm"
 													variant="outline"
 													onClick={() => openAddStudentsModal(group)}
-													className="min-h-[44px] border-emerald-500 bg-emerald-50 px-3 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 lg:min-h-9"
+													className="h-7 text-xs font-semibold border-sky-200 bg-white text-sky-700 hover:bg-sky-50 hover:text-sky-800 shadow-2xs"
 												>
-													<UserPlus className="me-1 h-3.5 w-3.5" aria-hidden />
-													{t('users.groups.addStudents')}
+													<UserPlus className="h-3.5 w-3.5 mr-1" />
+													+ Add Students
 												</Button>
-												<Button
-													type="button"
-													size="sm"
-													variant="outline"
-													onClick={() => {
-														setEditingGroup(group);
-														setIsGroupModalOpen(true);
-													}}
-													className="min-h-[44px] px-3 text-xs font-semibold lg:min-h-9"
-												>
-													<Edit className="me-1 h-3.5 w-3.5" aria-hidden />
-													{t('users.groups.schedule')}
-												</Button>
-												<Button
-													type="button"
-													size="sm"
-													variant="outline"
-													aria-label={t('users.groups.delete', { name: group.name })}
-													title={t('users.groups.delete', { name: group.name })}
-													onClick={() => setGroupToDelete({ id: group.id, name: group.name })}
-													className="min-h-[44px] min-w-[44px] border-red-300 px-3 text-red-700 hover:bg-red-50 lg:min-h-9 lg:min-w-9"
-												>
-													<Trash2 className="h-3.5 w-3.5" aria-hidden />
-												</Button>
-												<button
-													type="button"
-													onClick={() => toggleGroupAccordion(group.id)}
-													aria-expanded={isExpanded}
-													aria-controls={panelId}
-													aria-label={t(isExpanded ? 'users.groups.collapse' : 'users.groups.expand', { name: group.name })}
-													className={cn(
-														'grid h-11 w-11 place-items-center rounded-lg text-slate-800 hover:bg-slate-100 lg:h-9 lg:w-9',
-														FOCUS
-													)}
-												>
-													{isExpanded ? (
-														<ChevronDown className="h-4 w-4" aria-hidden />
-													) : (
-														<ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
-													)}
-												</button>
 											</div>
-										</div>
 
-										{/* Expanded member list */}
-										{isExpanded && (
-											<div id={panelId} className="space-y-3 border-t border-slate-200 bg-slate-50 p-4 sm:p-5">
-												<div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wider text-slate-700">
-													<div className="flex items-center gap-2">
-														<span>{t('users.groups.members')}</span>
-														<span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-800">
-															{countText('students', studentCount)}
-														</span>
-													</div>
+											{studentCount === 0 ? (
+												<div className="flex flex-col items-center justify-center p-6 text-center border border-dashed border-slate-200 rounded-xl bg-white">
+													<Users className="h-8 w-8 text-slate-300 mb-1.5" />
+													<p className="text-xs font-medium text-slate-600">
+														No students assigned to this group yet.
+													</p>
 													<Button
-														type="button"
 														size="sm"
-														variant="outline"
 														onClick={() => openAddStudentsModal(group)}
-														className="min-h-[44px] border-emerald-500 bg-white px-3 text-xs font-semibold normal-case tracking-normal text-emerald-900 hover:bg-emerald-50 lg:min-h-9"
+														className="mt-3 h-8 text-xs bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-xs"
 													>
-														<UserPlus className="me-1 h-3.5 w-3.5" aria-hidden />
-														{t('users.groups.addPlus')}
+														<UserPlus className="h-3.5 w-3.5 mr-1.5" />
+														+ Add Students to {group.name}
 													</Button>
 												</div>
+											) : (
+												<div className="grid gap-2.5 sm:grid-cols-2 md:grid-cols-3">
+													{group.students?.map((s) => {
+														const studentName = s.user?.name || 'Student';
+														const studentEmail = s.user?.email || '';
 
-												{studentCount === 0 ? (
-													<EmptyBlock
-														icon={<Users className="h-6 w-6" />}
-														title={t('users.groups.noMembers')}
-														className="rounded-xl border border-dashed border-slate-300 bg-white py-6"
-														action={
-															<Button
-																type="button"
-																size="sm"
-																className="min-h-[44px]"
-																onClick={() => openAddStudentsModal(group)}
+														return (
+															<div
+																key={s.id}
+																className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-2xs hover:border-sky-300 transition"
 															>
-																<UserPlus className="me-1.5 h-3.5 w-3.5" aria-hidden />
-																{t('users.groups.addTo', { group: group.name })}
-															</Button>
-														}
-													/>
-												) : (
-													<div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-														{group.students?.map((s) => {
-															const studentName = s.user?.name || '—';
-															const studentEmail = s.user?.email || '';
-															return (
-																<div
-																	key={s.id}
-																	className="flex items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white p-3"
+																<button
+																	type="button"
+																	onClick={() => openStudentMirror(s.userId)}
+																	className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer"
 																>
-																	<button
-																		type="button"
-																		onClick={() => openStudentMirror(s.userId)}
-																		className={cn('flex min-w-0 items-center gap-2.5 rounded-lg text-start', FOCUS)}
-																	>
-																		{s.user?.imageUrl ? (
-																			// eslint-disable-next-line @next/next/no-img-element
-																			<img
-																				src={s.user.imageUrl}
-																				alt=""
-																				className="h-8 w-8 shrink-0 rounded-full border border-slate-300 object-cover"
-																			/>
-																		) : (
-																			<Initial name={studentName} />
-																		)}
-																		<span className="min-w-0 space-y-0.5">
-																			<bdi className="block truncate text-xs font-bold text-slate-900">{studentName}</bdi>
-																			<bdi className="block truncate font-mono text-[11px] text-slate-700">{studentEmail}</bdi>
-																		</span>
-																	</button>
-																	<Button
-																		type="button"
-																		size="sm"
-																		variant="ghost"
-																		aria-label={t('users.groups.moveAria', { name: studentName })}
-																		onClick={() =>
-																			openReassignModal(
-																				{ id: s.userId, name: studentName, email: studentEmail },
-																				group.id
-																			)
-																		}
-																		className="min-h-[44px] shrink-0 px-3 text-xs text-slate-800 hover:text-slate-900"
-																	>
-																		{t('users.groups.move')}
-																	</Button>
-																</div>
-															);
-														})}
-													</div>
-												)}
-											</div>
-										)}
-									</div>
-								);
-							})}
-						</div>
-					)}
-				</section>
+																	{s.user?.imageUrl ? (
+																		<img
+																			src={s.user.imageUrl}
+																			alt={studentName}
+																			className="h-8 w-8 rounded-full border border-slate-200 object-cover"
+																		/>
+																	) : (
+																		<div className="grid h-8 w-8 place-items-center rounded-full bg-sky-100 text-sky-700 font-bold text-xs shrink-0">
+																			{studentName.charAt(0)}
+																		</div>
+																	)}
+																	<div className="min-w-0 space-y-0.5">
+																		<p className="text-xs font-bold text-slate-900 truncate group-hover:text-sky-700 transition">
+																			{studentName}
+																		</p>
+																		<p className="text-[11px] text-slate-400 truncate font-mono">
+																			{studentEmail}
+																		</p>
+																	</div>
+																</button>
+
+																<Button
+																	size="sm"
+																	variant="ghost"
+																	onClick={() =>
+																		openReassignModal(
+																			{
+																				id: s.userId,
+																				name: studentName,
+																				email: studentEmail,
+																			},
+																			group.id
+																		)
+																	}
+																	className="h-7 text-[11px] text-slate-500 hover:text-slate-900"
+																>
+																	Move
+																</Button>
+															</div>
+														);
+													})}
+												</div>
+											)}
+										</div>
+									)}
+								</div>
+							);
+						})}
+					</div>
+				)}
+			</section>
 			)}
 
-			{/* Confirm: remove a waitlist request */}
-			<ConfirmDialog
-				open={!!denyTarget}
-				onOpenChange={(open) => !open && setDenyTarget(null)}
-				icon={<UserPlus className="h-6 w-6" />}
-				title={t('users.wait.denyTitle')}
-				description={t('users.wait.denyBody', { name: denyTarget?.name ?? '' })}
-				confirmLabel={t('users.wait.denyConfirm')}
-				cancelLabel={t('users.cancel')}
-				busy={denyingId !== null}
-				onConfirm={async () => {
-					const target = denyTarget;
-					if (!target) return;
-					await handleDeny(target);
-					setDenyTarget(null);
-				}}
-			/>
-
-			{/* Confirm: delete a group */}
-			<ConfirmDialog
-				open={!!groupToDelete}
-				onOpenChange={(open) => !open && setGroupToDelete(null)}
-				icon={<Trash2 className="h-6 w-6" />}
-				title={t('users.groups.deleteTitle')}
-				description={t('users.groups.deleteBody', { name: groupToDelete?.name ?? '' })}
-				confirmLabel={t('users.groups.deleteConfirm')}
-				cancelLabel={t('users.cancel')}
-				busy={isDeletingGroup}
-				onConfirm={() => groupToDelete && handleDeleteGroup(groupToDelete.id, groupToDelete.name)}
-			/>
-
-			{/* MODALS & DRAWERS (unchanged behavior) */}
+			{/* ============================================================== */}
+			{/* MODALS & DRAWERS                                              */}
+			{/* ============================================================== */}
+			{/* 1. Group Create/Edit Modal */}
 			<GroupFormModal
 				isOpen={isGroupModalOpen}
 				onClose={() => setIsGroupModalOpen(false)}
@@ -812,6 +886,7 @@ export const AdminUsersView = () => {
 				initialGroup={editingGroup}
 			/>
 
+			{/* 2. Reassign Student Modal */}
 			<ReassignModal
 				isOpen={isReassignModalOpen}
 				onClose={() => setIsReassignModalOpen(false)}
@@ -821,6 +896,7 @@ export const AdminUsersView = () => {
 				currentGroupId={reassignCurrentGroupId}
 			/>
 
+			{/* 3. Add Students to Group Modal */}
 			<AddStudentsModal
 				isOpen={isAddStudentsOpen}
 				onClose={() => {
@@ -830,10 +906,13 @@ export const AdminUsersView = () => {
 				onSuccess={() => loadData(true)}
 				group={targetAddStudentsGroup}
 				currentMemberIds={
-					targetAddStudentsGroup?.students?.map((s: { userId?: string; id: string }) => s.userId || s.id) || []
+					targetAddStudentsGroup?.students?.map(
+						(s: any) => s.userId || s.id
+					) || []
 				}
 			/>
 
+			{/* 4. Section 3: Student Profile Mirror Drawer */}
 			<StudentMirrorDrawer
 				studentId={mirrorStudentId}
 				isOpen={isMirrorOpen}

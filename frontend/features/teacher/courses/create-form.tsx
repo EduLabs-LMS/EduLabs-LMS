@@ -1,5 +1,4 @@
 'use client';
-import { useCourseManagementPath } from '@/frontend/components/providers/course-management-path';
 
 import * as z from 'zod';
 import { api } from '@/frontend/lib/api';
@@ -29,7 +28,6 @@ const formSchema = z.object({
 });
 
 const CreateNewCoursePage = () => {
-	const courseBase = useCourseManagementPath();
 	const router = useRouter();
 	const { startLoading, stopLoading } = useGlobalLoading();
 
@@ -47,7 +45,7 @@ const CreateNewCoursePage = () => {
 
 		try {
 			const response = await api.post('/api/courses', values);
-			router.push(`${courseBase}/${response.data.id}`);
+			router.push(`/teacher/courses/${response.data.id}`);
 			toast.success('Lesson created successfully');
 		} catch (error) {
 			toast.error('Something went wrong');
@@ -104,7 +102,7 @@ const CreateNewCoursePage = () => {
 						/>
 
 						<div className="flex items-center gap-x-2 pt-2 border-t border-slate-100">
-							<Link href={courseBase}>
+							<Link href={'/teacher/courses'}>
 								<Button type="button" variant={'outline'} className="border-slate-200 text-slate-700">
 									Cancel
 								</Button>

@@ -1,5 +1,4 @@
 'use client';
-import { useCourseManagementPath } from '@/frontend/components/providers/course-management-path';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CustomDomains } from './custom-domains';
@@ -11,9 +10,8 @@ const button='rounded-xl border-2 border-black bg-primary px-4 py-2 text-sm font
 const field='mt-1 w-full min-w-0 rounded-xl border-2 border-black bg-background p-3 text-sm';
 const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
 export function TeacherWebsiteWorkspace({organizations}:{organizations:{id:string;name:string}[]}) {
-	const courseBase = useCourseManagementPath();
  const [org,setOrg]=useState(organizations[0]?.id??'');
- return <main className="mx-auto max-w-7xl space-y-6 pb-16"><header className="space-y-3"><Link href={courseBase} className="text-sm underline">Back to courses</Link><h1 className="font-display text-3xl">Your teaching website</h1><p className="text-sm">A welcoming front door for your classroom. Your academic content stays private.</p><label className="block max-w-md font-bold">Teaching organization<select aria-label="Teaching organization" className={field} value={org} onChange={e=>{if(window.confirm('Switch organization? Unsaved website changes will be discarded.'))setOrg(e.target.value);}}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label></header>{org?<WebsiteEditor key={org} organizationId={org}/>:<section className={panel}>No active teaching organization is available.</section>}</main>;
+ return <main className="mx-auto max-w-7xl space-y-6 pb-16"><header className="space-y-3"><Link href="/teacher/courses" className="text-sm underline">Back to courses</Link><h1 className="font-display text-3xl">Your teaching website</h1><p className="text-sm">A welcoming front door for your classroom. Your academic content stays private.</p><label className="block max-w-md font-bold">Teaching organization<select aria-label="Teaching organization" className={field} value={org} onChange={e=>{if(window.confirm('Switch organization? Unsaved website changes will be discarded.'))setOrg(e.target.value);}}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label></header>{org?<WebsiteEditor key={org} organizationId={org}/>:<section className={panel}>No active teaching organization is available.</section>}</main>;
 }
 function WebsiteEditor({organizationId}:{organizationId:string}) {
  const [state,setState]=useState<WebsiteEditorState|null>(null),[config,setConfig]=useState<WebsiteConfig>(initialWebsiteConfig),[catalog,setCatalog]=useState<CatalogEntry[]>([]),[selectedStages,setStages]=useState<string[]>([]),[slug,setSlug]=useState(''),[error,setError]=useState(''),[conflict,setConflict]=useState(false),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[epoch,setEpoch]=useState(0),[mode,setMode]=useState<'draft'|'published'>('draft'),[search,setSearch]=useState(''),[page,setPage]=useState(0);

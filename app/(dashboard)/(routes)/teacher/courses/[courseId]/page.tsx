@@ -1,5 +1,4 @@
 import { isFirebaseStaging } from '@/shared/auth-config';
-import { getCourseManagementPath } from '@/server/services/teacher-side';
 import { TeacherEditor } from '../../../../_components/teacher-editor';
 import { auth } from '@clerk/nextjs/server';
 import { ArrowLeft, LayoutDashboard, ListChecks, ShieldCheck } from 'lucide-react';
@@ -17,9 +16,8 @@ import ChapterNumberForm from '@/frontend/features/teacher/courses/editor/chapte
 import ChaptersForm from '@/frontend/features/teacher/courses/editor/chapters-form';
 import Actions from '@/frontend/features/teacher/courses/editor/actions';
 
-const CourseIdPage = async ({ params: paramsPromise, searchParams }: { params: Promise<{ courseId: string }>; searchParams?: Promise<{ lesson?: string }> }) => {
-	const params = await paramsPromise; if (isFirebaseStaging()) return <TeacherEditor courseId={params.courseId} lessonId={(await searchParams)?.lesson} />;
-	const courseBase = await getCourseManagementPath();
+const CourseIdPage = async ({ params: paramsPromise }: { params: Promise<{ courseId: string }> }) => {
+	const params = await paramsPromise; if (isFirebaseStaging()) return <TeacherEditor courseId={params.courseId} />;
 	const { userId } = await auth();
 
 	if (!userId) {
@@ -57,7 +55,7 @@ const CourseIdPage = async ({ params: paramsPromise, searchParams }: { params: P
 		<div className="mx-auto w-full max-w-7xl space-y-6 pt-2 pb-16">
 			{/* Back Link */}
 			<Link
-				href={courseBase}
+				href="/teacher/courses"
 				className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
 			>
 				<ArrowLeft className="h-4 w-4 mr-1.5" />

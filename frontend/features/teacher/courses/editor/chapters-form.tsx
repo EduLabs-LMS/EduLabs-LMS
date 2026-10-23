@@ -1,5 +1,4 @@
 'use client';
-import { useCourseManagementPath } from '@/frontend/components/providers/course-management-path';
 
 import * as z from 'zod';
 import { api } from '@/frontend/lib/api';
@@ -35,7 +34,6 @@ const formSchema = z.object({
 });
 
 const ChaptersForm = ({ initialData, courseId }: ChaptersFormProps) => {
-	const courseBase = useCourseManagementPath();
 	const [isCreating, setIsCreating] = useState(false);
 	const [isUpdating, setIsUpdating] = useState(false);
 
@@ -90,7 +88,7 @@ const ChaptersForm = ({ initialData, courseId }: ChaptersFormProps) => {
 	};
 
 	const onEdit = (id: string) => {
-		router.push(`${courseBase}/${courseId}/chapters/${id}`);
+		router.push(`/teacher/courses/${courseId}/chapters/${id}`);
 	};
 
 	return (

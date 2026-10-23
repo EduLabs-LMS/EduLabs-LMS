@@ -18,8 +18,6 @@ import SearchInput from '@/frontend/components/search-input';
 import { canEditTeacherCourse } from '@/shared/teacher-course';
 import { studentAdministration } from '@/server/services/student-administration';
 import type { AdminMetrics } from '@/shared/contracts/student-administration';
-import { isTeacherSideContext } from '@/server/services/teacher-side';
-import { COURSE_MANAGEMENT_PATH, TEACHER_COURSES_PATH } from '@/shared/course-management-path';
 
 export type WebsiteSearch = { organization?: string; offering?: string; page?: string; title?: string };
 const panel = 'rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm';
@@ -64,14 +62,13 @@ export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
   });
   const staff = scope.courses.some(c => courseCapability(context, c)) || supported.length > 0 || context.memberships.some(m => m.status === 'active' && ['owner', 'admin'].includes(m.role) && (!search.organization || search.organization === m.organization_id));
 
-  const teacherSide = staff && isTeacherSideContext(context);
   return <div className="space-y-8"><LimitNotice limited={scope.limited} />
-    {staff && !teacherSide && <Localized as="nav" labels={{"aria-label":"common.teaching_tools"}} className="flex flex-wrap gap-4 text-sm text-sky-700">{context.memberships.some(m=>m.status==='active'&&['owner','admin','teacher'].includes(m.role))&&<Link href="/teacher/create"><L id="common.create_a_course"/></Link>}<Link href="/teacher/programs"><L id="common.academic_programs"/></Link><Link href="/teacher/website"><L id="common.website_studio"/></Link></Localized>}
-    {staff ? <AdminHome phase1 teacherSide={teacherSide} adminName={context.viewer.displayName} metrics={await studentAdministration<AdminMetrics>('metrics',search.organization?{organizationId:search.organization}:{})} recentSignups={[]} recentSubmissions={[]} /> :
+    {staff && <Localized as="nav" labels={{"aria-label":"common.teaching_tools"}} className="flex flex-wrap gap-4 text-sm text-sky-700">{context.memberships.some(m=>m.status==='active'&&['owner','admin','teacher'].includes(m.role))&&<Link href="/teacher/create"><L id="common.create_a_course"/></Link>}<Link href="/teacher/programs"><L id="common.academic_programs"/></Link><Link href="/teacher/website"><L id="common.website_studio"/></Link></Localized>}
+    {staff ? <AdminHome phase1 adminName={context.viewer.displayName} metrics={await studentAdministration<AdminMetrics>('metrics',search.organization?{organizationId:search.organization}:{})} recentSignups={[]} recentSubmissions={[]} /> :
     <StudentLearning home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={scope.offerings} lessons={scope.limited ? [] : v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} />}
     {scope.limited && <p className="text-sm text-slate-500"><L id="common.open_a_course_for_its"/></p>}
     {!staff&&<p className="text-sm text-slate-600"><L id="common.need_course_access_use_your"/>{" "}<Link className="underline" href="/access"><L id="common.view_your_access_requests"/></Link>.</p>}
-    {teacherSide ? <Offerings scope={scope} hideEmpty /> : <><Offerings scope={scope} hideEmpty /><Assessments scope={scope} /></>}
+    <Offerings scope={scope} hideEmpty /><Assessments scope={scope} />
   </div>;
 }
 export async function WebsiteCourses({ search = {}, teacher = false }: { search?: WebsiteSearch; teacher?: boolean }) {
@@ -88,8 +85,7 @@ export async function WebsiteCourses({ search = {}, teacher = false }: { search?
   const courses = rows.slice(0, 100);
   const [modules, offerings] = await Promise.all([context.repository.modules(courses.map(c => c.id)), context.repository.offerings(courses.map(c => c.id))]);
   const visible = courses.filter(c => !teacher || courseCapability(context, c) || offerings.some(o => o.course_id === c.id && offeringCapability(context, c, o.id)));
-  const base = isTeacherSideContext(context) ? COURSE_MANAGEMENT_PATH : TEACHER_COURSES_PATH;
-  const pageUrl = (value: number) => base+'?'+new URLSearchParams({page:String(value),...(search.organization?{organization:search.organization}:{}),...(search.title?{title:search.title}:{})});
+  const pageUrl = (value: number) => '/teacher/courses?'+new URLSearchParams({page:String(value),...(search.organization?{organization:search.organization}:{}),...(search.title?{title:search.title}:{})});
   return <><V2TeacherCourseList courses={visible.filter(c => canEditTeacherCourse(context.memberships.find(m=>m.organization_id===c.organization_id)??null, context.courseStaff.find(s=>s.course_id===c.id)??null)).map(c => ({id:c.id,title:c.title,isPublished:c.status==='published'}))}/><Localized as="nav" labels={{"aria-label":"common.course_pages"}} className="flex gap-6 text-sm text-sky-700">{page>0&&<Link href={pageUrl(page-1)}><L id="notifications.previous"/></Link>}{rows.length>100&&<Link href={pageUrl(page+1)}><L id="notifications.next"/></Link>}</Localized></>;
 }
 export async function WebsiteSearchCourses({search={}}:{search?:WebsiteSearch}) {

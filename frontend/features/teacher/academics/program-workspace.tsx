@@ -1,5 +1,4 @@
 'use client';
-import { useCourseManagementPath } from '@/frontend/components/providers/course-management-path';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { academicRequest } from '@/frontend/lib/academics';
@@ -26,13 +25,12 @@ export function AcademicLoadState({error,retry}:{error:string;retry:()=>void}) {
 }
 type Item=AcademicProgram|AcademicStage;
 export function AcademicWorkspace({organizations}:{organizations:AcademicOrganization[]}) {
-	const courseBase = useCourseManagementPath();
  const [organizationId,setOrganization]=useState(organizations[0]?.id??''),[page,setPage]=useState(0),[selected,setSelected]=useState<AcademicProgram|null>(null),[editing,setEditing]=useState<AcademicProgram|'new'|null>(null),[busy,setBusy]=useState(false);
  const operation=useRef(false),programs=useAcademicPage<AcademicProgram>({kind:'programs',organizationId,page:String(page)});
  async function commit(input:AcademicWrite){if(operation.current)throw Error('Wait for the current save.');operation.current=true;setBusy(true);try{return await academicRequest({},input);}finally{operation.current=false;setBusy(false);}}
  if(!organizations.length)return <section className={academicPanel}><h1 className="font-display text-2xl">Academic programs</h1><p className="mt-3">No active teaching organization is available for this account.</p></section>;
  return <div className="mx-auto max-w-7xl space-y-6 pb-16">
-  <header className="space-y-3"><Link href={courseBase} className="text-sm underline">Back to courses</Link><h1 className="font-display text-3xl">Academic programs &amp; stages</h1><p className="text-sm">Organize multiple curricula in your existing teacher dashboard. Classification never enrolls a student or publishes a course.</p>
+  <header className="space-y-3"><Link href="/teacher/courses" className="text-sm underline">Back to courses</Link><h1 className="font-display text-3xl">Academic programs &amp; stages</h1><p className="text-sm">Organize multiple curricula in your existing teacher dashboard. Classification never enrolls a student or publishes a course.</p>
    <label className="block max-w-md text-sm font-bold">Teaching organization<select className={field} disabled={busy} value={organizationId} onChange={e=>{setOrganization(e.target.value);setPage(0);setSelected(null);setEditing(null);}}>{organizations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select></label>
   </header>
   <div className="grid items-start gap-6 lg:grid-cols-2">
