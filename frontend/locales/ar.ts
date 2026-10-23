@@ -816,5 +816,19 @@ export const ar: Record<keyof typeof en, string> = {
   "gv.no_attendance": "لا يوجد حضور معتمد بعد.",
   "gv.no_records": "لا توجد سجلات هنا بعد.",
   "gv.overview": "نظرة عامة",
-  "gv.capacity_label": "السعة"
+  "gv.capacity_label": "السعة",
+  "gv.sort_label": "الترتيب حسب",
+  "gv.sort_next": "أقرب جلسة",
+  "gv.sort_name": "الاسم",
+  "gv.mode_filter_label": "نوع الحصة",
+  "gv.filter_online": "عبر الإنترنت",
+  "gv.filter_center": "حضوري",
+  "gv.filter_both": "الاثنان",
+  "gv.live_now": "مباشر الآن",
+  "gv.in_time": "بعد {time}",
+  "gv.no_next": "لا توجد جلسة مجدولة",
+  "gv.unit_d": "ي",
+  "gv.unit_h": "س",
+  "gv.unit_m": "د",
+  "gv.no_groups_filtered": "لا توجد مجموعات تطابق هذا الفلتر. جرّب نوع حصة آخر أو اختر الاثنين."
 };

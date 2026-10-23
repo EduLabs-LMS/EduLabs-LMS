@@ -816,5 +816,19 @@ export const en = {
   "gv.no_attendance": "No finalized attendance yet.",
   "gv.no_records": "No records here yet.",
   "gv.overview": "Overview",
-  "gv.capacity_label": "Capacity"
+  "gv.capacity_label": "Capacity",
+  "gv.sort_label": "Sort by",
+  "gv.sort_next": "Next session",
+  "gv.sort_name": "Name",
+  "gv.mode_filter_label": "Class type",
+  "gv.filter_online": "Online",
+  "gv.filter_center": "In person",
+  "gv.filter_both": "Both",
+  "gv.live_now": "Live now",
+  "gv.in_time": "in {time}",
+  "gv.no_next": "No session scheduled",
+  "gv.unit_d": "d",
+  "gv.unit_h": "h",
+  "gv.unit_m": "m",
+  "gv.no_groups_filtered": "No groups match this filter. Try another class type or choose Both."
 } as const;

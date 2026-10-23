@@ -81,3 +81,38 @@ test('the Jitsi card creates, copies, opens and clears links, and never claims p
   const form = fs.readFileSync('frontend/features/groups/group-presentation-form.tsx', 'utf8');
   for (const part of ['makeJitsiRoom()', 'groups.create_room', 'groups.copy_link', 'https://meet.jit.si/', 'Clear meeting link', 'Saving a link does not make a meeting private', 'applyMeetingDefaults:true']) assert.ok(form.includes(part), 'missing ' + part);
 });
+
+test('the class-type filter is general, online first, and sorting puts the nearest session first', () => {
+  const rows = [{ id: 'a', name: 'Zed', mode: 'online' }, { id: 'b', name: 'Amal', mode: 'center' }, { id: 'c', name: 'Mona', mode: 'online' }, { id: 'd', name: 'Bader', mode: 'online' }];
+  const ids = list => list.map(r => r.id).join('');
+  assert.equal(ids(meeting.filterByMode(rows, 'online')), 'acd');
+  assert.equal(ids(meeting.filterByMode(rows, 'center')), 'b');
+  assert.equal(ids(meeting.filterByMode(rows, 'both')), 'abcd');
+  const now = 1_000_000;
+  const nexts = { a: { start: now + 5 * 3600_000, end: now + 6 * 3600_000 }, c: { start: now - 1000, end: now + 3600_000 }, d: { start: now + 1 * 3600_000, end: now + 2 * 3600_000 }, b: null };
+  assert.equal(ids(meeting.sortGroups(rows, nexts, 'next', now)), 'cdab');
+  assert.equal(ids(meeting.sortGroups(rows, nexts, 'name', now)), 'bdca'.replace('bdca', 'bdca'));
+  assert.equal(ids(meeting.sortGroups(rows, { a: { start: now - 5000, end: now - 1000 } }, 'next', now)), 'bdca');
+  assert.equal(ids(meeting.sortGroups(rows, {}, 'next', now)), 'bdca');
+});
+
+test('countdown text shows days, hours or minutes and never goes negative', () => {
+  const u = { d: 'd', h: 'h', m: 'm' };
+  assert.equal(meeting.countdownText(2 * 86400000 + 4 * 3600000 + 59000, u), '2d 4h');
+  assert.equal(meeting.countdownText(3 * 3600000 + 20 * 60000, u), '3h 20m');
+  assert.equal(meeting.countdownText(12 * 60000, u), '12m');
+  assert.equal(meeting.countdownText(5000, u), '1m');
+  assert.equal(meeting.countdownText(-5000, u), '1m');
+});
+
+test('the list shows the countdown before the arrow, defaults to online, and shows the type tag only for Both', () => {
+  const source = fs.readFileSync('frontend/features/groups/group-workspace.tsx', 'utf8');
+  assert.match(source, /useState<ModeFilter>\('online'\)/);
+  assert.match(source, /chips\(g,!isStaff\|\|modeFilter==='both'\)\}<\/span><\/span>\{countdown\(g\.id\)\}<ChevronRight/);
+  assert.match(source, /filterByMode\(list\.rows,isStaff\?modeFilter:'both'\)/);
+  assert.match(source, /gv\.sort_next/);
+  assert.match(source, /gv\.sort_name/);
+  const css = fs.readFileSync('app/globals.css', 'utf8');
+  assert.match(css, /select:not\(\[multiple\]\):not\(\[size\]\)[^}]*padding-inline-end: 2\.5rem/);
+  assert.match(css, /\[dir='rtl'\] select:not\(\[multiple\]\):not\(\[size\]\)/);
+});
