@@ -4,6 +4,7 @@ import { WebsiteNavigationProvider } from '@/frontend/components/providers/appli
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { isTeacherSide, studentPreviewActive, studentPreviewCookie } from '@/shared/student-preview';
+import { viewerRole } from '@/shared/roles';
 import { StudentPreviewBar } from '@/frontend/features/dashboard/student-preview';
 import { PageTransition } from '@/frontend/components/page-transition';
 import { auth } from '@clerk/nextjs/server';
@@ -26,7 +27,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
         ).map(o => o.id);
         const teacherSide = isTeacherSide(context.memberships, context.courseStaff, context.offeringStaff);
         const studentPreview = studentPreviewActive(teacherSide, (await cookies()).get(studentPreviewCookie)?.value);
-        return <WebsiteNavigationProvider value={{ viewer: context.viewer, organizations: context.organizations.slice(0,100), staffOrganizationIds, teacherSide, studentPreview }}>
+        return <WebsiteNavigationProvider value={{ viewer: context.viewer, organizations: context.organizations.slice(0,100), staffOrganizationIds, teacherSide, studentPreview, role: viewerRole(context.memberships, context.courseStaff, context.offeringStaff) }}>
           <div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
             <MobileSidebar />
             <aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50"><Sidebar /></aside>

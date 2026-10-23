@@ -853,5 +853,9 @@ export const en = {
   "eb.kind_label": "Type",
   "eb.kind_all": "All types",
   "eb.no_match": "No exams match your search or filter.",
-  "eb.clear": "Clear search and filter"
+  "eb.clear": "Clear search and filter",
+  "roles.admin": "Admin",
+  "roles.teacher": "Teacher",
+  "roles.assistant": "Assistant",
+  "roles.student": "Student"
 } as const;

@@ -9,11 +9,12 @@ test('Firebase sidebar labels contextual students/staff and places its only bell
    '@/frontend/components/providers/application-auth-provider':{useWebsiteNavigation:()=>({staffOrganizationIds:staff?['org']:[]})},
    '@/frontend/components/providers/v2-identity':{useUser:()=>({user:{fullName:'Fictional Student'}}),useClerk:()=>({signOut:()=>{}}),UserButton:()=>React.createElement('button',null,'Account')},
    '@/frontend/features/dashboard/student-preview':{StudentPreviewToggle:()=>null},
+   '@/shared/roles':load('shared/roles.ts'),
    '@/frontend/lib/api':{api:{}},'@/frontend/components/edulabs-mark':()=>null,'@/shared/utils':{cn:(...x)=>x.filter(Boolean).join(' ')},
    '@/frontend/features/notifications/notifications-view':{NotificationBell:()=>React.createElement('button',null,'Notification preview')},
   }).default;
   const html=renderToStaticMarkup(React.createElement(Sidebar));
-  assert.match(html,staff?/>STAFF</:/>STUDENT</);assert.doesNotMatch(html,/LEARNER|>Logout</);
+  assert.match(html,staff?/>Teacher</:/>Student</);assert.doesNotMatch(html,/STAFF|LEARNER|>Logout</);
   assert.equal((html.match(/Notification preview/g)||[]).length,1);assert.ok(html.indexOf('Notification preview')>html.indexOf('Fictional Student'));assert.match(html,/Sign out/);
   assert.equal(html.includes('Admin &amp; Teacher'),false);
   assert.match(html,/class="font-display text-2xl/);assert.doesNotMatch(html,/Times New Roman/);

@@ -13,4 +13,6 @@ export interface WebsiteNavigation {
   teacherSide?: boolean;
   /** Display-only student preview; never changes the real role or permissions. */
   studentPreview?: boolean;
+  /** Display-only role label for the sidebar badge. */
+  role?: 'admin' | 'teacher' | 'assistant' | 'student';
 }

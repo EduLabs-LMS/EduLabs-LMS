@@ -853,5 +853,9 @@ export const ar: Record<keyof typeof en, string> = {
   "eb.kind_label": "النوع",
   "eb.kind_all": "كل الأنواع",
   "eb.no_match": "لا توجد امتحانات تطابق بحثك أو الفلتر.",
-  "eb.clear": "مسح البحث والفلتر"
+  "eb.clear": "مسح البحث والفلتر",
+  "roles.admin": "مسؤول",
+  "roles.teacher": "معلم",
+  "roles.assistant": "مساعد",
+  "roles.student": "طالب"
 };

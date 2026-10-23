@@ -23,6 +23,7 @@ import EduLabsMark from '@/frontend/components/edulabs-mark';
 import { NotificationBell } from '@/frontend/features/notifications/notifications-view';
 import { cn } from '@/shared/utils';
 import { StudentPreviewToggle } from '@/frontend/features/dashboard/student-preview';
+import { legacyRole, roleChipClass, type ViewerRole } from '@/shared/roles';
 
 interface SidebarProps {
 	className?: string;
@@ -54,6 +55,9 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	const isAdminOrTeacher = isFirebaseStaging() ? !!navigation?.staffOrganizationIds.length : role === 'admin' || role === 'teacher';
 
 	const studentPreview = !!navigation?.teacherSide && !!navigation?.studentPreview;
+
+	// The badge names the real role (Admin, Teacher, Assistant or Student), each in its own colour.
+	const shownRole: ViewerRole = isFirebaseStaging() ? (navigation?.role ?? (isAdminOrTeacher ? 'teacher' : 'student')) : legacyRole(role);
 
 	const isHomeActive = pathname === '/' || pathname === '/home';
 	// Teacher-side users manage courses inside Self-learning, including the teacher-only pages (create, programs, website).
@@ -261,17 +265,8 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		<bdi dir="auto">{displayName}</bdi>
 		</span>
 		<div className="flex items-center gap-1.5 mt-0.5">
-		<span
-		className={cn(
-			'inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase leading-none border',
-			role === 'admin'
-			? 'bg-rose-50 text-rose-700 border-rose-200'
-			: role === 'teacher'
-			? 'bg-amber-50 text-amber-700 border-amber-200'
-			: 'bg-primary text-black border-black'
-		)}
-		>
-		<L text={isFirebaseStaging() ? (isAdminOrTeacher ? 'STAFF' : 'STUDENT') : role ? role.toUpperCase() : 'STUDENT'}/>
+		<span className={cn('inline-flex items-center rounded-full border-2 px-2 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wider', roleChipClass[shownRole])}>
+		<L id={('roles.'+shownRole) as 'roles.admin'}/>
 		</span>
 		</div>
 		</div>
