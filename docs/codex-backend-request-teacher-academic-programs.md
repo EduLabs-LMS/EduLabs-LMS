@@ -3,13 +3,17 @@
 **For:** Codex (back-end). **From:** the teacher-panel redesign (front-end only, branch `claude/teacher-panel-redesign`).
 **Status:** the front end is ready and waiting. No front-end work is needed after this back-end change.
 
-## What the owner wants
+## Product model (confirmed by the owner)
 
-1. Teachers and assistants can create and edit their own academic programs and stages at `/teacher/programs`.
-   Today only organization `owner` and `admin` can.
-2. The owner has standard stages that should be easy to get: **1st Secondary, 2nd Secondary, 3rd Secondary**.
-3. Unchanged on purpose: only admins can make other people admins. Teachers can make assistants.
-   Nothing in this request touches membership or role management.
+EduLabs is teacher-based: **each teacher has their own LMS**, which is one organization that they own. It is not a school
+with many teachers sharing one taxonomy. So a program or stage always belongs to one teacher's own LMS.
+
+- The teacher who creates the LMS is its `owner` and can already manage programs and stages. That must keep working.
+- Staff who work for that teacher (organization role `assistant`, and any member with organization role `teacher`) need
+  to manage the same programs and stages, because they build lessons and exams for that teacher.
+- Unchanged on purpose: only admins can make other people admins. Teachers can make assistants.
+  Nothing in this request touches membership or role management.
+- Standard stages the owner wants available: **1st Secondary, 2nd Secondary, 3rd Secondary**.
 
 ## Where the current rule lives (all three must agree)
 
@@ -24,17 +28,11 @@ Do **not** edit the applied migration. Add a new, additive migration that replac
 
 ## Requested change
 
-1. Allow org roles `teacher` and `assistant` (plus the existing `owner`, `admin`) to run `program.create`, `program.edit`,
+1. Allow org roles `assistant` and `teacher` (plus the existing `owner`, `admin`) to run `program.create`, `program.edit`,
    `stage.create`, `stage.edit` in `private.academic_command` and set `canManage` for them in `academicService`.
    Leave `course.assign` as is (it already follows `private.can_edit_course`).
-2. **Open question for the owner (decide before building):** should a teacher or assistant manage the whole organization's
-   taxonomy, or only programs and stages they created?
-   - Option A, simplest: every teacher and assistant manages the shared taxonomy of their organization.
-   - Option B: they edit only rows they created. This needs a `created_by` column, backfill for existing rows,
-     and owner/admin keeping full control.
-   The front end works with either because it only reads `canManage` per response. If B is chosen, `canManage` is
-   still one boolean per page, so tell the front end if per-row permission flags are wanted (that would be a small
-   follow-up request to the front end).
+2. Scope is the teacher's own organization only, so there is no school-wide versus own-rows question. Every manager
+   below acts inside the one organization they belong to; tenant isolation by `organization_id` must stay exact.
 3. Keep every existing safeguard: tenant isolation by `organization_id`, the revision and conflict checks (`PT409`),
    slug uniqueness (`23505`), archive and restore rules, the lock ordering comments in the function, and the
    `course_stage_versions` behaviour. Do not weaken audit or rate limiting.
@@ -54,9 +52,10 @@ Do **not** edit the applied migration. Add a new, additive migration that replac
 ## Tests and acceptance
 
 - Extend `scripts/academics.test.cjs` with a role matrix: owner, admin, teacher, assistant, student, outsider from another
-  organization, suspended and invited members. Teacher and assistant can create and edit; student and outsider get `42501`.
+  teacher's LMS, suspended and invited members. Owner, admin, teacher and assistant can create and edit inside their own
+  organization; student and outsider get `42501`.
 - Extend `scripts/academic-programs-concurrency.cjs` so teacher and assistant writes cannot deadlock with the last-owner trigger.
-- Prove tenant isolation: a teacher of organization A cannot read or write organization B's programs or stages.
+- Prove tenant isolation: staff of teacher A's LMS cannot read or write teacher B's programs or stages.
 - Prove that role and membership management is unchanged (assistants cannot become admins through any path).
 - Provider acceptance is not established by synthetic tests; say so in the report.
 
