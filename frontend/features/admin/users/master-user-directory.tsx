@@ -68,6 +68,8 @@ export const MasterUserDirectory = ({
 }: MasterUserDirectoryProps) => {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState<'ALL' | 'APPROVED' | 'PENDING'>('ALL');
+	// The waitlist filter only exists while someone is actually waiting.
+	const hasPendingUsers = users.some((u) => !u.isApproved);
 	const [roleFilter, setRoleFilter] = useState<string>('ALL');
 
 	// Group Assignment Modal State
@@ -222,7 +224,7 @@ export const MasterUserDirectory = ({
 						>
 							<option value="ALL">All Approval Statuses</option>
 							<option value="APPROVED">Approved Only</option>
-							<option value="PENDING">Pending Approval (Waitlist)</option>
+							{(hasPendingUsers || statusFilter === 'PENDING') && <option value="PENDING">Pending Approval (Waitlist)</option>}
 						</select>
 					</div>
 

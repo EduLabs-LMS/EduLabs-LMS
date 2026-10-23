@@ -52,7 +52,8 @@ export const AdminHome = ({
 	recentSignups,
 	recentSubmissions,
 }: AdminHomeProps) => {
- const attendance=useGroupSummary(phase1);
+ // Waitlist card is hidden while nobody is waiting (null = count unavailable, still shown).
+	const showWaitlist = metrics.pendingWaitlistCount !== 0;
 	return (
 		<div className="mx-auto w-full max-w-[1600px] space-y-8 pt-2 animate-in fade-in-50 slide-in-from-bottom-2 duration-200">
 			{phase1&&<GroupSummaryPanel summary={attendance} staff homework={false}/>}
@@ -80,7 +81,7 @@ export const AdminHome = ({
 			{/* ============================================================== */}
 			{/* 1. QUICK METRICS CARDS                                         */}
 			{/* ============================================================== */}
-			<section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+			<section className={`grid gap-4 grid-cols-1 sm:grid-cols-2 ${showWaitlist ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
 				{/* 1. Total Enrolled Students */}
 				<Link href="/admin/users" className="block group">
 					<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-pointer h-full flex flex-col justify-between">
@@ -102,7 +103,8 @@ export const AdminHome = ({
 					</div>
 				</Link>
 
-				{/* 2. Pending Waitlist Count */}
+				{/* 2. Pending Waitlist Count (only while someone is waiting) */}
+				{showWaitlist && (
 				<Link href="/admin/users" className="block group">
 					<div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-pointer h-full flex flex-col justify-between">
 						<div className="flex items-center justify-between">
@@ -122,6 +124,7 @@ export const AdminHome = ({
 						</div>
 					</div>
 				</Link>
+				)}
 
 				{/* 3. Homework Submissions Needing Review */}
 				<Link href="/admin/submissions" className="block group">

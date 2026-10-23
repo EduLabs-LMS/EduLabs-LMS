@@ -216,6 +216,9 @@ export const AdminUsersView = () => {
 	};
 
 	const totalWaitlistCount = waitlistUsers.length + waitlistInvitations.length;
+	// Waitlist UI is shown only while requests are waiting (hidden while loading to avoid flicker).
+	const showWaitlist = !isLoading && totalWaitlistCount > 0;
+	const visibleTab = activeTab === 'WAITLIST' && !showWaitlist ? 'ALL' : activeTab;
 	const totalAssignedStudents = groups.reduce(
 		(sum, g) => sum + (g.students?.length || 0),
 		0
@@ -269,7 +272,7 @@ export const AdminUsersView = () => {
 			</div>
 
 			{/* Quick Metric Cards with GPU-accelerated hover FX */}
-			<div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+			<div className={`grid gap-4 grid-cols-1 sm:grid-cols-2 ${showWaitlist ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
 				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
 					<div className="flex items-center justify-between">
 						<div>
@@ -286,6 +289,7 @@ export const AdminUsersView = () => {
 					</div>
 				</div>
 
+				{showWaitlist && (
 				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
 					<div className="flex items-center justify-between">
 						<div>
@@ -301,6 +305,7 @@ export const AdminUsersView = () => {
 						</div>
 					</div>
 				</div>
+				)}
 
 				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
 					<div className="flex items-center justify-between">
@@ -342,7 +347,7 @@ export const AdminUsersView = () => {
 					onClick={() => setActiveTab('ALL')}
 					className={cn(
 						'px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer',
-						activeTab === 'ALL'
+						visibleTab === 'ALL'
 							? 'bg-white text-slate-900 shadow-xs'
 							: 'text-slate-600 hover:text-slate-900'
 					)}
@@ -354,13 +359,14 @@ export const AdminUsersView = () => {
 					onClick={() => setActiveTab('DIRECTORY')}
 					className={cn(
 						'px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer',
-						activeTab === 'DIRECTORY'
+						visibleTab === 'DIRECTORY'
 							? 'bg-white text-slate-900 shadow-xs'
 							: 'text-slate-600 hover:text-slate-900'
 					)}
 				>
 					Master Directory ({platformUsers.length})
 				</button>
+				{showWaitlist && (
 				<button
 					type="button"
 					onClick={() => setActiveTab('WAITLIST')}
@@ -378,12 +384,13 @@ export const AdminUsersView = () => {
 						</span>
 					)}
 				</button>
+				)}
 				<button
 					type="button"
 					onClick={() => setActiveTab('GROUPS')}
 					className={cn(
 						'px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer',
-						activeTab === 'GROUPS'
+						visibleTab === 'GROUPS'
 							? 'bg-white text-slate-900 shadow-xs'
 							: 'text-slate-600 hover:text-slate-900'
 					)}
@@ -395,7 +402,7 @@ export const AdminUsersView = () => {
 			{/* ============================================================== */}
 			{/* SECTION 1 — MASTER USER DIRECTORY                             */}
 			{/* ============================================================== */}
-			{(activeTab === 'ALL' || activeTab === 'DIRECTORY') && (
+			{(visibleTab === 'ALL' || visibleTab === 'DIRECTORY') && (
 				<section className="transition-all duration-200">
 					<MasterUserDirectory
 						users={platformUsers}
@@ -410,7 +417,7 @@ export const AdminUsersView = () => {
 			{/* ============================================================== */}
 			{/* SECTION 2 — WAITLIST APPROVALS (TOP PRIORITY)                 */}
 			{/* ============================================================== */}
-			{(activeTab === 'ALL' || activeTab === 'WAITLIST') && (
+			{showWaitlist && (visibleTab === 'ALL' || visibleTab === 'WAITLIST') && (
 				<section className="rounded-2xl border border-amber-200/90 bg-white shadow-sm overflow-hidden transition-all duration-200">
 				<div className="flex items-center justify-between border-b border-amber-100 bg-amber-50/50 px-6 py-4">
 					<div className="flex items-center gap-2.5">
@@ -617,7 +624,7 @@ export const AdminUsersView = () => {
 			{/* ============================================================== */}
 			{/* SECTION 3 — GROUP CREATION & CUSTOM SCHEDULING                 */}
 			{/* ============================================================== */}
-			{(activeTab === 'ALL' || activeTab === 'GROUPS') && (
+			{(visibleTab === 'ALL' || visibleTab === 'GROUPS') && (
 				<section className="space-y-4 transition-all duration-200">
 					<div className="flex items-center justify-between">
 						<div>
