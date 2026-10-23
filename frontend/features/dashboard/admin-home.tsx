@@ -6,13 +6,10 @@ import { useGroupSummary } from '@/frontend/features/groups/use-group-summary';
 import { GroupSummaryPanel } from '@/frontend/features/groups/group-summary-panel';
 import {
 	ArrowRight,
-	BookOpen,
 	Calendar,
 	CheckCircle2,
 	Clock,
 	Layers,
-	ShieldAlert,
-	ShieldCheck,
 	Sparkles,
 	UserCheck,
 	UserPlus,
@@ -59,33 +56,24 @@ export const AdminHome = ({
 	return (
 		<div className="mx-auto w-full max-w-[1600px] space-y-8 pt-2 animate-in fade-in-50 slide-in-from-bottom-2 duration-200">
 			{phase1&&<GroupSummaryPanel summary={attendance} staff homework={false}/>}
-			{/* Top Welcome Hero Banner */}
-			<section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
-				<div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-					<div className="space-y-2">
-						<div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
-							<ShieldCheck className="h-3.5 w-3.5" />
-							<span><L id="teacher.teacher_administrator_command_center"/></span>
-						</div>
-						<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900"><L id="teacher.welcome_back"/>{" "}{adminName}!
-						</h1>
-						<p className="text-sm text-slate-500 max-w-2xl leading-relaxed"><L id="teacher.here_is_an_overview_of"/></p>
-					</div>
+			{/* Welcome heading and primary actions sit directly on the page background */}
+			<section className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+				<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900"><L id="teacher.welcome_back"/>{" "}{adminName}!
+				</h1>
 
-					<div className="flex flex-wrap items-center gap-3 shrink-0">
-						<Link href="/admin/users">
-							<Button className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-xs">
-								<Users className="h-4 w-4 mr-1.5" /><L id="teacher.manage_users_groups"/></Button>
-						</Link>
-						<Link href="/admin/submissions">
-							<Button
-								variant="outline"
-								className="border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-semibold"
-							>
-								<CheckCircle2 className="h-4 w-4 mr-1.5 text-emerald-600" /><L id="teacher.review_homework"/>{metrics.pendingHomeworkCount ?? <L id="common.unavailable"/>})
-							</Button>
-						</Link>
-					</div>
+				<div className="flex flex-wrap items-center gap-3 shrink-0">
+					<Link href="/admin/users">
+						<Button className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-xs">
+							<Users className="h-4 w-4 mr-1.5" /><L id="teacher.manage_users_groups"/></Button>
+					</Link>
+					<Link href="/admin/submissions">
+						<Button
+							variant="outline"
+							className="border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-semibold"
+						>
+							<CheckCircle2 className="h-4 w-4 mr-1.5 text-emerald-600" /><L id="teacher.review_homework"/>{metrics.pendingHomeworkCount ?? <L id="common.unavailable"/>})
+						</Button>
+					</Link>
 				</div>
 			</section>
 
@@ -176,56 +164,6 @@ export const AdminHome = ({
 						</div>
 					</div>
 				</Link>
-			</section>
-
-			{/* ============================================================== */}
-			{/* 2. QUICK ACTION CARDS                                          */}
-			{/* ============================================================== */}
-			<section className="space-y-3">
-				<h2 className="text-lg font-bold text-slate-900"><L id="teacher.quick_administrative_actions"/></h2>
-				<div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-					{/* Action 1 */}
-					<Link
-						href="/admin/users"
-						className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:border-amber-300 hover:shadow-md active:translate-y-0"
-					>
-						<div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-amber-50 text-amber-700">
-							<ShieldAlert className="h-6 w-6" />
-						</div>
-						<div className="min-w-0">
-							<h3 className="font-bold text-slate-900 text-sm"><L id="teacher.review_waitlist_approvals"/></h3>
-							<p className="text-xs text-slate-500 mt-0.5 line-clamp-1"><L id="teacher.approve_newly_registered_students_and"/></p>
-						</div>
-					</Link>
-
-					{/* Action 2 */}
-					<Link
-						href="/admin/submissions"
-						className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:border-sky-300 hover:shadow-md active:translate-y-0"
-					>
-						<div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sky-700">
-							<CheckCircle2 className="h-6 w-6" />
-						</div>
-						<div className="min-w-0">
-							<h3 className="font-bold text-slate-900 text-sm"><L id="teacher.grade_homework_submissions"/></h3>
-							<p className="text-xs text-slate-500 mt-0.5 line-clamp-1"><L id="teacher.inspect_textbook_uploads_and_mark"/></p>
-						</div>
-					</Link>
-
-					{/* Action 3 */}
-					<Link
-						href="/teacher/courses"
-						className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:border-violet-300 hover:shadow-md active:translate-y-0"
-					>
-						<div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-violet-50 text-violet-700">
-							<BookOpen className="h-6 w-6" />
-						</div>
-						<div className="min-w-0">
-							<h3 className="font-bold text-slate-900 text-sm"><L id="teacher.manage_curriculum_videos"/></h3>
-							<p className="text-xs text-slate-500 mt-0.5 line-clamp-1"><L id="teacher.upload_lessons_configure_videos_and"/></p>
-						</div>
-					</Link>
-				</div>
 			</section>
 
 			{/* ============================================================== */}
