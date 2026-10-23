@@ -29,6 +29,7 @@ test('restored-session and form completion navigate home only once', async () =>
     'lucide-react': {},
     '@/shared/contracts/account': {},
     '@/frontend/lib/signup-recovery': {},
+    '@/frontend/lib/branded-auth-email': { requestBrandedVerification: async () => {}, requestBrandedPasswordReset: async () => {} },
     '@/frontend/lib/account-draft': {},
     '@/frontend/components/edulabs-mark': {},
     './avatar-picker': {}, './provider-icons': {},
