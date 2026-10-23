@@ -13,16 +13,20 @@ export function makeJitsiRoom(random: (n: number) => Uint8Array = n => crypto.ge
   return url;
 }
 
-export type GroupTab = 'overview' | 'members' | 'sessions' | 'more';
-export const groupTabs: GroupTab[] = ['overview', 'members', 'sessions', 'more'];
-/** Which record views belong to which tab. Students only ever see their own history. */
-export function recordViews(staff: boolean, tab: GroupTab): string[] {
-  if (!staff) return ['history'];
-  if (tab === 'members') return ['members', 'eligible'];
-  if (tab === 'more') return ['staff', 'history', 'audit'];
-  return ['members', 'eligible', 'staff', 'history', 'audit'];
+export type GroupTab = 'overview' | 'members' | 'sessions' | 'settings' | 'attendance';
+/** Staff manage a group in four tabs; students only see the overview and their own attendance. */
+export function tabsFor(staff: boolean): GroupTab[] {
+  return staff ? ['overview', 'members', 'sessions', 'settings'] : ['overview', 'attendance'];
 }
-/** The view to load when a tab opens (staff only). */
+/** The record view to load when a tab opens. */
 export function defaultView(tab: GroupTab): string | null {
-  return tab === 'members' ? 'members' : tab === 'more' ? 'history' : null;
+  return tab === 'members' ? 'members' : tab === 'settings' ? 'staff' : tab === 'attendance' ? 'history' : null;
+}
+/** Teachers and assistants have no attendance history of their own; only people who are students of a group do. */
+export function showOwnHistory(isStaff: boolean) {
+  return !isStaff;
+}
+/** "Mon 19:00 · 90 min" style label for one weekly meeting. */
+export function weeklyLabel(s: { weekday: number; time: string; durationMinutes: number }, names: string[]) {
+  return `${names[s.weekday] ?? ''} ${s.time} · ${s.durationMinutes} min`;
 }
