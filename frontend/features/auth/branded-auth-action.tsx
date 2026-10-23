@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { applyActionCode, checkActionCode, confirmPasswordReset, getAuth, verifyPasswordResetCode } from 'firebase/auth';
+import { applyActionCode, checkActionCode, confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import EduLabsMark from '@/frontend/components/edulabs-mark';
 import { getFirebaseAuth } from '@/frontend/lib/firebase';
 
@@ -52,7 +52,7 @@ export default function BrandedAuthAction() {
     })();
   }, []);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     if (!ready || !code || busy || success) return;
     setBusy(true);
