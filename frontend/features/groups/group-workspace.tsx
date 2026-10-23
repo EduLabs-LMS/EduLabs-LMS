@@ -9,7 +9,8 @@ import { countdownText,defaultView,filterByMode,showOwnHistory,sortGroups,tabsFo
 import { useGroupSummary } from './use-group-summary';
 import { GroupSummaryPanel } from './group-summary-panel';
 import { GroupPresentationForm } from './group-presentation-form';
-import GroupRosterView from '@/frontend/features/groups/group-roster-view';
+import UpcomingSession from '@/frontend/components/upcoming-session';
+import { StreamBubble } from './stream-bubble';
 import { groupDefinition,attendanceLabel,cairoWallTime,cairoSessionLabel,nextSession,sessionState } from '@/shared/contracts/groups';
 import type { GroupDefinition,StudyGroup,GroupSession,GroupRow,GroupPage } from '@/shared/contracts/groups';
 import { cn } from '@/shared/utils';
@@ -109,19 +110,9 @@ const shownGroups=sortGroups(filterByMode(list.rows,isStaff?modeFilter:'both'),n
 
  // ---------- Group screen ----------
  function renderOverview(g:StudyGroup){return <div className="space-y-6">
-  <section className={cn(card,'space-y-4')}>
-   <Heading id={state==='ongoing'?'gv.class_now':'gv.next_class'}/>
-   {sessions.catchingUp&&<p role="status" className="text-sm text-slate-700"><L id="gv.catching_up"/></p>}
-   {next?<div className="space-y-3"><p className="text-lg font-semibold">{cairoSessionLabel(next.starts_at)}</p><p className="flex items-center gap-2 text-sm">{next.mode==='online'?<Video aria-hidden className="h-4 w-4"/>:<MapPin aria-hidden className="h-4 w-4"/>}{next.mode==='online'?tr('gv.mode_online'):next.location}</p>
-     {next.mode==='online'&&next.join_url&&<div className="flex flex-wrap items-center gap-3"><a className={primary} href={next.join_url} target="_blank" rel="noopener noreferrer"><L id="gv.join_class"/></a>{g.staff&&<a className={btn} href={next.join_url} target="_blank" rel="noopener noreferrer"><L id="groups.start_host"/></a>}</div>}
-     {g.staff&&next.mode==='online'&&next.join_url&&<p className="text-xs text-slate-700"><L id="groups.host_hint"/></p>}
-     {next.instructions&&<p className="text-sm text-slate-700">{next.instructions}</p>}</div>:<p className="text-sm text-slate-700"><L id={sessions.catchingUp?'gv.catching_up':'gv.no_upcoming'}/></p>}
-   <p className="text-xs text-slate-700"><L id="gv.external_note"/></p>
-  </section>
   <section className={cn(card,'space-y-3')}><Heading id="gv.weekly_times"/>{definition.schedules.length?<div className="flex flex-wrap gap-2">{definition.schedules.map((s,i)=><Chip key={i}>{weeklyLabel(s,days)}</Chip>)}</div>:<p className="text-sm text-slate-700"><L id="gv.no_weekly"/></p>}
    <div className="pt-2"><h3 className="text-sm font-bold"><L id="gv.meeting_link"/></h3>{g.join_url?<a className="break-all text-sm underline" href={g.join_url} target="_blank" rel="noopener noreferrer">{g.join_url}</a>:<p className="text-sm text-slate-700"><L id="gv.no_link"/></p>}</div></section>
   <GroupSummaryPanel summary={summary} staff={g.staff}/>
-  <GroupRosterView phase1 privacySafe streamLabel={g.stream_label} streamIcon={g.stream_icon} groupName={g.name} serverNow={sessions.serverNow} nextSession={next?{date:next.starts_at,dayLabel:'',timeLabel:'',fullFormatted:cairoSessionLabel(next.starts_at),endDate:next.ends_at}:null} peers={[]} mode={g.mode} location={g.location}/>
  </div>;}
 
  function personRow(r:GroupRow,i:number,actions?:React.ReactNode,lead?:React.ReactNode,note?:React.ReactNode){return <div key={r.id??`${r.user_id}-${i}`} className="flex flex-wrap items-center gap-3 border-t border-slate-300 py-3 first:border-t-0">{lead}<Avatar name={r.display_name??r.action??'?'} className="h-10 w-10"/><div className="min-w-0 flex-1"><p className="font-semibold break-words"><bdi dir="auto">{r.display_name??r.action}</bdi></p>{note&&<div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">{note}</div>}</div>{actions&&<div className="flex flex-wrap gap-2">{actions}</div>}</div>;}
@@ -184,8 +175,18 @@ const shownGroups=sortGroups(filterByMode(list.rows,isStaff?modeFilter:'both'),n
 
  function renderGroup(g:StudyGroup){const tabs=tabsFor(g.staff);return <>
   <button className={cn(btn,'self-start')} disabled={locked} onClick={()=>{setSelected(null);setEditing(false);setSessionId(null);}}><ArrowLeft aria-hidden className="h-4 w-4 rtl:rotate-180"/><L id="gv.back_to_groups"/></button>
-  <header className={cn(card,'flex flex-wrap items-center gap-4')}><Avatar name={g.name} className="h-14 w-14 text-xl"/><div className="min-w-0 flex-1"><h1 className="break-words font-display text-3xl"><bdi dir="auto">{g.name}</bdi></h1><p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-700"><bdi dir="auto">{g.offering_name}</bdi>{chips(g)}</p></div>
-   {next&&next.mode==='online'&&next.join_url&&<a className={primary} href={next.join_url} target="_blank" rel="noopener noreferrer"><L id="gv.join_class"/></a>}</header>
+  <header className={cn(card,'space-y-5')}>
+   <div className="flex flex-wrap items-center gap-4"><Avatar name={g.name} className="h-14 w-14 text-xl"/><div className="min-w-0 flex-1"><h1 className="break-words font-display text-3xl"><bdi dir="auto">{g.name}</bdi></h1><p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-700"><bdi dir="auto">{g.offering_name}</bdi>{chips(g,false)}</p></div></div>
+   <div className="flex flex-wrap items-center gap-2" aria-label="Class badges">
+    <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-black bg-white px-3 py-1 text-xs font-bold">{g.mode==='center'?<MapPin aria-hidden className="h-4 w-4"/>:<Video aria-hidden className="h-4 w-4"/>}{g.mode==='center'?(g.location||tr('gv.mode_center')):tr('gv.mode_online')}</span>
+    <span className="inline-flex items-center rounded-full border-2 border-black bg-slate-900 px-3 py-1 text-xs font-bold text-white [&_svg]:text-green-400"><StreamBubble label={g.stream_label??'Live interactive stream'} icon={g.stream_icon??'video'}/></span>
+   </div>
+   {sessions.catchingUp&&<p role="status" className="text-sm text-slate-700"><L id="gv.catching_up"/></p>}
+   <UpcomingSession serverNow={sessions.serverNow} session={next?{date:next.starts_at,fullFormatted:cairoSessionLabel(next.starts_at),endDate:next.ends_at}:null} description={next?.instructions||undefined} className="!rounded-none !bg-transparent p-0"/>
+   {next&&next.mode==='online'&&next.join_url&&<div className="flex flex-wrap items-center gap-3"><a className={primary} href={next.join_url} target="_blank" rel="noopener noreferrer"><L id="gv.join_class"/></a>{g.staff&&<a className={btn} href={next.join_url} target="_blank" rel="noopener noreferrer"><L id="groups.start_host"/></a>}</div>}
+   {g.staff&&next&&next.mode==='online'&&next.join_url&&<p className="text-xs text-slate-700"><L id="groups.host_hint"/></p>}
+   <p className="text-xs text-slate-700"><L id="gv.external_note"/></p>
+  </header>
   <div role="group" aria-label="Group sections" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">{tabs.map(t=><button key={t} type="button" aria-pressed={tab===t} disabled={locked} className={cn('min-h-[44px] shrink-0 whitespace-nowrap rounded-full border-2 border-black px-5 text-sm font-bold disabled:opacity-60',tab===t?'bg-primary shadow-hard-sm':'bg-white hover:bg-slate-100')} onClick={()=>void openTab(t)}><L id={('gv.'+(t==='attendance'?'my_attendance':t)) as MessageKey}/></button>)}</div>
   {tab==='overview'&&renderOverview(g)}{g.staff&&tab==='members'&&renderMembers(g)}{g.staff&&tab==='sessions'&&renderSessions(g)}{g.staff&&tab==='settings'&&renderSettings(g)}{!g.staff&&tab==='attendance'&&renderAttendance(g)}
  </>;}

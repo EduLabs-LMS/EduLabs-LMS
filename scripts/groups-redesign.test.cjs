@@ -40,7 +40,7 @@ test('staff get four tabs, students get overview and their own attendance; teach
 
 test('the redesigned workspace keeps every existing group feature', () => {
   const source = fs.readFileSync('frontend/features/groups/group-workspace.tsx', 'utf8');
-  for (const feature of ["request('create'", "mutate('edit'", "'archive'", "'unarchive'", "mutate('one-off'", "operation:'reschedule'", "operation:'restore'", "operation:'cancel'", "mutate('attendance'", "mutate('finalize'", "mutate('reopen'", "mutate('add'", "mutate('remove'", "mutate('transfer'", "mutate('staff'", "'eligible'", "'audit'", "'history'", 'gv.take_attendance', 'gv.mark_page_attended', 'gv.reopen', 'gv.add_weekly', 'gv.move_target', 'gv.my_attendance', 'gv.offering_label', 'gv.more_offerings', 'gv.discard', 'gv.join_class', 'GroupPresentationForm', 'GroupSummaryPanel', 'GroupRosterView phase1 privacySafe', 'groups.start_host']) assert.ok(source.includes(feature), 'missing ' + feature);
+  for (const feature of ["request('create'", "mutate('edit'", "'archive'", "'unarchive'", "mutate('one-off'", "operation:'reschedule'", "operation:'restore'", "operation:'cancel'", "mutate('attendance'", "mutate('finalize'", "mutate('reopen'", "mutate('add'", "mutate('remove'", "mutate('transfer'", "mutate('staff'", "'eligible'", "'audit'", "'history'", 'gv.take_attendance', 'gv.mark_page_attended', 'gv.reopen', 'gv.add_weekly', 'gv.move_target', 'gv.my_attendance', 'gv.offering_label', 'gv.more_offerings', 'gv.discard', 'gv.join_class', 'GroupPresentationForm', 'GroupSummaryPanel', 'UpcomingSession', 'StreamBubble', 'groups.start_host']) assert.ok(source.includes(feature), 'missing ' + feature);
 });
 
 test('a group opens as its own screen with a back button, not below the list', () => {
@@ -115,4 +115,11 @@ test('the list shows the countdown before the arrow, defaults to online, and sho
   const css = fs.readFileSync('app/globals.css', 'utf8');
   assert.match(css, /select:not\(\[multiple\]\):not\(\[size\]\)[^}]*padding-inline-end: 2\.5rem/);
   assert.match(css, /\[dir='rtl'\] select:not\(\[multiple\]\):not\(\[size\]\)/);
+});
+
+test('the next session and the old badges sit in one card at the top of a group, and the bottom banner is gone', () => {
+  const source = fs.readFileSync('frontend/features/groups/group-workspace.tsx', 'utf8');
+  const header = source.slice(source.indexOf('<header className={cn(card,\'space-y-5\')}>'), source.indexOf('</header>', source.indexOf('<header className={cn(card,\'space-y-5\')}>')));
+  for (const part of ['<h1', 'chips(g,false)', 'Class badges', 'StreamBubble', 'UpcomingSession', 'gv.join_class', 'groups.start_host']) assert.ok(header.includes(part), 'header missing ' + part);
+  assert.doesNotMatch(source, /GroupRosterView/);
 });
