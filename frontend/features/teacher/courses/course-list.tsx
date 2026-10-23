@@ -1,38 +1,59 @@
+'use client';
 import Link from 'next/link';
-import { PlusCircle, ShieldCheck } from 'lucide-react';
-import { Button } from '@/frontend/components/ui/button';
-import { DataTable } from '@/frontend/features/teacher/courses/list/data-table';
-import { columns, type CourseListRow } from '@/frontend/features/teacher/courses/list/columns';
-export const V2TeacherCourseList = ({ courses }: {courses:CourseListRow[]}) => {
+import { useMemo, useState } from 'react';
+import { BookOpen, ChevronRight, PlusCircle } from 'lucide-react';
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
+import { Chip, EmptyState, FilterPills, PageHeader, SearchField, buttonClass, fieldClass, primaryButtonClass } from '@/frontend/components/page-kit';
+import type { CourseListRow } from '@/frontend/features/teacher/courses/list/columns';
+import { cn } from '@/shared/utils';
+
+type Status = 'all' | 'published' | 'draft';
+type Sort = 'name' | 'published';
+export { type CourseListRow };
+
+export const V2TeacherCourseList = ({ courses }: { courses: CourseListRow[] }) => {
+	const [query, setQuery] = useState(''), [status, setStatus] = useState<Status>('all'), [sort, setSort] = useState<Sort>('name');
+	const shown = useMemo(() => {
+		const q = query.trim().toLowerCase();
+		const list = courses.filter(c => (status === 'all' || (status === 'published') === c.isPublished) && (!q || c.title.toLowerCase().includes(q)));
+		return [...list].sort((a, b) => (sort === 'published' ? Number(b.isPublished) - Number(a.isPublished) : 0) || a.title.localeCompare(b.title));
+	}, [courses, query, status, sort]);
 	return (
-		<div className="mx-auto w-full max-w-7xl space-y-6 pt-2 pb-16">
-			{/* Top Header */}
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-				<div className="space-y-1">
-					<div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
-						<ShieldCheck className="h-3.5 w-3.5" />
-						Teacher Portal
-					</div>
-					<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-						Lesson Management
-					</h1>
-					<p className="text-sm text-slate-500">
-						Organize, edit, and publish your curriculum lessons and chapters.
-					</p>
+		<div className="mx-auto w-full max-w-7xl space-y-6 pb-16 pt-2">
+			<PageHeader
+				icon={<BookOpen aria-hidden className="h-7 w-7" />}
+				title="Lesson Management"
+				subtitle="Organize, edit, and publish your curriculum lessons and chapters."
+				actions={<>
+					<Link className={buttonClass} href="/teacher/programs">Academic programs</Link>
+					<Link className={buttonClass} href="/teacher/website">Website studio</Link>
+					<Link className={primaryButtonClass} href="/teacher/create"><PlusCircle aria-hidden className="h-4 w-4" />New Lesson</Link>
+				</>}
+			/>
+			{courses.length > 0 && (
+				<div className="flex flex-wrap items-center gap-3">
+					<SearchField value={query} onChange={setQuery} label="Search lessons" placeholder="Search by title…" />
+					<FilterPills<Status> label="Show" value={status} onChange={setStatus} options={[{ value: 'all', label: 'All' }, { value: 'published', label: 'Published' }, { value: 'draft', label: 'Drafts' }]} />
+					<label className="ms-auto flex items-center gap-2 text-sm font-semibold">Sort by<Dropdown className={cn(fieldClass, '!w-auto')} value={sort} onChange={e => setSort(e.target.value as Sort)}><option value="name">Name</option><option value="published">Published first</option></Dropdown></label>
 				</div>
-
-				<div className="flex flex-wrap gap-3"><Link className="rounded-xl border-2 border-black bg-primary px-4 py-2 text-sm font-bold shadow-hard-sm" href="/teacher/programs">Academic programs</Link><Link className="rounded-xl border-2 border-black bg-primary px-4 py-2 text-sm font-bold shadow-hard-sm" href="/teacher/website">Website studio</Link><Link href="/teacher/create">
-					<Button className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-xs">
-						<PlusCircle className="h-4 w-4 mr-1.5" />
-						New Lesson
-					</Button>
-				</Link></div>
-			</div>
-
-			{/* White Card Container */}
-			<div className="rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm">
-				<DataTable columns={columns} data={courses} />
-			</div>
+			)}
+			{courses.length === 0 ? (
+				<EmptyState icon={<BookOpen className="h-8 w-8" />} title="No lessons yet" note="Create your first lesson to start building your curriculum." action={<Link className={primaryButtonClass} href="/teacher/create"><PlusCircle aria-hidden className="h-4 w-4" />New Lesson</Link>} />
+			) : shown.length === 0 ? (
+				<EmptyState title="No lessons match your search or filter." action={<button type="button" className={buttonClass} onClick={() => { setQuery(''); setStatus('all'); }}>Clear search and filter</button>} />
+			) : (
+				<ul className="m-list grid gap-3 md:grid-cols-2">
+					{shown.map(c => (
+						<li key={c.id}>
+							<Link href={`/self-learning/${c.id}`} className="flex items-center gap-4 rounded-2xl border-2 border-black bg-white p-4 shadow-hard-sm transition-transform duration-200 hover:-translate-y-px">
+								<span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-black bg-primary font-bold">{(Array.from(c.title.trim())[0] ?? '?').toUpperCase()}</span>
+								<span className="min-w-0 flex-1"><span className="block break-words font-display text-xl"><bdi dir="auto">{c.title}</bdi></span><span className="mt-1 flex items-center gap-2"><Chip tone={c.isPublished ? 'good' : 'warn'}>{c.isPublished ? 'Published' : 'Draft'}</Chip><span className="text-xs font-semibold text-slate-700">Edit</span></span></span>
+								<ChevronRight aria-hidden className="h-5 w-5 shrink-0 rtl:rotate-180" />
+							</Link>
+						</li>
+					))}
+				</ul>
+			)}
 		</div>
 	);
 };

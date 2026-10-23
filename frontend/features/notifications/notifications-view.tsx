@@ -5,6 +5,7 @@ import { useCallback,useEffect,useRef,useState } from 'react';
 import { Bell,Loader2 } from 'lucide-react';
 import { Button } from '@/frontend/components/ui/button';
 import { Popover,PopoverContent,PopoverTrigger } from '@/frontend/components/ui/popover';
+import { EmptyState, FilterPills, PageHeader, SkeletonList, buttonClass } from '@/frontend/components/page-kit';
 import { communicate } from '@/frontend/lib/communications';
 import { eventLabels,notificationEvents,type NotificationPage,type NotificationPreference } from '@/shared/contracts/communications';
 const panel='rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm';
@@ -39,7 +40,7 @@ export function NotificationBell({onNavigate}:{onNavigate?:()=>void}={}){
  </Popover>;
 }
 export function NotificationsView(){
- const { language } = useLanguage();
+ const { language, t } = useLanguage();
  const [data,setData]=useState<NotificationPage|null>(null),[filter,setFilter]=useState('all'),[page,setPage]=useState(0),[error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
  const [prefs,setPrefs]=useState<NotificationPreference[]>([]),[pushStatus,setPushStatus]=useState(''),[publicKey,setPublicKey]=useState('');
  const load=useCallback(async()=>{setLoading(true);setError('');try{setData(await communicate<NotificationPage>('notifications','list',{filter,page}));}catch(e){setError((e as Error).message);}finally{setLoading(false);}},[filter,page]);
@@ -57,10 +58,10 @@ export function NotificationsView(){
   }catch(e){setPushStatus((e as Error).message);}finally{setBusy(false);}
  }
  return <div className="mx-auto max-w-4xl space-y-5 pb-12">
-  <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border-2 border-black bg-white p-5 shadow-hard"><h1 className="flex items-center gap-3 font-display text-3xl"><Bell/><L id="settings.notifications"/></h1><Button disabled={busy||!data?.unread} onClick={()=>void action('read-all')}><L id="notifications.mark_all_as_read"/></Button></div>
+  <PageHeader icon={<Bell aria-hidden className="h-7 w-7"/>} title={<L id="settings.notifications"/>} actions={<button className={buttonClass} disabled={busy||!data?.unread} onClick={()=>void action('read-all')}><L id="notifications.mark_all_as_read"/></button>}/>
   {error&&<p role="alert" className={panel}><L text={error}/><Button variant="outline" onClick={()=>void load()}><L id="home.retry"/></Button></p>}
-  <div className="flex gap-2">{['all','unread','read'].map(f=><Button key={f} variant={filter===f?'default':'outline'} onClick={()=>{setFilter(f);setPage(0);}}><L id={f==='all'?'notifications.all':f==='unread'?'notifications.filterUnread':'notifications.filterRead'}/></Button>)}</div>
-  {loading?<Loader2 className="mx-auto animate-spin"/>:!error&&data?.rows.length===0?<p className={panel}><L id={filter==='all'?'notifications.empty':filter==='unread'?'notifications.emptyUnread':'notifications.emptyRead'}/></p>:data?.rows.map(n=><article key={n.id} className={panel}><p className="font-semibold"><L text={eventLabels[n.event_type]}/></p><time className="text-xs text-slate-500" dateTime={n.created_at}>{new Date(n.created_at).toLocaleString(language)}</time><div className="mt-3 flex flex-wrap gap-2">{n.link?<Link className="text-sm font-semibold underline" href={n.link}><L id="notifications.open"/></Link>:n.event_type!=='account_approved'&&<span className="text-xs text-slate-500"><L id="notifications.resource_currently_unavailable"/></span>}<Button variant="outline" disabled={busy} onClick={()=>void action(n.read_at?'unread':'read',{id:n.id})}><L text={n.read_at?'Mark unread':'Mark read'}/></Button></div></article>)}
+  <FilterPills label={t('settings.notifications')} value={filter} onChange={f=>{setFilter(f);setPage(0);}} options={['all','unread','read'].map(f=>({value:f,label:<L id={f==='all'?'notifications.all':f==='unread'?'notifications.filterUnread':'notifications.filterRead'}/>}))}/>
+  {loading?<SkeletonList rows={3}/>:!error&&data?.rows.length===0?<EmptyState icon={<Bell className="h-8 w-8"/>} title={<L id={filter==='all'?'notifications.empty':filter==='unread'?'notifications.emptyUnread':'notifications.emptyRead'}/>}/>:<div className="m-list space-y-3">{data?.rows.map(n=><article key={n.id} className={panel}><p className="font-semibold"><L text={eventLabels[n.event_type]}/></p><time className="text-xs text-slate-500" dateTime={n.created_at}>{new Date(n.created_at).toLocaleString(language)}</time><div className="mt-3 flex flex-wrap gap-2">{n.link?<Link className="text-sm font-semibold underline" href={n.link}><L id="notifications.open"/></Link>:n.event_type!=='account_approved'&&<span className="text-xs text-slate-500"><L id="notifications.resource_currently_unavailable"/></span>}<Button variant="outline" disabled={busy} onClick={()=>void action(n.read_at?'unread':'read',{id:n.id})}><L text={n.read_at?'Mark unread':'Mark read'}/></Button></div></article>)}</div>}
   <div className="flex gap-2"><Button variant="outline" disabled={page===0||loading} onClick={()=>setPage(page-1)}><L id="notifications.previous"/></Button><span className="p-2"><L id="notifications.page"/>{" "}{page+1}</span><Button variant="outline" disabled={loading||!data||data.rows.length<25} onClick={()=>setPage(page+1)}><L id="notifications.next"/></Button></div>
   <section className={panel}><h2 className="font-display text-2xl"><L id="notifications.preferences"/></h2><p className="my-2 text-xs text-slate-600"><L id="notifications.push_permission_is_requested_only"/></p>
    <div className="mb-4 flex flex-wrap gap-2"><Button disabled={busy||!publicKey} onClick={()=>void push(true)}><L id="notifications.enable_browser_push"/></Button><Button variant="outline" disabled={busy} onClick={()=>void push(false)}><L id="notifications.disable_browser_push"/></Button></div><p role="status" className="text-xs text-slate-600"><L text={pushStatus||(!publicKey?'Browser push is not configured. In-app notifications remain available.':'Push availability depends on your browser and server dispatcher.')}/></p>
