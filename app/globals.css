@@ -203,7 +203,7 @@ body,
 .m-fade { animation: m-fade 200ms linear both; }
 /* Every button gets a soft press; raised (shadowed) buttons and links also lift on hover where hover exists. */
 button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href].shadow-hard-sm, a[href].shadow-hard {
-  transition: transform var(--m-fast) var(--m-ease), background-color var(--m-fast) linear, color var(--m-fast) linear, opacity var(--m-fast) linear;
+  transition: transform var(--m-fast) var(--m-ease), background-color var(--m-fast) linear, color var(--m-fast) linear, border-color var(--m-fast) linear, box-shadow var(--m-fast) linear, opacity var(--m-fast) linear;
 }
 button:not(:disabled):active, [role='button']:not([aria-disabled='true']):active, a[href].shadow-hard-sm:active { transform: translate3d(1px, 1px, 0) scale(0.985); }
 @media (hover: hover) {

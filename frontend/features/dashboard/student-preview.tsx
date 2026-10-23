@@ -61,10 +61,10 @@ export function StudentPreviewBar() {
 	if (!active) return null;
 	return (
 		<div className="fixed inset-x-0 bottom-0 z-[70] p-3 md:ps-[19rem]" role="status">
-			<div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border-[2.5px] border-black bg-primary px-4 py-3 text-black shadow-hard">
+			<div className="m-pop mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-2xl border-[2.5px] border-black bg-primary px-4 py-2.5 text-black shadow-hard sm:py-3">
 				<div className="flex min-w-0 items-center gap-3">
 					<Eye aria-hidden className="h-5 w-5 shrink-0" />
-					<p className="text-sm font-semibold"><strong><L id="preview.banner" /></strong>{' · '}<L id="preview.banner_note" /></p>
+					<p className="text-sm font-semibold"><strong><L id="preview.banner" /></strong><span className="hidden sm:inline">{' · '}<L id="preview.banner_note" /></span></p>
 				</div>
 				<button
 					type="button"
