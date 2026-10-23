@@ -92,7 +92,7 @@ const IntroSplash = () => {
 						))}
 					</div>
 
-					<p className="splash-tag mt-4 text-center font-display text-lg text-sky-700">
+					<p className="splash-tag mt-4 text-center font-display text-lg text-green-900">
 						Empowering Modern Education.
 					</p>
 				</div>

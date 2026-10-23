@@ -34,7 +34,7 @@ const RecommendedCourseCard = ({
 				</div>
 
 				<div className="flex flex-col pt-2">
-					<div className="text-lg md:text-base font-medium group-hover:text-sky-700 transition line-clamp-2">
+					<div className="text-lg md:text-base font-medium group-hover:text-green-900 transition line-clamp-2">
 						{title}
 					</div>
 

@@ -56,7 +56,7 @@ const CreateNewCoursePage = () => {
 
 	return (
 		<div className="mx-auto flex max-w-2xl items-center justify-center pt-8 pb-16">
-			<div className="w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-sm space-y-6">
+			<div className="w-full rounded-2xl border-2 border-black bg-white p-8 shadow-hard-sm space-y-6">
 				<div className="space-y-1">
 					<span className="text-xs font-bold uppercase tracking-wider text-amber-700">
 						New Lesson

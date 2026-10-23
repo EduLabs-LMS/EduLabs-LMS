@@ -62,7 +62,7 @@ const UrlField = ({
 					src={value.trim()}
 					alt="Preview"
 					referrerPolicy="no-referrer"
-					className="mt-1 max-h-32 rounded-md border border-slate-200 object-contain"
+					className="mt-1 max-h-32 rounded-md border-2 border-black object-contain"
 				/>
 			)}
 		</div>
@@ -135,7 +135,7 @@ const HomeworkQuestionsForm = ({ courseId, chapterId, initialQuestions }: Homewo
 	};
 
 	return (
-		<div className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+		<div className="mt-6 space-y-4 rounded-xl border-2 border-black bg-slate-50/70 p-4">
 			<div className="space-y-1">
 				<p className="text-sm font-semibold text-slate-900">Platform question builder</p>
 				<p className="text-xs leading-relaxed text-slate-500">
@@ -164,7 +164,7 @@ const HomeworkQuestionsForm = ({ courseId, chapterId, initialQuestions }: Homewo
 
 			<ol className="space-y-4">
 				{questions.map((question, index) => (
-					<li key={question.key} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+					<li key={question.key} className="space-y-3 rounded-xl border-2 border-black bg-white p-4">
 						<div className="flex items-center justify-between">
 							<span className="text-xs font-bold uppercase tracking-wider text-slate-700">
 								Question {index + 1}

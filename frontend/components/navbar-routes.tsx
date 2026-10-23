@@ -12,7 +12,7 @@ const NavbarRoutes = () => {
 						rootBox: 'flex items-center',
 						userButtonBox: 'flex-row-reverse gap-2.5',
 						userButtonOuterIdentifier: 'font-semibold text-slate-700 text-sm',
-						avatarBox: 'h-9 w-9 border border-slate-200',
+						avatarBox: 'h-9 w-9 border-2 border-black',
 					},
 				}}
 			/>

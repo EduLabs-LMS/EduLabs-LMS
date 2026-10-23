@@ -82,7 +82,7 @@ export const SelfLearningView = ({ chapters }: SelfLearningViewProps) => {
 								className={cn(
 									'overflow-hidden rounded-2xl border bg-white shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0',
 									isExpanded
-										? 'border-sky-300 shadow-md ring-1 ring-sky-200'
+										? 'border-slate-300 shadow-md ring-1 ring-sky-200'
 										: 'border-slate-200 hover:border-slate-300'
 								)}
 							>
@@ -98,14 +98,14 @@ export const SelfLearningView = ({ chapters }: SelfLearningViewProps) => {
 												'grid h-12 w-12 shrink-0 place-items-center rounded-xl font-bold text-lg transition-colors',
 												isExpanded
 													? 'bg-sky-600 text-white shadow-sm'
-													: 'bg-sky-50 text-sky-700 border border-sky-100'
+													: 'bg-green-50 text-green-900 border border-slate-300'
 											)}
 										>
 											{chapter.number}
 										</div>
 
 										<div className="space-y-1">
-											<span className="text-xs font-bold uppercase tracking-wider text-sky-700">
+											<span className="text-xs font-bold uppercase tracking-wider text-green-900">
 												{formatChapterLabel(chapter.type, chapter.number)}
 											</span>
 											<h2 dir="auto" className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">

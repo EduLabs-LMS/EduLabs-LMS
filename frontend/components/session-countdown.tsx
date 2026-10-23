@@ -60,7 +60,7 @@ export const SessionCountdown = ({ targetDate, endDate, serverNow, className }: 
                 {units.map(({ key, label }) => (
                     <div key={key} className={cn(
                         'flex min-h-[76px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-3 sm:min-h-[88px]',
-                        key === 'seconds' ? 'border-sky-100 bg-sky-50 text-sky-700' : 'border-slate-200 bg-slate-50 text-slate-900'
+                        key === 'seconds' ? 'border-slate-300 bg-green-50 text-green-900' : 'border-slate-200 bg-slate-50 text-slate-900'
                     )}>
                         <span className="text-2xl font-semibold leading-none tracking-tight tabular-nums sm:text-3xl">
                             {timeLeft ? String(timeLeft[key]).padStart(2, '0') : '--'}

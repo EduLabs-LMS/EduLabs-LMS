@@ -105,7 +105,7 @@ const VideoPlayer = ({
 	};
 
 	return (
-		<div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-200 shadow-sm group">
+		<div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border-2 border-black shadow-hard-sm group">
 			{!isReady && (
 				<div className="absolute inset-0 flex items-center justify-center bg-slate-900 z-10">
 					<Loader2 className="h-8 w-8 animate-spin text-cyan-400" />

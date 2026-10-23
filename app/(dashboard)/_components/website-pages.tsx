@@ -22,7 +22,7 @@ import { studentAdministration } from '@/server/services/student-administration'
 import type { AdminMetrics } from '@/shared/contracts/student-administration';
 
 export type WebsiteSearch = { organization?: string; offering?: string; page?: string; title?: string };
-const panel = 'rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm';
+const panel = 'rounded-3xl border-2 border-black bg-white p-6 sm:p-8 shadow-hard-sm';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function requireWebsiteContext() {
   const context = await getWebsiteContext();
@@ -54,9 +54,9 @@ function LimitNotice({ limited }: { limited: boolean }) {
 }
 function Offerings({ scope, hideEmpty = false }: { scope: NonNullable<Awaited<ReturnType<typeof loadWebsiteScope>>>; hideEmpty?: boolean }) {
   if (hideEmpty && !scope.limited && !scope.offerings.length) return null;
-  return <section className={panel}><h2 className="mb-4 flex items-center gap-2 text-xl font-bold"><Users className="h-5 w-5 text-cyan-600" /><L id="common.your_groups_offerings"/></h2>
+  return <section className={panel}><h2 className="mb-4 flex items-center gap-2 text-xl font-bold"><Users className="h-5 w-5 text-green-800" /><L id="common.your_groups_offerings"/></h2>
     {!scope.offerings.length && <p className="text-sm text-slate-500">{scope.limited ? 'Offering data is incomplete. Open an individual course to check its groups.' : 'No accessible offerings yet. Your teacher will arrange your course enrollment.'}</p>}
-    <div className="divide-y divide-slate-100">{scope.offerings.map(o => <Link className="flex flex-wrap justify-between gap-2 py-4 text-sm hover:text-sky-700" key={o.id} href={`/offerings/${o.id}`}><span className="font-semibold">{o.name}</span><span>{o.status} · {o.delivery_mode.replace('_', ' ')}{scope.enrollments.find(e => e.offering_id === o.id) ? ` · Your enrollment: ${scope.enrollments.find(e => e.offering_id === o.id)?.status}` : ''}</span></Link>)}</div>
+    <div className="divide-y divide-slate-100">{scope.offerings.map(o => <Link className="flex flex-wrap justify-between gap-2 py-4 text-sm hover:text-green-900" key={o.id} href={`/offerings/${o.id}`}><span className="font-semibold">{o.name}</span><span>{o.status} · {o.delivery_mode.replace('_', ' ')}{scope.enrollments.find(e => e.offering_id === o.id) ? ` · Your enrollment: ${scope.enrollments.find(e => e.offering_id === o.id)?.status}` : ''}</span></Link>)}</div>
   </section>;
 }
 function Assessments({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof loadWebsiteScope>>> }) {
@@ -102,7 +102,7 @@ export async function WebsiteCourses({ search = {}, teacher = false, preview = f
   const [modules, offerings] = await Promise.all([context.repository.modules(courses.map(c => c.id)), context.repository.offerings(courses.map(c => c.id))]);
   const visible = courses.filter(c => !teacher || courseCapability(context, c) || offerings.some(o => o.course_id === c.id && offeringCapability(context, c, o.id)));
   const pageUrl = (value: number) => '/self-learning?'+new URLSearchParams({page:String(value),...(search.organization?{organization:search.organization}:{}),...(search.title?{title:search.title}:{})});
-  return <><V2TeacherCourseList courses={visible.filter(c => canEditTeacherCourse(context.memberships.find(m=>m.organization_id===c.organization_id)??null, context.courseStaff.find(s=>s.course_id===c.id)??null)).map(c => ({id:c.id,title:c.title,isPublished:c.status==='published'}))}/><Localized as="nav" labels={{"aria-label":"common.course_pages"}} className="flex gap-6 text-sm text-sky-700">{page>0&&<Link href={pageUrl(page-1)}><L id="notifications.previous"/></Link>}{rows.length>100&&<Link href={pageUrl(page+1)}><L id="notifications.next"/></Link>}</Localized></>;
+  return <><V2TeacherCourseList courses={visible.filter(c => canEditTeacherCourse(context.memberships.find(m=>m.organization_id===c.organization_id)??null, context.courseStaff.find(s=>s.course_id===c.id)??null)).map(c => ({id:c.id,title:c.title,isPublished:c.status==='published'}))}/><Localized as="nav" labels={{"aria-label":"common.course_pages"}} className="flex gap-6 text-sm text-green-900">{page>0&&<Link href={pageUrl(page-1)}><L id="notifications.previous"/></Link>}{rows.length>100&&<Link href={pageUrl(page+1)}><L id="notifications.next"/></Link>}</Localized></>;
 }
 export async function WebsiteSearchCourses({search={}}:{search?:WebsiteSearch}) {
  const context=await requireWebsiteContext();
@@ -140,7 +140,7 @@ export async function WebsiteOffering({ offeringId, search = {} }: { offeringId:
   const staff = offeringCapability(context, course, offeringId);
   const [enrollments, total] = staff ? await Promise.all([context.repository.roster(offeringId, page), context.repository.enrollmentCount([offeringId])]) : [[], null];
   const mine = (await context.repository.myEnrollments()).find(e => e.offering_id === offeringId);
-  return <div className="space-y-6"><Link className="text-sm font-semibold text-sky-700" href="/group"><L id="common.view_your_groups_sessions_attendance"/></Link><Link className="text-sm font-semibold text-sky-700" href={`/courses/${course.id}?offering=${offering.id}`}><L id="common.view"/>{" "}{course.title}{" "}<L id="common.lessons_progress"/></Link>
+  return <div className="space-y-6"><Link className="text-sm font-semibold text-green-900" href="/group"><L id="common.view_your_groups_sessions_attendance"/></Link><Link className="text-sm font-semibold text-green-900" href={`/courses/${course.id}?offering=${offering.id}`}><L id="common.view"/>{" "}{course.title}{" "}<L id="common.lessons_progress"/></Link>
     {staff ? <><GroupRosterView phase1 groupName={offering.name} nextSession={null} peers={enrollments.slice(0, 50).map(e => ({ id: e.id, name: e.profiles?.display_name || 'Learner', email: '', role: 'student', isCurrentUser: e.user_id === context.viewer.id, enrollmentStatus: e.status, latestSubmission: null }))} /><div className={panel}><p>{total}{" "}<L id="common.enrollment_records_page"/>{" "}{page + 1}</p><Localized as="nav" labels={{"aria-label":"common.roster_pages"}} className="mt-3 flex gap-6">{page > 0 && <Link href={`/offerings/${offeringId}?page=${page - 1}`}><L id="notifications.previous"/></Link>}{enrollments.length > 50 && <Link href={`/offerings/${offeringId}?page=${page + 1}`}><L id="notifications.next"/></Link>}</Localized></div></> : <><GroupRosterView phase1 groupName={offering.name} nextSession={null} peers={mine?[{id:mine.id,name:context.viewer.displayName,email:context.viewer.email,role:'student',isCurrentUser:true,enrollmentStatus:mine.status,latestSubmission:null}]:[]}/><p role="status" className="text-sm text-slate-500"><L id="common.only_your_own_enrollment_is"/></p></>}
   </div>;
 }

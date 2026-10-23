@@ -66,7 +66,7 @@ const ChapterIdPage = async ({
 			)}
 
 			{/* Top Header Card */}
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm">
 				<div className="space-y-1">
 					<div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
 						<ShieldCheck className="h-3.5 w-3.5" />
@@ -91,7 +91,7 @@ const ChapterIdPage = async ({
 			{/* 2-Column Light Theme Cards */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 				{/* Left Card: Customize Segment */}
-				<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+				<div className="rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm space-y-6">
 					<div className="flex items-center gap-x-2.5 pb-4 border-b border-slate-100">
 						<IconBadge icon={LayoutDashboard} />
 						<div>
@@ -120,7 +120,7 @@ const ChapterIdPage = async ({
 				</div>
 
 				{/* Right Card: Segment Content & Type */}
-				<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+				<div className="rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm space-y-6">
 					<div className="flex items-center gap-x-2.5 pb-4 border-b border-slate-100">
 						<IconBadge icon={FileText} />
 						<div>

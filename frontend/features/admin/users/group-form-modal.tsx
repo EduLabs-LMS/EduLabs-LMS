@@ -148,7 +148,7 @@ export const GroupFormModal = ({
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="sm:max-w-lg border-slate-200 bg-white text-slate-900 shadow-2xl rounded-2xl p-6">
 				<DialogHeader>
-					<div className="flex items-center gap-2 text-sky-700 font-semibold text-xs uppercase tracking-wider mb-1">
+					<div className="flex items-center gap-2 text-green-900 font-semibold text-xs uppercase tracking-wider mb-1">
 						<Users className="h-4 w-4" />
 						{initialGroup ? 'Edit Study Group' : 'Create Study Group'}
 					</div>
@@ -186,7 +186,7 @@ export const GroupFormModal = ({
 							<button
 								type="button"
 								onClick={addSession}
-								className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-800 transition cursor-pointer"
+								className="inline-flex items-center gap-1 text-xs font-semibold text-green-900 hover:text-green-900 transition cursor-pointer"
 							>
 								<Plus className="h-3.5 w-3.5" />
 								Add Session
@@ -197,7 +197,7 @@ export const GroupFormModal = ({
 							{sessions.map((session, index) => (
 								<div
 									key={index}
-									className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3"
+									className="flex items-center gap-2.5 rounded-xl border-2 border-black bg-slate-50/70 p-3"
 								>
 									<span className="text-xs font-bold text-slate-400 w-16 shrink-0">
 										Session {index + 1}:
@@ -207,7 +207,7 @@ export const GroupFormModal = ({
 									<Dropdown
 										value={session.day}
 										onChange={(e) => updateSession(index, 'day', e.target.value)}
-										className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-sky-500"
+										className="h-9 rounded-lg border-2 border-black bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-black"
 									>
 										{WEEKDAYS.map((day) => (
 											<option key={day} value={day}>

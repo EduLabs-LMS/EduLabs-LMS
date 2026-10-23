@@ -22,7 +22,7 @@ export async function LearningPartPage({courseId,segmentId,preview=false}:{cours
  const blockVideo=!videoUrl?blocks.find(b=>['video','embed'].includes(b.type)&&lessonPlayback(b.mediaUrl)):undefined;
  if(blockVideo)videoUrl=blockVideo.mediaUrl;
  const videoAssetId=segment.video_asset_id??(blockVideo?tree.blocks.find(b=>b.id===blockVideo.id)?.media_asset_id:null)??null;
- return <div className="mx-auto max-w-7xl space-y-4"><Link className="text-sm font-semibold text-sky-700" href={`/self-learning/${courseId}/chapters/${segment.id}`}>← Back to segment editor</Link><Banner variant="warning" label="Teacher preview includes drafts. No student progress is recorded."/>
+ return <div className="mx-auto max-w-7xl space-y-4"><Link className="text-sm font-semibold text-green-900" href={`/self-learning/${courseId}/chapters/${segment.id}`}>← Back to segment editor</Link><Banner variant="warning" label="Teacher preview includes drafts. No student progress is recorded."/>
   <LessonTabs courseId={courseId} chapterId={segment.id} title={segment.title} chapterNumber={tree.modules.indexOf(parent)+1} chapterType={parent.group_type} courseTitle={lesson.title}
    lessonBlocks={blocks.filter(b=>b.id!==blockVideo?.id)}
    description={segment.description} playbackId={null} videoUrl={videoUrl} solutionVideoUrl={null} contentType="VIDEO_EXPLANATION" completeOnEnd={false} isCompleted={false} isWatched={false} userId="" hasSubmission={false}

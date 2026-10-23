@@ -148,7 +148,7 @@ export const AddStudentsModal = ({
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="sm:max-w-xl border-slate-200 bg-white text-slate-900 shadow-2xl rounded-2xl p-6">
 				<DialogHeader>
-					<div className="flex items-center gap-2 text-sky-700 font-semibold text-xs uppercase tracking-wider mb-1">
+					<div className="flex items-center gap-2 text-green-900 font-semibold text-xs uppercase tracking-wider mb-1">
 						<UserPlus className="h-4 w-4" />
 						Add Students to Group
 					</div>
@@ -175,7 +175,7 @@ export const AddStudentsModal = ({
 				<div className="mt-3 min-h-[250px] max-h-[360px] overflow-y-auto space-y-2 pr-1">
 					{isLoading ? (
 						<div className="flex min-h-[240px] items-center justify-center">
-							<Loader2 className="h-6 w-6 animate-spin text-sky-600" />
+							<Loader2 className="h-6 w-6 animate-spin text-green-900" />
 						</div>
 					) : filteredStudents.length === 0 ? (
 						<div className="flex flex-col items-center justify-center py-12 px-4 text-center">
@@ -197,7 +197,7 @@ export const AddStudentsModal = ({
 									className={cn(
 										'flex items-center justify-between p-3 rounded-xl border transition-all',
 										isChecked
-											? 'border-sky-300 bg-sky-50/50'
+											? 'border-slate-300 bg-green-50/50'
 											: 'border-slate-200 bg-white hover:border-slate-300'
 									)}
 								>
@@ -209,16 +209,16 @@ export const AddStudentsModal = ({
 											type="checkbox"
 											checked={isChecked}
 											onChange={() => toggleSelect(student.id)}
-											className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+											className="h-4 w-4 rounded border-slate-300 text-green-900 focus:ring-black"
 										/>
 										{student.imageUrl ? (
 											<img
 												src={student.imageUrl}
 												alt={student.name}
-												className="h-8 w-8 rounded-full border border-slate-200 object-cover shrink-0"
+												className="h-8 w-8 rounded-full border-2 border-black object-cover shrink-0"
 											/>
 										) : (
-											<div className="grid h-8 w-8 place-items-center rounded-full bg-sky-100 text-sky-700 font-bold text-xs shrink-0">
+											<div className="grid h-8 w-8 place-items-center rounded-full bg-green-100 text-green-900 font-bold text-xs shrink-0">
 												{student.name.charAt(0)}
 											</div>
 										)}
@@ -235,7 +235,7 @@ export const AddStudentsModal = ({
 														in {student.currentGroup.name}
 													</span>
 												) : (
-													<span className="rounded-full bg-emerald-50 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-700 shrink-0">
+													<span className="rounded-full bg-green-50 px-1.5 py-0.2 text-[10px] font-semibold text-green-900 shrink-0">
 														Unassigned
 													</span>
 												)}

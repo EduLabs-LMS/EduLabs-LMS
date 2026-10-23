@@ -80,7 +80,7 @@ export const ChaptersList = ({
 										className={cn(
 											'flex items-center gap-x-2 bg-slate-200 border-slate-200 border rounded-md text-slate-700 mb-4 text-sm',
 											chapter.isPublished &&
-												'bg-sky-100 border-sky-200 text-sky-700'
+												'bg-green-100 border-slate-300 text-green-900'
 										)}
 										{...provided.draggableProps}
 										// {...provided.dragHandleProps}
@@ -90,7 +90,7 @@ export const ChaptersList = ({
 											className={cn(
 												'px-2 py-3 border-r border-r-slate-200 hover:bg-slate-300 rounded-l-md transition',
 												chapter.isPublished &&
-													'border-r-sky-200 hover:bg-sky-200'
+													'border-r-sky-200 hover:bg-green-200'
 											)}
 											{...provided.dragHandleProps}
 										>

@@ -106,7 +106,7 @@ export function ExamsListView({ items, isStaff, truncated, action }: { items: Ex
 				<p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><L id="exams.this_list_is_partial_because"/></p>
 			)}
 			{isStaff && (
-				<p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><L id="exams.exam_creation_settings_and_grading"/></p>
+				<p role="status" className="rounded-xl border border-slate-300 bg-green-50 p-4 text-sm text-green-900"><L id="exams.exam_creation_settings_and_grading"/></p>
 			)}
 			{items.length === 0 ? (
 				<div className={cn(cardClass, 'text-center text-slate-600')}>
@@ -168,7 +168,7 @@ export function ExamNotFoundView() {
 			<div className={cn(cardClass, 'text-center')}>
 				<p className="font-semibold"><L id="exams.this_exam_is_not_available"/></p>
 				<p className="mt-1 text-sm text-slate-600"><L id="exams.it_may_not_be_published"/></p>
-				<Link href="/exams" className="mt-4 inline-block text-sm font-semibold text-sky-700"><L id="exams.back_to_exams"/></Link>
+				<Link href="/exams" className="mt-4 inline-block text-sm font-semibold text-green-900"><L id="exams.back_to_exams"/></Link>
 			</div>
 		</div>
 	);
@@ -178,7 +178,7 @@ export function ExamDetailView({ exam, isStaff }: { exam: ExamListItem; isStaff:
 	const mark = releasedMark(exam);
 	return (
 		<div className="mx-auto w-full max-w-3xl space-y-6 pb-12">
-			<Link href="/exams" className="inline-flex items-center gap-1 text-sm font-semibold text-sky-700">
+			<Link href="/exams" className="inline-flex items-center gap-1 text-sm font-semibold text-green-900">
 				<ArrowLeft aria-hidden className="h-4 w-4" />{" "}<L id="exams.back_to_exams"/></Link>
 			<div className={cardClass}>
 				<div className="flex items-start justify-between gap-3">
@@ -229,7 +229,7 @@ export function ExamDetailView({ exam, isStaff }: { exam: ExamListItem; isStaff:
 				) : null}
 			</div>
 
-			<p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><L id="exams.this_page_shows_exam_information"/></p>
+			<p role="status" className="rounded-xl border border-slate-300 bg-green-50 p-4 text-sm text-green-900"><L id="exams.this_page_shows_exam_information"/></p>
 		</div>
 	);
 }

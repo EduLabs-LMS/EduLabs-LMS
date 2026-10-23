@@ -49,7 +49,7 @@ export const LegacyTeacherCourses = async () => {
 			</div>
 
 			{/* White Card Container */}
-			<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+			<div className="rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm">
 				<DataTable columns={columns} data={courses} />
 			</div>
 		</div>

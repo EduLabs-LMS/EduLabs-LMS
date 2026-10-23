@@ -44,4 +44,4 @@ export async function StudentPreviewLessonPage({courseId,segmentId,offeringId}:{
   <p role="note" className="rounded-2xl border-2 border-black bg-card p-4 text-sm shadow-hard-sm"><L id="preview.homework_note"/></p></div>;
  }catch(e){return <UnavailablePreview failed={(e as {status?:number}).status===503}/>;}
 }
-function UnavailablePreview({failed=false}:{failed?:boolean}) {return <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3"><p role="alert">{failed?'Lessons could not be loaded. Please retry.':'This lesson is unpublished or unavailable, so students cannot see it.'}</p><Link className="text-sky-700 font-semibold underline" href="/self-learning">Back to Self-learning</Link></div>;}
+function UnavailablePreview({failed=false}:{failed?:boolean}) {return <div className="rounded-2xl border-2 border-black bg-white p-6 space-y-3"><p role="alert">{failed?'Lessons could not be loaded. Please retry.':'This lesson is unpublished or unavailable, so students cannot see it.'}</p><Link className="text-green-900 font-semibold underline" href="/self-learning">Back to Self-learning</Link></div>;}

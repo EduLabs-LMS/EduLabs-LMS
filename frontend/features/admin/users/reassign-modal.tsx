@@ -86,7 +86,7 @@ export const ReassignModal = ({
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="sm:max-w-md border-slate-200 bg-white text-slate-900 shadow-2xl rounded-2xl p-6">
 				<DialogHeader>
-					<div className="flex items-center gap-2 text-sky-700 font-semibold text-xs uppercase tracking-wider mb-1">
+					<div className="flex items-center gap-2 text-green-900 font-semibold text-xs uppercase tracking-wider mb-1">
 						<Users className="h-4 w-4" />
 						Group Assignment
 					</div>
@@ -106,7 +106,7 @@ export const ReassignModal = ({
 						<Dropdown
 							value={selectedGroupId}
 							onChange={(e) => setSelectedGroupId(e.target.value)}
-							className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
+							className="h-10 w-full rounded-xl border-2 border-black bg-slate-50 px-3 text-sm font-medium text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-black"
 						>
 							{groups.map((g) => (
 								<option key={g.id} value={g.id}>

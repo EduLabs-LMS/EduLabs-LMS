@@ -18,7 +18,7 @@ const FileUpload = ({ onChange, endpoint }: FileUploadProps) => {
 	return (
 		<UploadDropzone
 			appearance={{
-				container: 'rounded-md border border-slate-200 bg-white',
+				container: 'rounded-md border-2 border-black bg-white',
 				uploadIcon: 'text-slate-950',
 				label: 'text-slate-700',
 				allowedContent: 'text-slate-500',

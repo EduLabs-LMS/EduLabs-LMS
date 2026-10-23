@@ -4,7 +4,7 @@ import { cn } from '@/shared/utils';
 
 const STATUS_CLASS: Record<TicketStatus, string> = {
 	OPEN: 'bg-amber-200',
-	IN_PROGRESS: 'bg-sky-200',
+	IN_PROGRESS: 'bg-green-200',
 	RESOLVED: 'bg-primary',
 };
 

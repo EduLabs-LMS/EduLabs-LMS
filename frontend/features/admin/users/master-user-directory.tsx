@@ -182,7 +182,7 @@ export const MasterUserDirectory = ({
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 				<div>
 					<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-						<Users className="h-5 w-5 text-sky-700" />
+						<Users className="h-5 w-5 text-green-900" />
 						Master User Directory
 					</h2>
 					<p className="text-xs text-slate-500">
@@ -190,14 +190,14 @@ export const MasterUserDirectory = ({
 					</p>
 				</div>
 
-				<div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
-					<UserCheck className="h-4 w-4 text-emerald-600" />
+				<div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-white border-2 border-black px-3 py-1.5 rounded-xl shadow-2xs">
+					<UserCheck className="h-4 w-4 text-green-900" />
 					<span>Total Registered: {users.length}</span>
 				</div>
 			</div>
 
 			{/* Search & Filter Toolbar */}
-			<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+			<div className="rounded-2xl border-2 border-black bg-white p-4 shadow-hard-sm space-y-3">
 				<div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
 					<Filter className="h-3.5 w-3.5 text-slate-400" />
 					Directory Search &amp; Filters
@@ -221,7 +221,7 @@ export const MasterUserDirectory = ({
 							value={statusFilter}
 							onChange={(e) => setStatusFilter(e.target.value as any)}
 							aria-label="Filter by approval status"
-							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+							className="h-10 w-full rounded-md border-2 border-black bg-slate-50 px-3 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
 						>
 							<option value="ALL">All Approval Statuses</option>
 							<option value="APPROVED">Approved Only</option>
@@ -235,7 +235,7 @@ export const MasterUserDirectory = ({
 							value={roleFilter}
 							onChange={(e) => setRoleFilter(e.target.value)}
 							aria-label="Filter by role"
-							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+							className="h-10 w-full rounded-md border-2 border-black bg-slate-50 px-3 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
 						>
 							<option value="ALL">All Roles</option>
 							<option value="STUDENT">Students</option>
@@ -247,10 +247,10 @@ export const MasterUserDirectory = ({
 			</div>
 
 			{/* Master Table */}
-			<div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+			<div className="rounded-2xl border-2 border-black bg-white shadow-hard-sm overflow-hidden">
 				{isLoading ? (
 					<div className="flex h-48 flex-col items-center justify-center gap-3">
-						<Loader2 className="h-6 w-6 animate-spin text-sky-600" />
+						<Loader2 className="h-6 w-6 animate-spin text-green-900" />
 						<span className="text-xs text-slate-500 font-medium">
 							Loading platform user directory...
 						</span>
@@ -300,9 +300,9 @@ export const MasterUserDirectory = ({
 												<button
 													type="button"
 													onClick={() => onInspectStudent?.(user.id)}
-													className="flex items-center gap-2.5 text-left hover:text-sky-700 transition cursor-pointer"
+													className="flex items-center gap-2.5 text-left hover:text-green-900 transition cursor-pointer"
 												>
-													<div className="grid h-8 w-8 place-items-center rounded-full bg-sky-100 text-sky-700 font-bold text-xs shrink-0">
+													<div className="grid h-8 w-8 place-items-center rounded-full bg-green-100 text-green-900 font-bold text-xs shrink-0">
 														{user.name.charAt(0)}
 													</div>
 													<div className="min-w-0">
@@ -332,7 +332,7 @@ export const MasterUserDirectory = ({
 															? 'bg-purple-50 text-purple-700 border border-purple-200'
 															: user.role.toUpperCase() === 'TEACHER'
 															? 'bg-amber-50 text-amber-700 border border-amber-200'
-															: 'bg-slate-100 text-slate-700 border border-slate-200'
+															: 'bg-slate-100 text-slate-700 border-2 border-black'
 													)}
 												>
 													{user.role.toUpperCase() === 'ADMIN' ? (
@@ -347,7 +347,7 @@ export const MasterUserDirectory = ({
 											{/* Approval Status */}
 											<td className="py-3.5 px-6">
 												{user.isApproved ? (
-													<span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+													<span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-900 border border-green-300">
 														<CheckCircle2 className="h-3.5 w-3.5" />
 														Approved
 													</span>
@@ -362,7 +362,7 @@ export const MasterUserDirectory = ({
 											{/* Assigned Group */}
 											<td className="py-3.5 px-6">
 												{user.currentGroupName ? (
-													<span className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 border border-sky-200">
+													<span className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-900 border border-slate-300">
 														<Users className="h-3 w-3" />
 														{user.currentGroupName}
 													</span>
@@ -391,7 +391,7 @@ export const MasterUserDirectory = ({
 															'h-8 text-xs font-semibold',
 															user.isApproved
 																? 'border-amber-200 bg-amber-50/50 text-amber-800 hover:bg-amber-100 hover:text-amber-900'
-																: 'border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800'
+																: 'border-green-300 bg-green-50/50 text-green-900 hover:bg-green-100 hover:text-green-900'
 														)}
 													>
 														{togglingUserId === user.id ? (
@@ -449,10 +449,10 @@ export const MasterUserDirectory = ({
 				open={!!groupModalUser}
 				onOpenChange={(open) => !open && setGroupModalUser(null)}
 			>
-				<DialogContent className="sm:max-w-md rounded-2xl bg-white border border-slate-200 p-6">
+				<DialogContent className="sm:max-w-md rounded-2xl bg-white border-2 border-black p-6">
 					<DialogHeader>
 						<DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-							<Users className="h-5 w-5 text-sky-600" />
+							<Users className="h-5 w-5 text-green-900" />
 							Manage Group Assignment
 						</DialogTitle>
 						<DialogDescription className="text-xs text-slate-500">
@@ -469,7 +469,7 @@ export const MasterUserDirectory = ({
 								value={selectedGroupId}
 								onChange={(e) => setSelectedGroupId(e.target.value)}
 								aria-label="Select study group"
-								className="w-full h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+								className="w-full h-10 rounded-xl border-2 border-black bg-slate-50 px-3 text-xs text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
 							>
 								<option value="NONE">— None (Unassigned) —</option>
 								{groups.map((g) => (
@@ -481,12 +481,12 @@ export const MasterUserDirectory = ({
 						</div>
 
 						{selectedGroupId !== 'NONE' && (
-							<div className="rounded-xl border border-sky-100 bg-sky-50/70 p-3 text-xs text-sky-800 space-y-1">
+							<div className="rounded-xl border border-slate-300 bg-green-50/70 p-3 text-xs text-green-900 space-y-1">
 								<p className="font-semibold">
 									Assigned to:{' '}
 									{groups.find((g) => g.id === selectedGroupId)?.name}
 								</p>
-								<p className="text-[11px] text-sky-700">
+								<p className="text-[11px] text-green-900">
 									Student will receive meeting schedules and countdown reminders for this group.
 								</p>
 							</div>
@@ -507,7 +507,7 @@ export const MasterUserDirectory = ({
 							size="sm"
 							disabled={isSavingGroup}
 							onClick={handleSaveGroupAssignment}
-							className="bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shadow-xs"
+							className="bg-primary hover:bg-primary/90 text-black border-2 border-black font-semibold text-xs shadow-hard-sm"
 						>
 							{isSavingGroup ? (
 								<Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -526,7 +526,7 @@ export const MasterUserDirectory = ({
 				open={!!userToDelete}
 				onOpenChange={(open) => !open && setUserToDelete(null)}
 			>
-				<DialogContent className="sm:max-w-md rounded-2xl bg-white border border-slate-200 p-6">
+				<DialogContent className="sm:max-w-md rounded-2xl bg-white border-2 border-black p-6">
 					<DialogHeader>
 						<div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 mb-2">
 							<Trash2 className="h-6 w-6" />

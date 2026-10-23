@@ -77,7 +77,7 @@ const HomePage = async ({ searchParams }: { searchParams: Promise<WebsiteSearch>
 						<span>Questions? Contact:</span>
 						<a
 							href="mailto:support.lop.physics@gmail.com"
-							className="font-semibold text-sky-700 hover:underline"
+							className="font-semibold text-green-900 hover:underline"
 						>
 							support.lop.physics@gmail.com
 						</a>

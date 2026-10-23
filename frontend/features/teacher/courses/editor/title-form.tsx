@@ -78,7 +78,7 @@ const TitleForm = ({ initialData, courseId, onSave }: TitleFormProps) => {
 	};
 
 	return (
-		<div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition-colors">
+		<div className="rounded-xl border-2 border-black bg-slate-50/70 p-4 transition-colors">
 			<div className="font-medium flex items-center justify-between text-slate-900 text-sm">
 				<span>
 					Lesson title <span className="text-red-500 font-bold">*</span>

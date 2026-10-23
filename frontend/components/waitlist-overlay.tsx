@@ -119,12 +119,12 @@ export const WaitlistOverlay = ({
 						animate={{ opacity: 1, scale: 1 }}
 						exit={{ opacity: 0, scale: 0.98 }}
 						transition={{ duration: 0.25, ease: isApproved ? 'easeIn' : 'easeOut' }}
-						className="w-full max-w-lg rounded-2xl bg-white p-6 sm:p-8 shadow-2xl border border-slate-200 text-slate-900 relative overflow-hidden"
+						className="w-full max-w-lg rounded-2xl bg-white p-6 sm:p-8 shadow-2xl border-2 border-black text-slate-900 relative overflow-hidden"
 					>
 						{/* Top Status Header */}
 						<div className="text-center space-y-2">
-							<div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-cyan-50 border border-cyan-200 text-cyan-600 shadow-inner">
-								<Clock className="h-7 w-7 animate-pulse text-cyan-600" />
+							<div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-green-50 border border-cyan-200 text-green-800 shadow-inner">
+								<Clock className="h-7 w-7 animate-pulse text-green-800" />
 							</div>
 							<div className="inline-flex items-center gap-1.5 rounded-full bg-cyan-100/80 px-3 py-1 text-xs font-bold uppercase tracking-wider text-cyan-900">
 								<ShieldAlert className="h-3.5 w-3.5" />
@@ -141,10 +141,10 @@ export const WaitlistOverlay = ({
 						<div className="my-6 border-t border-slate-100" />
 
 						{/* CLERK PROFILE BOX */}
-						<div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3">
+						<div className="rounded-xl border-2 border-black bg-slate-50/70 p-4 space-y-3">
 							<div className="flex items-center justify-between">
 								<span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-									<UserCheck className="h-3.5 w-3.5 text-cyan-600" />
+									<UserCheck className="h-3.5 w-3.5 text-green-800" />
 									Current Profile Credentials
 								</span>
 								<span className="text-[11px] font-medium text-slate-400">
@@ -152,12 +152,12 @@ export const WaitlistOverlay = ({
 								</span>
 							</div>
 
-							<div className="flex items-center gap-3.5 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
+							<div className="flex items-center gap-3.5 bg-white p-3 rounded-xl border-2 border-black/80 shadow-2xs">
 								{clerkUser?.imageUrl ? (
 									<img
 										src={clerkUser.imageUrl}
 										alt="Student Avatar"
-										className="h-12 w-12 rounded-full border border-slate-200 object-cover shrink-0"
+										className="h-12 w-12 rounded-full border-2 border-black object-cover shrink-0"
 									/>
 								) : (
 									<div className="grid h-12 w-12 place-items-center rounded-full bg-cyan-100 text-cyan-700 font-bold text-base shrink-0">
@@ -177,7 +177,7 @@ export const WaitlistOverlay = ({
 							<button
 								type="button"
 								onClick={() => openUserProfile()}
-								className="w-full min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-2xs transition cursor-pointer"
+								className="w-full min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-black bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-2xs transition cursor-pointer"
 							>
 								<Settings className="h-4 w-4 text-slate-500" />
 								<span>Manage Profile (Update Real Name)</span>

@@ -30,7 +30,7 @@ export function TeacherForm({course,organizations=[],onboarding=false}:{course?:
     finally {setBusy(false);}
   }
   if(!course&&!onboarding&&!organizations.length) return <div className="rounded-2xl border bg-white p-6"><p>No organization permits course creation.</p><p>Course access is arranged by EduLabs staff.</p></div>;
-  return <form onSubmit={save} className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+  return <form onSubmit={save} className="space-y-6 rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm">
     {!course&&!onboarding&&<label className="block space-y-2">Organization<Dropdown className="block w-full rounded-md border p-2" value={organization} onChange={e=>setOrganization(e.target.value)} disabled={busy}>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</Dropdown></label>}
     <label className="block space-y-2">{onboarding?'Organization name':'Course title'}<Input required maxLength={200} value={title} onChange={e=>setTitle(e.target.value)} disabled={busy}/></label>
     <label className="block space-y-2">Slug<Input required maxLength={100} pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="physics-secondary-3" value={slug} onChange={e=>setSlug(e.target.value)} disabled={busy}/><span className="text-xs text-slate-500">Lowercase letters, numbers and hyphens. Must be unique within the organization.</span></label>

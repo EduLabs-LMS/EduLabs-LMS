@@ -237,7 +237,7 @@ const StudentHome = ({
 		<div className="mx-auto w-full max-w-[1600px] space-y-8 pt-2">
 			{/* Top Hero Carousel */}
 			<section
-				className="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 shadow-sm"
+				className="relative overflow-hidden rounded-3xl border-2 border-black bg-slate-900 shadow-hard-sm"
 				onMouseEnter={() => setIsPaused(true)}
 				onMouseLeave={() => setIsPaused(false)}
 			>
@@ -321,7 +321,7 @@ const StudentHome = ({
 			</section>
 
 			{/* LIVE SESSION & HOMEWORK REMINDER BANNER */}
-			<section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+			<section className="rounded-3xl border-2 border-black bg-white p-5 shadow-hard-sm sm:p-6">
 				<div className="flex min-w-0 flex-col justify-between gap-6 xl:flex-row xl:items-center">
 					{phase1 && liveGroups.error && <p role="alert" className="text-sm text-red-700">{liveGroups.error} <button className="underline" onClick={liveGroups.retry}><L id="home.retry_schedule"/></button></p>}
 					{phase1 && liveGroups.loading && <p role="status" className="text-sm text-slate-500"><L id="home.loading_your_class_schedule"/></p>}
@@ -336,11 +336,11 @@ const StudentHome = ({
 					<div className="shrink-0 flex flex-col sm:flex-row items-start sm:items-center gap-3.5 p-4 rounded-2xl border bg-slate-50/80">
 						{homeworkInfo?.status === 'APPROVED' ? (
 							<>
-								<div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-100 text-emerald-700 shrink-0">
+								<div className="grid h-11 w-11 place-items-center rounded-xl bg-green-100 text-green-900 shrink-0">
 									<CheckCircle2 className="h-6 w-6" />
 								</div>
 								<div className="space-y-0.5">
-									<span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/90 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+									<span className="inline-flex items-center gap-1 rounded-full bg-green-100/90 px-2.5 py-0.5 text-xs font-bold text-green-900">
 										<CheckCircle2 className="h-3 w-3" /><L id="home.homework_approved"/></span>
 									<p className="text-xs text-slate-600">
 										{homeworkInfo.chapterTitle}{" "}<L id="home.verified_great_job"/></p>
@@ -391,7 +391,7 @@ const StudentHome = ({
 				</div>
 
 				<div className="grid gap-4 md:grid-cols-3">
-					<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+					<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-hard-sm active:translate-y-0 cursor-default">
 						<div className="flex items-start justify-between gap-4">
 							<div>
 								<p className="text-sm font-medium text-slate-500"><L id="home.lessons_done"/></p>
@@ -400,17 +400,17 @@ const StudentHome = ({
 									<span className="text-base font-medium text-slate-500"><L id="home.lessons"/></span>
 								</p>
 							</div>
-							<span className="grid h-11 w-11 place-items-center rounded-xl bg-sky-50 text-sky-700">
+							<span className="grid h-11 w-11 place-items-center rounded-xl bg-green-50 text-green-900">
 								<BookOpenCheck className="h-5 w-5" />
 							</span>
 						</div>
 					</div>
 
 					{[
-						{ label: 'Sessions Attended', value:attendance.data?.own.attended, icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
+						{ label: 'Sessions Attended', value:attendance.data?.own.attended, icon: CheckCircle2, tone: 'bg-green-50 text-green-900' },
 						{ label: 'Sessions Absent', value:attendance.data?.own.absent, icon: CalendarClock, tone: 'bg-violet-50 text-violet-600' },
 					].map(({ label, value, icon: Icon, tone }) => (
-						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default" key={label}>
+						<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-hard-sm active:translate-y-0 cursor-default" key={label}>
 							<div className="flex items-start justify-between gap-4">
 								<div>
 									<p className="text-sm font-medium text-slate-500"><L text={label}/></p>
@@ -461,7 +461,7 @@ const StudentHome = ({
 			</section>
 
 			<section className="grid gap-6 lg:grid-cols-2">
-				<div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0">
+				<div className="relative overflow-hidden rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-hard-sm active:translate-y-0">
 					<TextbookWaveBottomLeft opacity={0.2} />
 					<div className="relative z-10">
 						<h2 className="text-xl font-bold text-slate-950"><L id="home.progress_overview"/></h2>
@@ -487,19 +487,19 @@ const StudentHome = ({
 					</div>
 				</div>
 
-				<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0">
+				<div className="rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-hard-sm active:translate-y-0">
 					<div className="flex items-center justify-between gap-3">
 						<h2 className="text-xl font-bold text-slate-950"><L id="home.upcoming_sessions"/></h2>
-						<CalendarClock className="h-5 w-5 text-sky-700" />
+						<CalendarClock className="h-5 w-5 text-green-900" />
 					</div>
 					<div className="mt-5 max-h-60 space-y-3 overflow-y-auto pr-1">
 						{phase1 && (liveGroups.error || liveGroups.loading) ? <p role={liveGroups.error ? 'alert' : 'status'} className="text-sm text-slate-500">{liveGroups.error || <L id="home.loading_your_class_schedule"/>}</p> : upcomingSessions.length ? (
 							upcomingSessions.map((session) => (
 								<div
-									className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4"
+									className="flex items-center gap-3 rounded-xl border-2 border-black bg-slate-50 p-4"
 									key={`${session.dayLabel}-${session.dateLabel}`}
 								>
-									<span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-sky-700 shadow-sm">
+									<span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-green-900 shadow-sm">
 										<Clock3 className="h-5 w-5" />
 									</span>
 									<div>

@@ -99,7 +99,7 @@ const ChapterContentTypeForm = ({
 					type="button"
 					variant={contentType === 'explanation' ? 'default' : 'outline'}
 				>
-					<Video className="mr-2 h-4 w-4 text-sky-600" />
+					<Video className="mr-2 h-4 w-4 text-green-900" />
 					Video Explanation
 				</Button>
 				<Button
@@ -152,7 +152,7 @@ const ChapterContentTypeForm = ({
 								type="button"
 								variant={homeworkMode === 'FILE_UPLOAD' ? 'default' : 'outline'}
 							>
-								<FileUp className="mr-2 h-4 w-4 text-sky-600" />
+								<FileUp className="mr-2 h-4 w-4 text-green-900" />
 								File upload
 							</Button>
 							<Button
@@ -180,7 +180,7 @@ const ChapterContentTypeForm = ({
 						/>
 					)}
 
-					<div className="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-700">
+					<div className="mt-6 rounded-xl border border-slate-300 bg-green-50 p-4 text-sm text-slate-700">
 						<p className="font-semibold text-slate-900">Student Submission Portal</p>
 						<p className="mt-1 text-slate-600 leading-relaxed">
 							Students will upload photos or PDFs of their completed textbook homework. Submitting unlocks the solution walkthrough video.

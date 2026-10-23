@@ -59,27 +59,27 @@ const HomeworkSubmissionForm = ({
 
 	return (
 		<div className="space-y-6">
-			<div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 leading-relaxed">
+			<div className="rounded-xl border-2 border-black bg-slate-50 p-4 text-sm text-slate-600 leading-relaxed">
 				Upload a clear photo or PDF of your completed textbook homework. Submitting a
 				file unlocks the solution video for this lesson.
 			</div>
 
 			{hasSubmission && (
-				<div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 font-medium">
-					<CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+				<div className="flex items-center gap-2.5 rounded-xl border border-green-300 bg-green-50 p-4 text-sm text-green-900 font-medium">
+					<CheckCircle className="h-5 w-5 text-green-900 shrink-0" />
 					<span>Homework submitted! You can upload a replacement file anytime if needed.</span>
 				</div>
 			)}
 
 			{hasSubmission && submissionStatus === 'APPROVED' && (
-				<div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
+				<div className="flex items-center gap-2 text-xs font-semibold text-green-900">
 					<CheckCircle className="h-4 w-4" /> Approved by your teacher
 				</div>
 			)}
 
 			{reviewNote && (
-				<div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-800">
-					<div className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-800">
+				<div className="rounded-xl border border-slate-300 bg-green-50 p-4 text-sm text-slate-800">
+					<div className="mb-1.5 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-green-900">
 						<MessageSquareText className="h-4 w-4" /> Teacher feedback
 					</div>
 					<p className="whitespace-pre-wrap leading-relaxed">{reviewNote}</p>

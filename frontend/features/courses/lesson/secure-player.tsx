@@ -29,7 +29,7 @@ export function SecureLessonPlayer({courseId,segmentId,url,data}:{courseId:strin
   const timer=setInterval(()=>void refresh(),8*60*1000);return()=>clearInterval(timer);
  },[courseId,data.assetId]);
  return <div className="space-y-3">
-  <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-200 shadow-sm">
+  <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border-2 border-black shadow-hard-sm">
    {playback?.kind==='video'?<video ref={video} controls preload="metadata" className="aspect-video w-full bg-black" src={playback.url} poster={data.thumbnailUrl??undefined}
     onLoadedMetadata={()=>{const player=video.current;if(player){const duration=Number.isFinite(player.duration)?player.duration:position.current;player.currentTime=Math.min(position.current,Math.max(0,duration));}}}
     onPlay={()=>void save()} onTimeUpdate={()=>{position.current=video.current?.currentTime??position.current;if(Date.now()-lastSave.current>15000)void save();}}

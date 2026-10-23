@@ -176,7 +176,7 @@ const ChapterNamingForm = ({ initialData, courseId, initialInfo }: ChapterNaming
 	const previewTitle = parsedType && parsedNumber !== null ? formatChapterTitle(parsedType, parsedNumber, name) : '—';
 
 	return (
-		<div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition-colors">
+		<div className="rounded-xl border-2 border-black bg-slate-50/70 p-4 transition-colors">
 			<div className="flex items-center justify-between font-medium text-slate-900 text-sm">
 				<span>
 					Chapter <span className="text-red-500 font-bold">*</span>

@@ -273,7 +273,7 @@ export const AdminUsersView = () => {
 
 			{/* Quick Metric Cards with GPU-accelerated hover FX */}
 			<div className={`grid gap-4 grid-cols-1 sm:grid-cols-2 ${showWaitlist ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
-				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+				<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-hard-sm active:translate-y-0 cursor-default">
 					<div className="flex items-center justify-between">
 						<div>
 							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -290,7 +290,7 @@ export const AdminUsersView = () => {
 				</div>
 
 				{showWaitlist && (
-				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+				<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-hard-sm active:translate-y-0 cursor-default">
 					<div className="flex items-center justify-between">
 						<div>
 							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -307,7 +307,7 @@ export const AdminUsersView = () => {
 				</div>
 				)}
 
-				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+				<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-hard-sm active:translate-y-0 cursor-default">
 					<div className="flex items-center justify-between">
 						<div>
 							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -317,13 +317,13 @@ export const AdminUsersView = () => {
 								{groups.length}
 							</p>
 						</div>
-						<div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-sky-700">
+						<div className="grid h-10 w-10 place-items-center rounded-xl bg-green-50 text-green-900">
 							<Layers className="h-5 w-5" />
 						</div>
 					</div>
 				</div>
 
-				<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+				<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-hard-sm active:translate-y-0 cursor-default">
 					<div className="flex items-center justify-between">
 						<div>
 							<p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -333,7 +333,7 @@ export const AdminUsersView = () => {
 								{totalAssignedStudents}
 							</p>
 						</div>
-						<div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+						<div className="grid h-10 w-10 place-items-center rounded-xl bg-green-50 text-green-900">
 							<UserCheck className="h-5 w-5" />
 						</div>
 					</div>
@@ -341,7 +341,7 @@ export const AdminUsersView = () => {
 			</div>
 
 			{/* Section Tabs Switcher */}
-			<div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl w-fit border border-slate-200/80">
+			<div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl w-fit border-2 border-black/80">
 				<button
 					type="button"
 					onClick={() => setActiveTab('ALL')}
@@ -446,7 +446,7 @@ export const AdminUsersView = () => {
 					</div>
 				) : totalWaitlistCount === 0 ? (
 					<div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-						<div className="grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-emerald-600 mb-3">
+						<div className="grid h-12 w-12 place-items-center rounded-full bg-green-50 text-green-900 mb-3">
 							<CheckCircle2 className="h-6 w-6" />
 						</div>
 						<p className="text-sm font-semibold text-slate-800">
@@ -489,9 +489,9 @@ export const AdminUsersView = () => {
 												<button
 													type="button"
 													onClick={() => openStudentMirror(user.id)}
-													className="text-left font-semibold text-sky-700 hover:underline cursor-pointer flex items-center gap-2"
+													className="text-left font-semibold text-green-900 hover:underline cursor-pointer flex items-center gap-2"
 												>
-													<div className="grid h-7 w-7 place-items-center rounded-full bg-sky-100 text-sky-700 text-xs font-bold">
+													<div className="grid h-7 w-7 place-items-center rounded-full bg-green-100 text-green-900 text-xs font-bold">
 														{fullName.charAt(0)}
 													</div>
 													<span>{fullName}</span>
@@ -511,7 +511,7 @@ export const AdminUsersView = () => {
 														onClick={() =>
 															handleApprove({ userId: user.id, name: fullName })
 														}
-														className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs"
+														className="h-8 bg-primary hover:bg-primary/90 text-black border-2 border-black font-semibold text-xs shadow-2xs"
 													>
 														{approvingId === user.id ? (
 															<Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -580,7 +580,7 @@ export const AdminUsersView = () => {
 																name: inv.emailAddress,
 															})
 														}
-														className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs"
+														className="h-8 bg-primary hover:bg-primary/90 text-black border-2 border-black font-semibold text-xs shadow-2xs"
 													>
 														{approvingId === inv.id ? (
 															<Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -629,7 +629,7 @@ export const AdminUsersView = () => {
 					<div className="flex items-center justify-between">
 						<div>
 							<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-								<Users className="h-5 w-5 text-sky-700" />
+								<Users className="h-5 w-5 text-green-900" />
 								Study Groups &amp; Custom Scheduling
 							</h2>
 						<p className="text-xs text-slate-500">
@@ -643,7 +643,7 @@ export const AdminUsersView = () => {
 							setEditingGroup(null);
 							setIsGroupModalOpen(true);
 						}}
-						className="bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-xs text-xs"
+						className="bg-primary hover:bg-primary/90 text-black border-2 border-black font-semibold shadow-hard-sm text-xs"
 					>
 						<Plus className="h-3.5 w-3.5 mr-1" />
 						New Group
@@ -684,7 +684,7 @@ export const AdminUsersView = () => {
 							return (
 								<div
 									key={group.id}
-									className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden transition"
+									className="rounded-2xl border-2 border-black bg-white shadow-hard-sm overflow-hidden transition"
 								>
 									{/* Group Header Card */}
 									<div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 gap-3 border-b border-slate-100 bg-white">
@@ -692,7 +692,7 @@ export const AdminUsersView = () => {
 											onClick={() => toggleGroupAccordion(group.id)}
 											className="flex items-center gap-3.5 cursor-pointer select-none flex-1 min-w-0"
 										>
-											<div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700 font-bold">
+											<div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-green-50 text-green-900 font-bold">
 												{group.name.charAt(0)}
 											</div>
 											<div className="space-y-1 min-w-0">
@@ -707,7 +707,7 @@ export const AdminUsersView = () => {
 
 												{/* Next Session pill */}
 												{nextSession && (
-													<p className="text-xs text-sky-700 font-medium">
+													<p className="text-xs text-green-900 font-medium">
 														Next: {nextSession.fullFormatted}
 													</p>
 												)}
@@ -721,7 +721,7 @@ export const AdminUsersView = () => {
 													{group.schedule.map((s: any, idx: number) => (
 														<span
 															key={idx}
-															className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700"
+															className="inline-flex items-center gap-1 rounded-lg border-2 border-black bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700"
 														>
 															<Clock className="h-3 w-3 text-slate-400" />
 															{s.day} @ {s.time}
@@ -735,7 +735,7 @@ export const AdminUsersView = () => {
 												size="sm"
 												variant="outline"
 												onClick={() => openAddStudentsModal(group)}
-												className="h-8 border-sky-200 bg-sky-50/70 text-sky-700 hover:bg-sky-100 hover:text-sky-800 text-xs font-semibold"
+												className="h-8 border-slate-300 bg-green-50/70 text-green-900 hover:bg-green-100 hover:text-green-900 text-xs font-semibold"
 											>
 												<UserPlus className="h-3.5 w-3.5 mr-1" />
 												Add Students
@@ -791,7 +791,7 @@ export const AdminUsersView = () => {
 													size="sm"
 													variant="outline"
 													onClick={() => openAddStudentsModal(group)}
-													className="h-7 text-xs font-semibold border-sky-200 bg-white text-sky-700 hover:bg-sky-50 hover:text-sky-800 shadow-2xs"
+													className="h-7 text-xs font-semibold border-slate-300 bg-white text-green-900 hover:bg-green-50 hover:text-green-900 shadow-2xs"
 												>
 													<UserPlus className="h-3.5 w-3.5 mr-1" />
 													+ Add Students
@@ -822,7 +822,7 @@ export const AdminUsersView = () => {
 														return (
 															<div
 																key={s.id}
-																className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-2xs hover:border-sky-300 transition"
+																className="group flex items-center justify-between rounded-xl border-2 border-black bg-white p-3 shadow-2xs hover:border-slate-300 transition"
 															>
 																<button
 																	type="button"
@@ -833,15 +833,15 @@ export const AdminUsersView = () => {
 																		<img
 																			src={s.user.imageUrl}
 																			alt={studentName}
-																			className="h-8 w-8 rounded-full border border-slate-200 object-cover"
+																			className="h-8 w-8 rounded-full border-2 border-black object-cover"
 																		/>
 																	) : (
-																		<div className="grid h-8 w-8 place-items-center rounded-full bg-sky-100 text-sky-700 font-bold text-xs shrink-0">
+																		<div className="grid h-8 w-8 place-items-center rounded-full bg-green-100 text-green-900 font-bold text-xs shrink-0">
 																			{studentName.charAt(0)}
 																		</div>
 																	)}
 																	<div className="min-w-0 space-y-0.5">
-																		<p className="text-xs font-bold text-slate-900 truncate group-hover:text-sky-700 transition">
+																		<p className="text-xs font-bold text-slate-900 truncate group-hover:text-green-900 transition">
 																			{studentName}
 																		</p>
 																		<p className="text-[11px] text-slate-400 truncate font-mono">
