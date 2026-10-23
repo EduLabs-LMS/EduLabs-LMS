@@ -2,8 +2,6 @@
 
 import { L } from '@/frontend/components/language-provider';
 import Link from 'next/link';
-import { useGroupSummary } from '@/frontend/features/groups/use-group-summary';
-import { GroupSummaryPanel } from '@/frontend/features/groups/group-summary-panel';
 import {
 	ArrowRight,
 	Calendar,
@@ -56,7 +54,6 @@ export const AdminHome = ({
 	const showWaitlist = metrics.pendingWaitlistCount !== 0;
 	return (
 		<div className="mx-auto w-full max-w-[1600px] space-y-8 pt-2 animate-in fade-in-50 slide-in-from-bottom-2 duration-200">
-			{phase1&&<GroupSummaryPanel summary={attendance} staff homework={false}/>}
 			{/* Welcome heading and primary actions sit directly on the page background */}
 			<section className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
 				<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900"><L id="teacher.welcome_back"/>{" "}{adminName}!
