@@ -16,6 +16,6 @@ export const StatusBadge = ({ status, className }: { status: TicketStatus; class
 			className
 		)}
 	>
-		<L id={status==='OPEN'?'support.open':status==='IN_PROGRESS'?'support.inProgress':'support.resolved'}/>
+		<L id={status==='OPEN'?'support.pill_open':status==='IN_PROGRESS'?'support.pill_in_progress':'support.pill_resolved'}/>
 	</span>
 );

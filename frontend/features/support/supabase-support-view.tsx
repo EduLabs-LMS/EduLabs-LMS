@@ -96,11 +96,11 @@ export function SupabaseSupportView() {
 				<header className="flex flex-wrap items-center gap-3 border-b-[2.5px] border-black bg-slate-50 p-4 sm:p-5">
 					<Localized as="button" labels={{ 'aria-label': 'support.back_to_tickets' }} type="button" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-black bg-white shadow-hard-sm" onClick={() => { setDetail(null); setReply(''); }}><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /></Localized>
 					<div className="min-w-0 flex-1"><h2 className="font-display text-2xl leading-tight break-words"><bdi dir="auto">{t.subject}</bdi></h2>
-						<p className="mt-0.5 text-sm text-slate-700">{from && <><L id="support.from" />{' '}<bdi dir="auto">{from}</bdi>{' · '}</>}<L text={t.category} />{' · '}<L id="support.opened" />{' '}{date(t.created_at)}</p></div>
+						<p className="mt-0.5 text-sm text-slate-700">{from && <><L id="support.from" />{' '}<bdi dir="auto">{from}</bdi>{' · '}</>}<span className="capitalize"><L text={t.category} /></span>{' · '}<L id="support.opened" />{' '}{date(t.created_at)}</p></div>
 					{detail.staff
 						? <select aria-label={tr('support.ticket_status')} className={select} value={t.status} disabled={busy} onChange={e => void command('status', { status: e.target.value })}>{STATUS_PILLS.slice(1).map(([value, id]) => <option key={value} value={value}>{tr(id)}</option>)}</select>
 						: <div className="flex flex-wrap items-center gap-2"><StatusBadge status={t.status} />{(['OPEN', 'RESOLVED'] as const).filter(s => s !== t.status).map(status => <Button key={status} variant="outline" disabled={busy} onClick={() => void command('status', { status })}><L text={status === 'OPEN' ? 'Reopen' : 'Close ticket'} /></Button>)}</div>}
-					<div className="flex w-full flex-wrap items-center gap-2"><WaitChip state={waitState(t, detail.staff)} staff={detail.staff} overdue={overdue} />{detail.staff && <StatusBadge status={t.status} />}
+					<div className="flex w-full flex-wrap items-center gap-2"><WaitChip state={waitState(t, detail.staff)} staff={detail.staff} overdue={overdue} />
 						{due && <span className="text-xs font-semibold text-amber-900"><L id="support.response_due" />{' '}{date(t.response_due_at!)}</span>}</div>
 					{detail.staff && <details className="w-full text-sm"><summary className="min-h-[44px] cursor-pointer py-2 font-bold"><L id="support.details" /></summary>
 						<label className="block pb-2"><L id="support.assigned_to" /><select className={cn(select, 'ms-2 max-w-full')} value={t.assigned_to ?? ''} disabled={busy} onChange={e => void command('assign', { userId: e.target.value || null })}><option value="">{/* label from locale */}{language === 'ar' ? 'غير معيّن' : 'Unassigned'}</option>{detail.assignees.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label></details>}
@@ -137,7 +137,7 @@ export function SupabaseSupportView() {
 					return <li key={t.id}><button type="button" className={cn(panel, 'flex w-full items-center gap-4 p-4 text-start transition-all hover:-translate-y-px hover:shadow-hard')} onClick={() => void openTicket(t.id)}>
 						<SupportAvatar name={mine ? ownName : null} url={mine ? user?.imageUrl : null} />
 						<div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-lg font-semibold break-words"><bdi dir="auto">{t.subject}</bdi></span><StatusBadge status={t.status} /><WaitChip state={waitState(t, !!t.staff)} staff={!!t.staff} overdue={overdue} /></div>
-							<p className="mt-1 text-sm text-slate-700"><L text={t.category} />{' · '}<L id="support.opened" />{' '}{date(t.created_at)}{' '}<L id="support.last_message" />{' '}{date(t.last_message_at)}</p></div>
+							<p className="mt-1 text-sm text-slate-700"><span className="capitalize"><L text={t.category} /></span>{' · '}<L id="support.opened" />{' '}{date(t.created_at)}{' '}<L id="support.last_message" />{' '}{date(t.last_message_at)}</p></div>
 						<ChevronRight aria-hidden className="h-5 w-5 shrink-0 rtl:rotate-180" /></button></li>;
 				})}</ul>}
 			<div className="flex items-center gap-2"><Button variant="outline" disabled={page === 0 || loading} onClick={() => setPage(page - 1)}><L id="notifications.previous" /></Button><span className="p-2"><L id="notifications.page" />{' '}{page + 1}</span><Button variant="outline" disabled={rows.length < 25 || loading} onClick={() => setPage(page + 1)}><L id="notifications.next" /></Button></div>
