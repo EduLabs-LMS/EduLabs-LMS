@@ -153,7 +153,7 @@ async function browsers() {
           check(`${engineName}: real student sign-in, original shell, course/offering access, isolation, refresh, logout`);
         } else if(name==='teacher' || name==='admin') {
           await page.getByText('Teaching Overview',{exact:true}).waitFor();
-          await page.goto(base+'/teacher/courses'); await page.getByRole('heading',{name:'Lesson Management'}).waitFor();
+          await page.goto(base+'/self-learning'); await page.getByRole('heading',{name:'Lesson Management'}).waitFor();
           const response = await page.goto(base+`/offerings/${i.runA}`); assert.equal(response.status(),200);
           await page.getByText('Phase1 student',{exact:true}).waitFor();
           if(name==='teacher') { const denied=await page.goto(base+`/offerings/${i.runB}`);assert.ok([200,404].includes(denied.status()));await page.getByRole('heading',{name:'404',exact:true}).waitFor(); }

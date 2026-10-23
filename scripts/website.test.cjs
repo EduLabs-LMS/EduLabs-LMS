@@ -43,8 +43,10 @@ test('progress belongs to an offering and is not copied into another run of a co
 });
 test('unmigrated routes never enter legacy handlers in Firebase staging', () => {
   const { isPhaseOneRoute } = load('shared/website-routes.ts');
-  for (const route of ['/home', '/self-learning', '/group', '/teacher/courses', '/teacher/create', '/onboarding/organization', '/courses/c', '/courses/c/detail', '/offerings/o']) assert.equal(isPhaseOneRoute(route), true);
+  for (const route of ['/home', '/self-learning', '/group', '/teacher/create', '/onboarding/organization', '/courses/c', '/courses/c/detail', '/offerings/o']) assert.equal(isPhaseOneRoute(route), true);
   for (const route of ['/settings','/personalization']) assert.equal(isPhaseOneRoute(route), true);
+  for (const route of ['/self-learning/20000000-0000-0000-0000-000000000001', '/self-learning/20000000-0000-0000-0000-000000000001/chapters/30000000-0000-0000-0000-000000000001']) assert.equal(isPhaseOneRoute(route), true);
+  for (const route of ['/teacher/courses', '/teacher/courses/20000000-0000-0000-0000-000000000001', '/self-learning/not-a-uuid', '/self-learning/20000000-0000-0000-0000-000000000001/other']) assert.equal(isPhaseOneRoute(route), false);
   for (const route of ['/api/courses', '/api/uploadthing', '/courses/c/chapters/l', '/channel']) assert.equal(isPhaseOneRoute(route), false);
   assert.equal(isPhaseOneRoute('/admin/users'),true);
 });

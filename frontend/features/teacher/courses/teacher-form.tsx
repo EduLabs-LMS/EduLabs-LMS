@@ -23,7 +23,7 @@ export function TeacherForm({course,organizations=[],onboarding=false}:{course?:
       const result=await response.json();
       if(!response.ok) throw new Error(result.error||'Unable to save');
       if(onboarding) router.push('/teacher/create');
-      else if(!course) router.push('/teacher/courses/'+result.id);
+      else if(!course) router.push('/self-learning/'+result.id);
       router.refresh();
     } catch(caught) {setError(caught instanceof Error?caught.message:'Unable to save');}
     finally {setBusy(false);}

@@ -45,7 +45,7 @@ const CreateNewCoursePage = () => {
 
 		try {
 			const response = await api.post('/api/courses', values);
-			router.push(`/teacher/courses/${response.data.id}`);
+			router.push(`/self-learning/${response.data.id}`);
 			toast.success('Lesson created successfully');
 		} catch (error) {
 			toast.error('Something went wrong');
@@ -102,7 +102,7 @@ const CreateNewCoursePage = () => {
 						/>
 
 						<div className="flex items-center gap-x-2 pt-2 border-t border-slate-100">
-							<Link href={'/teacher/courses'}>
+							<Link href={'/self-learning'}>
 								<Button type="button" variant={'outline'} className="border-slate-200 text-slate-700">
 									Cancel
 								</Button>

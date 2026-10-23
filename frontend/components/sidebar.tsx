@@ -16,7 +16,6 @@ import {
 	HelpCircle,
 	LogOut,
 	CheckSquare,
-	ShieldCheck,
 	Settings,
 } from 'lucide-react';
 
@@ -54,10 +53,12 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	const isAdminOrTeacher = isFirebaseStaging() ? !!navigation?.staffOrganizationIds.length : role === 'admin' || role === 'teacher';
 
 	const isHomeActive = pathname === '/' || pathname === '/home';
+	// Teacher-side users manage courses inside Self-learning, including the teacher-only pages (create, programs, website).
 	const isSelfLearningActive =
 	pathname === '/self-learning' ||
 	pathname.startsWith('/self-learning') ||
-	pathname.startsWith('/courses');
+	pathname.startsWith('/courses') ||
+	(isAdminOrTeacher && pathname.startsWith('/teacher'));
 	const isGroupActive =
 	pathname === '/sessions-groups' || pathname === '/sessions' || pathname === '/group' ||
 	pathname === '/groups' ||
@@ -65,7 +66,6 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	const isSettingsActive = pathname === '/settings' || pathname.startsWith('/settings/') || pathname === '/personalization';
 	const isExamsActive = pathname.startsWith('/exams');
 	const isSupportActive = pathname.startsWith('/support');
-	const isTeacherActive = pathname.startsWith('/teacher');
 	const isAdminUsersActive = pathname.startsWith('/admin/users');
 	const isAdminSubmissionsActive = pathname.startsWith('/admin/submissions');
 
@@ -233,25 +233,6 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			)}
 			/>
 			<span><L id="navigation.homework_queue"/></span>
-			</Link>
-
-			<Link
-			href="/teacher/courses"
-			onClick={() => onNavigate?.()}
-			className={cn(
-				'relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',
-				 isTeacherActive
-				 ? 'bg-primary text-black border-black font-semibold shadow-hard-sm'
-				 : 'text-slate-700 hover:text-black hover:bg-slate-100'
-			)}
-			>
-			<ShieldCheck
-			className={cn(
-				'w-[22px] h-[22px] shrink-0',
-				 isTeacherActive ? 'text-black' : 'text-slate-500'
-			)}
-			/>
-			<span><L id="navigation.teacher_courses"/></span>
 			</Link>
 			</div>
 		)}

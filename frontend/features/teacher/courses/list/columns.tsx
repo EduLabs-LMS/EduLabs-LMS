@@ -70,7 +70,7 @@ export const columns: ColumnDef<CourseListRow>[] = [
 					</DropdownMenuTrigger>
 
 					<DropdownMenuContent>
-						<Link href={`/teacher/courses/${id}`}>
+						<Link href={`/self-learning/${id}`}>
 							<DropdownMenuItem>
 								<Pencil className="h-4 w-4 mr-2" />
 								Edit

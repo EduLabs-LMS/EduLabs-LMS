@@ -1,4 +1,4 @@
-import { LearningPartPage } from '../../../../../../_components/learning-part-page';
+import { LearningPartPage } from '../../../../../_components/learning-part-page';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { auth } from '@clerk/nextjs/server';
 import { ArrowLeft, FileText, LayoutDashboard, ShieldCheck } from 'lucide-react';
@@ -50,7 +50,7 @@ const ChapterIdPage = async ({
 		<div className="mx-auto w-full max-w-7xl space-y-6 pt-2 pb-16">
 			{/* Back Link */}
 			<Link
-				href={`/teacher/courses/${params.courseId}`}
+				href={`/self-learning/${params.courseId}`}
 				className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
 			>
 				<ArrowLeft className="h-4 w-4 mr-1.5" />

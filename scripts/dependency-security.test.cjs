@@ -31,7 +31,7 @@ test('middleware protects student, teacher and API routes, allowing only explici
       createRouteMatcher: patterns => request => patterns.some(pattern => new RegExp(`^${pattern}$`).test(new URL(request.url).pathname)),
     },
   });
-  for (const route of ['/home', '/group', '/teacher/courses', '/admin/users', '/api/courses', '/api/admin/students', '/api/uploadthing-evil']) {
+  for (const route of ['/home', '/group', '/self-learning', '/admin/users', '/api/courses', '/api/admin/students', '/api/uploadthing-evil']) {
     const before = protects;
     await middleware({ url: `http://localhost${route}`, nextUrl: new URL(`http://localhost${route}`) }, {});
     assert.equal(protects, before + 1, route);

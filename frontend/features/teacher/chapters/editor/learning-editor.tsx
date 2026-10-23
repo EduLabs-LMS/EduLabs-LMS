@@ -48,7 +48,7 @@ export function LearningTreeEditor({courseId,tree}:{courseId:string;tree:Learnin
    <DescriptionForm initialData={l} courseId={courseId} onSave={v=>run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{...v,title:l.title,status:l.status as 'draft'|'published'}}).then(()=>{})}/>
    <Button size="sm" disabled={busy} variant="outline" onClick={()=>void run({action:'edit_lesson',id:l.id,parentId:null,updatedAt:l.updated_at,data:{title:l.title,description:l.description,status:l.status==='published'?'draft':'published'}}).catch(()=>{})}>{l.status==='published'?'Unpublish lesson':'Publish lesson'}</Button>
    {!parts.length&&<p className="text-xs text-slate-500">No parts yet.</p>}
-   {parts.map((s,si)=><div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-slate-50 p-3"><Link className="text-sm font-semibold hover:text-sky-700" href={`/teacher/courses/${courseId}/chapters/${s.id}`}>{si+1}. {s.title} · {s.status}</Link>{arrows('segments',l.id,parts,si)}</div>)}
+   {parts.map((s,si)=><div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-slate-50 p-3"><Link className="text-sm font-semibold hover:text-sky-700" href={`/self-learning/${courseId}/chapters/${s.id}`}>{si+1}. {s.title} · {s.status}</Link>{arrows('segments',l.id,parts,si)}</div>)}
    <CreateItem label="part" kind="segment" courseId={courseId} parent={l.id}/>
   </div>;})}
   <CreateItem label="lesson" kind="lesson" courseId={courseId} parent={m.id}/>
@@ -70,8 +70,8 @@ export function LearningPartEditor({courseId,segment,tree,thumbnailUrl}:{courseI
   }catch(e){let cleanupNote='';if(uploadedId){const cleaned=await fetch(`/api/learning/${courseId}/cleanup`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:uploadedId})});cleanupNote=cleaned.ok?' Unattached upload cleaned safely.':' Upload retained for maintenance: '+uploadedId;}setFileError((e instanceof Error?e.message:'Upload failed')+cleanupNote);}finally{setUploading(false);}
  }
  return <div className="mx-auto w-full max-w-7xl space-y-6 pt-2 pb-16">
-  <Link href={`/teacher/courses/${courseId}`} className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900"><ArrowLeft className="mr-1.5 h-4 w-4"/>Back to Lesson Setup</Link>
-  <Link href={`/teacher/courses/${courseId}/chapters/${segment.id}?preview=1`} className="inline-flex ml-4 text-sm font-semibold text-sky-700">Preview this part</Link>
+  <Link href={`/self-learning/${courseId}`} className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900"><ArrowLeft className="mr-1.5 h-4 w-4"/>Back to Lesson Setup</Link>
+  <Link href={`/self-learning/${courseId}/chapters/${segment.id}?preview=1`} className="inline-flex ml-4 text-sm font-semibold text-sky-700">Preview this part</Link>
   {segment.status!=='published'&&<Banner variant="warning" label="This lesson segment is unpublished. It will not be visible in the student lesson player."/>}
   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="space-y-1"><div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200"><ShieldCheck className="h-3.5 w-3.5"/>Segment Editor</div><h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{segment.title}</h1><p className="text-xs sm:text-sm text-slate-500">{segment.status} · Video, notes and private resources</p></div><Button disabled={busy||uploading} onClick={()=>void save({status:segment.status==='published'?'draft':'published'}).catch(()=>{})}>{segment.status==='published'?'Unpublish':'Publish'}</Button></div>
   {error&&<p role="alert" className="text-red-700">{error}</p>}

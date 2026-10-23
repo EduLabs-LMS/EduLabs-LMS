@@ -52,8 +52,8 @@ const SidebarRoutes = () => {
 
 	const routes: SidebarRoute[] = isStaff
 		? [
-				{ icon: Home, label: 'Home', href: '/teacher/courses' },
-				{ icon: BookOpen, label: 'Lessons', href: '/teacher/courses' },
+				{ icon: Home, label: 'Home', href: '/self-learning' },
+				{ icon: BookOpen, label: 'Lessons', href: '/self-learning' },
 			]
 		: studentRoutes;
 

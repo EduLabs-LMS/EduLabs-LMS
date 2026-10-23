@@ -50,7 +50,7 @@ const CreateNewCoursePage = ({organizations}:{organizations:{id:string;name:stri
 		try {
 			setError('');
 			const response = await api.post('/api/teacher/courses', {...values,organization_id:organization,slug});
-			router.push(`/teacher/courses/${response.data.id}`);
+			router.push(`/self-learning/${response.data.id}`);
 			toast.success('Lesson created successfully');
 		} catch (error) {
 			const message=(error as {response?:{data?:{error?:string}}}).response?.data?.error || 'Unable to create course'; setError(message); toast.error(message);
@@ -110,7 +110,7 @@ const CreateNewCoursePage = ({organizations}:{organizations:{id:string;name:stri
 						/>
 
 						<div className="flex items-center gap-x-2 pt-2 border-t border-slate-100">
-							<Link href={'/teacher/courses'}>
+							<Link href={'/self-learning'}>
 								<Button type="button" variant={'outline'} className="border-slate-200 text-slate-700">
 									Cancel
 								</Button>

@@ -85,7 +85,7 @@ export async function WebsiteCourses({ search = {}, teacher = false }: { search?
   const courses = rows.slice(0, 100);
   const [modules, offerings] = await Promise.all([context.repository.modules(courses.map(c => c.id)), context.repository.offerings(courses.map(c => c.id))]);
   const visible = courses.filter(c => !teacher || courseCapability(context, c) || offerings.some(o => o.course_id === c.id && offeringCapability(context, c, o.id)));
-  const pageUrl = (value: number) => '/teacher/courses?'+new URLSearchParams({page:String(value),...(search.organization?{organization:search.organization}:{}),...(search.title?{title:search.title}:{})});
+  const pageUrl = (value: number) => '/self-learning?'+new URLSearchParams({page:String(value),...(search.organization?{organization:search.organization}:{}),...(search.title?{title:search.title}:{})});
   return <><V2TeacherCourseList courses={visible.filter(c => canEditTeacherCourse(context.memberships.find(m=>m.organization_id===c.organization_id)??null, context.courseStaff.find(s=>s.course_id===c.id)??null)).map(c => ({id:c.id,title:c.title,isPublished:c.status==='published'}))}/><Localized as="nav" labels={{"aria-label":"common.course_pages"}} className="flex gap-6 text-sm text-sky-700">{page>0&&<Link href={pageUrl(page-1)}><L id="notifications.previous"/></Link>}{rows.length>100&&<Link href={pageUrl(page+1)}><L id="notifications.next"/></Link>}</Localized></>;
 }
 export async function WebsiteSearchCourses({search={}}:{search?:WebsiteSearch}) {

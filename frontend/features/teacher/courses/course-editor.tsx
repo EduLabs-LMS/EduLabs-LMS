@@ -36,7 +36,7 @@ export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:Learning
 		<div className="mx-auto w-full max-w-7xl space-y-6 pt-2 pb-16">
 			{/* Back Link */}
 			<Link
-				href="/teacher/courses"
+				href="/self-learning"
 				className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
 			>
 				<ArrowLeft className="h-4 w-4 mr-1.5" />
