@@ -5,28 +5,16 @@ import type { StudentLesson } from '@/shared/contracts/dashboard';
 export type { StudentLesson } from '@/shared/contracts/dashboard';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { useUser } from '@/frontend/components/providers/v2-identity';
-import {
-	AlertCircle,
-	ArrowUpRight,
-	Atom,
-	BookOpenCheck,
-	CalendarClock,
-	CheckCircle2,
-	ChevronRight,
-	CircleDashed,
-	Clock,
-	Clock3,
-	Sparkles,
-} from 'lucide-react';
+import { AlertCircle, BookOpenCheck, CalendarClock, CheckCircle2, CircleDashed, Clock, Clock3 } from 'lucide-react';
 
 import { cn } from '@/shared/utils';
+import { PageHeader } from '@/frontend/components/page-kit';
 import { getUpcomingGroupSessions } from '@/shared/group-schedule';
 import { useGroupSummary } from '@/frontend/features/groups/use-group-summary';
 import { useGroupSessions } from '@/frontend/features/groups/use-group-sessions';
-import { TextbookWaveTopRight, TextbookWaveBottomLeft } from '@/frontend/components/textbook-accent';
+import { TextbookWaveBottomLeft } from '@/frontend/components/textbook-accent';
 import UpcomingSession from '@/frontend/components/upcoming-session';
 import { LessonCard, getLessonCardStatus } from '@/frontend/features/courses/lesson-card';
 import { chapterKey } from '@/shared/chapter-label';
@@ -46,50 +34,7 @@ interface StudentHomeProps {
 	} | null;
 }
 
-const heroSlides = [
-	{
-		image: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Welcome to your classroom',
-		title: 'EduLabs',
-		description: 'Your lessons, homework, and progress, all in one place.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Chapter by chapter',
-		title: 'Course Highlight One',
-		description: 'A short description of this course or topic goes here.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Core foundations',
-		title: 'Course Highlight Two',
-		description: 'A short description of this course or topic goes here.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Going deeper',
-		title: 'Course Highlight Three',
-		description: 'A short description of this course or topic goes here.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Advanced curriculum',
-		title: 'Course Highlight Four',
-		description: 'A short description of this course or topic goes here.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Comprehensive practice',
-		title: 'Exam Prep & High Scores',
-		description: 'Tackle past exams and exercises with structured guidance.',
-		badge: 'Your Grade',
-	},
-] as const;
+
 
 const getLessonStatus = (lesson: StudentLesson) => {
 	if (lesson.chapters.length === 0) return 'Locked' as const;
@@ -113,96 +58,7 @@ const StudentHome = ({
 }: StudentHomeProps) => {
  const { ui, t, direction } = useLanguage();
 	const { user } = useUser();
-	const [activeSlide, setActiveSlide] = useState(0);
-	const [isPaused, setIsPaused] = useState(false);
-	const [dragOffset, setDragOffset] = useState(0);
-	const [isDragging, setIsDragging] = useState(false);
-	const trackRef = useRef<HTMLDivElement>(null);
-	const dragRef = useRef<{
-		pointerId: number;
-		startX: number;
-		startY: number;
-		axis: 'x' | 'y' | null;
-	} | null>(null);
 
-	const SWIPE_LOCK_PX = 8;
-	const SWIPE_THRESHOLD_PX = 50;
-
-	const goToSlide = (next: number) =>
-		setActiveSlide((next + heroSlides.length) % heroSlides.length);
-
-	const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-		// Only primary button for mouse; any touch/pen contact
-		if (e.pointerType === 'mouse' && e.button !== 0) return;
-		dragRef.current = {
-			pointerId: e.pointerId,
-			startX: e.clientX,
-			startY: e.clientY,
-			axis: null,
-		};
-		setIsPaused(true);
-	};
-
-	const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-		const drag = dragRef.current;
-		if (!drag || drag.pointerId !== e.pointerId) return;
-
-		const dx = e.clientX - drag.startX;
-		const dy = e.clientY - drag.startY;
-
-		if (!drag.axis) {
-			if (Math.abs(dx) < SWIPE_LOCK_PX && Math.abs(dy) < SWIPE_LOCK_PX) return;
-			drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-			if (drag.axis === 'x') {
-				// Capture only once we know it's a horizontal swipe so taps still work
-				try {
-					e.currentTarget.setPointerCapture(e.pointerId);
-				} catch {}
-				setIsDragging(true);
-			}
-		}
-
-		if (drag.axis === 'x') {
-			// Add resistance at the first/last edges
-			const logicalDx = direction === 'rtl' ? -dx : dx;
-			const atStart = activeSlide === 0 && logicalDx > 0;
-			const atEnd = activeSlide === heroSlides.length - 1 && logicalDx < 0;
-			setDragOffset(atStart || atEnd ? dx * 0.35 : dx);
-		}
-	};
-
-	const endDrag = (e: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
-		const drag = dragRef.current;
-		if (!drag || drag.pointerId !== e.pointerId) return;
-		dragRef.current = null;
-
-		if (drag.axis === 'x') {
-			const dx = e.clientX - drag.startX;
-			if (!cancelled && Math.abs(dx) >= SWIPE_THRESHOLD_PX) {
-				const logicalDx = direction === 'rtl' ? -dx : dx;
-				const next = activeSlide + (logicalDx < 0 ? 1 : -1);
-				// Don't wrap with a swipe past the ends; clamp instead
-				setActiveSlide(Math.min(Math.max(next, 0), heroSlides.length - 1));
-			}
-			try {
-				e.currentTarget.releasePointerCapture(e.pointerId);
-			} catch {}
-		}
-
-		setIsDragging(false);
-		setDragOffset(0);
-		setIsPaused(false);
-	};
-
-	useEffect(() => {
-		if (isPaused) return;
-
-		const interval = window.setInterval(() => {
-			setActiveSlide((slide) => (slide + 1) % heroSlides.length);
-		}, 4000);
-
-		return () => window.clearInterval(interval);
-	}, [isPaused]);
 
 	const completedLessons = lessons.filter(
 		(lesson) => getLessonStatus(lesson) === 'Completed'
@@ -235,93 +91,10 @@ const StudentHome = ({
 
 	return (
 		<div className="mx-auto w-full max-w-[1600px] space-y-8 pt-2">
-			{/* Top Hero Carousel */}
-			<section
-				className="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 shadow-sm"
-				onMouseEnter={() => setIsPaused(true)}
-				onMouseLeave={() => setIsPaused(false)}
-			>
-				<div
-					ref={trackRef}
-					className={cn(
-						'flex select-none [touch-action:pan-y]',
-						isDragging ? 'cursor-grabbing' : 'cursor-grab transition-transform duration-700 ease-out'
-					)}
-					style={{
-						transform: `translateX(calc(${direction === 'rtl' ? '' : '-'}${activeSlide * 100}% + ${dragOffset}px))`,
-					}}
-					onPointerDown={handlePointerDown}
-					onPointerMove={handlePointerMove}
-					onPointerUp={(e) => endDrag(e)}
-					onPointerCancel={(e) => endDrag(e, true)}
-				>
-					{heroSlides.map((slide, index) => (
-						<div
-							className="relative min-w-full overflow-hidden px-6 py-10 sm:px-10 md:min-h-[300px] md:py-16 text-white"
-							key={slide.title}
-						>
-							{/* Background Image */}
-							<Image
-								src={slide.image}
-								alt={ui(slide.title)}
-								fill
-								priority={index === 0}
-								draggable={false}
-								sizes="(max-width: 1200px) 100vw, 1600px"
-								className="object-cover"
-							/>
-
-							{/* Dark overlay for readability */}
-							<div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/70 to-slate-950/30 backdrop-brightness-90" />
-
-							{/* Slide Content */}
-							<div className="relative z-10 flex max-w-2xl flex-col gap-3.5">
-								<div className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
-									<Sparkles className="h-4 w-4" />
-									<L text={slide.eyebrow}/>
-								</div>
-								<h1 className="text-2xl font-bold tracking-tight sm:text-4xl text-white">
-									<L text={slide.title}/>
-								</h1>
-								<p className="max-w-xl text-sm sm:text-base text-slate-200 leading-relaxed">
-									<L text={slide.description}/>
-								</p>
-								<span className="mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-white/15 backdrop-blur-xs px-3.5 py-1.5 text-xs sm:text-sm font-medium ring-1 ring-white/25 text-white">
-									<L text={slide.badge}/> <ArrowUpRight className="h-4 w-4" />
-								</span>
-							</div>
-
-							<Atom
-								aria-hidden="true"
-								className="absolute bottom-6 right-6 h-24 w-24 text-white/20 sm:h-36 sm:w-36 pointer-events-none"
-								strokeWidth={1}
-							/>
-						</div>
-					))}
-				</div>
-
-				{/* Clickable Indicator Dots */}
-				<div className="absolute bottom-4 inset-x-0 z-20 flex justify-center items-center gap-2">
-					{heroSlides.map((slide, index) => (
-						<button
-							aria-label={t('home.slide',{count:index+1})}
-							aria-pressed={activeSlide === index}
-							className={cn(
-								'h-2.5 rounded-full transition-all duration-300 cursor-pointer',
-								activeSlide === index
-									? 'w-8 bg-white shadow-md'
-									: 'w-2.5 bg-white/40 hover:bg-white/80'
-							)}
-							key={slide.title}
-							onClick={() => goToSlide(index)}
-							type="button"
-						/>
-					))}
-				</div>
-			</section>
+			<PageHeader icon={<BookOpenCheck aria-hidden className="h-7 w-7" />} title={<><L id="home.hey"/>{" "}<bdi dir="auto">{firstName}</bdi>!</>} subtitle={<L id="home.here_s_your_learning_journey"/>} />
 
 			{/* LIVE SESSION & HOMEWORK REMINDER BANNER */}
-			<section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+			<section className="rounded-3xl border-2 border-black bg-white p-5 shadow-hard-sm sm:p-6">
 				<div className="flex min-w-0 flex-col justify-between gap-6 xl:flex-row xl:items-center">
 					{phase1 && liveGroups.error && <p role="alert" className="text-sm text-red-700">{liveGroups.error} <button className="underline" onClick={liveGroups.retry}><L id="home.retry_schedule"/></button></p>}
 					{phase1 && liveGroups.loading && <p role="status" className="text-sm text-slate-500"><L id="home.loading_your_class_schedule"/></p>}
@@ -336,11 +109,11 @@ const StudentHome = ({
 					<div className="shrink-0 flex flex-col sm:flex-row items-start sm:items-center gap-3.5 p-4 rounded-2xl border bg-slate-50/80">
 						{homeworkInfo?.status === 'APPROVED' ? (
 							<>
-								<div className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-100 text-emerald-700 shrink-0">
+								<div className="grid h-11 w-11 place-items-center rounded-xl bg-green-100 text-green-900 shrink-0">
 									<CheckCircle2 className="h-6 w-6" />
 								</div>
 								<div className="space-y-0.5">
-									<span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/90 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+									<span className="inline-flex items-center gap-1 rounded-full bg-green-100/90 px-2.5 py-0.5 text-xs font-bold text-green-900">
 										<CheckCircle2 className="h-3 w-3" /><L id="home.homework_approved"/></span>
 									<p className="text-xs text-slate-600">
 										{homeworkInfo.chapterTitle}{" "}<L id="home.verified_great_job"/></p>
@@ -385,13 +158,8 @@ const StudentHome = ({
 			</section>
 
 			<section className="space-y-5">
-				<div>
-					<h2 className="text-2xl font-bold tracking-tight text-slate-950"><L id="home.hey"/>{" "}<bdi dir="auto">{firstName}</bdi>!</h2>
-					<p className="mt-1 text-sm text-slate-500"><L id="home.here_s_your_learning_journey"/></p>
-				</div>
-
-				<div className="grid gap-4 md:grid-cols-3">
-					<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default">
+				<div className="m-list grid gap-4 md:grid-cols-3">
+					<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm">
 						<div className="flex items-start justify-between gap-4">
 							<div>
 								<p className="text-sm font-medium text-slate-500"><L id="home.lessons_done"/></p>
@@ -400,17 +168,17 @@ const StudentHome = ({
 									<span className="text-base font-medium text-slate-500"><L id="home.lessons"/></span>
 								</p>
 							</div>
-							<span className="grid h-11 w-11 place-items-center rounded-xl bg-sky-50 text-sky-700">
+							<span className="grid h-11 w-11 place-items-center rounded-xl bg-green-50 text-green-900">
 								<BookOpenCheck className="h-5 w-5" />
 							</span>
 						</div>
 					</div>
 
 					{[
-						{ label: 'Sessions Attended', value:attendance.data?.own.attended, icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
+						{ label: 'Sessions Attended', value:attendance.data?.own.attended, icon: CheckCircle2, tone: 'bg-green-50 text-green-900' },
 						{ label: 'Sessions Absent', value:attendance.data?.own.absent, icon: CalendarClock, tone: 'bg-violet-50 text-violet-600' },
 					].map(({ label, value, icon: Icon, tone }) => (
-						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default" key={label}>
+						<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm" key={label}>
 							<div className="flex items-start justify-between gap-4">
 								<div>
 									<p className="text-sm font-medium text-slate-500"><L text={label}/></p>
@@ -431,7 +199,7 @@ const StudentHome = ({
 					<span className="text-sm text-slate-500">{summaryAvailable ? discoveryCount : <L id="common.unavailable"/>}{" "}<L id="home.lessons_available"/></span>
 				</div>
 
-				<div className="flex gap-4 overflow-x-auto py-2 pb-4">
+				<div className="m-list flex gap-4 overflow-x-auto py-2 pb-4">
 					{discoveryCount ? (
 						lessons.map((lesson, index) => {
 							if (discoveryLessonIds && !discoveryLessonIds.includes(lesson.id)) return null;
@@ -461,7 +229,7 @@ const StudentHome = ({
 			</section>
 
 			<section className="grid gap-6 lg:grid-cols-2">
-				<div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0">
+				<div className="relative overflow-hidden rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm">
 					<TextbookWaveBottomLeft opacity={0.2} />
 					<div className="relative z-10">
 						<h2 className="text-xl font-bold text-slate-950"><L id="home.progress_overview"/></h2>
@@ -469,7 +237,7 @@ const StudentHome = ({
 						<div
 							className="grid h-36 w-36 shrink-0 place-items-center rounded-full"
 							style={{
-								background: `conic-gradient(var(--progress-accent, #0284c7) ${summaryAvailable ? `${progress}%` : "Unavailable"}, var(--progress-track, #e2e8f0) 0)`,
+								background: `conic-gradient(var(--progress-accent, #16a34a) ${summaryAvailable ? `${progress}%` : "Unavailable"}, var(--progress-track, #e2e8f0) 0)`,
 							}}
 						>
 							<div className="grid h-[108px] w-[108px] place-items-center rounded-full bg-white text-center">
@@ -487,19 +255,19 @@ const StudentHome = ({
 					</div>
 				</div>
 
-				<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0">
+				<div className="rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm">
 					<div className="flex items-center justify-between gap-3">
 						<h2 className="text-xl font-bold text-slate-950"><L id="home.upcoming_sessions"/></h2>
-						<CalendarClock className="h-5 w-5 text-sky-700" />
+						<CalendarClock className="h-5 w-5 text-green-900" />
 					</div>
 					<div className="mt-5 max-h-60 space-y-3 overflow-y-auto pr-1">
 						{phase1 && (liveGroups.error || liveGroups.loading) ? <p role={liveGroups.error ? 'alert' : 'status'} className="text-sm text-slate-500">{liveGroups.error || <L id="home.loading_your_class_schedule"/>}</p> : upcomingSessions.length ? (
 							upcomingSessions.map((session) => (
 								<div
-									className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4"
+									className="flex items-center gap-3 rounded-xl border-2 border-black bg-slate-50 p-4"
 									key={`${session.dayLabel}-${session.dateLabel}`}
 								>
-									<span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-sky-700 shadow-sm">
+									<span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-green-900 shadow-sm">
 										<Clock3 className="h-5 w-5" />
 									</span>
 									<div>

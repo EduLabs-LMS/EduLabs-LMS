@@ -150,7 +150,7 @@ const LessonTabs = ({
 				</Link>
 
 				<div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-					<span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700 border border-sky-200/80">
+					<span className="rounded-full bg-green-50 px-2.5 py-1 text-green-900 border border-slate-300/80">
 						{formatChapterLabel(chapterType, chapterNumber)}
 					</span>
 					{courseTitle && (
@@ -166,7 +166,7 @@ const LessonTabs = ({
 			<div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 				{/* LEFT COLUMN: Main Segment Content (lg:col-span-8) */}
 				<div className="lg:col-span-8 space-y-6">
-					<div className="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+					<div className="relative overflow-hidden bg-white rounded-2xl border-2 border-black p-6 shadow-hard-sm space-y-6">
 						<TextbookWaveTopRight opacity={0.2} />
 						{/* Segment Header */}
 						<div className="relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-slate-100 pb-5">
@@ -178,7 +178,7 @@ const LessonTabs = ({
 									<span className="text-slate-300">·</span>
 
 									{activeContentType === 'VIDEO_EXPLANATION' ? (
-										<span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 border border-sky-200/80">
+										<span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-900 border border-slate-300/80">
 											<Video className="h-3.5 w-3.5" /><L id="common.video_explanation"/></span>
 									) : (
 										<span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200/80">
@@ -193,14 +193,14 @@ const LessonTabs = ({
 						</div>
 
 						{/* Mobile Segment Switcher Accordion */}
-						<div className="lg:hidden border border-slate-200 rounded-xl bg-slate-50/70 p-3">
+						<div className="lg:hidden border-2 border-black rounded-xl bg-slate-50/70 p-3">
 							<button
 								type="button"
 								onClick={() => setIsMobilePlaylistOpen((v) => !v)}
 								className="flex w-full items-center justify-between text-xs font-semibold text-slate-700"
 							>
 								<div className="flex items-center gap-2">
-									<Layers className="h-4 w-4 text-sky-600" />
+									<Layers className="h-4 w-4 text-green-900" />
 									<span><L id="common.playlist"/>{currentSegmentIndex + 1}/{segments.length}): {title}
 									</span>
 								</div>
@@ -225,14 +225,14 @@ const LessonTabs = ({
 												className={cn(
 													'flex items-center justify-between rounded-lg p-2.5 text-xs font-medium transition',
 													isActive
-														? 'bg-sky-100 text-sky-900 font-bold'
+														? 'bg-green-100 text-green-900 font-bold'
 														: 'bg-white hover:bg-slate-100 text-slate-700'
 												)}
 											>
 												<div className="flex items-center gap-2 truncate pr-2">
               {seg.thumbnailUrl&&<Image unoptimized width={64} height={40} src={seg.thumbnailUrl} alt="" className="h-8 w-12 shrink-0 rounded object-cover"/>}
 													{segType === 'VIDEO_EXPLANATION' ? (
-														<Video className="h-3.5 w-3.5 shrink-0 text-sky-600" />
+														<Video className="h-3.5 w-3.5 shrink-0 text-green-900" />
 													) : (
 														<ClipboardCheck className="h-3.5 w-3.5 shrink-0 text-amber-600" />
 													)}
@@ -240,7 +240,7 @@ const LessonTabs = ({
 													</span>
 												</div>
 												{seg.isCompleted && (
-													<CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+													<CheckCircle2 className="h-3.5 w-3.5 text-green-900 shrink-0" />
 												)}
 											</Link>
 										);
@@ -257,7 +257,7 @@ const LessonTabs = ({
 						{activeContentType === 'VIDEO_EXPLANATION' && (
 							<div className="space-y-6">
 								{/* Video Player */}
-								{secure ? <SecureLessonPlayer courseId={courseId} segmentId={chapterId} url={videoUrl} data={secure}/> : <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-200 shadow-sm">
+								{secure ? <SecureLessonPlayer courseId={courseId} segmentId={chapterId} url={videoUrl} data={secure}/> : <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border-2 border-black shadow-hard-sm">
 									{playbackId ? (
 										<VideoPlayer
 											chapterId={chapterId}
@@ -293,7 +293,7 @@ const LessonTabs = ({
 {/* Segment Text Explanation / Description */}
         <LessonBlocks blocks={lessonBlocks}/>
 								{description && (
-									<div className="rounded-xl border border-slate-100 bg-slate-50/60 p-5 text-slate-800 leading-relaxed text-sm sm:text-base">
+									<div className="rounded-xl border-2 border-black bg-slate-50/60 p-5 text-slate-800 leading-relaxed text-sm sm:text-base">
 										<Preview value={description} />
 									</div>
 								)}
@@ -311,10 +311,10 @@ const LessonTabs = ({
 													target="_blank"
 													rel="noreferrer"
 													download
-													className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 p-3.5 transition group"
+													className="flex items-center justify-between rounded-xl border-2 border-black bg-slate-50 hover:bg-slate-100 hover:border-slate-300 p-3.5 transition group"
 												>
 													<div className="flex items-center gap-3 min-w-0 pr-2">
-														<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
+														<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-900">
 															<FileText className="h-5 w-5" />
 														</div>
 														<span className="truncate text-sm font-semibold text-slate-800 group-hover:text-slate-950">
@@ -360,7 +360,7 @@ const LessonTabs = ({
 								{/* Unlocked Homework Solution Video Player */}
 								<div className="border-t border-slate-200 pt-6 space-y-4">
 									<div className="flex items-center gap-2 text-slate-900 font-bold text-base">
-										<PlayCircle className="h-5 w-5 text-sky-600" />
+										<PlayCircle className="h-5 w-5 text-green-900" />
 										<span><L id="common.homework_solution_walkthrough"/></span>
 									</div>
 
@@ -373,7 +373,7 @@ const LessonTabs = ({
 											<p className="max-w-md text-sm text-slate-500 leading-relaxed"><L id="common.upload_a_clear_photo_or"/></p>
 										</div>
 									) : solutionEmbedUrl ? (
-										<div className="aspect-video w-full rounded-xl overflow-hidden border border-slate-200 bg-black shadow-sm">
+										<div className="aspect-video w-full rounded-xl overflow-hidden border-2 border-black bg-black shadow-hard-sm">
 											<iframe
 												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 												allowFullScreen
@@ -385,7 +385,7 @@ const LessonTabs = ({
 									) : solutionVideoUrl ? (
 										<video
 											controls
-											className="aspect-video w-full rounded-xl border border-slate-200 bg-black shadow-sm"
+											className="aspect-video w-full rounded-xl border-2 border-black bg-black shadow-hard-sm"
 											src={solutionVideoUrl}
 										/>
 									) : (
@@ -402,7 +402,7 @@ const LessonTabs = ({
 							{prevSegment ? (
 								<Link
 									href={segmentHref(prevSegment.id)}
-									className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
+									className="inline-flex items-center gap-1.5 rounded-lg border-2 border-black bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
 								>
 									<ChevronLeft className="h-4 w-4" />
 									<span><L id="common.previous_segment"/>{" "}{currentSegmentIndex}</span>
@@ -420,7 +420,7 @@ const LessonTabs = ({
 									<ChevronRight className="h-4 w-4" />
 								</Link>
 							)}
-       {!prevSegment&&previousLesson&&<Link href={previousLesson.href} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700"><ChevronLeft className="h-4 w-4"/><span className="truncate"><L id="common.previous_lesson"/>{" "}{previousLesson.title}</span></Link>}
+       {!prevSegment&&previousLesson&&<Link href={previousLesson.href} className="inline-flex items-center gap-1.5 rounded-lg border-2 border-black bg-white px-3.5 py-2 text-xs font-semibold text-slate-700"><ChevronLeft className="h-4 w-4"/><span className="truncate"><L id="common.previous_lesson"/>{" "}{previousLesson.title}</span></Link>}
        {!nextSegment&&nextLesson&&<Link href={nextLesson.href} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white ml-auto"><span className="truncate"><L id="common.next_lesson"/>{" "}{nextLesson.title}</span><ChevronRight className="h-4 w-4"/></Link>}
 						</div>
 					</div>
@@ -428,7 +428,7 @@ const LessonTabs = ({
 
 				{/* RIGHT COLUMN: Dedicated Lesson Segment Navigation Playlist (lg:col-span-4) */}
 				<div className="hidden lg:block lg:col-span-4 sticky top-20 space-y-4">
-					<div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+					<div className="bg-white rounded-xl border-2 border-black p-5 shadow-hard-sm space-y-4">
 						{/* Playlist Header */}
 						<div className="flex items-center justify-between border-b border-slate-100 pb-3">
 							<div className="space-y-0.5">
@@ -455,7 +455,7 @@ const LessonTabs = ({
 										className={cn(
 											'group flex items-start justify-between gap-3 rounded-xl p-3.5 text-left transition-all duration-150 border',
 											isActive
-												? 'bg-sky-50/80 border-sky-300 text-sky-950 shadow-xs ring-1 ring-sky-200'
+												? 'bg-green-50/80 border-slate-300 text-green-900 shadow-xs ring-1 ring-sky-200'
 												: 'border-slate-100 bg-slate-50/60 hover:bg-slate-100 hover:border-slate-200 text-slate-700'
 										)}
 									>
@@ -466,7 +466,7 @@ const LessonTabs = ({
 													'grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold transition-colors mt-0.5',
 													isActive
 														? 'bg-sky-600 text-white'
-														: 'bg-white border border-slate-200 text-slate-600 group-hover:bg-slate-50'
+														: 'bg-white border-2 border-black text-slate-600 group-hover:bg-slate-50'
 												)}
 											>
 												{idx + 1}
@@ -475,7 +475,7 @@ const LessonTabs = ({
 											<div className="space-y-1 min-w-0">
 												<div className="flex items-center gap-1.5 text-[11px] font-semibold">
 													{segType === 'VIDEO_EXPLANATION' ? (
-														<span className="inline-flex items-center gap-1 text-sky-700">
+														<span className="inline-flex items-center gap-1 text-green-900">
 															<Video className="h-3 w-3" /><L id="common.explanation"/></span>
 													) : (
 														<span className="inline-flex items-center gap-1 text-amber-700">
@@ -486,7 +486,7 @@ const LessonTabs = ({
 												<p
 													className={cn(
 														'text-xs font-semibold line-clamp-2 leading-relaxed',
-														isActive ? 'text-sky-950 font-bold' : 'text-slate-800'
+														isActive ? 'text-green-900 font-bold' : 'text-slate-800'
 													)}
 												>
 													{seg.title}
@@ -496,7 +496,7 @@ const LessonTabs = ({
 
 										<div className="shrink-0 mt-1">
 											{seg.isCompleted ? (
-												<CheckCircle2 className="h-4 w-4 text-emerald-600" />
+												<CheckCircle2 className="h-4 w-4 text-green-900" />
 											) : (
 												<ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
 											)}

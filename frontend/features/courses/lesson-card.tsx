@@ -59,8 +59,8 @@ export const LessonCard = ({
 	const text = description?.trim();
 
 	const statusStyle: Record<LessonCardStatus, string> = {
-		Completed: 'bg-emerald-100 text-emerald-800',
-		'In Progress': 'bg-sky-100 text-sky-800',
+		Completed: 'bg-green-100 text-green-900',
+		'In Progress': 'bg-green-100 text-green-900',
 		'Open Lesson': 'bg-slate-900 text-white',
   'Not Started': 'bg-slate-900 text-white',
 		Locked: 'bg-slate-100 text-slate-500',
@@ -98,7 +98,7 @@ export const LessonCard = ({
 			<p
 				className={cn(
 					'text-xs font-bold uppercase tracking-[0.14em]',
-					hasImage ? 'text-sky-200' : 'text-sky-700'
+					hasImage ? 'text-sky-200' : 'text-green-900'
 				)}
 			>
 				{formatChapterLabel(chapterType, chapterNumber)}{" "}<L id="common.lesson"/>{" "}{lessonNumber}
@@ -143,7 +143,7 @@ export const LessonCard = ({
 	);
 
 	return href ? (
-		<Link href={href} className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 rounded-2xl">
+		<Link href={href} className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 rounded-2xl">
 			{body}
 		</Link>
 	) : (

@@ -88,14 +88,14 @@ const ChaptersForm = ({ initialData, courseId }: ChaptersFormProps) => {
 	};
 
 	const onEdit = (id: string) => {
-		router.push(`/teacher/courses/${courseId}/chapters/${id}`);
+		router.push(`/self-learning/${courseId}/chapters/${id}`);
 	};
 
 	return (
-		<div className="relative rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition-colors">
+		<div className="relative rounded-xl border-2 border-black bg-slate-50/70 p-4 transition-colors">
 			{isUpdating && (
 				<div className="absolute h-full w-full bg-slate-500/20 top-0 right-0 rounded-xl flex items-center justify-center">
-					<Loader2 className="animate-spin h-6 w-6 text-sky-700" />
+					<Loader2 className="animate-spin h-6 w-6 text-green-900" />
 				</div>
 			)}
 

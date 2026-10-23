@@ -73,14 +73,14 @@ export const GroupRosterView = ({
 			</div>
 
 			{/* 2. ENROLLED GROUP ROSTER & HOMEWORK SUBMISSION TRACKER */}
-			{!privacySafe && <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+			{!privacySafe && <div className="relative overflow-hidden rounded-3xl border-2 border-black bg-white p-6 sm:p-8 shadow-hard-sm">
 				<TextbookWaveBottomLeft opacity={0.2} />
 
 				<div className="relative z-10 space-y-6">
 					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-5">
 						<div>
 							<h2 className="text-xl font-bold text-slate-950 flex items-center gap-2">
-								<Users className="h-5 w-5 text-cyan-600" />
+								<Users className="h-5 w-5 text-green-800" />
 								<span>{phase1 ? 'Offering Enrollment' : 'Enrolled Peer Roster'}</span>
 							</h2>
 							<p className="mt-1 text-xs sm:text-sm text-slate-500">
@@ -110,7 +110,7 @@ export const GroupRosterView = ({
 									className={cn(
 										'py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors rounded-xl px-3 -mx-3',
 										peer.isCurrentUser
-											? 'bg-cyan-50/50 border border-cyan-200/60'
+											? 'bg-green-50/50 border border-cyan-200/60'
 											: 'hover:bg-slate-50/70'
 									)}
 								>
@@ -151,8 +151,8 @@ export const GroupRosterView = ({
 												</div>
 
 												{peer.latestSubmission.status === 'APPROVED' ? (
-													<span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold shadow-2xs">
-														<CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+													<span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 text-green-900 border border-green-300 text-xs font-semibold shadow-2xs">
+														<CheckCircle2 className="h-4 w-4 text-green-900 shrink-0" />
 														<span>Approved</span>
 													</span>
 												) : peer.latestSubmission.status === 'PENDING_APPROVAL' ? (
@@ -168,7 +168,7 @@ export const GroupRosterView = ({
 												)}
 											</div>
 										) : (
-											<span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 border border-slate-200/80 text-xs font-medium">
+											<span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 border-2 border-black/80 text-xs font-medium">
 												<span>No submission yet</span>
 											</span>
 										)}

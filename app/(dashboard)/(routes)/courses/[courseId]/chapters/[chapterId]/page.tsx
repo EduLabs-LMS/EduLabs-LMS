@@ -1,4 +1,7 @@
 import { SecureLessonPage } from '../../../../../_components/secure-lesson-page';
+import { StudentPreviewLessonPage } from '../../../../../_components/student-preview-lesson';
+import { previewFor } from '../../../../../_components/website-pages';
+import { getWebsiteContext } from '@/server/services/website';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { getChapter } from '@/server/queries/get-chapter';
 import Banner from '@/frontend/components/banner';
@@ -12,7 +15,12 @@ const ChapterIdPage = async ({
 	params: Promise<{ courseId: string; chapterId: string }>; searchParams: Promise<{offering?:string}>;
 }) => {
 	const params = await paramsPromise;
-	if (isFirebaseStaging()) return <SecureLessonPage courseId={params.courseId} segmentId={params.chapterId} offeringId={(await searchParams).offering}/>;
+	if (isFirebaseStaging()) {
+		const { offering } = await searchParams;
+		const context = await getWebsiteContext();
+		if (context && await previewFor(context)) return <StudentPreviewLessonPage courseId={params.courseId} segmentId={params.chapterId} offeringId={offering}/>;
+		return <SecureLessonPage courseId={params.courseId} segmentId={params.chapterId} offeringId={offering}/>;
+	}
 	const { userId } = await auth();
 
 	if (!userId) return redirect('/');

@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useState } from 'react';
 import * as z from 'zod';
 import { api } from '@/frontend/lib/api';
@@ -50,7 +51,7 @@ const CreateNewCoursePage = ({organizations}:{organizations:{id:string;name:stri
 		try {
 			setError('');
 			const response = await api.post('/api/teacher/courses', {...values,organization_id:organization,slug});
-			router.push(`/teacher/courses/${response.data.id}`);
+			router.push(`/self-learning/${response.data.id}`);
 			toast.success('Lesson created successfully');
 		} catch (error) {
 			const message=(error as {response?:{data?:{error?:string}}}).response?.data?.error || 'Unable to create course'; setError(message); toast.error(message);
@@ -61,7 +62,7 @@ const CreateNewCoursePage = ({organizations}:{organizations:{id:string;name:stri
 
 	return (
 		<div className="mx-auto flex max-w-2xl items-center justify-center pt-8 pb-16">
-			<div className="w-full rounded-2xl border border-slate-200 bg-white p-8 shadow-sm space-y-6">
+			<div className="w-full rounded-2xl border-2 border-black bg-white p-8 shadow-hard-sm space-y-6">
 				<div className="space-y-1">
 					<span className="text-xs font-bold uppercase tracking-wider text-amber-700">
 						New Lesson
@@ -79,7 +80,7 @@ const CreateNewCoursePage = ({organizations}:{organizations:{id:string;name:stri
 						onSubmit={form.handleSubmit(onSubmit)}
 						className="space-y-6"
 					>
-						<label className="block text-sm">Organization<select aria-label="Organization" required disabled={isSubmitting} value={organization} onChange={e=>setOrganization(e.target.value)} className="block w-full rounded-md border p-2">{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
+						<label className="block text-sm">Organization<Dropdown aria-label="Organization" required disabled={isSubmitting} value={organization} onChange={e=>setOrganization(e.target.value)} className="block w-full rounded-md border p-2">{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</Dropdown></label>
  <label className="block text-sm">Slug<Input aria-label="Slug" required value={slug} onChange={e=>setSlug(e.target.value)} maxLength={100} pattern="[a-z0-9]+(-[a-z0-9]+)*" disabled={isSubmitting}/></label>
  {error&&<p role="alert" className="text-red-700">{error}</p>}
  <FormField
@@ -110,7 +111,7 @@ const CreateNewCoursePage = ({organizations}:{organizations:{id:string;name:stri
 						/>
 
 						<div className="flex items-center gap-x-2 pt-2 border-t border-slate-100">
-							<Link href={'/teacher/courses'}>
+							<Link href={'/self-learning'}>
 								<Button type="button" variant={'outline'} className="border-slate-200 text-slate-700">
 									Cancel
 								</Button>

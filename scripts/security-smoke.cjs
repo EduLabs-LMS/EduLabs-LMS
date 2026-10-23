@@ -14,7 +14,7 @@ async function main() {
     assert.match(await response.text(), /clerk/i);
     passed++;
   }
-  for (const path of ['/home', '/teacher/courses', '/admin/users']) {
+  for (const path of ['/home', '/self-learning', '/admin/users']) {
     const response = await request(path, { accept: 'text/html' });
     assert.equal(response.status, 307, path);
     assert.ok(response.headers.get('location'));

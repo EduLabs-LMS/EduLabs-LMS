@@ -35,6 +35,6 @@ export function WebsiteNavigationProvider({ value, children }: { value: WebsiteN
 export const useWebsiteNavigation = () => useContext(NavigationContext);
 export function ApplicationAvatar() {
   const { user,openUserProfile } = useApplicationAuth();
-  return isFirebaseStaging() ? <button type="button" aria-label="Your account" onClick={openUserProfile} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-cyan-500 bg-cyan-50 text-cyan-800 font-bold">{user?.imageUrl?<img alt="Your profile" src={user.imageUrl} className="h-full w-full rounded-full object-cover"/>:(user?.fullName || user?.email || 'L').slice(0, 1).toUpperCase()}</button> :
-    <UserButton appearance={{ elements: { avatarBox: 'h-9 w-9 border-2 border-cyan-500 shadow-sm', userButtonPopoverCard: 'shadow-xl rounded-2xl border border-slate-200 z-[99999] pointer-events-auto', userButtonPopoverMain: 'z-[99999] pointer-events-auto' } }} />;
+  return isFirebaseStaging() ? <button type="button" aria-label="Your account" onClick={openUserProfile} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-cyan-500 bg-green-50 text-cyan-800 font-bold">{user?.imageUrl?<img alt="Your profile" src={user.imageUrl} className="h-full w-full rounded-full object-cover"/>:(user?.fullName || user?.email || 'L').slice(0, 1).toUpperCase()}</button> :
+    <UserButton appearance={{ elements: { avatarBox: 'h-9 w-9 border-2 border-cyan-500 shadow-sm', userButtonPopoverCard: 'shadow-xl rounded-2xl border-2 border-black z-[99999] pointer-events-auto', userButtonPopoverMain: 'z-[99999] pointer-events-auto' } }} />;
 }

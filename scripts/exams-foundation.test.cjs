@@ -134,7 +134,7 @@ test('read-only views show released marks only and expose no attempt-start actio
   const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
   const views=load('frontend/features/exams/exams-list.tsx',{'react/jsx-runtime':require('react/jsx-runtime'),
     'next/link':p=>React.createElement('a',p),'lucide-react':require('lucide-react'),
-    '@/frontend/features/exams/exams-retry':{ExamsRetry:()=>null},
+    '@/frontend/features/exams/exams-retry':{ExamsRetry:()=>null},'@/frontend/features/exams/exams-browser':{ExamsBrowser:()=>null},'@/frontend/components/page-kit':{PageHeader:()=>null},
     '@/shared/contracts/exam-listing':listing,'@/shared/utils':{cn:(...v)=>v.filter(Boolean).join(' ')}});
   const exam={id:'s',title:'Physics',kind:'quiz',offeringName:'Group',courseTitle:null,instructions:null,
     timeLimitSeconds:null,maxAttempts:2,questionCount:null,opensAt:null,closesAt:null,state:'SUBMITTED',

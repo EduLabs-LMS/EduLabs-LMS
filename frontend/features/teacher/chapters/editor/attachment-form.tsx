@@ -69,7 +69,7 @@ const AttachmentForm = ({
 	};
 
 	return (
-		<div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition-colors">
+		<div className="rounded-xl border-2 border-black bg-slate-50/70 p-4 transition-colors">
 			<div className="flex items-center justify-between font-medium text-slate-900 text-sm">
 				Optional Resources / Attachments
 				<Button onClick={() => setIsEditing((value) => !value)} variant="ghost">
@@ -87,7 +87,7 @@ const AttachmentForm = ({
 						<div className="mt-3 space-y-2">
 							{initialData.attachments.map((attachment) => (
 								<div
-									className="flex w-full items-center rounded-md border border-sky-200 bg-sky-100 p-3 text-sky-700"
+									className="flex w-full items-center rounded-md border border-slate-300 bg-green-100 p-3 text-green-900"
 									key={attachment.id}
 								>
 									<File className="mr-2 h-4 w-4 shrink-0" />

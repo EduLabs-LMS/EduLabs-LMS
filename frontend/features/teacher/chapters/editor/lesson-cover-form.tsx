@@ -21,7 +21,7 @@ export function LessonCoverForm({courseId,lesson}:{courseId:string;lesson:Learni
    router.refresh();
   }catch(e){let note='';if(uploaded&&!attached&&!await cleanup(uploaded))note=` Unattached asset ${uploaded} retained for trusted cleanup.`;setError((e instanceof Error?e.message:'Cover could not be saved')+note);}finally{setBusy(false);}
  }
- return <section className="space-y-3 rounded-xl border border-slate-200 p-4"><h3 className="text-sm font-semibold">Lesson cover</h3><p className="text-xs text-slate-500">Independent of part thumbnails. PNG, JPEG or WebP, up to 5 MB.</p>
+ return <section className="space-y-3 rounded-xl border-2 border-black p-4"><h3 className="text-sm font-semibold">Lesson cover</h3><p className="text-xs text-slate-500">Independent of part thumbnails. PNG, JPEG or WebP, up to 5 MB.</p>
   {url?<Image unoptimized width={640} height={360} src={url} alt={`${lesson.title} lesson cover`} className="aspect-video w-full max-w-lg rounded-xl object-cover" onError={()=>{setUrl(null);setError('Cover preview unavailable. Refresh to renew access.');}}/>:<p className="text-xs text-slate-500">{previewLoading?'Loading cover preview…':lesson.cover_asset_id?'Cover preview unavailable.':'No lesson cover. Students see the standard card.'}</p>}
   <Input aria-label="Lesson cover image" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void save(file);}}/>
   {lesson.cover_asset_id&&<Button type="button" variant="outline" disabled={busy} onClick={()=>void save(null)}>Remove lesson cover</Button>}

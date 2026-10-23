@@ -24,6 +24,8 @@ import {
 } from '@/shared/contracts/exam-listing';
 import { cn } from '@/shared/utils';
 import { ExamsRetry } from '@/frontend/features/exams/exams-retry';
+import { ExamsBrowser } from '@/frontend/features/exams/exams-browser';
+import { PageHeader } from '@/frontend/components/page-kit';
 
 /**
  * Server-renderable (no client hooks) views for the Firebase/Supabase Exams
@@ -32,7 +34,7 @@ import { ExamsRetry } from '@/frontend/features/exams/exams-retry';
  * and grading are separate deliveries that need backend contracts.
  */
 
-const cardClass = 'rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm';
+const cardClass = 'rounded-3xl border-2 border-black bg-white p-5 shadow-hard-sm sm:p-6';
 
 const STATE: Record<ExamListState, { text: string; className: string; icon: LucideIcon }> = {
 	NOT_STARTED: { text: 'Not started', className: 'bg-white', icon: PlayCircle },
@@ -48,22 +50,12 @@ const utc = (iso: string | null) => iso ? <LocalDate compactUtc value={iso} opti
 
 function Header({ isStaff, action }: { isStaff: boolean; action?: ReactNode }) {
 	return (
-		<div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border-2 border-black bg-white p-5 shadow-hard">
-			<div className="flex items-center gap-3">
-				<div className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-black bg-primary">
-					<FileText className="h-6 w-6" />
-				</div>
-				<div>
-					<h1 className="font-display text-3xl leading-none"><L id="navigation.exams"/></h1>
-					<p className="mt-1 text-sm text-slate-600">
-						{isStaff
-							? <L id="exam.staffIntro"/>
-							: <L id="exam.studentIntro"/>}
-					</p>
-				</div>
-			</div>
-            {action}
-		</div>
+		<PageHeader
+			icon={<FileText aria-hidden className="h-7 w-7" />}
+			title={<L id="navigation.exams"/>}
+			subtitle={isStaff ? <L id="exam.staffIntro"/> : <L id="exam.studentIntro"/>}
+			actions={action}
+		/>
 	);
 }
 
@@ -103,47 +95,12 @@ export function ExamsListView({ items, isStaff, truncated, action }: { items: Ex
 		<div className="mx-auto w-full max-w-5xl space-y-6 pb-12">
 			<Header isStaff={isStaff} action={action} />
 			{truncated && (
-				<p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><L id="exams.this_list_is_partial_because"/></p>
+				<p role="status" className="rounded-2xl border-2 border-amber-800 bg-amber-50 p-4 text-sm text-amber-900"><L id="exams.this_list_is_partial_because"/></p>
 			)}
 			{isStaff && (
-				<p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><L id="exams.exam_creation_settings_and_grading"/></p>
+				<p role="status" className="rounded-2xl border-2 border-green-800 bg-green-50 p-4 text-sm text-green-900"><L id="exams.exam_creation_settings_and_grading"/></p>
 			)}
-			{items.length === 0 ? (
-				<div className={cn(cardClass, 'text-center text-slate-600')}>
-					{isStaff ? <L id="exam.noneStaff"/> : <L id="exam.noneStudent"/>}
-				</div>
-			) : (
-				<ul className="grid gap-4 md:grid-cols-2">
-					{items.map((exam) => {
-						const mark = releasedMark(exam);
-						return (
-							<li key={exam.id}>
-								<Link href={`/exams/${exam.id}`} className={cn(cardClass, 'block h-full transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2')}>
-									<div className="flex items-start justify-between gap-3">
-										<h2 dir="auto" className="text-lg font-bold leading-snug">{exam.title}</h2>
-										<StateBadge state={exam.state} />
-									</div>
-									<p className="mt-1 text-xs text-slate-500">
-										{exam.courseTitle ? `${exam.courseTitle} · ` : ''}{exam.offeringName}
-									</p>
-									{exam.instructions && <p dir="auto" className="mt-2 line-clamp-2 text-sm text-slate-600">{exam.instructions}</p>}
-									<Facts exam={exam} />
-									{exam.attempts.length > 0 && (
-										<p className="mt-3 text-xs font-medium text-slate-700"><L id="exams.attempts_started"/>{" "}{exam.attempts.length}
-											{exam.maxAttempts !== null && <L id="exam.ofLimit" values={{count:exam.maxAttempts}}/>}
-										</p>
-									)}
-									{mark && <p className="mt-2 text-sm font-bold"><L id="exams.released_mark"/>{" "}{mark}</p>}
-									{!isStaff && exam.state === 'SUBMITTED' && (
-										<p className="mt-2 flex items-center gap-1 text-sm font-medium text-slate-700">
-											<Hourglass aria-hidden className="h-4 w-4" />{" "}<L id="exams.results_have_not_been_released"/></p>
-									)}
-								</Link>
-							</li>
-						);
-					})}
-				</ul>
-			)}
+			<ExamsBrowser items={items} isStaff={isStaff} />
 		</div>
 	);
 }
@@ -168,7 +125,7 @@ export function ExamNotFoundView() {
 			<div className={cn(cardClass, 'text-center')}>
 				<p className="font-semibold"><L id="exams.this_exam_is_not_available"/></p>
 				<p className="mt-1 text-sm text-slate-600"><L id="exams.it_may_not_be_published"/></p>
-				<Link href="/exams" className="mt-4 inline-block text-sm font-semibold text-sky-700"><L id="exams.back_to_exams"/></Link>
+				<Link href="/exams" className="mt-4 inline-block text-sm font-semibold text-green-900"><L id="exams.back_to_exams"/></Link>
 			</div>
 		</div>
 	);
@@ -178,7 +135,7 @@ export function ExamDetailView({ exam, isStaff }: { exam: ExamListItem; isStaff:
 	const mark = releasedMark(exam);
 	return (
 		<div className="mx-auto w-full max-w-3xl space-y-6 pb-12">
-			<Link href="/exams" className="inline-flex items-center gap-1 text-sm font-semibold text-sky-700">
+			<Link href="/exams" className="inline-flex items-center gap-1 text-sm font-semibold text-green-900">
 				<ArrowLeft aria-hidden className="h-4 w-4" />{" "}<L id="exams.back_to_exams"/></Link>
 			<div className={cardClass}>
 				<div className="flex items-start justify-between gap-3">
@@ -229,7 +186,7 @@ export function ExamDetailView({ exam, isStaff }: { exam: ExamListItem; isStaff:
 				) : null}
 			</div>
 
-			<p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900"><L id="exams.this_page_shows_exam_information"/></p>
+			<p role="status" className="rounded-2xl border-2 border-green-800 bg-green-50 p-4 text-sm text-green-900"><L id="exams.this_page_shows_exam_information"/></p>
 		</div>
 	);
 }

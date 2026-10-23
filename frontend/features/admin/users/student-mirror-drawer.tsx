@@ -139,7 +139,7 @@ export const StudentMirrorDrawer = ({
 				className="w-full sm:max-w-xl overflow-y-auto bg-slate-50 p-0 text-slate-900 border-l border-slate-200"
 			>
 				<SheetHeader className="p-6 bg-white border-b border-slate-200 sticky top-0 z-10">
-					<div className="flex items-center gap-2 text-sky-700 font-semibold text-xs uppercase tracking-wider">
+					<div className="flex items-center gap-2 text-green-900 font-semibold text-xs uppercase tracking-wider">
 						<User className="h-4 w-4" />
 						Student Dashboard Mirror
 					</div>
@@ -153,7 +153,7 @@ export const StudentMirrorDrawer = ({
 
 				{isLoading ? (
 					<div className="flex min-h-[350px] items-center justify-center p-8">
-						<Loader2 className="h-8 w-8 animate-spin text-sky-600" />
+						<Loader2 className="h-8 w-8 animate-spin text-green-900" />
 					</div>
 				) : !data ? (
 					<div className="p-6 text-center text-slate-500">
@@ -162,15 +162,15 @@ export const StudentMirrorDrawer = ({
 				) : (
 					<div className="p-6 space-y-6">
 						{/* Basic Info Pill Card */}
-						<div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+						<div className="flex items-center gap-4 rounded-2xl border-2 border-black bg-white p-4 shadow-hard-sm">
 							{data.student.imageUrl ? (
 								<img
 									src={data.student.imageUrl}
 									alt={data.student.name}
-									className="h-14 w-14 rounded-full border border-slate-200 object-cover shadow-2xs"
+									className="h-14 w-14 rounded-full border-2 border-black object-cover shadow-2xs"
 								/>
 							) : (
-								<div className="grid h-14 w-14 place-items-center rounded-full bg-sky-100 text-sky-700 font-bold text-xl">
+								<div className="grid h-14 w-14 place-items-center rounded-full bg-green-100 text-green-900 font-bold text-xl">
 									{data.student.name.charAt(0) || 'S'}
 								</div>
 							)}
@@ -183,7 +183,7 @@ export const StudentMirrorDrawer = ({
 									<span className="truncate">{data.student.email || 'No email registered'}</span>
 								</div>
 								<div className="flex items-center gap-2 pt-0.5">
-									<span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+									<span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-900 border border-green-300">
 										Role: {data.student.role}
 									</span>
 								</div>
@@ -191,16 +191,16 @@ export const StudentMirrorDrawer = ({
 						</div>
 
 						{/* Mirror Section 1: Assigned Group & Session Schedule */}
-						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+						<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm space-y-4">
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-2">
-									<Calendar className="h-4 w-4 text-sky-700" />
+									<Calendar className="h-4 w-4 text-green-900" />
 									<h4 className="font-bold text-slate-900 text-sm">
 										Assigned Group &amp; Schedule
 									</h4>
 								</div>
 								{data.group ? (
-									<span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-700 border border-sky-200">
+									<span className="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-900 border border-slate-300">
 										{data.group.name}
 									</span>
 								) : (
@@ -213,8 +213,8 @@ export const StudentMirrorDrawer = ({
 							{data.group ? (
 								<div className="space-y-3">
 									{nextSession && (
-										<div className="rounded-xl border border-sky-100 bg-sky-50/70 p-3">
-											<span className="text-[10px] font-bold uppercase tracking-wider text-sky-800">
+										<div className="rounded-xl border border-slate-300 bg-green-50/70 p-3">
+											<span className="text-[10px] font-bold uppercase tracking-wider text-green-900">
 												Upcoming Session
 											</span>
 											<p className="text-sm font-semibold text-slate-900 mt-0.5">
@@ -233,7 +233,7 @@ export const StudentMirrorDrawer = ({
 												{data.group.schedule.map((item: any, idx: number) => (
 													<span
 														key={idx}
-														className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700"
+														className="inline-flex items-center gap-1.5 rounded-lg border-2 border-black bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700"
 													>
 														<Clock className="h-3 w-3 text-slate-400" />
 														{item.day} @ {item.time}
@@ -255,9 +255,9 @@ export const StudentMirrorDrawer = ({
 						</div>
 
 						{/* Mirror Section 2: Overall Lesson Completion Percentage */}
-						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+						<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm space-y-4">
 							<div className="flex items-center gap-2">
-								<BookOpen className="h-4 w-4 text-sky-700" />
+								<BookOpen className="h-4 w-4 text-green-900" />
 								<h4 className="font-bold text-slate-900 text-sm">
 									Curriculum Progress Overview
 								</h4>
@@ -290,10 +290,10 @@ export const StudentMirrorDrawer = ({
 						</div>
 
 						{/* Mirror Section 3: Homework Submissions Logs & Approval States */}
-						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+						<div className="rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm space-y-4">
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-2">
-									<FileText className="h-4 w-4 text-sky-700" />
+									<FileText className="h-4 w-4 text-green-900" />
 									<h4 className="font-bold text-slate-900 text-sm">
 										Homework Submissions ({data.homeworkSubmissions.length})
 									</h4>
@@ -313,11 +313,11 @@ export const StudentMirrorDrawer = ({
 										return (
 											<div
 												key={sub.id}
-												className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2.5 transition hover:bg-slate-50"
+												className="rounded-xl border-2 border-black bg-slate-50/60 p-3.5 space-y-2.5 transition hover:bg-slate-50"
 											>
 												<div className="flex items-start justify-between gap-2">
 													<div className="space-y-0.5">
-														<span className="text-[10px] font-bold uppercase tracking-wider text-sky-700">
+														<span className="text-[10px] font-bold uppercase tracking-wider text-green-900">
 															{sub.chapter.course?.title || 'Lesson'}
 														</span>
 														<p className="text-xs font-semibold text-slate-900 line-clamp-1">
@@ -326,8 +326,8 @@ export const StudentMirrorDrawer = ({
 													</div>
 
 													{isApproved ? (
-														<span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200 shrink-0">
-															<CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+														<span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-semibold text-green-900 border border-green-300 shrink-0">
+															<CheckCircle2 className="h-3.5 w-3.5 text-green-900" />
 															Approved
 														</span>
 													) : isPending ? (
@@ -358,7 +358,7 @@ export const StudentMirrorDrawer = ({
 															href={sub.fileUrl}
 															target="_blank"
 															rel="noopener noreferrer"
-															className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 hover:text-sky-800 hover:underline"
+															className="inline-flex items-center gap-1 text-[11px] font-semibold text-green-900 hover:text-green-900 hover:underline"
 														>
 															<ExternalLink className="h-3 w-3" />
 															View File
@@ -369,7 +369,7 @@ export const StudentMirrorDrawer = ({
 																size="sm"
 																disabled={actionLoadingId === sub.id}
 																onClick={() => onApproveSubmission(sub.id)}
-																className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+																className="h-7 text-xs bg-primary hover:bg-primary/90 text-black border-2 border-black font-semibold shadow-hard-sm"
 															>
 																{actionLoadingId === sub.id ? (
 																	<Loader2 className="h-3 w-3 animate-spin" />

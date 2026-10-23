@@ -1,4 +1,5 @@
 'use client';
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useEffect, useState } from 'react';
 import type { StudentAcademics, StagePreference } from '@/shared/contracts/student-academics';
 const panel='rounded-3xl border-2 border-black bg-card p-5 shadow-hard-sm sm:p-6';
@@ -13,7 +14,7 @@ function ProgramChoice({id,label,stages,preference,reload,onSaved}:{id:string;la
  const [choice,setChoice]=useState(preference?.stage_id??''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState(false),[conflict,setConflict]=useState(false);
  const unavailable=!!preference?.stage_id&&!stages.some(s=>s.id===preference.stage_id);
  async function save(clear=false){setBusy(true);setError('');setSaved(false);try{await studentAcademicRequest(undefined,{programId:id,stageId:clear?null:choice||null,revision:preference?.revision??0});setSaved(true);onSaved();}catch(e){setError(e instanceof Error?e.message:'Unable to save.');setConflict((e as {status?:number}).status===409);}finally{setBusy(false);}}
- return <div className="min-w-0 space-y-3 rounded-2xl border border-black/20 p-4"><label className="block text-sm font-bold">{label}<select aria-label={label+' stage'} className="mt-2 w-full min-w-0 rounded-xl border-2 border-black bg-background p-3 text-sm" value={choice} disabled={busy||conflict} onChange={e=>{setChoice(e.target.value);setSaved(false);}}><option value="">No stage selected</option>{unavailable&&<option value={preference!.stage_id!} disabled>Saved stage unavailable</option>}{stages.map(s=><option value={s.id} key={s.id}>{s.label}</option>)}</select></label>
+ return <div className="min-w-0 space-y-3 rounded-2xl border border-black/20 p-4"><label className="block text-sm font-bold">{label}<Dropdown aria-label={label+' stage'} className="mt-2 w-full min-w-0 rounded-xl border-2 border-black bg-background p-3 text-sm" value={choice} disabled={busy||conflict} onChange={e=>{setChoice(e.target.value);setSaved(false);}}><option value="">No stage selected</option>{unavailable&&<option value={preference!.stage_id!} disabled>Saved stage unavailable</option>}{stages.map(s=><option value={s.id} key={s.id}>{s.label}</option>)}</Dropdown></label>
  {(!stages.length)&&<p className="text-sm">No active stages are available in this program.</p>}
  {unavailable&&<p role="status" className="text-sm text-amber-900">Your saved stage is no longer available. Choose an active stage or clear this preference. Your courses remain accessible.</p>}
  <div className="flex flex-wrap gap-3"><button className={button} disabled={busy||conflict||(!!choice&&!stages.some(s=>s.id===choice))} onClick={()=>void save()}>{busy?'Saving…':'Save stage'}</button><button className="text-sm underline disabled:opacity-50" disabled={busy||conflict||!preference?.stage_id} onClick={()=>void save(true)}>Clear selection</button></div>

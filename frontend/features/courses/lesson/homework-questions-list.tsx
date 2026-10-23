@@ -22,7 +22,7 @@ const HomeworkQuestionsList = ({ questions, hasSubmission }: HomeworkQuestionsLi
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center gap-2 text-base font-bold text-slate-900">
-				<BookOpen className="h-5 w-5 text-sky-600" />
+				<BookOpen className="h-5 w-5 text-green-900" />
 				<span>Homework Questions ({questions.length})</span>
 			</div>
 
@@ -30,7 +30,7 @@ const HomeworkQuestionsList = ({ questions, hasSubmission }: HomeworkQuestionsLi
 				{questions.map((question, index) => (
 					<li
 						key={question.id}
-						className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
+						className="space-y-3 rounded-xl border-2 border-black bg-white p-4 shadow-hard-sm"
 					>
 						<div className="flex gap-3">
 							<span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sky-600 text-xs font-bold text-white">
@@ -48,13 +48,13 @@ const HomeworkQuestionsList = ({ questions, hasSubmission }: HomeworkQuestionsLi
 								alt={`Question ${index + 1} reference`}
 								loading="lazy"
 								referrerPolicy="no-referrer"
-								className="max-h-96 w-auto max-w-full rounded-lg border border-slate-200 object-contain"
+								className="max-h-96 w-auto max-w-full rounded-lg border-2 border-black object-contain"
 							/>
 						)}
 
 						{hasSubmission && (question.answer || question.answerImageUrl) && (
-							<div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-								<div className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-800">
+							<div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-emerald-950">
+								<div className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-green-900">
 									<CheckCircle2 className="h-3.5 w-3.5" /> Answer
 								</div>
 								{question.answer && (
@@ -67,7 +67,7 @@ const HomeworkQuestionsList = ({ questions, hasSubmission }: HomeworkQuestionsLi
 										alt={`Question ${index + 1} answer`}
 										loading="lazy"
 										referrerPolicy="no-referrer"
-										className="mt-2 max-h-80 w-auto max-w-full rounded-lg border border-emerald-200 object-contain"
+										className="mt-2 max-h-80 w-auto max-w-full rounded-lg border border-green-300 object-contain"
 									/>
 								)}
 							</div>

@@ -15,7 +15,7 @@ export default function DashboardForm(){
  const [failedImage,setFailedImage]=useState<string|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const button='rounded-xl border-2 border-black bg-primary px-5 py-3 text-sm font-bold shadow-hard-sm disabled:opacity-50';
  async function logout(){if(busy)return;setBusy(true);setError('');try{await signOut();}catch{setError('Sign-out could not be confirmed. Retry, or sign in again if you were signed out locally.');}finally{setBusy(false);}}
- return <div className="space-y-6">
+ return <div className="m-list space-y-6">
   <Localized as="section" labels={{"aria-label":"settings.account_and_profile"}} className="rounded-3xl border-2 border-black bg-white p-5 shadow-hard-sm sm:p-6">
    <h2 className="flex items-center gap-2 font-display text-2xl"><User aria-hidden className="h-6 w-6"/><L id="settings.account_profile"/></h2>
    {accountStatus?.loading&&!user?<p role="status" className="mt-5"><L id="settings.loading_your_account"/></p>:!user?<div className="mt-5"><p><L id="settings.your_account_could_not_be"/></p><Link className="mt-3 inline-block underline" href="/sign-in"><L id="settings.sign_in_again"/></Link></div>:<>

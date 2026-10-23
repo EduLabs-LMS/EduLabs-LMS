@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -82,7 +83,7 @@ export const NewTicketModal = ({ open, onOpenChange, onCreated }: NewTicketModal
 
 					<div className="grid gap-2">
 						<Label htmlFor="support-subject">Subject</Label>
-						<select
+						<Dropdown
 							id="support-subject"
 							value={subject}
 							onChange={(event) => setSubject(event.target.value)}
@@ -93,7 +94,7 @@ export const NewTicketModal = ({ open, onOpenChange, onCreated }: NewTicketModal
 									{preset}
 								</option>
 							))}
-						</select>
+						</Dropdown>
 					</div>
 
 					{isOther && (

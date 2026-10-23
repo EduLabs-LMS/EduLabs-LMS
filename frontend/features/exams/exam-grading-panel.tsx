@@ -130,7 +130,7 @@ const GradingCard = ({
 						{entry.studentEmail} · MCQ {entry.mcqScore}/{entry.mcqTotal}
 					</p>
 				</div>
-				<span className={cn('rounded-full border-2 border-black px-2.5 py-0.5 text-xs font-semibold', pending ? 'bg-sky-200' : 'bg-primary')}>
+				<span className={cn('rounded-full border-2 border-black px-2.5 py-0.5 text-xs font-semibold', pending ? 'bg-green-200' : 'bg-primary')}>
 					{pending ? 'Under Correction' : `Graded · ${entry.writtenScore}`}
 				</span>
 			</div>
@@ -142,7 +142,7 @@ const GradingCard = ({
 						<p className="text-sm font-semibold">
 							Q{q.position}. {q.text}
 						</p>
-						{answer?.text && <p className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-2.5 text-sm">{answer.text}</p>}
+						{answer?.text && <p className="whitespace-pre-wrap rounded-lg border-2 border-black bg-white p-2.5 text-sm">{answer.text}</p>}
 						{answer?.imageUrl && (
 							<a href={answer.imageUrl} target="_blank" rel="noreferrer" className="block">
 								{/* eslint-disable-next-line @next/next/no-img-element */}
@@ -171,7 +171,7 @@ const GradingCard = ({
 			})}
 
             {secure&&entry.resultReleased&&<><Button variant="outline" onClick={()=>{setCorrecting(v=>!v);requestId.current=null;}}>Correct published marks</Button>{correcting&&<label className="block text-sm font-semibold">Correction reason (visible to the student)<Textarea value={reason} onChange={e=>setReason(e.target.value)} maxLength={5000} /></label>}</>}
-            {entry.gradeChanges&&entry.gradeChanges.length>0&&<div className="rounded-xl border-2 border-black bg-sky-50 p-3 text-sm"><p className="font-bold">Grading history</p>{entry.gradeChanges.map(c=><p key={c.id}>{c.reason}: {c.previousScore??'Pending'} → {c.score??'Pending'}</p>)}</div>}
+            {entry.gradeChanges&&entry.gradeChanges.length>0&&<div className="rounded-xl border-2 border-black bg-green-50 p-3 text-sm"><p className="font-bold">Grading history</p>{entry.gradeChanges.map(c=><p key={c.id}>{c.reason}: {c.previousScore??'Pending'} → {c.score??'Pending'}</p>)}</div>}
 			<Textarea value={note} disabled={secure && entry.resultReleased} onChange={(e) => setNote(e.target.value)} placeholder="Feedback for the student (optional)" />
 			<Button onClick={save} disabled={isSaving || (secure && ((entry.resultReleased&&!correcting) || questions.length === 0))}>
 				{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

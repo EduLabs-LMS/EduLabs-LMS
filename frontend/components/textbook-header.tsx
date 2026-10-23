@@ -21,7 +21,7 @@ const TextbookHeader = () => {
 				{/* Two Cyan Contact / Author Pills with Cyan Circle Badges (1:1 with Template lines 160-161) */}
 				<div className="hidden sm:flex flex-col gap-1.5 py-0.5">
 					{/* Pill 1: Phone Contact */}
-					<div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 border-2 border-black text-black shadow-xs backdrop-blur-xs">
+					<div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 border-2 border-black text-black shadow-hard-sm backdrop-blur-xs">
 						<svg
 							viewBox="0 0 30 30"
 							className="h-4 w-4 shrink-0"
@@ -39,7 +39,7 @@ const TextbookHeader = () => {
 					</div>
 
 					{/* Pill 2: Author Credit */}
-					<div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 border-2 border-black text-black shadow-xs backdrop-blur-xs">
+					<div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 border-2 border-black text-black shadow-hard-sm backdrop-blur-xs">
 						<svg
 							viewBox="0 0 30 30"
 							className="h-4 w-4 shrink-0"
@@ -82,7 +82,7 @@ const TextbookHeader = () => {
 					</span>
 
 					{/* Learning Platform Badge */}
-					<span className="mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-primary text-black border-2 border-black tracking-wider leading-none shadow-xs">
+					<span className="mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-primary text-black border-2 border-black tracking-wider leading-none shadow-hard-sm">
 						Learning Platform
 					</span>
 				</Link>

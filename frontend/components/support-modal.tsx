@@ -110,9 +110,9 @@ const SupportModal = ({ trigger }: SupportModalProps) => {
 				</DialogTrigger>
 			)}
 
-			<DialogContent className="border border-slate-200 bg-white text-slate-900 shadow-2xl sm:max-w-lg rounded-2xl p-6">
+			<DialogContent className="border-2 border-black bg-white text-slate-900 shadow-2xl sm:max-w-lg rounded-2xl p-6">
 				<DialogHeader>
-					<div className="flex items-center gap-2 text-sky-700 font-semibold mb-1 text-sm">
+					<div className="flex items-center gap-2 text-green-900 font-semibold mb-1 text-sm">
 						<HelpCircle className="h-5 w-5" />
 						Website Help
 					</div>

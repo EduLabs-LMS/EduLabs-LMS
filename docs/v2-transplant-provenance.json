@@ -167,21 +167,21 @@
       "source_canonical_sha256": "959a9fc3cb0a055a6bdb83759ef3499675973f0bcbce981ed42744196cfca25b"
     },
     {
-      "path": "app/(dashboard)/(routes)/teacher/courses/[courseId]/chapters/[chapterId]/page.tsx",
+      "path": "app/(dashboard)/(routes)/self-learning/[courseId]/chapters/[chapterId]/page.tsx",
       "source_sha256": "e1ca11cf0fb6d2e88af63f489938287151b36c57bc5861d8536bdc629aa9577c",
       "copied": true,
       "status": "adapted",
       "source_canonical_sha256": "51e4fcf0fc02afb87e78732d40fbb3e20268d97151bf924dfd6f8a5421614b21"
     },
     {
-      "path": "app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx",
+      "path": "app/(dashboard)/(routes)/self-learning/[courseId]/page.tsx",
       "source_sha256": "c342ef0ed367ba5dd88d22d0574ab351bfbad7799ce449ed0f6bb3e91d439297",
       "copied": true,
       "status": "adapted",
       "source_canonical_sha256": "2769f5e984bafc52826f45b91f60f68ebcf6b2371cd89b4c3107b24d1716d8a7"
     },
     {
-      "path": "app/(dashboard)/(routes)/teacher/courses/page.tsx",
+      "path": "app/(dashboard)/(routes)/self-learning/page.tsx",
       "source_sha256": "026ef6d0d8949004be411424f441f0b949a4fec69bc370dba884bca5213119e6",
       "copied": true,
       "status": "adapted",

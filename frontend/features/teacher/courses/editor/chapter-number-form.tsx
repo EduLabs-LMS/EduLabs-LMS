@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import * as z from 'zod';
 import { api } from '@/frontend/lib/api';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -74,7 +75,7 @@ const ChapterNumberForm = ({
 		: 'No chapter selected';
 
 	return (
-		<div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition-colors">
+		<div className="rounded-xl border-2 border-black bg-slate-50/70 p-4 transition-colors">
 			<div className="flex items-center justify-between font-medium text-slate-900 text-sm">
 				<span>
 					Chapter number <span className="text-red-500 font-bold">*</span>
@@ -108,7 +109,7 @@ const ChapterNumberForm = ({
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-									<select
+									<Dropdown
 										className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 										disabled={isSubmitting || isRefreshPending}
 										value={field.value?.toString() ?? ''}
@@ -128,7 +129,7 @@ const ChapterNumberForm = ({
 												Chapter {number}
 											</option>
 											))}
-										</select>
+										</Dropdown>
 									</FormControl>
 									<FormMessage />
 								</FormItem>

@@ -24,7 +24,7 @@ const SidebarItem = ({ icon: Icon, label, href, badge }: SidebarItemProps) => {
 		<>
 			<Icon
 				size={20}
-				className={cn('shrink-0 text-slate-500', isActive && 'text-sky-700')}
+				className={cn('shrink-0 text-slate-500', isActive && 'text-green-900')}
 			/>
 			<span className="flex-1">{label}</span>
 			{badge && (
@@ -40,7 +40,7 @@ const SidebarItem = ({ icon: Icon, label, href, badge }: SidebarItemProps) => {
 		href
 			? 'hover:bg-slate-100 hover:text-slate-950'
 			: 'cursor-default opacity-80',
-		isActive && 'bg-sky-50 text-sky-700 hover:bg-sky-50 hover:text-sky-700'
+		isActive && 'bg-green-50 text-green-900 hover:bg-green-50 hover:text-green-900'
 	);
 
 	if (!href) {

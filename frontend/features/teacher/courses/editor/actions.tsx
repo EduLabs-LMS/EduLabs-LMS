@@ -58,7 +58,7 @@ const Actions = ({ disabled, courseId, isPublished, onPublishChange, allowDelete
 			toast.success('Lesson deleted');
 
 			router.refresh();
-			router.push(`/teacher/courses`);
+			router.push(`/self-learning`);
 		} catch {
 			toast.error('Something went wrong');
 		} finally {

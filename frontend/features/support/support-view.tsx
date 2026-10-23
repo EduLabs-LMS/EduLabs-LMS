@@ -102,7 +102,7 @@ export const SupportView = () => {
 						href={TEACHER_CONTACT.whatsappUrl}
 						target="_blank"
 						rel="noopener noreferrer"
-						className="font-semibold text-emerald-700 underline"
+						className="font-semibold text-green-900 underline"
 					>
 						WhatsApp
 					</a>

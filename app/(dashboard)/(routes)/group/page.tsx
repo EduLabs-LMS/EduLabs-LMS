@@ -33,8 +33,8 @@ const GroupPage = async ({ searchParams }: { searchParams: Promise<WebsiteSearch
 	if (!membership || !membership.group) {
 		return (
 			<div className="mx-auto max-w-3xl px-4 py-12 animate-in fade-in-50 duration-200">
-				<div className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-10 shadow-sm text-center space-y-4">
-					<div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-cyan-50 border border-cyan-200 text-cyan-700">
+				<div className="rounded-3xl border-2 border-black bg-white p-8 sm:p-10 shadow-hard-sm text-center space-y-4">
+					<div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-green-50 border border-cyan-200 text-cyan-700">
 						<Users className="h-8 w-8" />
 					</div>
 					<div className="space-y-1">
@@ -51,7 +51,7 @@ const GroupPage = async ({ searchParams }: { searchParams: Promise<WebsiteSearch
 							href="https://wa.me/201156102015"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-md shadow-emerald-600/20 transition cursor-pointer"
+							className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary/90 text-black border-2 border-black font-semibold text-sm shadow-hard-sm shadow-emerald-600/20 transition cursor-pointer"
 						>
 							<MessageCircle className="h-4 w-4 fill-current" />
 							<span>Contact Assistant on WhatsApp (+20 115 610 2015)</span>

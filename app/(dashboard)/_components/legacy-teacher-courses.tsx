@@ -1,5 +1,3 @@
-import { isFirebaseStaging } from '@/shared/auth-config';
-import { WebsiteCourses, type WebsiteSearch } from '../../../_components/website-pages';
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -11,8 +9,8 @@ import { Button } from '@/frontend/components/ui/button';
 import { DataTable } from '@/frontend/features/teacher/courses/list/data-table';
 import { columns } from '@/frontend/features/teacher/courses/list/columns';
 
-const CoursesPage = async ({ searchParams }: { searchParams: Promise<WebsiteSearch> }) => {
-	if (isFirebaseStaging()) return <WebsiteCourses search={await searchParams} teacher />;
+/** Legacy (Clerk/Prisma) teacher course list, moved unchanged from the old Teacher courses page. */
+export const LegacyTeacherCourses = async () => {
 	const { userId } = await auth();
 
 	if (!userId) return redirect('/');
@@ -51,11 +49,9 @@ const CoursesPage = async ({ searchParams }: { searchParams: Promise<WebsiteSear
 			</div>
 
 			{/* White Card Container */}
-			<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+			<div className="rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm">
 				<DataTable columns={columns} data={courses} />
 			</div>
 		</div>
 	);
 };
-
-export default CoursesPage;

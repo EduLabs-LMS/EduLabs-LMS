@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Loader2, Lock, PlusCircle, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -179,7 +180,7 @@ export const ExamBuilder = ({ examId, onClose, secure = false, offeringId }: Exa
 			)}
 
 			<div className={cn(panelClass, 'space-y-4')}>
-                {secure&&<label className={labelClass}>Assessment type<select aria-label="Assessment type" value={kind} onChange={e=>setKind(e.target.value as 'exam'|'quiz')} className="mt-1 block w-full rounded-xl border-2 border-black bg-white p-2"><option value="exam">Exam</option><option value="quiz">Quiz</option></select></label>}
+                {secure&&<label className={labelClass}>Assessment type<Dropdown aria-label="Assessment type" value={kind} onChange={e=>setKind(e.target.value as 'exam'|'quiz')} className="mt-1 block w-full rounded-xl border-2 border-black bg-white p-2"><option value="exam">Exam</option><option value="quiz">Quiz</option></Dropdown></label>}
 				<div>
 					<label className={labelClass} htmlFor="exam-title">Title</label>
 					<Input id="exam-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Chapter 3 – Kinematics Exam" maxLength={200} />
@@ -275,7 +276,7 @@ export const ExamBuilder = ({ examId, onClose, secure = false, offeringId }: Exa
 								<Trash2 className="h-4 w-4 text-rose-600" />
 							</Button>
 						</div>
-						{secure&&<label className="block text-sm font-semibold">Question format<select aria-label={`Question ${qIndex+1} format`} value={q.questionType??(q.type==='MCQ'?'single_choice':q.photoAllowed?'file_upload':'essay')} onChange={event=>{const kind=event.target.value as SecureQuestionType,choice=['single_choice','multiple_choice','true_false'].includes(kind);patchQuestion(qIndex,{questionType:kind,type:choice?'MCQ':'WRITTEN',choices:choice?kind==='true_false'?['True','False']:['','','','']:null,correctChoice:choice?0:null,correctChoices:kind==='multiple_choice'?[0]:null,numericValue:kind==='numeric'?0:null,numericTolerance:kind==='numeric'?0:null,photoAllowed:kind==='file_upload'});}} className="mt-1 block w-full rounded-xl border-2 border-black bg-white p-2">{(['single_choice','multiple_choice','true_false','numeric','short_text','essay','file_upload'] as const).map(kind=><option key={kind} value={kind}>{kind.replaceAll('_',' ')}</option>)}</select></label>}
+						{secure&&<label className="block text-sm font-semibold">Question format<Dropdown aria-label={`Question ${qIndex+1} format`} value={q.questionType??(q.type==='MCQ'?'single_choice':q.photoAllowed?'file_upload':'essay')} onChange={event=>{const kind=event.target.value as SecureQuestionType,choice=['single_choice','multiple_choice','true_false'].includes(kind);patchQuestion(qIndex,{questionType:kind,type:choice?'MCQ':'WRITTEN',choices:choice?kind==='true_false'?['True','False']:['','','','']:null,correctChoice:choice?0:null,correctChoices:kind==='multiple_choice'?[0]:null,numericValue:kind==='numeric'?0:null,numericTolerance:kind==='numeric'?0:null,photoAllowed:kind==='file_upload'});}} className="mt-1 block w-full rounded-xl border-2 border-black bg-white p-2">{(['single_choice','multiple_choice','true_false','numeric','short_text','essay','file_upload'] as const).map(kind=><option key={kind} value={kind}>{kind.replaceAll('_',' ')}</option>)}</Dropdown></label>}
                         <Textarea aria-label={`Question ${qIndex+1} text`} value={q.text} onChange={(e) => patchQuestion(qIndex, { text: e.target.value })} placeholder="Question text" />
 						<Input
 							value={q.imageUrl ?? ''}

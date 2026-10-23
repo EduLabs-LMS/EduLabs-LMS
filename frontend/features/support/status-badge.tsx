@@ -4,7 +4,7 @@ import { cn } from '@/shared/utils';
 
 const STATUS_CLASS: Record<TicketStatus, string> = {
 	OPEN: 'bg-amber-200',
-	IN_PROGRESS: 'bg-sky-200',
+	IN_PROGRESS: 'bg-green-200',
 	RESOLVED: 'bg-primary',
 };
 
@@ -16,6 +16,6 @@ export const StatusBadge = ({ status, className }: { status: TicketStatus; class
 			className
 		)}
 	>
-		<L id={status==='OPEN'?'support.open':status==='IN_PROGRESS'?'support.inProgress':'support.resolved'}/>
+		<L id={status==='OPEN'?'support.pill_open':status==='IN_PROGRESS'?'support.pill_in_progress':'support.pill_resolved'}/>
 	</span>
 );

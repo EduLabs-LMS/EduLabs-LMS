@@ -70,7 +70,7 @@ const DescriptionForm = ({ initialData, courseId, onSave }: DescriptionFormProps
 	};
 
 	return (
-		<div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition-colors">
+		<div className="rounded-xl border-2 border-black bg-slate-50/70 p-4 transition-colors">
 			<div className="font-medium flex items-center justify-between text-slate-900 text-sm">
 				Lesson description
 				<Button variant={'ghost'} onClick={toggleEdit}>

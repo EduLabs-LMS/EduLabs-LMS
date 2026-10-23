@@ -1,4 +1,5 @@
 'use client';
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { CourseStages } from '@/frontend/features/teacher/academics/course-stages';
 import { LearningTreeEditor } from '@/frontend/features/teacher/chapters/editor/learning-editor';
 import type { LearningTree } from '@/shared/contracts/lessons';
@@ -36,7 +37,7 @@ export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:Learning
 		<div className="mx-auto w-full max-w-7xl space-y-6 pt-2 pb-16">
 			{/* Back Link */}
 			<Link
-				href="/teacher/courses"
+				href="/self-learning"
 				className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
 			>
 				<ArrowLeft className="h-4 w-4 mr-1.5" />
@@ -52,7 +53,7 @@ export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:Learning
 			)}
 
 			{/* Top Header Card */}
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm">
 				<div className="space-y-1">
 					<div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
 						<ShieldCheck className="h-3.5 w-3.5" />
@@ -78,7 +79,7 @@ export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:Learning
             <CourseStages courseId={course.id} organizationId={course.organization_id}/>
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 				{/* Left Card: Customize Lesson */}
-				<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+				<div className="rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm space-y-6">
 					<div className="flex items-center gap-x-2.5 pb-4 border-b border-slate-100">
 						<IconBadge icon={LayoutDashboard} />
 						<div>
@@ -101,7 +102,7 @@ export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:Learning
 				</div>
 
 				{/* Right Card: Lesson Segments */}
-				<div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+				<div className="rounded-2xl border-2 border-black bg-white p-6 shadow-hard-sm space-y-6">
 					<div className="flex items-center gap-x-2.5 pb-4 border-b border-slate-100">
 						<IconBadge icon={ListChecks} />
 						<div>
@@ -126,9 +127,9 @@ export function V2TeacherCourseEditor({record,tree}:{record:Record;tree:Learning
 function CourseMetadata({course,save,busy}:{course:Record;save:(fields:{slug:string;visibility:string;status:string})=>Promise<void>;busy:boolean}) {
  const [slug,setSlug]=useState(course.slug),[visibility,setVisibility]=useState(course.visibility),[status,setStatus]=useState(course.status),[error,setError]=useState('');
  const router=useRouter();
- return <form className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3" onSubmit={async event=>{event.preventDefault();setError('');try{await save({slug,visibility,status});router.refresh()}catch(e){setError(e instanceof Error?e.message:'Unable to save')}}}>
+ return <form className="rounded-xl border-2 border-black bg-slate-50/70 p-4 space-y-3" onSubmit={async event=>{event.preventDefault();setError('');try{await save({slug,visibility,status});router.refresh()}catch(e){setError(e instanceof Error?e.message:'Unable to save')}}}>
  <label className="block text-sm">Slug<Input required value={slug} maxLength={100} pattern="[a-z0-9]+(-[a-z0-9]+)*" disabled={busy} onChange={e=>setSlug(e.target.value)}/></label>
- <label className="block text-sm">Visibility<select aria-label="Course visibility" className="ml-3 rounded-md border p-2" disabled={busy} value={visibility} onChange={e=>setVisibility(e.target.value)}>{['private','unlisted','public'].map(v=><option key={v}>{v}</option>)}</select></label>
- <label className="block text-sm">Status<select aria-label="Course status" className="ml-3 rounded-md border p-2" disabled={busy} value={status} onChange={e=>setStatus(e.target.value)}>{['draft','published','archived'].map(v=><option key={v}>{v}</option>)}</select></label>
+ <label className="block text-sm">Visibility<Dropdown aria-label="Course visibility" className="ml-3 rounded-md border p-2" disabled={busy} value={visibility} onChange={e=>setVisibility(e.target.value)}>{['private','unlisted','public'].map(v=><option key={v}>{v}</option>)}</Dropdown></label>
+ <label className="block text-sm">Status<Dropdown aria-label="Course status" className="ml-3 rounded-md border p-2" disabled={busy} value={status} onChange={e=>setStatus(e.target.value)}>{['draft','published','archived'].map(v=><option key={v}>{v}</option>)}</Dropdown></label>
  {error&&<p role="alert" className="text-red-700">{error}</p>}<Button disabled={busy}>Save metadata</Button></form>;
 }

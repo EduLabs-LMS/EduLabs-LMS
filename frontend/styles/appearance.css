@@ -127,3 +127,12 @@ html.dark[data-lms-appearance] .text-amber-950:not(:where([data-appearance-islan
 html.dark[data-lms-appearance] :is(.text-sky-950, .text-cyan-950, .text-cyan-900):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(152 54% 80%); }
 html.dark[data-lms-appearance] .bg-sky-50\/40:not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(150 25% 16%); }
 html.dark[data-lms-appearance] :is(.hover\:bg-primary:hover, .hover\:bg-physics-cyan:hover):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(var(--primary)); --lms-text: 0 0% 0%; --lms-muted: 100 25% 13%; --lms-outline: 100 20% 7%; --lms-focus: 100 25% 9%; color: hsl(var(--lms-text)); }
+
+/* Shared-look tokens (chips, links, cards) keep their contrast in dark mode. */
+html.dark[data-lms-appearance] :is(.text-green-900, .text-green-950, .hover\:text-green-900:hover, .group-hover\:text-green-900):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(110 57% 78%); }
+html.dark[data-lms-appearance] :is(.border-green-800, .border-green-900, .border-green-700):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(110 27% 48%); }
+html.dark[data-lms-appearance] :is(.border-amber-800, .border-amber-700, .border-amber-200):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(44 55% 55%); }
+html.dark[data-lms-appearance] :is(.border-red-800, .border-red-700):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(8 43% 57%); }
+html.dark[data-lms-appearance] :is(.bg-green-300):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(135 28% 30%); }
+html.dark[data-lms-appearance] :is(.text-violet-900, .text-violet-800):not(:where([data-appearance-island], [data-appearance-island] *)) { color: hsl(260 75% 84%); }
+html.dark[data-lms-appearance] :is(.border-violet-800, .border-violet-700):not(:where([data-appearance-island], [data-appearance-island] *)) { border-color: hsl(260 40% 62%); }

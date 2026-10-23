@@ -34,7 +34,7 @@ const STATE_LABEL: Record<StudentExamState, { text: string; className: string }>
 	IN_PROGRESS: { text: 'In progress', className: 'bg-amber-200' },
 	AWAITING_DECISION: { text: 'Choose next step', className: 'bg-amber-200' },
 	SUBMITTED: { text: 'Submitted', className: 'bg-primary' },
-	UNDER_CORRECTION: { text: 'Under Correction', className: 'bg-sky-200' },
+	UNDER_CORRECTION: { text: 'Under Correction', className: 'bg-green-200' },
 	GRADED: { text: 'Graded', className: 'bg-primary' },
 };
 
@@ -170,7 +170,7 @@ export const ExamsView = ({ isStaff }: ExamsViewProps) => {
 									<span className="flex items-center gap-1">
 										<Users className="h-3.5 w-3.5" /> {exam.sessionCount ?? 0}{" "}<L id="exams.students"/></span>
 									{!!exam.underCorrectionCount && (
-										<span className="flex items-center gap-1 text-sky-800">
+										<span className="flex items-center gap-1 text-green-900">
 											<Hourglass className="h-3.5 w-3.5" /> {exam.underCorrectionCount}{" "}<L id="exams.under_correction"/></span>
 									)}
 								</div>

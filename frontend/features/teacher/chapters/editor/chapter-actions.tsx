@@ -64,7 +64,7 @@ const ChapterActions = ({
 			toast.success('Lesson segment deleted');
 
 			router.refresh();
-			router.push(`/teacher/courses/${courseId}`);
+			router.push(`/self-learning/${courseId}`);
 		} catch {
 			toast.error('Something went wrong');
 		} finally {
