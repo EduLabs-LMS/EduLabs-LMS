@@ -2,6 +2,8 @@
 
 Date: 2026-10-23. Status: **local integration candidate; BLOCKED for private-staging release**.
 
+Follow-up: the original findings below are preserved as historical evidence. The focused [Continue Learning navigation fix](continue-learning-navigation-fix.md) resolves that specific blocker with six independent production-mode runs. Real-provider acceptance and the other operational staging gates below remain open.
+
 ## Checkpoints and preservation
 
 - Student/core base: `fa67875fdab88f0fc640804e2f96b6aa7c44b0c1`, branch `codex/student-settings-language`.

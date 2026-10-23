@@ -18,7 +18,7 @@ test('preloaded SSR video restores without a metadata event and ignores prematur
  video.props.onTimeUpdate();assert.equal(writes,0);effects[0]();
  assert.equal(refs[0].current.currentTime,37);assert.equal(writes,0);
 });
-function local(file,deps={},globals={}){const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:m,exports:m.exports,Date,Set,Map,URL,...globals,require:n=>n==='@/frontend/features/self-learning/learning-overview-freshness'?shared('frontend/features/self-learning/learning-overview-freshness.ts'):n==='server-only'?{}:n in deps?deps[n]:require(n)});return m.exports;}
+function local(file,deps={},globals={}){const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{fileName:file,compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:m,exports:m.exports,Date,Set,Map,URL,...globals,require:n=>n in deps?deps[n]:n==='@/frontend/features/self-learning/learning-overview-freshness'?shared('frontend/features/self-learning/learning-overview-freshness.ts'):n==='server-only'?{}:require(n)});return m.exports;}
 test('resume: never-started and completed students have a genuine empty result',()=>{const s=sample();s.segmentProgress=[];assert.equal(resumeLearning(s,orgs,now).items.length,0);s.segmentProgress=s.segments.map(p=>({...sample().segmentProgress[0],segment_id:p.id,status:'completed'}));assert.equal(resumeLearning(s,orgs,now).items.length,0)});
 test('resume: one unfinished lesson carries real titles, offering, part and saved seconds',()=>{const s=sample(),r=resumeLearning(s,orgs,now).items[0];assert.equal(r.courseTitle,'Physics');assert.equal(r.lessonTitle,'Motion');assert.equal(r.partTitle,'Intro');assert.equal(r.href,'/courses/c/chapters/s1?offering=A');assert.equal(r.position,37);assert.equal(r.totalParts,2);assert.equal(r.completedParts,0);assert.equal(JSON.stringify(s),JSON.stringify(sample()),'projection must never mutate progress')});
 test('resume: multiple lessons use explicit activity, never content edits or creation time; bounded to three',()=>{const s=sample();for(let i=2;i<=5;i++){s.lessons.push({...s.lessons[0],id:'l'+i,title:'Lesson '+i,updated_at:'2099-01-01'});s.segments.push({...s.segments[0],id:'s'+i+'1',lesson_id:'l'+i});s.segmentProgress.push({...s.segmentProgress[0],lesson_id:'l'+i,segment_id:'s'+i+'1'});s.progress.push({offering_id:'A',lesson_id:'l'+i,last_accessed_at:`2026-10-22T0${i}:00:00Z`});}const r=resumeLearning(s,orgs,now);assert.equal(r.items.length,3);assert.equal(r.items.map(i=>i.lessonId).join(','),'l,l5,l4')});
@@ -77,13 +77,13 @@ test('scope still rejects unrelated provider failures and unauthorized organizat
 test('overview dirty marker coalesces mutations, clears and unsubscribes without storing progress',()=>{
  const f=shared('frontend/features/self-learning/learning-overview-freshness.ts');f.clearLearningOverviewDirty();let events=0;const unsubscribe=f.subscribeLearningOverview(()=>events++);f.markLearningOverviewDirty();f.markLearningOverviewDirty();assert.equal(f.learningOverviewIsDirty(),true);assert.equal(f.learningOverviewServerSnapshot(),false);f.clearLearningOverviewDirty();assert.equal(f.learningOverviewIsDirty(),false);assert.equal(events,3);unsubscribe();f.markLearningOverviewDirty();assert.equal(events,3);f.clearLearningOverviewDirty();
 });
-test('only acknowledged player saves dirty overviews; completion reuses existing refresh',async()=>{
+test('every acknowledged player save, including completion, invalidates all overview generations',async()=>{
  const f=shared('frontend/features/self-learning/learning-overview-freshness.ts');f.clearLearningOverviewDirty();const React=require('react'),refs=[];let ok=false,refreshes=0;
  const hooks={...React,useRef:v=>{const r={current:v};refs.push(r);return r;},useState:v=>[v,()=>{}],useCallback:fn=>fn,useEffect:()=>{}};
  const{SecureLessonPlayer}=local('frontend/features/courses/lesson/secure-player.tsx',{'@/frontend/components/language-provider':require('./localization-test-loader.cjs').language(),react:hooks,'next/navigation':{useRouter:()=>({refresh:()=>refreshes++})},'@/frontend/components/ui/button':{Button:()=>null},'@/shared/contracts/lessons':shared('shared/contracts/lessons.ts')},{fetch:async()=>({ok,json:async()=>ok?{revision:2,status:'in_progress'}:{error:'Unavailable'}})});
  const tree=SecureLessonPlayer({courseId:'c',segmentId:'s',url:'https://example.invalid/video.webm',data:{offeringId:'A',revision:1,position:5,assetId:null,status:'in_progress'}});
  function find(n,type){if(n?.type===type)return n;for(const c of[n?.props?.children].flat(Infinity)){const v=c&&find(c,type);if(v)return v;}}
- const video=find(tree,'video');refs[0].current={currentTime:0,duration:60,readyState:4};video.props.onLoadedMetadata();refs[0].current.currentTime=8;video.props.onTimeUpdate();await new Promise(setImmediate);assert.equal(f.learningOverviewIsDirty(),false);ok=true;video.props.onPause();await new Promise(setImmediate);assert.equal(f.learningOverviewIsDirty(),true);assert.equal(refreshes,0);video.props.onEnded();await new Promise(setImmediate);assert.equal(refreshes,1);assert.equal(f.learningOverviewIsDirty(),false);
+ const video=find(tree,'video');refs[0].current={currentTime:0,duration:60,readyState:4};video.props.onLoadedMetadata();refs[0].current.currentTime=8;video.props.onTimeUpdate();await new Promise(setImmediate);assert.equal(f.learningOverviewIsDirty(),false);ok=true;video.props.onPause();await new Promise(setImmediate);assert.equal(f.learningOverviewIsDirty(),true);assert.equal(refreshes,0);video.props.onEnded();await new Promise(setImmediate);assert.equal(refreshes,1);assert.equal(f.learningOverviewIsDirty(),true);
 });
 test('bounded revision proofs skip refresh only when every acknowledged save is present or newer',()=>{
  const f=shared('frontend/features/self-learning/learning-overview-freshness.ts');f.clearLearningOverviewDirty();f.markLearningOverviewDirty({key:'A:s1',revision:2});f.markLearningOverviewDirty({key:'A:s1',revision:3});f.markLearningOverviewDirty({key:'B:s1',revision:1});
@@ -96,4 +96,56 @@ test('bounded revision proofs skip refresh only when every acknowledged save is 
 test('server reads carry distinct opaque IDs and bounded revision proofs without changing activity',async()=>{
  const s=sample();const repo=scopeRepository({progress:async()=>({rows:s.progress,incomplete:false}),segmentProgress:async()=>({rows:s.segmentProgress.map(p=>({...p,revision:4})),incomplete:false})});const context={organizations:orgs,repository:repo};
  const first=await scopeLoader()(context),second=await scopeLoader()(context);assert.match(first.progressReadId,/^[0-9a-f-]{36}$/);assert.notEqual(first.progressReadId,second.progressReadId);assert.equal(first.progressReadProofs.length,1);assert.equal(first.progressReadProofs[0].key,'A:s1');assert.equal(first.progressReadProofs[0].revision,4);assert.equal(resumeLearning(first,orgs,now).readId,first.progressReadId);assert.equal(first.progress[0].last_accessed_at,s.progress[0].last_accessed_at);
+});
+
+test('generation changes for consecutive acknowledged saves even while already dirty',()=>{
+ const f=local('frontend/features/self-learning/learning-overview-freshness.ts');
+ const initial=f.learningOverviewGeneration();f.markLearningOverviewDirty({key:'A:s',revision:2});f.markLearningOverviewDirty({key:'A:s',revision:3});
+ assert.equal(f.learningOverviewGeneration(),initial+2);assert.equal(f.learningOverviewServerGeneration(),0);
+});
+
+function overviewHandler({signedIn=true,scope=null,failure=false,mode=true}={}){
+ const calls=[];const value=scope??{...sample(),offerings:[{...sample().offerings[0],id:'10000000-0000-4000-8000-000000000001'}]};
+ const handler=local('server/http/learning-overview.ts',{
+  '@/shared/auth-config':{isFirebaseStaging:()=>mode},
+  '@/server/http/firebase/route':{validFirebaseOrigin:r=>r.headers.get('origin')==='https://portal.example'},
+  '@/shared/continue-learning':{resumeLearning:(s,organizations,now,offering)=>{calls.push({s,organizations,offering});return{items:[],unavailable:!!s.limited};}},
+  '@/server/services/website':{getWebsiteContext:async()=>signedIn?{viewer:{id:'verified-self'},organizations:orgs}:null,loadWebsiteScope:async(context,organization)=>{calls.push({identity:context.viewer.id,organization});if(failure)throw Error('private provider detail');return organization==='20000000-0000-4000-8000-000000000002'?null:value;}}
+ },{Buffer,process:{env:{LMS_DATA_BACKEND:'supabase-staging'}}}).learningOverviewPOST;
+ const request=(body={},options={})=>new(require('next/server').NextRequest)('https://portal.example/api/learning-overview'+(options.query??''),{method:'POST',headers:{Origin:options.origin??'https://portal.example','Content-Type':options.mime??'application/json'},body:typeof body==='string'?body:JSON.stringify(body)});
+ return {handler,request,calls};
+}
+test('scoped overview requires Firebase session and exact origin, is private/no-store and read-only',async()=>{
+ for(const options of [{signedIn:false},{mode:false}]){const h=overviewHandler(options),r=await h.handler(h.request());assert.equal(r.status,options.mode===false?404:401);assert.equal(h.calls.length,0);assert.match(r.headers.get('cache-control'),/private, no-store/);}
+ const h=overviewHandler();assert.equal((await h.handler(h.request({}, {origin:'https://attacker.example'}))).status,403);assert.equal(h.calls.length,0);
+ const id='10000000-0000-4000-8000-000000000001',r=await h.handler(h.request({organizationId:id,offeringId:id}));assert.equal(r.status,200);assert.equal(h.calls[0].identity,'verified-self');assert.equal(h.calls[0].organization,id);assert.equal(h.calls[1].offering,id);assert.equal(r.headers.get('cache-control'),'private, no-store');
+});
+test('overview refuses client identities, foreign scopes, query parameters, excessive bodies and provider failures',async()=>{
+ for(const body of [{userId:'peer'},{organizationId:'not-a-uuid'},{offeringId:'20000000-0000-4000-8000-000000000002'}]){const h=overviewHandler(),r=await h.handler(h.request(body));assert.equal(r.status,body.offeringId?403:400);}
+ const h=overviewHandler();assert.equal((await h.handler(h.request({organizationId:'20000000-0000-4000-8000-000000000002'}))).status,403);
+ assert.equal((await h.handler(h.request({}, {query:'?userId=peer'}))).status,400);assert.equal((await h.handler(h.request('x'.repeat(1025)))).status,413);assert.equal((await h.handler(h.request({}, {mime:'text/plain'}))).status,415);
+ const failed=overviewHandler({failure:true}),r=await failed.handler(failed.request());assert.equal(r.status,503);assert.doesNotMatch(await r.text(),/private provider detail/);
+});
+
+test('overview read lifecycle rejects late responses, preserves newer generations and terminates failures without router refresh',async()=>{
+ const React=require('react'),f=local('frontend/features/self-learning/learning-overview-freshness.ts'),requests=[];
+ const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return{promise,resolve,reject};};
+ function mount(){let cursor=0,pathname='/home',queued=[],cleanups=[],values=[],dependencies=[];
+  const hooks={...React,useState:initial=>{const i=cursor++;if(!(i in values))values[i]=initial;return[values[i],v=>{values[i]=typeof v==='function'?v(values[i]):v;}];},useSyncExternalStore:(_subscribe,snapshot)=>snapshot(),useEffect:(fn,deps)=>{const i=cursor++;if(!dependencies[i]||deps.some((d,j)=>d!==dependencies[i][j])){dependencies[i]=deps;queued.push(()=>{cleanups[i]?.();cleanups[i]=fn();});}}};
+  const {ContinueLearning}=local('frontend/features/self-learning/continue-learning.tsx',{
+   react:hooks,'next/navigation':{usePathname:()=>pathname},'@/frontend/components/language-provider':{useLanguage:()=>({t:k=>k,number:n=>n,direction:'ltr'}),L:()=>null},'@/frontend/components/ui/button':{Button:'button'},'@/frontend/features/self-learning/learning-overview-freshness':f,'./learning-overview-freshness':f
+  },{AbortController,fetch:(_url,options)=>{const d=deferred();requests.push({...d,options});return d.promise;}});
+  const data={items:[],unavailable:false,readId:'cached',proofs:[]};
+  return {render(){cursor=0;const tree=ContinueLearning({data,path:'/home'});const run=queued;queued=[];run.forEach(fn=>fn());return tree;},leave(){pathname='/courses/c';this.render();},enter(){pathname='/home';return this.render();}};
+ }
+ const first=mount();first.render();assert.equal(requests.length,0);
+ f.markLearningOverviewDirty({key:'A:s',revision:2});assert.equal(first.render().props.loading,true);assert.equal(requests.length,1);
+ f.markLearningOverviewDirty({key:'A:s',revision:3});first.render();assert.equal(requests.length,2);assert.equal(requests[0].options.signal.aborted,true);
+ const result={...resumeLearning(sample(),orgs,now),readId:'fresh'};
+ requests[1].resolve({ok:true,json:async()=>result});await new Promise(setImmediate);assert.equal(first.render().type,'section');
+ requests[0].resolve({ok:true,json:async()=>({items:[],unavailable:true})});await new Promise(setImmediate);assert.equal(first.render().type,'section','older failure cannot replace the newest success');
+ const other=mount();assert.equal(other.render().props.loading,true);assert.equal(requests.length,3,'one overview must not consume the other cached page invalidation');
+ requests[2].reject(Error('offline'));await new Promise(setImmediate);const error=other.render();assert.equal(error.props.loading,undefined);assert.equal(typeof error.props.retry,'function');
+ error.props.retry();other.render();assert.equal(requests.length,4);other.leave();requests[3].resolve({ok:true,json:async()=>result});await new Promise(setImmediate);other.enter();assert.equal(requests.length,5,'navigation back restarts an abandoned read without accepting its stale result');
+ requests[4].resolve({ok:true,json:async()=>result});await new Promise(setImmediate);assert.equal(other.render().type,'section');
 });
