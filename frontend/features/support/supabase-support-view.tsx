@@ -1,70 +1,154 @@
 'use client';
 import { L, Localized, useLanguage } from '@/frontend/components/language-provider';
-import { useCallback,useEffect,useRef,useState } from 'react';
+import { useApplicationAuth } from '@/frontend/components/providers/application-auth-provider';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft,LifeBuoy,Loader2,MessageCircle,PlusCircle,Send } from 'lucide-react';
+import { ArrowLeft, ChevronRight, LifeBuoy, MessageCircle, PlusCircle, Search, Send } from 'lucide-react';
 import { Button } from '@/frontend/components/ui/button';
 import { Input } from '@/frontend/components/ui/input';
-import { Textarea } from '@/frontend/components/ui/textarea';
-import { Dialog,DialogContent,DialogHeader,DialogTitle } from '@/frontend/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/frontend/components/ui/dialog';
 import { StatusBadge } from '@/frontend/features/support/status-badge';
+import { SupportAvatar } from '@/frontend/features/support/support-avatar';
 import { communicate } from '@/frontend/lib/communications';
-import type { SupportDetail,SupportTicket } from '@/shared/contracts/communications';
+import { draftKey, readDraft, requesterName, subtitleKind, waitState, writeDraft, type WaitState } from '@/shared/support-view';
+import { cn } from '@/shared/utils';
+import type { SupportDetail, SupportTicket } from '@/shared/contracts/communications';
 
-const panel='rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm';
-export function SupabaseSupportView(){
- const { language } = useLanguage();
- const date=(v:string)=>new Date(v).toLocaleString(language,{dateStyle:'medium',timeStyle:'short'});
- const params=useSearchParams();
- const [rows,setRows]=useState<SupportTicket[]>([]),[detail,setDetail]=useState<SupportDetail|null>(null),[page,setPage]=useState(0),[messagePage,setMessagePage]=useState(0);
- const [filter,setFilter]=useState('ALL'),[search,setSearch]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[open,setOpen]=useState(false);
- const [orgs,setOrgs]=useState<{id:string;name:string}[]>([]),[org,setOrg]=useState(''),[category,setCategory]=useState('website'),[subject,setSubject]=useState(''),[text,setText]=useState('');
- // Reuse the same request after a network failure; a new payload gets a new ID.
- const pending=useRef<{fingerprint:string;id:string;version?:number}|null>(null);
- const load=useCallback(async()=>{setError('');setLoading(true);try{const r=await communicate<{rows:SupportTicket[]}>('support','list',{page,filter,search});setRows(r.rows);}catch(e){setError((e as Error).message);}finally{setLoading(false);}},[page,filter,search]);
- const openTicket=useCallback(async(id:string,p=0)=>{setError('');try{setDetail(await communicate<SupportDetail>('support','get',{page:p},{id}));setMessagePage(p);}catch(e){if([401,403].includes((e as {status?:number}).status??0)){setDetail(null);setRows([]);}setError((e as Error).message);}},[]);
- useEffect(()=>{void load();},[load]);
- useEffect(()=>{void communicate<{id:string;name:string}[]>('support','organizations').then(setOrgs).catch(e=>setError(e.message));},[]);
- useEffect(()=>{const id=params.get('ticket');if(id&&/^[a-f0-9-]{36}$/i.test(id))void openTicket(id);},[params,openTicket]);
- const activeTicketId=detail?.ticket.id;
- useEffect(()=>{if(!activeTicketId)return;const timer=setInterval(()=>{if(document.visibilityState==='visible')void openTicket(activeTicketId,messagePage);},15000);return()=>clearInterval(timer);},[activeTicketId,messagePage,openTicket]);
- async function command(action:string,data:unknown){
-  const fingerprint=JSON.stringify({action,data,id:detail?.ticket.id});
-  if(pending.current?.fingerprint!==fingerprint)pending.current={fingerprint,id:crypto.randomUUID(),version:detail?.ticket.version};
-  setBusy(true);setError('');try{
-   const r=await communicate<{id:string}>('support',action,data,{id:action==='create'?null:detail?.ticket.id,version:pending.current.version,requestId:pending.current.id});
-   pending.current=null;setText('');setSubject('');setOpen(false);await openTicket(r.id);await load();
-  }catch(e){if((e as {status?:number}).status===409)pending.current=null;setError((e as Error).message);}finally{setBusy(false);}
- }
- return <div className="mx-auto w-full max-w-4xl space-y-6 pb-12">
-  <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border-2 border-black bg-white p-5 shadow-hard">
-   <div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-black bg-primary"><LifeBuoy className="h-6 w-6"/></div><div><h1 className="font-display text-3xl leading-none"><L id="navigation.support"/></h1><p className="mt-1 text-sm text-slate-600"><L id="support.website_help_and_private_replies"/></p></div></div>
-   <Button onClick={()=>{setText('');setOpen(true);}}><PlusCircle className="mr-2 h-4 w-4"/><L id="support.new_ticket"/></Button>
-  </div>
-  <p className="text-xs text-slate-600"><L id="support.we_aim_to_respond_within"/></p>
-  {error&&<div role="alert" className={panel}><L text={error}/><Button variant="outline" onClick={()=>detail?void openTicket(detail.ticket.id,messagePage):void load()}><L id="support.retry_refresh"/></Button></div>}
-  {detail?<>
-   <Button variant="outline" onClick={()=>{setDetail(null);setText('');}}><ArrowLeft className="mr-2 h-4 w-4"/><L id="support.back_to_tickets"/></Button>
-   <section className={panel}><div className="flex flex-wrap items-center gap-3"><h2 className="font-display text-2xl break-words"><bdi dir="auto">{detail.ticket.subject}</bdi></h2><StatusBadge status={detail.ticket.status}/></div>
-    <p className="text-xs text-slate-500"><L id="support.opened"/>{" "}{date(detail.ticket.created_at)}{" "}<L id="support.updated"/>{" "}{date(detail.ticket.updated_at)}</p>
-    <div className="mt-3 flex flex-wrap gap-2">{(['OPEN','IN_PROGRESS','RESOLVED'] as const).filter(s=>detail.staff||s!=='IN_PROGRESS').map(status=><Button key={status} variant="outline" disabled={busy||status===detail.ticket.status} onClick={()=>void command('status',{status})}><L text={status==='OPEN'?'Reopen':status==='RESOLVED'?'Close ticket':'In Progress'}/></Button>)}</div>
-    {detail.staff&&<label className="mt-3 block text-sm"><L id="support.assigned_to"/><select className="ml-2 max-w-full rounded-xl border-2 border-black p-2" value={detail.ticket.assigned_to??''} disabled={busy} onChange={e=>void command('assign',{userId:e.target.value||null})}><option value=""><L id="support.unassigned"/></option>{detail.assignees.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
-    {detail.ticket.response_due_at&&detail.ticket.status!=='RESOLVED'&&<p className="mt-3 text-xs text-amber-800"><L id="support.response_due"/>{" "}{date(detail.ticket.response_due_at)}{Date.parse(detail.ticket.response_due_at)<Date.now()&&<L id="support.overdueSuffix"/>}</p>}
-   </section>
-   <Localized as="section" labels={{"aria-label":"support.ticket_messages"}} className={panel}>{detail.messages.length===0?<p><L id="support.no_messages_on_this_page"/></p>:[...detail.messages].reverse().map(m=><div key={m.id} className={`mb-4 max-w-full rounded-xl border-2 p-3 ${m.mine?'border-black bg-primary/20':'border-slate-200 bg-slate-50'}`}><p className="text-xs font-semibold">{m.sender_name}{m.staff&&<L id="support.staffSuffix"/>} · {date(m.created_at)}</p><p dir="auto" className="mt-2 whitespace-pre-wrap break-words text-sm">{m.body}</p></div>)}
-    <div className="flex gap-2"><Button variant="outline" disabled={messagePage===0} onClick={()=>void openTicket(detail.ticket.id,messagePage-1)}><L id="support.newer_messages"/></Button><Button variant="outline" disabled={detail.messages.length<25} onClick={()=>void openTicket(detail.ticket.id,messagePage+1)}><L id="support.older_messages"/></Button></div>
-   </Localized>
-   <form className={panel} onSubmit={e=>{e.preventDefault();void command('reply',{body:text});}}><label htmlFor="support-reply" className="text-sm font-semibold"><L id="support.reply"/></label><Textarea id="support-reply" maxLength={2000} value={text} onChange={e=>setText(e.target.value)} required/><Button className="mt-3" disabled={busy||!text.trim()}><Send className="mr-2 h-4 w-4"/><L id="support.send_reply"/></Button></form>
-  </>:<>
-   <div className="flex flex-wrap gap-2"><Localized as={Input} labels={{"aria-label":"support.search_tickets","placeholder":"support.search_ticket_subjects"}} value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/><Localized as="select" labels={{"aria-label":"support.ticket_status"}} className="rounded-xl border-2 border-black p-2" value={filter} onChange={e=>{setFilter(e.target.value);setPage(0);}}>{['ALL','OPEN','IN_PROGRESS','RESOLVED'].map(s=><option key={s} value={s}><L text={s}/></option>)}</Localized></div>
-   {loading?<Loader2 className="mx-auto h-6 w-6 animate-spin"/>:!error&&rows.length===0?<div className={`${panel} text-center`}><MessageCircle className="mx-auto h-8 w-8 text-slate-400"/><p><L id="support.no_matching_tickets_use_new"/></p></div>:<ul className="space-y-3">{rows.map(t=><li key={t.id}><button className={`${panel} w-full text-left transition-all hover:shadow-hard`} onClick={()=>void openTicket(t.id)}><div className="flex flex-wrap items-center gap-2"><span className="font-semibold break-words"><bdi dir="auto">{t.subject}</bdi></span><StatusBadge status={t.status}/></div><p className="mt-2 text-xs text-slate-500"><L id="support.opened"/>{" "}{date(t.created_at)}{" "}<L id="support.last_message"/>{" "}{date(t.last_message_at)}</p>{t.response_due_at&&t.status!=='RESOLVED'&&<p className="text-xs text-amber-800">{Date.parse(t.response_due_at)<Date.now()&&<L id="support.overdue"/>}<L id="support.response_due"/>{" "}{date(t.response_due_at)}</p>}</button></li>)}</ul>}
-   <div className="flex gap-2"><Button variant="outline" disabled={page===0||loading} onClick={()=>setPage(page-1)}><L id="notifications.previous"/></Button><span className="p-2"><L id="notifications.page"/>{" "}{page+1}</span><Button variant="outline" disabled={rows.length<25||loading} onClick={()=>setPage(page+1)}><L id="notifications.next"/></Button></div>
-  </>}
-  <Dialog open={open} onOpenChange={v=>{if(!busy)setOpen(v);}}><DialogContent className="max-w-md"><DialogHeader><DialogTitle className="font-display text-2xl"><L id="support.new_ticket_"/></DialogTitle></DialogHeader><form className="grid gap-4" onSubmit={e=>{e.preventDefault();void command('create',{organizationId:org||null,category,subject,body:text});}}>
-   <label className="grid gap-1 text-sm"><L id="support.support_team"/><select className="rounded-xl border-2 border-black p-2" value={org} onChange={e=>setOrg(e.target.value)}><option value=""><L id="support.edulabs_platform_technical_support"/></option>{orgs.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
-   <label className="grid gap-1 text-sm"><L id="support.issue_category"/><select className="rounded-xl border-2 border-black p-2" value={category} onChange={e=>setCategory(e.target.value)}>{['account','video','upload','exam','website','other'].map(c=><option key={c} value={c}><L text={c}/></option>)}</select></label>
-   <label className="grid gap-1 text-sm"><L id="support.subject"/><Input maxLength={120} required value={subject} onChange={e=>setSubject(e.target.value)}/></label>
-   <label className="grid gap-1 text-sm"><L id="support.describe_your_problem"/><Textarea maxLength={2000} required value={text} onChange={e=>setText(e.target.value)}/></label><Button disabled={busy||!text.trim()||!subject.trim()}><L id="support.create_ticket"/></Button>
-  </form></DialogContent></Dialog>
- </div>;
+const panel = 'rounded-3xl border-[2.5px] border-black bg-white p-5 shadow-hard-sm';
+const pill = 'min-h-[44px] rounded-full border-2 border-black px-4 text-sm font-bold transition-colors';
+const select = 'min-h-[44px] rounded-xl border-2 border-black bg-white px-3 text-sm font-semibold';
+const STATUS_PILLS = [['ALL', 'support.pill_all'], ['OPEN', 'support.pill_open'], ['IN_PROGRESS', 'support.pill_in_progress'], ['RESOLVED', 'support.pill_resolved']] as const;
+
+function storage() {
+	try { return window.localStorage; } catch { return null; }
+}
+
+/** At-a-glance "who is this waiting on" chip. Colour is never the only signal: the words say it too. */
+function WaitChip({ state, staff, overdue }: { state: WaitState; staff: boolean; overdue: boolean }) {
+	if (state === 'resolved') return null;
+	const id = state === 'needs_reply' ? 'support.needs_reply' : state === 'waiting' ? 'support.waiting_for_support' : staff ? 'support.replied_staff' : 'support.replied_requester';
+	return (
+		<span className={cn('inline-flex items-center rounded-full border-2 px-2.5 py-0.5 text-xs font-bold', state === 'needs_reply' ? (overdue ? 'border-red-800 bg-red-50 text-red-900' : 'border-amber-800 bg-amber-50 text-amber-900') : 'border-slate-500 bg-slate-50 text-slate-800')}>
+			<L id={id} />{overdue && state !== 'replied' && <L id="support.overdueSuffix" />}
+		</span>
+	);
+}
+
+export function SupabaseSupportView() {
+	const { language, t: tr } = useLanguage();
+	const { user } = useApplicationAuth();
+	const date = (v: string) => new Date(v).toLocaleString(language, { dateStyle: 'medium', timeStyle: 'short' });
+	const params = useSearchParams();
+	const [rows, setRows] = useState<SupportTicket[]>([]), [detail, setDetail] = useState<SupportDetail | null>(null), [page, setPage] = useState(0), [messagePage, setMessagePage] = useState(0);
+	const [filter, setFilter] = useState('ALL'), [search, setSearch] = useState(''), [error, setError] = useState(''), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [open, setOpen] = useState(false);
+	const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([]), [org, setOrg] = useState(''), [category, setCategory] = useState('website'), [subject, setSubject] = useState(''), [body, setBody] = useState(''), [reply, setReply] = useState('');
+	const replyBox = useRef<HTMLTextAreaElement>(null);
+	// Reuse the same request after a network failure; a new payload gets a new ID.
+	const pending = useRef<{ fingerprint: string; id: string; version?: number } | null>(null);
+	// Drafts stay in this browser only and are cleared when the text is sent.
+	const replyKey = user && detail ? draftKey(user.id, 'reply:' + detail.ticket.id) : null, newKey = user ? draftKey(user.id, 'new') : null;
+
+	const load = useCallback(async () => { setError(''); setLoading(true); try { const r = await communicate<{ rows: SupportTicket[] }>('support', 'list', { page, filter, search }); setRows(r.rows); } catch (e) { setError((e as Error).message); } finally { setLoading(false); } }, [page, filter, search]);
+	const openTicket = useCallback(async (id: string, p = 0) => { setError(''); try { setDetail(await communicate<SupportDetail>('support', 'get', { page: p }, { id })); setMessagePage(p); } catch (e) { if ([401, 403].includes((e as { status?: number }).status ?? 0)) { setDetail(null); setRows([]); } setError((e as Error).message); } }, []);
+	useEffect(() => { void load(); }, [load]);
+	useEffect(() => { void communicate<{ id: string; name: string }[]>('support', 'organizations').then(setOrgs).catch(e => setError(e.message)); }, []);
+	useEffect(() => { const id = params.get('ticket'); if (id && /^[a-f0-9-]{36}$/i.test(id)) void openTicket(id); }, [params, openTicket]);
+	const activeTicketId = detail?.ticket.id;
+	useEffect(() => { if (!activeTicketId) return; const timer = setInterval(() => { if (document.visibilityState === 'visible') void openTicket(activeTicketId, messagePage); }, 15000); return () => clearInterval(timer); }, [activeTicketId, messagePage, openTicket]);
+	// Restore this ticket's unsent reply when it is opened.
+	useEffect(() => { setReply(replyKey ? readDraft(storage(), replyKey) : ''); }, [replyKey]);
+	useEffect(() => { const box = replyBox.current; if (box) { box.style.height = 'auto'; box.style.height = Math.min(box.scrollHeight, 176) + 'px'; } }, [reply, detail?.ticket.id]);
+
+	function openNewTicket() {
+		let saved: { org?: string; category?: string; subject?: string; body?: string } = {};
+		try { saved = JSON.parse(readDraft(storage(), newKey ?? '') || '{}'); } catch { /* ignore a damaged draft */ }
+		setOrg(saved.org ?? ''); setCategory(saved.category ?? 'website'); setSubject(saved.subject ?? ''); setBody(saved.body ?? ''); setOpen(true);
+	}
+	function saveNewDraft(next: { org: string; category: string; subject: string; body: string }) {
+		if (newKey) writeDraft(storage(), newKey, next.subject.trim() || next.body.trim() ? JSON.stringify(next) : '');
+	}
+	async function command(action: string, data: unknown, sent?: { clear: () => void }) {
+		const fingerprint = JSON.stringify({ action, data, id: detail?.ticket.id });
+		if (pending.current?.fingerprint !== fingerprint) pending.current = { fingerprint, id: crypto.randomUUID(), version: detail?.ticket.version };
+		setBusy(true); setError(''); try {
+			const r = await communicate<{ id: string }>('support', action, data, { id: action === 'create' ? null : detail?.ticket.id, version: pending.current.version, requestId: pending.current.id });
+			pending.current = null; sent?.clear(); setOpen(false); await openTicket(r.id); await load();
+		} catch (e) { if ((e as { status?: number }).status === 409) pending.current = null; setError((e as Error).message); } finally { setBusy(false); }
+	}
+	const sendReply = () => { if (!busy && reply.trim()) void command('reply', { body: reply }, { clear: () => { setReply(''); if (replyKey) writeDraft(storage(), replyKey, ''); } }); };
+	const kind = subtitleKind(rows);
+	const ownName = user?.fullName ?? user?.firstName ?? null;
+
+	return <div className="mx-auto w-full max-w-4xl space-y-6 pb-12">
+		<div className="rounded-[28px] border-[2.5px] border-black bg-white p-5 shadow-hard sm:p-6">
+			<div className="flex items-start gap-4">
+				<div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-[2.5px] border-black bg-primary"><LifeBuoy aria-hidden className="h-7 w-7" /></div>
+				<div className="min-w-0"><h1 className="font-display text-3xl leading-none sm:text-4xl"><L id="navigation.support" /></h1><p className="mt-2 text-sm text-slate-700"><L id={kind === 'staff' ? 'support.subtitle_staff' : kind === 'both' ? 'support.subtitle_both' : 'support.subtitle_requester'} /></p></div>
+			</div>
+			<Button className="mt-4 min-h-[48px] rounded-full border-[2.5px] border-black px-6 text-base font-bold shadow-hard-sm" onClick={openNewTicket}><PlusCircle aria-hidden className="me-2 h-5 w-5" /><L id="support.new_ticket" /></Button>
+		</div>
+		<p className="text-xs text-slate-700"><L id="support.we_aim_to_respond_within" /></p>
+		{error && <div role="alert" className={cn(panel, 'space-y-3')}><p><L text={error} /></p><Button variant="outline" onClick={() => detail ? void openTicket(detail.ticket.id, messagePage) : void load()}><L id="support.retry_refresh" /></Button></div>}
+		{detail ? (() => {
+			const t = detail.ticket, due = !!t.response_due_at && t.status !== 'RESOLVED', overdue = due && Date.parse(t.response_due_at!) < Date.now();
+			const from = detail.staff ? requesterName(detail.messages) : null;
+			return <section aria-label={t.subject} className="overflow-hidden rounded-[28px] border-[2.5px] border-black bg-white shadow-hard">
+				<header className="flex flex-wrap items-center gap-3 border-b-[2.5px] border-black bg-slate-50 p-4 sm:p-5">
+					<Localized as="button" labels={{ 'aria-label': 'support.back_to_tickets' }} type="button" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-black bg-white shadow-hard-sm" onClick={() => { setDetail(null); setReply(''); }}><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /></Localized>
+					<div className="min-w-0 flex-1"><h2 className="font-display text-2xl leading-tight break-words"><bdi dir="auto">{t.subject}</bdi></h2>
+						<p className="mt-0.5 text-sm text-slate-700">{from && <><L id="support.from" />{' '}<bdi dir="auto">{from}</bdi>{' · '}</>}<L text={t.category} />{' · '}<L id="support.opened" />{' '}{date(t.created_at)}</p></div>
+					{detail.staff
+						? <select aria-label={tr('support.ticket_status')} className={select} value={t.status} disabled={busy} onChange={e => void command('status', { status: e.target.value })}>{STATUS_PILLS.slice(1).map(([value, id]) => <option key={value} value={value}>{tr(id)}</option>)}</select>
+						: <div className="flex flex-wrap items-center gap-2"><StatusBadge status={t.status} />{(['OPEN', 'RESOLVED'] as const).filter(s => s !== t.status).map(status => <Button key={status} variant="outline" disabled={busy} onClick={() => void command('status', { status })}><L text={status === 'OPEN' ? 'Reopen' : 'Close ticket'} /></Button>)}</div>}
+					<div className="flex w-full flex-wrap items-center gap-2"><WaitChip state={waitState(t, detail.staff)} staff={detail.staff} overdue={overdue} />{detail.staff && <StatusBadge status={t.status} />}
+						{due && <span className="text-xs font-semibold text-amber-900"><L id="support.response_due" />{' '}{date(t.response_due_at!)}</span>}</div>
+					{detail.staff && <details className="w-full text-sm"><summary className="min-h-[44px] cursor-pointer py-2 font-bold"><L id="support.details" /></summary>
+						<label className="block pb-2"><L id="support.assigned_to" /><select className={cn(select, 'ms-2 max-w-full')} value={t.assigned_to ?? ''} disabled={busy} onChange={e => void command('assign', { userId: e.target.value || null })}><option value="">{/* label from locale */}{language === 'ar' ? 'غير معيّن' : 'Unassigned'}</option>{detail.assignees.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label></details>}
+				</header>
+				<Localized as="div" labels={{ 'aria-label': 'support.ticket_messages' }} role="log" aria-live="polite" className="space-y-5 bg-slate-50/60 p-4 sm:p-6">
+					{detail.messages.length === 0 ? <p><L id="support.no_messages_on_this_page" /></p> : [...detail.messages].reverse().map(m => <div key={m.id} className={cn('flex items-end gap-3', m.staff && 'flex-row-reverse')}>
+						<SupportAvatar name={m.sender_name} url={m.mine ? user?.imageUrl : null} staff={m.staff} />
+						<div className={cn('min-w-0 max-w-[85%] sm:max-w-[75%]', m.staff && 'text-end')}>
+							<p className="mb-1 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-800" style={m.staff ? { justifyContent: 'flex-end' } : undefined}><bdi dir="auto">{m.sender_name}</bdi>{m.mine && <span className="font-normal">(<L id="support.you" />)</span>}{m.staff && <span className="rounded-full border-2 border-black bg-white px-2 py-0.5 text-xs font-bold"><L id="support.team_label" /></span>}</p>
+							<div className={cn('rounded-3xl border-[2.5px] border-black px-4 py-3 text-start shadow-hard-sm', m.staff ? 'bg-primary' : 'bg-white')}><p dir="auto" className="whitespace-pre-wrap break-words text-base">{m.body}</p></div>
+							<p className="mt-1 text-xs text-slate-700">{date(m.created_at)}</p>
+						</div></div>)}
+					<div className="flex gap-2"><Button variant="outline" disabled={messagePage === 0} onClick={() => void openTicket(t.id, messagePage - 1)}><L id="support.newer_messages" /></Button><Button variant="outline" disabled={detail.messages.length < 25} onClick={() => void openTicket(t.id, messagePage + 1)}><L id="support.older_messages" /></Button></div>
+				</Localized>
+				<form className="border-t-[2.5px] border-black bg-white p-4 sm:p-5" onSubmit={e => { e.preventDefault(); sendReply(); }}>
+					<label htmlFor="support-reply" className="sr-only"><L id="support.reply" /></label>
+					<div className="flex items-end gap-3">
+						<textarea placeholder={tr(detail.staff ? 'support.reply_placeholder_staff' : 'support.reply_placeholder')} id="support-reply" ref={replyBox} rows={2} maxLength={2000} value={reply} required className="max-h-44 min-h-[56px] w-full min-w-0 flex-1 resize-none rounded-3xl border-[2.5px] border-black bg-white px-4 py-3 text-base"
+							onChange={e => { setReply(e.target.value); if (replyKey) writeDraft(storage(), replyKey, e.target.value); }}
+							onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); sendReply(); } }} />
+						<Localized as="button" labels={{ 'aria-label': 'support.send_reply' }} type="submit" disabled={busy || !reply.trim()} className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[2.5px] border-black bg-primary shadow-hard-sm disabled:opacity-50"><Send aria-hidden className="h-6 w-6 rtl:-scale-x-100" /></Localized>
+					</div>
+					<p className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-slate-700"><span><L id="support.key_hint" /></span>{reply.length > 1500 && <span>{reply.length}/2000</span>}</p>
+					{reply.trim() && <p className="text-xs text-slate-700"><L id="support.draft_kept" /></p>}
+				</form>
+			</section>;
+		})() : <>
+			<div className="flex flex-wrap items-center gap-2"><div role="group" aria-label="Status" className="flex flex-wrap gap-2">{STATUS_PILLS.map(([value, id]) => <button key={value} type="button" aria-pressed={filter === value} className={cn(pill, filter === value ? 'bg-primary shadow-hard-sm' : 'bg-white hover:bg-slate-100')} onClick={() => { setFilter(value); setPage(0); }}><L id={id} /></button>)}</div>
+				<div className="relative min-w-[12rem] flex-1"><Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2" /><Localized as={Input} labels={{ 'aria-label': 'support.search_tickets', placeholder: 'support.search_ticket_subjects' }} className="min-h-[44px] rounded-full border-2 ps-9" value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(0); }} /></div></div>
+			{loading ? <div role="status" className="space-y-3"><span className="sr-only"><L id="support.loading_tickets" /></span>{[0, 1, 2].map(i => <div key={i} className={cn(panel, 'h-28 animate-pulse bg-slate-100')} />)}</div>
+				: !error && rows.length === 0 ? <div className={cn(panel, 'text-center')}><MessageCircle aria-hidden className="mx-auto h-8 w-8 text-slate-500" /><p className="mt-2"><L id="support.no_matching_tickets_use_new" /></p></div>
+				: <ul className="space-y-3">{rows.map(t => {
+					const due = !!t.response_due_at && t.status !== 'RESOLVED', overdue = due && Date.parse(t.response_due_at!) < Date.now(), mine = !t.staff;
+					return <li key={t.id}><button type="button" className={cn(panel, 'flex w-full items-center gap-4 p-4 text-start transition-all hover:-translate-y-px hover:shadow-hard')} onClick={() => void openTicket(t.id)}>
+						<SupportAvatar name={mine ? ownName : null} url={mine ? user?.imageUrl : null} />
+						<div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-lg font-semibold break-words"><bdi dir="auto">{t.subject}</bdi></span><StatusBadge status={t.status} /><WaitChip state={waitState(t, !!t.staff)} staff={!!t.staff} overdue={overdue} /></div>
+							<p className="mt-1 text-sm text-slate-700"><L text={t.category} />{' · '}<L id="support.opened" />{' '}{date(t.created_at)}{' '}<L id="support.last_message" />{' '}{date(t.last_message_at)}</p></div>
+						<ChevronRight aria-hidden className="h-5 w-5 shrink-0 rtl:rotate-180" /></button></li>;
+				})}</ul>}
+			<div className="flex items-center gap-2"><Button variant="outline" disabled={page === 0 || loading} onClick={() => setPage(page - 1)}><L id="notifications.previous" /></Button><span className="p-2"><L id="notifications.page" />{' '}{page + 1}</span><Button variant="outline" disabled={rows.length < 25 || loading} onClick={() => setPage(page + 1)}><L id="notifications.next" /></Button></div>
+		</>}
+		<Dialog open={open} onOpenChange={v => { if (!busy) setOpen(v); }}><DialogContent className="max-w-md"><DialogHeader><DialogTitle className="font-display text-2xl"><L id="support.new_ticket_" /></DialogTitle></DialogHeader>
+			<form className="grid gap-4" onSubmit={e => { e.preventDefault(); void command('create', { organizationId: org || null, category, subject, body }, { clear: () => { setSubject(''); setBody(''); if (newKey) writeDraft(storage(), newKey, ''); } }); }}>
+				<label className="grid gap-1 text-sm"><L id="support.support_team" /><select className={select} value={org} onChange={e => { setOrg(e.target.value); saveNewDraft({ org: e.target.value, category, subject, body }); }}><option value="">{language === 'ar' ? 'الدعم الفني لمنصة EduLabs' : 'EduLabs platform technical support'}</option>{orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
+				<label className="grid gap-1 text-sm"><L id="support.issue_category" /><select className={select} value={category} onChange={e => { setCategory(e.target.value); saveNewDraft({ org, category: e.target.value, subject, body }); }}>{['account', 'video', 'upload', 'exam', 'website', 'other'].map(c => <option key={c} value={c}><L text={c} /></option>)}</select></label>
+				<label className="grid gap-1 text-sm"><L id="support.subject" /><Input maxLength={120} required value={subject} onChange={e => { setSubject(e.target.value); saveNewDraft({ org, category, subject: e.target.value, body }); }} /></label>
+				<label className="grid gap-1 text-sm"><L id="support.describe_your_problem" /><textarea className="min-h-[96px] w-full rounded-xl border-2 border-black bg-white px-3 py-2 text-sm" maxLength={2000} required value={body} onChange={e => { setBody(e.target.value); saveNewDraft({ org, category, subject, body: e.target.value }); }} /></label>
+				<Button disabled={busy || !body.trim() || !subject.trim()}><L id="support.create_ticket" /></Button>
+			</form></DialogContent></Dialog>
+	</div>;
 }
