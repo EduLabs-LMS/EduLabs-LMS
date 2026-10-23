@@ -2,7 +2,7 @@
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Layers, ListChecks, RefreshCw, Search, UserCheck, UserPlus, Users } from 'lucide-react';
+import { RefreshCw, Search, UserCheck, UserPlus, Users } from 'lucide-react';
 import { Button } from '@/frontend/components/ui/button';
 import { Input } from '@/frontend/components/ui/input';
 import { ConfirmDialog } from '@/frontend/features/admin/users/confirm-dialog';
@@ -11,14 +11,13 @@ import { initialOf, safeTab, statusTone, visibleStats, visibleTabs, waitlistVisi
 import { cn } from '@/shared/utils';
 import type { MessageKey } from '@/frontend/locales/messages';
 import type { AdminMetrics, AdminOffering, StudentRow } from '@/shared/contracts/student-administration';
-import type { GroupPage, StudyGroup } from '@/shared/contracts/groups';
 
 const panel = 'rounded-3xl border-2 border-black bg-white p-5 shadow-hard-sm';
 const field = 'min-h-[44px] rounded-xl border-2 border-black bg-white px-3 text-sm';
 const pill = 'min-h-[44px] shrink-0 whitespace-nowrap rounded-full border-2 border-black px-4 text-sm font-bold transition-colors';
-const STAT_ICON: Record<StatKey, typeof Users> = { total: Users, waitlist: UserPlus, groups: Layers, homework: ListChecks };
-const STAT_LABEL: Record<StatKey, MessageKey> = { total: 'users.stat_total', waitlist: 'users.stat_waitlist', groups: 'users.stat_groups', homework: 'users.stat_homework' };
-const TAB_LABEL: Record<UsersTab, MessageKey> = { all: 'users.tab_all', students: 'users.tab_students', waitlist: 'users.tab_waitlist', groups: 'users.tab_groups' };
+const STAT_ICON: Record<StatKey, typeof Users> = { total: Users, waitlist: UserPlus };
+const STAT_LABEL: Record<StatKey, MessageKey> = { total: 'users.stat_total', waitlist: 'users.stat_waitlist' };
+const TAB_LABEL: Record<UsersTab, MessageKey> = { all: 'users.tab_all', students: 'users.tab_students', waitlist: 'users.tab_waitlist' };
 const ROSTER_FILTERS = ['all', 'active', 'suspended', 'expired', 'completed', 'cancelled', 'invited'];
 const REQUEST_FILTERS = ['pending', 'approved', 'rejected', 'all'];
 const HISTORY = '__history';
@@ -41,16 +40,16 @@ export function SupabaseStudentAdmin() {
 	const [offers, setOffers] = useState<AdminOffering[]>([]), [offer, setOffer] = useState(''), [offerPage, setOfferPage] = useState(0), [linkPage, setLinkPage] = useState(0);
 	const [tab, setTab] = useState<UsersTab>('all'), [forceWaitlist, setForceWaitlist] = useState(false), [metrics, setMetrics] = useState<AdminMetrics | null>(null);
 	const [search, setSearch] = useState(''), [rosterFilter, setRosterFilter] = useState('all'), [rosterPage, setRosterPage] = useState(0), [requestFilter, setRequestFilter] = useState('pending'), [requestPage, setRequestPage] = useState(0);
-	const [roster, setRoster] = useState<StudentRow[]>([]), [requests, setRequests] = useState<StudentRow[]>([]), [groups, setGroups] = useState<StudyGroup[]>([]);
-	const [loadingOffers, setLoadingOffers] = useState(true), [loadingRoster, setLoadingRoster] = useState(false), [loadingRequests, setLoadingRequests] = useState(false), [loadingGroups, setLoadingGroups] = useState(false);
-	const [busy, setBusy] = useState(false), [error, setError] = useState(''), [groupsError, setGroupsError] = useState(''), [confirm, setConfirm] = useState<Confirm | null>(null);
+	const [roster, setRoster] = useState<StudentRow[]>([]), [requests, setRequests] = useState<StudentRow[]>([]);
+	const [loadingOffers, setLoadingOffers] = useState(true), [loadingRoster, setLoadingRoster] = useState(false), [loadingRequests, setLoadingRequests] = useState(false);
+	const [busy, setBusy] = useState(false), [error, setError] = useState(''), [confirm, setConfirm] = useState<Confirm | null>(null);
 	const [expiry, setExpiry] = useState(''), [share, setShare] = useState(''), [kind, setKind] = useState<'request' | 'invite'>('request'), [recipient, setRecipient] = useState(''), [reason, setReason] = useState(''), [eligibleId, setEligibleId] = useState('');
 	const [links, setLinks] = useState<{ id: string; kind: string; expires_at: string; claimed_at: string | null; revoked_at: string | null }[]>([]);
 	const linkDraft = useRef<{ key: string; token: string; expiresAt: string } | null>(null);
 	const pending = useRef<{ fingerprint: string; requestId: string } | null>(null), selected = offers.find(o => o.id === offer);
 
 	const waitlistOn = waitlistVisible(metrics?.pendingWaitlistCount ?? null, forceWaitlist), current = safeTab(tab, waitlistOn);
-	const showStudents = current === 'all' || current === 'students', showWaitlist = waitlistOn && (current === 'all' || current === 'waitlist'), showGroups = current === 'all' || current === 'groups';
+	const showStudents = current === 'all' || current === 'students', showWaitlist = waitlistOn && (current === 'all' || current === 'waitlist');
 
 	useEffect(() => { let alive = true; setLoadingOffers(true); void administer<{ rows: AdminOffering[] }>('offerings', { page: offerPage }).then(v => { if (alive) { setOffers(v.rows); setOffer(v.rows[0]?.id ?? ''); } }).catch(e => setError(e.message)).finally(() => setLoadingOffers(false)); return () => { alive = false; }; }, [offerPage]);
 	const loadMetrics = useCallback(async () => { try { setMetrics(await administer<AdminMetrics>('metrics', {})); } catch { setMetrics(null); } }, []);
@@ -58,18 +57,10 @@ export function SupabaseStudentAdmin() {
 	const loadRoster = useCallback(async () => { if (!offer || !showStudents) return; setLoadingRoster(true); setError(''); try { setRoster((await administer<{ rows: StudentRow[] }>('roster', { page: rosterPage, search, filter: rosterFilter }, { offeringId: offer })).rows); } catch (e) { setRoster([]); setError((e as Error).message); } finally { setLoadingRoster(false); } }, [offer, showStudents, rosterPage, search, rosterFilter]);
 	const loadRequests = useCallback(async () => { if (!offer || !showWaitlist) return; setLoadingRequests(true); setError(''); try { setRequests((await administer<{ rows: StudentRow[] }>('requests', { page: requestPage, search, filter: requestFilter }, { offeringId: offer })).rows); } catch (e) { setRequests([]); setError((e as Error).message); } finally { setLoadingRequests(false); } }, [offer, showWaitlist, requestPage, search, requestFilter]);
 	const loadLinks = useCallback(async () => { if (!offer || !selected?.manage) { setLinks([]); return; } try { setLinks(await administer('links', { page: linkPage }, { offeringId: offer })); } catch (e) { setError((e as Error).message); } }, [offer, selected?.manage, linkPage]);
-	const loadGroups = useCallback(async () => {
-		if (!offer || !showGroups) return; setLoadingGroups(true); setGroupsError('');
-		try {
-			const r = await fetch('/api/study-groups', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'view', groupId: null, data: { section: 'offering:' + offer, search: '', page: 0 } }) });
-			const value = await r.json(); if (!r.ok) throw new Error(value.error || 'Groups unavailable'); setGroups((value as GroupPage<StudyGroup>).rows);
-		} catch (e) { setGroups([]); setGroupsError((e as Error).message); } finally { setLoadingGroups(false); }
-	}, [offer, showGroups]);
 	useEffect(() => { void loadRoster(); }, [loadRoster]);
 	useEffect(() => { void loadRequests(); }, [loadRequests]);
 	useEffect(() => { void loadLinks(); }, [loadLinks]);
-	useEffect(() => { void loadGroups(); }, [loadGroups]);
-	const reloadAll = () => { void loadMetrics(); void loadRoster(); void loadRequests(); void loadLinks(); void loadGroups(); };
+	const reloadAll = () => { void loadMetrics(); void loadRoster(); void loadRequests(); void loadLinks(); };
 
 	const expiresAt = () => expiry ? new Date(expiry).toISOString() : null;
 	async function command(action: string, data: unknown, subjectId: string | null = null, version: number | null = null) {
@@ -104,20 +95,20 @@ export function SupabaseStudentAdmin() {
 			<ul className="space-y-3 md:hidden">{rows.map(row => <li key={row.id} className="space-y-3 rounded-2xl border-2 border-black p-4"><div className="flex flex-wrap items-start justify-between gap-2">{Who({ row })}<StatusChip status={row.status} /></div><div className="flex flex-wrap gap-x-4 gap-y-1">{Meta({ row })}</div>{Actions({ row, requestRow })}</li>)}</ul></>;
 	}
 	const tabs = visibleTabs(waitlistOn), stats = visibleStats(waitlistOn);
-	const statValue = (key: StatKey) => { if (!metrics) return null; return key === 'total' ? metrics.totalStudents : key === 'waitlist' ? metrics.pendingWaitlistCount : key === 'groups' ? metrics.activeGroupsCount : metrics.pendingHomeworkCount; };
+	const statValue = (key: StatKey) => { if (!metrics) return null; return key === 'total' ? metrics.totalStudents : metrics.pendingWaitlistCount; };
 
 	return <div className="mx-auto max-w-6xl space-y-6 pb-12">
 		<header className="flex flex-wrap items-end justify-between gap-4">
 			<div className="min-w-0"><h1 className="font-display text-3xl sm:text-4xl"><L id="users.title" /></h1><p className="mt-2 max-w-2xl text-sm text-slate-700"><L id="users.subtitle" /></p></div>
-			<div className="flex flex-wrap gap-2"><Link href="/groups"><Button variant="outline" className="min-h-[44px] rounded-full"><L id="users.groups_attendance" /></Button></Link><Button variant="outline" className="min-h-[44px] rounded-full" onClick={reloadAll}><RefreshCw aria-hidden className="me-2 h-4 w-4" /><L id="users.refresh" /></Button></div>
+			<div className="flex flex-wrap gap-2"><Link href="/sessions-groups"><Button variant="outline" className="min-h-[44px] rounded-full"><L id="users.groups_attendance" /></Button></Link><Button variant="outline" className="min-h-[44px] rounded-full" onClick={reloadAll}><RefreshCw aria-hidden className="me-2 h-4 w-4" /><L id="users.refresh" /></Button></div>
 		</header>
 		{error && <div role="alert" className={cn(panel, 'space-y-3')}><p>{error}</p><Button variant="outline" onClick={reloadAll}><RefreshCw aria-hidden className="me-2 h-4 w-4" /><L id="users.refresh" /></Button></div>}
-		<section className={cn('grid gap-4 grid-cols-2', stats.length === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3')}>{stats.map(key => { const Icon = STAT_ICON[key], value = statValue(key); return <div key={key} className="flex items-center justify-between gap-3 rounded-3xl border-2 border-black bg-white p-4 shadow-hard-sm sm:p-5"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-700"><L id={STAT_LABEL[key]} /></p><p className="mt-2 text-3xl font-bold">{value ?? <span className="text-base font-semibold"><L id="users.unavailable" /></span>}</p></div><Icon aria-hidden className="h-6 w-6 shrink-0 text-green-800" /></div>; })}</section>
+		<section className={cn('grid gap-4 grid-cols-1', stats.length === 2 && 'sm:grid-cols-2')}>{stats.map(key => { const Icon = STAT_ICON[key], value = statValue(key); return <div key={key} className="flex items-center justify-between gap-3 rounded-3xl border-2 border-black bg-white p-4 shadow-hard-sm sm:p-5"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-700"><L id={STAT_LABEL[key]} /></p><p className="mt-2 text-3xl font-bold">{value ?? <span className="text-base font-semibold"><L id="users.unavailable" /></span>}</p></div><Icon aria-hidden className="h-6 w-6 shrink-0 text-green-800" /></div>; })}</section>
 		<section className={panel}><label className="flex flex-wrap items-center gap-2 text-sm font-semibold"><L id="users.course_offering" /><select aria-label="Course offering" className={cn(field, 'max-w-full flex-1')} value={offer} onChange={e => { setOffer(e.target.value); setRosterPage(0); setRequestPage(0); setLinkPage(0); setShare(''); }}>{offers.map(o => <option key={o.id} value={o.id}>{o.organization_name} · {o.course_title} · {o.name}</option>)}</select></label>
 			<div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" disabled={!offerPage} onClick={() => setOfferPage(offerPage - 1)}><L id="users.previous_offerings" /></Button><Button variant="outline" disabled={offers.length < 25} onClick={() => setOfferPage(offerPage + 1)}><L id="users.more_offerings" /></Button></div>
 			{!loadingOffers && !offers.length && !error && <p className="mt-3">No assigned offerings. EduLabs staff provision teacher organizations; students use their teacher&apos;s access link.</p>}</section>
 		{offer && <>
-			<div role="group" aria-label="Sections" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">{tabs.map(value => <button key={value} type="button" aria-pressed={current === value} className={cn(pill, current === value ? 'bg-primary shadow-hard-sm' : 'bg-white hover:bg-slate-100')} onClick={() => setTab(value)}><L id={TAB_LABEL[value]} />{value === 'students' && roster.length > 0 && ` (${roster.length})`}{value === 'groups' && groups.length > 0 && ` (${groups.length})`}</button>)}</div>
+			<div role="group" aria-label="Sections" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">{tabs.map(value => <button key={value} type="button" aria-pressed={current === value} className={cn(pill, current === value ? 'bg-primary shadow-hard-sm' : 'bg-white hover:bg-slate-100')} onClick={() => setTab(value)}><L id={TAB_LABEL[value]} />{value === 'students' && roster.length > 0 && ` (${roster.length})`}</button>)}</div>
 			{selected?.manage && <div className="flex flex-wrap items-center gap-3 text-sm"><label className="flex flex-wrap items-center gap-2 font-semibold"><L id="users.access_expiry" /><Input className="w-auto" type="datetime-local" value={expiry} onChange={e => setExpiry(e.target.value)} /></label></div>}
 			{showStudents && <section className={cn(panel, 'space-y-4')}>
 				<Heading icon={Users} title="users.students_title" note="users.students_note" />
@@ -132,12 +123,6 @@ export function SupabaseStudentAdmin() {
 					{selected?.manage && <label className="flex flex-1 flex-wrap items-center gap-2 text-sm font-semibold"><L id="users.reject_reason" /><Input className="min-w-[12rem] flex-1" value={reason} maxLength={1000} onChange={e => setReason(e.target.value)} /></label>}</div>
 				{!loadingRequests && !requests.length && !error ? <div className="py-8 text-center"><UserCheck aria-hidden className="mx-auto h-8 w-8 text-green-700" /><p className="mt-2 font-semibold"><L id="users.waitlist_empty" /></p><p className="text-sm text-slate-700"><L id="users.waitlist_empty_note" /></p></div> : People({ rows: requests, loading: loadingRequests, requestRow: true, empty: 'users.no_requests' })}
 				<Pager page={requestPage} count={requests.length} loading={loadingRequests} onPage={setRequestPage} />
-			</section>}
-			{showGroups && <section className={cn(panel, 'space-y-4')}>
-				<div className="flex flex-wrap items-start justify-between gap-3"><Heading icon={Layers} title="users.groups_title" note="users.groups_note" /><Link href="/groups"><Button variant="outline" className="min-h-[44px] rounded-full"><L id="users.open_groups" /></Button></Link></div>
-				{groupsError && <p role="alert" className="text-sm text-red-800">{groupsError}</p>}
-				{loadingGroups ? <div role="status" className="space-y-3"><span className="sr-only"><L id="users.loading" /></span>{[0, 1].map(i => <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)}</div> : !groups.length && !groupsError ? <p className="py-4 text-center text-sm text-slate-700"><L id="users.no_groups" /></p>
-					: <ul className="space-y-3">{groups.map(g => <li key={g.id}><Link href="/groups" className="flex items-center gap-4 rounded-2xl border-2 border-black p-4 transition-colors hover:bg-slate-50"><span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-black bg-primary font-bold">{initialOf(g.name)}</span><div className="min-w-0 flex-1"><p className="font-display text-xl break-words"><bdi dir="auto">{g.name}</bdi></p><p className="text-sm text-slate-700"><L id={g.mode === 'online' ? 'users.group_online' : 'users.group_center'} />{g.capacity ? ` · ${g.capacity}` : ''}</p></div><ChevronRight aria-hidden className="h-5 w-5 shrink-0 rtl:rotate-180" /></Link></li>)}</ul>}
 			</section>}
 			{selected?.manage && <details className={cn(panel, 'space-y-4')}><summary className="min-h-[44px] cursor-pointer font-display text-2xl"><UserPlus aria-hidden className="me-2 inline h-6 w-6" /><L id="users.manage_access" /></summary>
 				<div className="mt-4 space-y-4"><p className="text-sm">Request links require your approval. A private invitation is bound to one verified student profile. Ask the student to copy their profile ID from My requests. Share invitations only with the intended student. Links expire in seven days.</p>

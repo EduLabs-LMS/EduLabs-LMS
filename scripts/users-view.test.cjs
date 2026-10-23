@@ -19,11 +19,11 @@ test('waitlist is visible only while someone is waiting or past requests are bei
   assert.equal(view.waitlistVisible(0, true), true);
 });
 
-test('with the waitlist off, its tab and stat card are gone and the stats row re-flows to three', () => {
-  assert.equal(JSON.stringify(view.visibleTabs(true)), JSON.stringify(['all', 'students', 'waitlist', 'groups']));
-  assert.equal(JSON.stringify(view.visibleTabs(false)), JSON.stringify(['all', 'students', 'groups']));
-  assert.equal(JSON.stringify(view.visibleStats(true)), JSON.stringify(['total', 'waitlist', 'groups', 'homework']));
-  assert.equal(JSON.stringify(view.visibleStats(false)), JSON.stringify(['total', 'groups', 'homework']));
+test('with the waitlist off, its tab and stat card are gone and the stats row re-flows', () => {
+  assert.equal(JSON.stringify(view.visibleTabs(true)), JSON.stringify(['all', 'students', 'waitlist']));
+  assert.equal(JSON.stringify(view.visibleTabs(false)), JSON.stringify(['all', 'students']));
+  assert.equal(JSON.stringify(view.visibleStats(true)), JSON.stringify(['total', 'waitlist']));
+  assert.equal(JSON.stringify(view.visibleStats(false)), JSON.stringify(['total']));
   assert.equal(view.safeTab('waitlist', false), 'all');
   assert.equal(view.safeTab('waitlist', true), 'waitlist');
   assert.equal(view.safeTab('students', false), 'students');
@@ -39,7 +39,7 @@ test('small display helpers', () => {
 
 test('the rebuilt screen keeps every existing action and asks before the risky ones', () => {
   const source = fs.readFileSync('frontend/features/admin/users/supabase-student-admin.tsx', 'utf8');
-  for (const feature of ["administer<{ rows: AdminOffering[] }>('offerings'", "'roster'", "'requests'", "'links'", "'metrics'", "command('approve'", "command('reject'", "command('suspend'", "command('reactivate'", "command('enroll'", "command('revoke-link'", "command('link'", 'Create access link', 'Enroll existing student', 'Revoke link', 'Newer links', 'Older links', 'users.previous_offerings', 'users.more_offerings', 'users.profile_id', 'Assigned assistant view', 'Past access requests', 'crypto.randomUUID()', 'href="/groups"']) assert.ok(source.includes(feature), 'missing ' + feature);
+  for (const feature of ["administer<{ rows: AdminOffering[] }>('offerings'", "'roster'", "'requests'", "'links'", "'metrics'", "command('approve'", "command('reject'", "command('suspend'", "command('reactivate'", "command('enroll'", "command('revoke-link'", "command('link'", 'Create access link', 'Enroll existing student', 'Revoke link', 'Newer links', 'Older links', 'users.previous_offerings', 'users.more_offerings', 'users.profile_id', 'Assigned assistant view', 'Past access requests', 'crypto.randomUUID()', 'href="/sessions-groups"']) assert.ok(source.includes(feature), 'missing ' + feature);
   // Reject, Suspend and Revoke link go through the confirmation; Approve and Reactivate stay one tap.
   assert.match(source, /ask\('users\.confirm_reject_title'[^)]*\(\) => void command\('reject'/);
   assert.match(source, /ask\('users\.confirm_suspend_title'[^)]*\(\) => void command\('suspend'/);
@@ -49,7 +49,8 @@ test('the rebuilt screen keeps every existing action and asks before the risky o
   assert.doesNotMatch(source, /Admin & Teacher Portal|ADMIN/);
   assert.match(source, /hidden overflow-x-auto[^"]*md:block/);
   assert.match(source, /md:hidden/);
-  assert.match(source, /rtl:rotate-180/);
+  // Groups and sessions live on their own page; this page is for people only.
+  assert.doesNotMatch(source, /api\/study-groups|showGroups|StudyGroup/);
 });
 
 test('the waitlist section and stat card are rendered only through the visibility helpers', () => {

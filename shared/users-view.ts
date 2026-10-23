@@ -1,5 +1,5 @@
 /** Display-only helpers for the Users & Study Groups screen. Nothing here changes who can see or do what. */
-export type UsersTab = 'all' | 'students' | 'waitlist' | 'groups';
+export type UsersTab = 'all' | 'students' | 'waitlist';
 
 /**
  * The waitlist is optional and there is no on/off flag on the front end, so it is shown only while someone is
@@ -10,13 +10,13 @@ export function waitlistVisible(pendingCount: number | null, lookingAtRequests: 
 }
 
 export function visibleTabs(waitlist: boolean): UsersTab[] {
-  return waitlist ? ['all', 'students', 'waitlist', 'groups'] : ['all', 'students', 'groups'];
+  return waitlist ? ['all', 'students', 'waitlist'] : ['all', 'students'];
 }
 
-export type StatKey = 'total' | 'waitlist' | 'groups' | 'homework';
+export type StatKey = 'total' | 'waitlist';
 /** Stat cards in target order; the waitlist card disappears with the waitlist so the row re-flows. */
 export function visibleStats(waitlist: boolean): StatKey[] {
-  return waitlist ? ['total', 'waitlist', 'groups', 'homework'] : ['total', 'groups', 'homework'];
+  return waitlist ? ['total', 'waitlist'] : ['total'];
 }
 
 /** The tab to show when the waitlist disappears underneath the user (for example after approving the last request). */
