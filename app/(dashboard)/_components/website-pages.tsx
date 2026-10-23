@@ -37,6 +37,10 @@ export async function previewFor(context: { memberships: { status: string; role:
 function previewOfferings(scope: NonNullable<Awaited<ReturnType<typeof loadWebsiteScope>>>) {
   return scope.offerings.filter(o => o.status === 'active' && scope.courses.some(c => c.id === o.course_id && c.status === 'published'));
 }
+/** The scope a real student would have: published courses and their active groups only. */
+function previewScope(scope: NonNullable<Awaited<ReturnType<typeof loadWebsiteScope>>>) {
+  return { ...scope, courses: scope.courses.filter(c => c.status === 'published'), offerings: previewOfferings(scope) };
+}
 async function scopeFor(search: WebsiteSearch, courseId?: string) {
   const context = await requireWebsiteContext();
   if (Object.values(search).some(v => v !== undefined && (typeof v !== 'string' || v.length > 200))) notFound();
@@ -78,7 +82,7 @@ export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
     <StudentLearning home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={preview ? previewOfferings(scope) : scope.offerings} lessons={scope.limited ? [] : v2StudentLessons({ ...scope, offerings: preview ? previewOfferings(scope) : scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} />}
     {scope.limited && <p className="text-sm text-slate-500"><L id="common.open_a_course_for_its"/></p>}
     {!staff&&!preview&&<p className="text-sm text-slate-600"><L id="common.need_course_access_use_your"/>{" "}<Link className="underline" href="/access"><L id="common.view_your_access_requests"/></Link>.</p>}
-    <Offerings scope={preview ? { ...scope, offerings: previewOfferings(scope) } : scope} hideEmpty />{!staff&&!preview&&<Assessments scope={scope} />}
+    <Offerings scope={preview ? previewScope(scope) : scope} hideEmpty />{!staff&&!preview&&<Assessments scope={scope} />}
   </div>;
 }
 export async function WebsiteCourses({ search = {}, teacher = false, preview = false }: { search?: WebsiteSearch; teacher?: boolean; preview?: boolean }) {
@@ -88,7 +92,7 @@ export async function WebsiteCourses({ search = {}, teacher = false, preview = f
     const visible = preview ? previewOfferings(scope) : null;
     if (search.offering && !(visible ?? scope.offerings).some(o => o.id === search.offering)) notFound();
     const enrolled = visible ?? scope.offerings.filter(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'&&(!e.expires_at||Date.parse(e.expires_at)>Date.now())&&(!e.enrolled_at||Date.parse(e.enrolled_at)<=Date.now())));
-    return <><LimitNotice limited={scope.limited}/><StudentLearning organizationId={search.organization} limited={scope.limited} offerings={enrolled} lessons={[]} chapters={scope.limited ? [] : v2OfferingChapters({...scope,offerings:enrolled}, search.offering)}/><Offerings scope={visible ? {...scope,offerings:visible} : scope} hideEmpty/>{preview&&!enrolled.length&&<p role="status" className="text-sm text-slate-500"><L id="preview.no_courses"/></p>}</>;
+    return <><LimitNotice limited={scope.limited}/><StudentLearning organizationId={search.organization} limited={scope.limited} offerings={enrolled} lessons={[]} chapters={scope.limited ? [] : v2OfferingChapters({...scope,offerings:enrolled}, search.offering)}/><Offerings scope={visible ? previewScope(scope) : scope} hideEmpty/>{preview&&!enrolled.length&&<p role="status" className="text-sm text-slate-500"><L id="preview.no_courses"/></p>}</>;
   }
   const context = await requireWebsiteContext();
   if (Object.values(search).some(v => v !== undefined && (typeof v !== 'string' || v.length > 200)) || (search.organization && !context.organizations.some(o => o.id === search.organization))) notFound();
