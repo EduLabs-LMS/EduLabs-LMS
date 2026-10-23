@@ -116,7 +116,13 @@ What the back end should confirm or add:
    offering but in no group (`eligible` does something close; please confirm it returns exactly those).
 4. **Assistants.** Today only a group's instructor can create or edit a group (`instructor`), while any staff member can take
    attendance. Confirm this is intended for assistants. If the owner wants assistants to create groups, that is a permission change.
-5. **Jitsi privacy (optional, later).** A plain meeting link is not private: anyone with the link can join. If the owner
+5. **Host / admin login link for Jitsi (the owner reported this is missing).** On the public `meet.jit.si` service nobody gets an
+   admin link: the first person must sign in (Google, GitHub or Facebook) through "I am the host". The front end now shows a
+   "Start as host" button with that hint. A real host link that opens straight into a moderated room needs signed Jitsi tokens:
+   either JaaS (8x8 Jitsi as a Service) or a self-hosted Jitsi with JWT authentication. Please add a server endpoint that, for a
+   group's instructor or staff only, returns a short-lived signed moderator link for that group's room (and a participant-only
+   link for members), with the room name tied to the group. The front end will then show the host link instead of the hint.
+5b. **Jitsi privacy (optional, later).** A plain meeting link is not private: anyone with the link can join. If the owner
    wants private rooms with a lobby and moderator rights, that needs signed Jitsi tokens (self-hosted Jitsi or JaaS) created on
    the server, and the front end would only embed or open the signed link. Not requested yet; listed so it is not a surprise.
 6. **Jitsi attendance (optional, later).** Automatic attendance from who actually joined needs a Jitsi webhook handled on the

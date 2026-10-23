@@ -695,5 +695,7 @@ export const en = {
   "groups.confirm_remove_title": "Deactivate this member?",
   "groups.confirm_remove_body": "They leave the group but their attendance history stays. You can add them again later.",
   "groups.confirm_finalize_title": "Finalize attendance?",
-  "groups.confirm_finalize_body": "Finalized attendance is locked. Only the instructor can reopen it, and a reason is required."
+  "groups.confirm_finalize_body": "Finalized attendance is locked. Only the instructor can reopen it, and a reason is required.",
+  "groups.start_host": "Start as host",
+  "groups.host_hint": "The public Jitsi service asks the host to sign in (Google, GitHub or Facebook) before the room opens. Choose “I am the host”. Students can join without signing in."
 } as const;

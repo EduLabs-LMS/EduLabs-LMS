@@ -695,5 +695,7 @@ export const ar: Record<keyof typeof en, string> = {
   "groups.confirm_remove_title": "إيقاف هذا العضو؟",
   "groups.confirm_remove_body": "يغادر المجموعة لكن سجل حضوره يبقى. يمكنك إضافته مرة أخرى لاحقًا.",
   "groups.confirm_finalize_title": "اعتماد الحضور؟",
-  "groups.confirm_finalize_body": "الحضور المعتمد مغلق. المدرّس وحده يستطيع إعادة فتحه مع ذكر السبب."
+  "groups.confirm_finalize_body": "الحضور المعتمد مغلق. المدرّس وحده يستطيع إعادة فتحه مع ذكر السبب.",
+  "groups.start_host": "ابدأ كمضيف",
+  "groups.host_hint": "تطلب خدمة Jitsi العامة من المضيف تسجيل الدخول (Google أو GitHub أو Facebook) قبل فتح الغرفة. اختر «أنا المضيف». يمكن للطلاب الانضمام دون تسجيل الدخول."
 };
