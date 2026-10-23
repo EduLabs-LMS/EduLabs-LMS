@@ -217,9 +217,10 @@ button:not(:disabled):active, [role='button']:not([aria-disabled='true']):active
 /* Progress bars grow with a transform, not a width change. */
 .m-bar { transform-origin: left center; animation: m-grow 600ms var(--m-ease) both; }
 [dir='rtl'] .m-bar { transform-origin: right center; }
-@keyframes m-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes m-grow { from { transform: scaleX(0); } to { transform: scaleX(var(--p, 1)); } }
 @media (prefers-reduced-motion: reduce) {
   .m-page, .m-list > *, .m-pop { animation: m-fade 120ms linear both; animation-delay: 0ms; }
-  .m-skeleton::after, .m-bar { animation: none; transform: none; }
+  .m-skeleton::after { animation: none; transform: none; }
+  .m-bar { animation: none; }
   button:not(:disabled):active, [role='button']:active, a[href].shadow-hard-sm:active, button.shadow-hard-sm:hover, a[href].shadow-hard-sm:hover { transform: none; }
 }

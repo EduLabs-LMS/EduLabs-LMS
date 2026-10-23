@@ -830,5 +830,14 @@ export const ar: Record<keyof typeof en, string> = {
   "gv.unit_d": "ي",
   "gv.unit_h": "س",
   "gv.unit_m": "د",
-  "gv.no_groups_filtered": "لا توجد مجموعات تطابق هذا الفلتر. جرّب نوع حصة آخر أو اختر الاثنين."
+  "gv.no_groups_filtered": "لا توجد مجموعات تطابق هذا الفلتر. جرّب نوع حصة آخر أو اختر الاثنين.",
+  "lf.search_label": "ابحث في الدروس",
+  "lf.search_ph": "ابحث في الدروس أو الفصول…",
+  "lf.filter_label": "عرض الدروس",
+  "lf.all": "الكل",
+  "lf.progress": "قيد التقدم",
+  "lf.done": "مكتملة",
+  "lf.new": "لم تبدأ",
+  "lf.no_results": "لا توجد دروس تطابق بحثك أو الفلتر.",
+  "lf.clear": "مسح البحث والفلتر"
 };

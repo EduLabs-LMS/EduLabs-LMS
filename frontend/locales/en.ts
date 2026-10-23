@@ -830,5 +830,14 @@ export const en = {
   "gv.unit_d": "d",
   "gv.unit_h": "h",
   "gv.unit_m": "m",
-  "gv.no_groups_filtered": "No groups match this filter. Try another class type or choose Both."
+  "gv.no_groups_filtered": "No groups match this filter. Try another class type or choose Both.",
+  "lf.search_label": "Search lessons",
+  "lf.search_ph": "Search lessons or chapters…",
+  "lf.filter_label": "Show lessons",
+  "lf.all": "All",
+  "lf.progress": "In progress",
+  "lf.done": "Completed",
+  "lf.new": "Not started",
+  "lf.no_results": "No lessons match your search or filter.",
+  "lf.clear": "Clear search and filter"
 } as const;

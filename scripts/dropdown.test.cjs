@@ -71,3 +71,11 @@ test('the dropdown opens with an animation and works from the keyboard', () => {
   const source = fs.readFileSync('frontend/components/ui/dropdown-select.tsx', 'utf8');
   for (const part of ['data-[state=open]:animate-in', 'data-[state=closed]:animate-out', 'zoom-in-95', 'transition-transform', "e.key === 'ArrowDown'", "e.key === 'Enter'", 'typed.current', 'aria-activedescendant']) assert.ok(source.includes(part), 'missing ' + part);
 });
+
+test('student pages use the shared look: search and progress filter on Self-learning, a plain welcome header instead of the placeholder carousel', () => {
+  const learning = fs.readFileSync('frontend/features/self-learning/self-learning-view.tsx', 'utf8');
+  for (const part of ['SearchField', 'FilterPills', 'filterChapters', 'm-list', 'PageHeader', 'aria-expanded']) assert.ok(learning.includes(part), 'missing ' + part);
+  const home = fs.readFileSync('frontend/features/dashboard/student-home.tsx', 'utf8');
+  assert.doesNotMatch(home, /heroSlides|unsplash/i);
+  assert.match(home, /<PageHeader/);
+});
