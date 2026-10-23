@@ -839,5 +839,19 @@ export const en = {
   "lf.done": "Completed",
   "lf.new": "Not started",
   "lf.no_results": "No lessons match your search or filter.",
-  "lf.clear": "Clear search and filter"
+  "lf.clear": "Clear search and filter",
+  "eb.search_label": "Search exams",
+  "eb.search_ph": "Search by title or course…",
+  "eb.filter_label": "Show exams",
+  "eb.all": "All",
+  "eb.active": "Open now",
+  "eb.upcoming": "Upcoming",
+  "eb.finished": "Finished",
+  "eb.sort_label": "Sort by",
+  "eb.sort_soonest": "Soonest",
+  "eb.sort_name": "Name",
+  "eb.kind_label": "Type",
+  "eb.kind_all": "All types",
+  "eb.no_match": "No exams match your search or filter.",
+  "eb.clear": "Clear search and filter"
 } as const;

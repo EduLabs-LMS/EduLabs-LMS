@@ -839,5 +839,19 @@ export const ar: Record<keyof typeof en, string> = {
   "lf.done": "مكتملة",
   "lf.new": "لم تبدأ",
   "lf.no_results": "لا توجد دروس تطابق بحثك أو الفلتر.",
-  "lf.clear": "مسح البحث والفلتر"
+  "lf.clear": "مسح البحث والفلتر",
+  "eb.search_label": "ابحث في الامتحانات",
+  "eb.search_ph": "ابحث بالعنوان أو الدورة…",
+  "eb.filter_label": "عرض الامتحانات",
+  "eb.all": "الكل",
+  "eb.active": "متاحة الآن",
+  "eb.upcoming": "قادمة",
+  "eb.finished": "منتهية",
+  "eb.sort_label": "الترتيب حسب",
+  "eb.sort_soonest": "الأقرب",
+  "eb.sort_name": "الاسم",
+  "eb.kind_label": "النوع",
+  "eb.kind_all": "كل الأنواع",
+  "eb.no_match": "لا توجد امتحانات تطابق بحثك أو الفلتر.",
+  "eb.clear": "مسح البحث والفلتر"
 };
