@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useState, useMemo } from 'react';
 import { api } from '@/frontend/lib/api';
 import {
@@ -216,7 +217,7 @@ export const MasterUserDirectory = ({
 
 					{/* Approval Status Filter */}
 					<div>
-						<select
+						<Dropdown
 							value={statusFilter}
 							onChange={(e) => setStatusFilter(e.target.value as any)}
 							aria-label="Filter by approval status"
@@ -225,12 +226,12 @@ export const MasterUserDirectory = ({
 							<option value="ALL">All Approval Statuses</option>
 							<option value="APPROVED">Approved Only</option>
 							{(hasPendingUsers || statusFilter === 'PENDING') && <option value="PENDING">Pending Approval (Waitlist)</option>}
-						</select>
+						</Dropdown>
 					</div>
 
 					{/* Role Filter */}
 					<div>
-						<select
+						<Dropdown
 							value={roleFilter}
 							onChange={(e) => setRoleFilter(e.target.value)}
 							aria-label="Filter by role"
@@ -240,7 +241,7 @@ export const MasterUserDirectory = ({
 							<option value="STUDENT">Students</option>
 							<option value="TEACHER">Teachers</option>
 							<option value="ADMIN">Admins</option>
-						</select>
+						</Dropdown>
 					</div>
 				</div>
 			</div>
@@ -464,7 +465,7 @@ export const MasterUserDirectory = ({
 							<label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
 								Select Study Group
 							</label>
-							<select
+							<Dropdown
 								value={selectedGroupId}
 								onChange={(e) => setSelectedGroupId(e.target.value)}
 								aria-label="Select study group"
@@ -476,7 +477,7 @@ export const MasterUserDirectory = ({
 										{g.name}
 									</option>
 								))}
-							</select>
+							</Dropdown>
 						</div>
 
 						{selectedGroupId !== 'NONE' && (

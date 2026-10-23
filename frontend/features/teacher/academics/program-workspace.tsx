@@ -1,4 +1,5 @@
 'use client';
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { academicRequest } from '@/frontend/lib/academics';
@@ -32,7 +33,7 @@ export function AcademicWorkspace({organizations}:{organizations:AcademicOrganiz
  if(!organizations.length)return <section className={academicPanel}><h1 className="font-display text-2xl">Academic programs</h1><p className="mt-3">No active teaching organization is available for this account.</p></section>;
  return <div className="mx-auto max-w-7xl space-y-6 pb-16">
   <header className="space-y-3"><Link href="/self-learning" className="text-sm underline">Back to courses</Link><h1 className="font-display text-3xl">Academic programs &amp; stages</h1><p className="text-sm">Organize multiple curricula in your existing teacher dashboard. Classification never enrolls a student or publishes a course.</p>
-   <label className="block max-w-md text-sm font-bold">Teaching organization<select className={field} disabled={busy} value={organizationId} onChange={e=>{setOrganization(e.target.value);setPage(0);setSelected(null);setEditing(null);}}>{organizations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select></label>
+   <label className="block max-w-md text-sm font-bold">Teaching organization<Dropdown className={field} disabled={busy} value={organizationId} onChange={e=>{setOrganization(e.target.value);setPage(0);setSelected(null);setEditing(null);}}>{organizations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</Dropdown></label>
   </header>
   <div className="grid items-start gap-6 lg:grid-cols-2">
    <section className={academicPanel}><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-xl">Programs</h2>{programs.data?.canManage&&<button className={academicButton} disabled={busy} onClick={()=>setEditing('new')}>New program</button>}</div>
@@ -85,7 +86,7 @@ function AcademicForm({kind,initial,programId,organizationId,disabled,commit,onS
    <label className="block text-sm font-bold">Slug<input className={field} required maxLength={100} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={slug} onChange={e=>setSlug(e.target.value)}/></label>
    <label className="block text-sm font-bold">Description<textarea className={field} maxLength={4000} value={description} onChange={e=>setDescription(e.target.value)}/></label>
    <label className="block text-sm font-bold">Order<input className={field} type="number" required min={0} max={1000000} step={1} value={position} onChange={e=>setPosition(e.target.valueAsNumber)}/></label><p className="text-xs">Lower numbers appear first. Equal positions use a stable ID order.</p>
-   <label className="block text-sm font-bold">Status<select className={field} value={status} onChange={e=>setStatus(e.target.value)}><option value="active">Active</option><option value="archived">Archived</option></select></label><p className="text-xs">Archiving preserves course links and student history.</p>
+   <label className="block text-sm font-bold">Status<Dropdown className={field} value={status} onChange={e=>setStatus(e.target.value)}><option value="active">Active</option><option value="archived">Archived</option></Dropdown></label><p className="text-xs">Archiving preserves course links and student history.</p>
    <div className="flex flex-wrap gap-4"><button className={academicButton}>{disabled?'Saving…':'Save '+kind}</button><button className="text-sm underline" type="button" onClick={onClose}>Cancel</button></div>
   </fieldset>{error&&<p role="alert" className="text-sm text-red-800">{error}</p>}{conflict&&<button type="button" onClick={onReload} className="text-sm underline">Discard draft and reload latest</button>}
  </form>;

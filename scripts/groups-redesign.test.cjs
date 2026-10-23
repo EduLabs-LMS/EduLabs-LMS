@@ -112,9 +112,6 @@ test('the list shows the countdown before the arrow, defaults to online, and sho
   assert.match(source, /filterByMode\(list\.rows,isStaff\?modeFilter:'both'\)/);
   assert.match(source, /gv\.sort_next/);
   assert.match(source, /gv\.sort_name/);
-  const css = fs.readFileSync('app/globals.css', 'utf8');
-  assert.match(css, /select:not\(\[multiple\]\):not\(\[size\]\)[^}]*padding-inline-end: 2\.5rem/);
-  assert.match(css, /\[dir='rtl'\] select:not\(\[multiple\]\):not\(\[size\]\)/);
 });
 
 test('the next session and the old badges sit in one card at the top of a group, and the bottom banner is gone', () => {

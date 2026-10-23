@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/frontend/lib/api';
 import {
@@ -339,7 +340,7 @@ export const SubmissionsView = () => {
 
 					{/* Group Filter */}
 					<div>
-						<select
+						<Dropdown
 							value={selectedGroupId}
 							onChange={(e) => setSelectedGroupId(e.target.value)}
 							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
@@ -350,12 +351,12 @@ export const SubmissionsView = () => {
 									{g.name}
 								</option>
 							))}
-						</select>
+						</Dropdown>
 					</div>
 
 					{/* Lesson Segment Filter */}
 					<div>
-						<select
+						<Dropdown
 							value={selectedChapterId}
 							onChange={(e) => setSelectedChapterId(e.target.value)}
 							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
@@ -367,12 +368,12 @@ export const SubmissionsView = () => {
 									{ch.title}
 								</option>
 							))}
-						</select>
+						</Dropdown>
 					</div>
 
 					{/* Status Filter */}
 					<div>
-						<select
+						<Dropdown
 							value={selectedStatus}
 							onChange={(e) => setSelectedStatus(e.target.value)}
 							className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
@@ -380,7 +381,7 @@ export const SubmissionsView = () => {
 							<option value="ALL">All Statuses</option>
 							<option value="PENDING_APPROVAL">Pending Review ({pendingCount})</option>
 							<option value="APPROVED">Approved ({approvedCount})</option>
-						</select>
+						</Dropdown>
 					</div>
 				</div>
 			</div>

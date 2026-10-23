@@ -1,4 +1,5 @@
 'use client';
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { L, Localized, useLanguage } from '@/frontend/components/language-provider';
 import { useApplicationAuth } from '@/frontend/components/providers/application-auth-provider';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -98,12 +99,12 @@ export function SupabaseSupportView() {
 					<div className="min-w-0 flex-1"><h2 className="font-display text-2xl leading-tight break-words"><bdi dir="auto">{t.subject}</bdi></h2>
 						<p className="mt-0.5 text-sm text-slate-700">{from && <><L id="support.from" />{' '}<bdi dir="auto">{from}</bdi>{' · '}</>}<span className="capitalize"><L text={t.category} /></span>{' · '}<L id="support.opened" />{' '}{date(t.created_at)}</p></div>
 					{detail.staff
-						? <select aria-label={tr('support.ticket_status')} className={select} value={t.status} disabled={busy} onChange={e => void command('status', { status: e.target.value })}>{STATUS_PILLS.slice(1).map(([value, id]) => <option key={value} value={value}>{tr(id)}</option>)}</select>
+						? <Dropdown aria-label={tr('support.ticket_status')} className={select} value={t.status} disabled={busy} onChange={e => void command('status', { status: e.target.value })}>{STATUS_PILLS.slice(1).map(([value, id]) => <option key={value} value={value}>{tr(id)}</option>)}</Dropdown>
 						: <div className="flex flex-wrap items-center gap-2"><StatusBadge status={t.status} />{(['OPEN', 'RESOLVED'] as const).filter(s => s !== t.status).map(status => <Button key={status} variant="outline" disabled={busy} onClick={() => void command('status', { status })}><L text={status === 'OPEN' ? 'Reopen' : 'Close ticket'} /></Button>)}</div>}
 					<div className="flex w-full flex-wrap items-center gap-2"><WaitChip state={waitState(t, detail.staff)} staff={detail.staff} overdue={overdue} />
 						{due && <span className="text-xs font-semibold text-amber-900"><L id="support.response_due" />{' '}{date(t.response_due_at!)}</span>}</div>
 					{detail.staff && <details className="w-full text-sm"><summary className="min-h-[44px] cursor-pointer py-2 font-bold"><L id="support.details" /></summary>
-						<label className="block pb-2"><L id="support.assigned_to" /><select className={cn(select, 'ms-2 max-w-full')} value={t.assigned_to ?? ''} disabled={busy} onChange={e => void command('assign', { userId: e.target.value || null })}><option value="">{/* label from locale */}{language === 'ar' ? 'غير معيّن' : 'Unassigned'}</option>{detail.assignees.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label></details>}
+						<label className="block pb-2"><L id="support.assigned_to" /><Dropdown className={cn(select, 'ms-2 max-w-full')} value={t.assigned_to ?? ''} disabled={busy} onChange={e => void command('assign', { userId: e.target.value || null })}><option value="">{/* label from locale */}{language === 'ar' ? 'غير معيّن' : 'Unassigned'}</option>{detail.assignees.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</Dropdown></label></details>}
 				</header>
 				<Localized as="div" labels={{ 'aria-label': 'support.ticket_messages' }} role="log" aria-live="polite" className="space-y-5 bg-slate-50/60 p-4 sm:p-6">
 					{detail.messages.length === 0 ? <p><L id="support.no_messages_on_this_page" /></p> : [...detail.messages].reverse().map(m => <div key={m.id} className={cn('flex items-end gap-3', m.staff && 'flex-row-reverse')}>
@@ -144,8 +145,8 @@ export function SupabaseSupportView() {
 		</>}
 		<Dialog open={open} onOpenChange={v => { if (!busy) setOpen(v); }}><DialogContent className="max-w-md"><DialogHeader><DialogTitle className="font-display text-2xl"><L id="support.new_ticket_" /></DialogTitle></DialogHeader>
 			<form className="grid gap-4" onSubmit={e => { e.preventDefault(); void command('create', { organizationId: org || null, category, subject, body }, { clear: () => { setSubject(''); setBody(''); if (newKey) writeDraft(storage(), newKey, ''); } }); }}>
-				<label className="grid gap-1 text-sm"><L id="support.support_team" /><select className={select} value={org} onChange={e => { setOrg(e.target.value); saveNewDraft({ org: e.target.value, category, subject, body }); }}><option value="">{language === 'ar' ? 'الدعم الفني لمنصة EduLabs' : 'EduLabs platform technical support'}</option>{orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
-				<label className="grid gap-1 text-sm"><L id="support.issue_category" /><select className={select} value={category} onChange={e => { setCategory(e.target.value); saveNewDraft({ org, category: e.target.value, subject, body }); }}>{['account', 'video', 'upload', 'exam', 'website', 'other'].map(c => <option key={c} value={c}><L text={c} /></option>)}</select></label>
+				<label className="grid gap-1 text-sm"><L id="support.support_team" /><Dropdown className={select} value={org} onChange={e => { setOrg(e.target.value); saveNewDraft({ org: e.target.value, category, subject, body }); }}><option value="">{language === 'ar' ? 'الدعم الفني لمنصة EduLabs' : 'EduLabs platform technical support'}</option>{orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</Dropdown></label>
+				<label className="grid gap-1 text-sm"><L id="support.issue_category" /><Dropdown className={select} value={category} onChange={e => { setCategory(e.target.value); saveNewDraft({ org, category: e.target.value, subject, body }); }}>{['account', 'video', 'upload', 'exam', 'website', 'other'].map(c => <option key={c} value={c}><L text={c} /></option>)}</Dropdown></label>
 				<label className="grid gap-1 text-sm"><L id="support.subject" /><Input maxLength={120} required value={subject} onChange={e => { setSubject(e.target.value); saveNewDraft({ org, category, subject: e.target.value, body }); }} /></label>
 				<label className="grid gap-1 text-sm"><L id="support.describe_your_problem" /><textarea className="min-h-[96px] w-full rounded-xl border-2 border-black bg-white px-3 py-2 text-sm" maxLength={2000} required value={body} onChange={e => { setBody(e.target.value); saveNewDraft({ org, category, subject, body: e.target.value }); }} /></label>
 				<Button disabled={busy || !body.trim() || !subject.trim()}><L id="support.create_ticket" /></Button>

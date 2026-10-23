@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, FileText, Loader2, Paperclip, Send, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -163,7 +164,7 @@ export const SupportChat = ({ initial, onBack }: SupportChatProps) => {
 					)}
 				</div>
 				{viewerIsAdmin ? (
-					<select
+					<Dropdown
 						aria-label="Ticket status"
 						value={ticket.status}
 						onChange={(event) => changeStatus(event.target.value)}
@@ -174,7 +175,7 @@ export const SupportChat = ({ initial, onBack }: SupportChatProps) => {
 								{STATUS_LABEL[status]}
 							</option>
 						))}
-					</select>
+					</Dropdown>
 				) : (
 					<StatusBadge status={ticket.status} />
 				)}

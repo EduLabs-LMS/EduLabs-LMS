@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import * as z from 'zod';
 import { api } from '@/frontend/lib/api';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -108,7 +109,7 @@ const ChapterNumberForm = ({
 							render={({ field }) => (
 								<FormItem>
 									<FormControl>
-									<select
+									<Dropdown
 										className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 										disabled={isSubmitting || isRefreshPending}
 										value={field.value?.toString() ?? ''}
@@ -128,7 +129,7 @@ const ChapterNumberForm = ({
 												Chapter {number}
 											</option>
 											))}
-										</select>
+										</Dropdown>
 									</FormControl>
 									<FormMessage />
 								</FormItem>

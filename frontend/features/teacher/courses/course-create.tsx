@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useState } from 'react';
 import * as z from 'zod';
 import { api } from '@/frontend/lib/api';
@@ -79,7 +80,7 @@ const CreateNewCoursePage = ({organizations}:{organizations:{id:string;name:stri
 						onSubmit={form.handleSubmit(onSubmit)}
 						className="space-y-6"
 					>
-						<label className="block text-sm">Organization<select aria-label="Organization" required disabled={isSubmitting} value={organization} onChange={e=>setOrganization(e.target.value)} className="block w-full rounded-md border p-2">{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
+						<label className="block text-sm">Organization<Dropdown aria-label="Organization" required disabled={isSubmitting} value={organization} onChange={e=>setOrganization(e.target.value)} className="block w-full rounded-md border p-2">{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</Dropdown></label>
  <label className="block text-sm">Slug<Input aria-label="Slug" required value={slug} onChange={e=>setSlug(e.target.value)} maxLength={100} pattern="[a-z0-9]+(-[a-z0-9]+)*" disabled={isSubmitting}/></label>
  {error&&<p role="alert" className="text-red-700">{error}</p>}
  <FormField

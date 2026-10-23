@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useEffect, useState } from 'react';
 import { api } from '@/frontend/lib/api';
 import { Calendar, Clock, Loader2, Plus, Trash2, Users } from 'lucide-react';
@@ -203,7 +204,7 @@ export const GroupFormModal = ({
 									</span>
 
 									{/* Day Dropdown */}
-									<select
+									<Dropdown
 										value={session.day}
 										onChange={(e) => updateSession(index, 'day', e.target.value)}
 										className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-sky-500"
@@ -213,7 +214,7 @@ export const GroupFormModal = ({
 												{day}
 											</option>
 										))}
-									</select>
+									</Dropdown>
 
 									{/* Time Picker / Input */}
 									<div className="flex items-center gap-1.5 flex-1">

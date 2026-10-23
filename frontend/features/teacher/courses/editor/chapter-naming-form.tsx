@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Pencil } from 'lucide-react';
@@ -220,7 +221,7 @@ const ChapterNamingForm = ({ initialData, courseId, initialInfo }: ChapterNaming
 						<div className="grid grid-cols-[1fr_96px] gap-3">
 							<div className="grid gap-2">
 								<Label htmlFor="chapter-type">Type</Label>
-								<select
+								<Dropdown
 									id="chapter-type"
 									value={typeChoice}
 									onChange={(event) => setTypeChoice(event.target.value)}
@@ -232,7 +233,7 @@ const ChapterNamingForm = ({ initialData, courseId, initialInfo }: ChapterNaming
 										</option>
 									))}
 									<option value={CUSTOM}>Custom…</option>
-								</select>
+								</Dropdown>
 							</div>
 							<div className="grid gap-2">
 								<Label htmlFor="chapter-number">Number</Label>

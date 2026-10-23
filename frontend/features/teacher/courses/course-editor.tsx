@@ -1,4 +1,5 @@
 'use client';
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { CourseStages } from '@/frontend/features/teacher/academics/course-stages';
 import { LearningTreeEditor } from '@/frontend/features/teacher/chapters/editor/learning-editor';
 import type { LearningTree } from '@/shared/contracts/lessons';
@@ -128,7 +129,7 @@ function CourseMetadata({course,save,busy}:{course:Record;save:(fields:{slug:str
  const router=useRouter();
  return <form className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3" onSubmit={async event=>{event.preventDefault();setError('');try{await save({slug,visibility,status});router.refresh()}catch(e){setError(e instanceof Error?e.message:'Unable to save')}}}>
  <label className="block text-sm">Slug<Input required value={slug} maxLength={100} pattern="[a-z0-9]+(-[a-z0-9]+)*" disabled={busy} onChange={e=>setSlug(e.target.value)}/></label>
- <label className="block text-sm">Visibility<select aria-label="Course visibility" className="ml-3 rounded-md border p-2" disabled={busy} value={visibility} onChange={e=>setVisibility(e.target.value)}>{['private','unlisted','public'].map(v=><option key={v}>{v}</option>)}</select></label>
- <label className="block text-sm">Status<select aria-label="Course status" className="ml-3 rounded-md border p-2" disabled={busy} value={status} onChange={e=>setStatus(e.target.value)}>{['draft','published','archived'].map(v=><option key={v}>{v}</option>)}</select></label>
+ <label className="block text-sm">Visibility<Dropdown aria-label="Course visibility" className="ml-3 rounded-md border p-2" disabled={busy} value={visibility} onChange={e=>setVisibility(e.target.value)}>{['private','unlisted','public'].map(v=><option key={v}>{v}</option>)}</Dropdown></label>
+ <label className="block text-sm">Status<Dropdown aria-label="Course status" className="ml-3 rounded-md border p-2" disabled={busy} value={status} onChange={e=>setStatus(e.target.value)}>{['draft','published','archived'].map(v=><option key={v}>{v}</option>)}</Dropdown></label>
  {error&&<p role="alert" className="text-red-700">{error}</p>}<Button disabled={busy}>Save metadata</Button></form>;
 }

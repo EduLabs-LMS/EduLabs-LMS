@@ -1,5 +1,6 @@
 'use client';
 
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useState } from 'react';
 import { api } from '@/frontend/lib/api';
 import { Loader2, Users } from 'lucide-react';
@@ -102,7 +103,7 @@ export const ReassignModal = ({
 						<label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
 							Select Target Group
 						</label>
-						<select
+						<Dropdown
 							value={selectedGroupId}
 							onChange={(e) => setSelectedGroupId(e.target.value)}
 							className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
@@ -112,7 +113,7 @@ export const ReassignModal = ({
 									{g.name}
 								</option>
 							))}
-						</select>
+						</Dropdown>
 					</div>
 				</div>
 

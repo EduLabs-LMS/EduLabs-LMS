@@ -1,4 +1,5 @@
 'use client';
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -104,7 +105,7 @@ export function SupabaseStudentAdmin() {
 		</header>
 		{error && <div role="alert" className={cn(panel, 'space-y-3')}><p>{error}</p><Button variant="outline" onClick={reloadAll}><RefreshCw aria-hidden className="me-2 h-4 w-4" /><L id="users.refresh" /></Button></div>}
 		<section className={cn('grid gap-4 grid-cols-1', stats.length === 2 && 'sm:grid-cols-2')}>{stats.map(key => { const Icon = STAT_ICON[key], value = statValue(key); return <div key={key} className="flex items-center justify-between gap-3 rounded-3xl border-2 border-black bg-white p-4 shadow-hard-sm sm:p-5"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-700"><L id={STAT_LABEL[key]} /></p><p className="mt-2 text-3xl font-bold">{value ?? <span className="text-base font-semibold"><L id="users.unavailable" /></span>}</p></div><Icon aria-hidden className="h-6 w-6 shrink-0 text-green-800" /></div>; })}</section>
-		<section className={panel}><label className="flex flex-wrap items-center gap-2 text-sm font-semibold"><L id="users.course_offering" /><select aria-label="Course offering" className={cn(field, 'max-w-full flex-1')} value={offer} onChange={e => { setOffer(e.target.value); setRosterPage(0); setRequestPage(0); setLinkPage(0); setShare(''); }}>{offers.map(o => <option key={o.id} value={o.id}>{o.organization_name} · {o.course_title} · {o.name}</option>)}</select></label>
+		<section className={panel}><label className="flex flex-wrap items-center gap-2 text-sm font-semibold"><L id="users.course_offering" /><Dropdown aria-label="Course offering" className={cn(field, 'max-w-full flex-1')} value={offer} onChange={e => { setOffer(e.target.value); setRosterPage(0); setRequestPage(0); setLinkPage(0); setShare(''); }}>{offers.map(o => <option key={o.id} value={o.id}>{o.organization_name} · {o.course_title} · {o.name}</option>)}</Dropdown></label>
 			<div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" disabled={!offerPage} onClick={() => setOfferPage(offerPage - 1)}><L id="users.previous_offerings" /></Button><Button variant="outline" disabled={offers.length < 25} onClick={() => setOfferPage(offerPage + 1)}><L id="users.more_offerings" /></Button></div>
 			{!loadingOffers && !offers.length && !error && <p className="mt-3">No assigned offerings. EduLabs staff provision teacher organizations; students use their teacher&apos;s access link.</p>}</section>
 		{offer && <>
@@ -113,20 +114,20 @@ export function SupabaseStudentAdmin() {
 			{showStudents && <section className={cn(panel, 'space-y-4')}>
 				<Heading icon={Users} title="users.students_title" note="users.students_note" />
 				<div className="flex flex-wrap gap-3"><div className="relative min-w-[12rem] flex-1"><Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2" /><Input aria-label="Search students" placeholder="Search student names" className="min-h-[44px] rounded-full ps-9" value={search} maxLength={120} onChange={e => { setSearch(e.target.value); setRosterPage(0); setRequestPage(0); }} /></div>
-					<select aria-label="Student status" className={field} value={rosterFilter} onChange={e => pickRosterFilter(e.target.value)}>{ROSTER_FILTERS.map(v => <option key={v} value={v}>{v}</option>)}<option value={HISTORY}>Past access requests</option></select></div>
+					<Dropdown aria-label="Student status" className={field} value={rosterFilter} onChange={e => pickRosterFilter(e.target.value)}>{ROSTER_FILTERS.map(v => <option key={v} value={v}>{v}</option>)}<option value={HISTORY}>Past access requests</option></Dropdown></div>
 				{People({ rows: roster, loading: loadingRoster, requestRow: false, empty: 'users.no_students' })}
 				<Pager page={rosterPage} count={roster.length} loading={loadingRoster} onPage={setRosterPage} />
 			</section>}
 			{showWaitlist && <section className={cn(panel, 'space-y-4 border-amber-800')}>
 				<Heading icon={UserCheck} title="users.waitlist_title" note="users.waitlist_note" />
-				<div className="flex flex-wrap items-center gap-3"><select aria-label="Request status" className={field} value={requestFilter} onChange={e => { setRequestFilter(e.target.value); setRequestPage(0); }}>{REQUEST_FILTERS.map(v => <option key={v} value={v}>{v}</option>)}</select>
+				<div className="flex flex-wrap items-center gap-3"><Dropdown aria-label="Request status" className={field} value={requestFilter} onChange={e => { setRequestFilter(e.target.value); setRequestPage(0); }}>{REQUEST_FILTERS.map(v => <option key={v} value={v}>{v}</option>)}</Dropdown>
 					{selected?.manage && <label className="flex flex-1 flex-wrap items-center gap-2 text-sm font-semibold"><L id="users.reject_reason" /><Input className="min-w-[12rem] flex-1" value={reason} maxLength={1000} onChange={e => setReason(e.target.value)} /></label>}</div>
 				{!loadingRequests && !requests.length && !error ? <div className="py-8 text-center"><UserCheck aria-hidden className="mx-auto h-8 w-8 text-green-700" /><p className="mt-2 font-semibold"><L id="users.waitlist_empty" /></p><p className="text-sm text-slate-700"><L id="users.waitlist_empty_note" /></p></div> : People({ rows: requests, loading: loadingRequests, requestRow: true, empty: 'users.no_requests' })}
 				<Pager page={requestPage} count={requests.length} loading={loadingRequests} onPage={setRequestPage} />
 			</section>}
 			{selected?.manage && <details className={cn(panel, 'space-y-4')}><summary className="min-h-[44px] cursor-pointer font-display text-2xl"><UserPlus aria-hidden className="me-2 inline h-6 w-6" /><L id="users.manage_access" /></summary>
 				<div className="mt-4 space-y-4"><p className="text-sm">Request links require your approval. A private invitation is bound to one verified student profile. Ask the student to copy their profile ID from My requests. Share invitations only with the intended student. Links expire in seven days.</p>
-					<select aria-label="Access link type" className={field} value={kind} onChange={e => setKind(e.target.value as typeof kind)}><option value="request">Request approval</option><option value="invite">Single-use authorized invitation</option></select>
+					<Dropdown aria-label="Access link type" className={field} value={kind} onChange={e => setKind(e.target.value as typeof kind)}><option value="request">Request approval</option><option value="invite">Single-use authorized invitation</option></Dropdown>
 					{kind === 'invite' && <Input aria-label="Invitation recipient profile ID" value={recipient} onChange={e => setRecipient(e.target.value)} />}
 					<Button disabled={busy || (kind === 'invite' && !/^[a-f0-9-]{36}$/i.test(recipient))} onClick={() => void createLink()}>Create access link</Button>
 					{share && <label className="block text-sm">Copy this private link now<Input readOnly value={share} onFocus={e => e.target.select()} /></label>}

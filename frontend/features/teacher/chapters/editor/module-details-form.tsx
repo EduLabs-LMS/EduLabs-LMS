@@ -1,4 +1,5 @@
 'use client';
+import { Dropdown } from '@/frontend/components/ui/dropdown-select';
 import { useState } from 'react';
 import { Button } from '@/frontend/components/ui/button';
 import { Input } from '@/frontend/components/ui/input';
@@ -16,7 +17,7 @@ export function ModuleDetailsForm({courseId,module:m,onSave,disabled=false}:{cou
  async function submit(){const parsed=parseChapterInfo({type,number:Number(number),name,summary,description});if(!parsed.ok){setError(parsed.error);return;}setSaving(true);setError('');try{const v=parsed.value;await onSave({action:'edit_module_details',id:m.id,parentId:courseId,updatedAt:m.updated_at,data:{title:v.name,group_type:v.type,chapter_number:v.number,summary:v.summary,description:v.description??''}});setOpen(false);}catch(e){setError(e instanceof Error?e.message:'Chapter could not be saved');}finally{setSaving(false);}}
  if(!open)return <Button type="button" variant="outline" disabled={disabled} onClick={()=>{reset();setOpen(true);}}>Edit chapter details</Button>;
  return <form className="space-y-4 rounded-xl border border-slate-200 bg-white p-4" aria-label="Chapter details" onSubmit={e=>{e.preventDefault();void submit();}}>
-  <label className="block text-sm font-semibold">Type<select aria-label="Chapter type" className="ml-3 rounded-md border bg-white p-2" value={choice} disabled={saving} onChange={e=>setChoice(e.target.value)}>{CHAPTER_TYPE_PRESETS.map(t=><option key={t}>{t}</option>)}<option value="__custom__">Custom</option></select></label>
+  <label className="block text-sm font-semibold">Type<Dropdown aria-label="Chapter type" className="ml-3 rounded-md border bg-white p-2" value={choice} disabled={saving} onChange={e=>setChoice(e.target.value)}>{CHAPTER_TYPE_PRESETS.map(t=><option key={t}>{t}</option>)}<option value="__custom__">Custom</option></Dropdown></label>
   {choice==='__custom__'&&<label className="block text-sm">Custom type<Input aria-label="Custom chapter type" maxLength={24} required disabled={saving} value={custom} onChange={e=>setCustom(e.target.value)}/></label>}
   <label className="block text-sm">Number<Input aria-label="Chapter number" type="number" min={1} max={99} step={1} required disabled={saving} value={number} onChange={e=>setNumber(e.target.value)}/></label>
   <label className="block text-sm">Name<Input aria-label="Chapter name" required maxLength={120} disabled={saving} value={name} onChange={e=>setName(e.target.value)}/></label>
