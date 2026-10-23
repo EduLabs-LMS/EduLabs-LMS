@@ -584,5 +584,13 @@ export const en = {
   "countdown.starts": "Class starts in",
   "countdown.label": "Time until your next class",
   "countdown.unavailable": "Class time is not available yet.",
-  "countdown.prepare": "Have your notes and questions ready for class."
+  "countdown.prepare": "Have your notes and questions ready for class.",
+  "preview.view_as_student": "View as student",
+  "preview.back_to_teacher": "Back to teacher view",
+  "preview.banner": "Student preview",
+  "preview.banner_note": "You are seeing what a student sees. Nothing here is saved.",
+  "preview.exit": "Exit preview",
+  "preview.homework_note": "Homework and answers appear here for students. They are turned off in preview.",
+  "preview.not_saved": "Not saved in preview",
+  "preview.no_courses": "No published courses to preview yet."
 } as const;

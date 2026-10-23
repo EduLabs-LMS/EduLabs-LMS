@@ -1,6 +1,8 @@
 import { L, Localized } from '@/frontend/components/language-provider';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { isTeacherSide, studentPreviewActive, studentPreviewCookie } from '@/shared/student-preview';
 import { BookOpen, Users, ShieldCheck } from 'lucide-react';
 import { StudentLearning } from '@/frontend/features/self-learning/student-learning';
 import AdminHome from '@/frontend/features/dashboard/admin-home';
@@ -26,6 +28,14 @@ export async function requireWebsiteContext() {
   const context = await getWebsiteContext();
   if (!context) redirect('/sign-in');
   return context;
+}
+/** Display-only student preview for teacher-side users (cookie ignored for everyone else). */
+export async function previewFor(context: { memberships: { status: string; role: string }[]; courseStaff: unknown[]; offeringStaff: unknown[] }) {
+  return studentPreviewActive(isTeacherSide(context.memberships, context.courseStaff, context.offeringStaff), (await cookies()).get(studentPreviewCookie)?.value);
+}
+/** What a real student can open: published courses and active groups only (drafts never appear in preview). */
+function previewOfferings(scope: NonNullable<Awaited<ReturnType<typeof loadWebsiteScope>>>) {
+  return scope.offerings.filter(o => o.status === 'active' && scope.courses.some(c => c.id === o.course_id && c.status === 'published'));
 }
 async function scopeFor(search: WebsiteSearch, courseId?: string) {
   const context = await requireWebsiteContext();
@@ -56,26 +66,29 @@ function Assessments({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof l
 }
 export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
   const { context, scope } = await scopeFor(search);
+  const preview = await previewFor(context);
   const supported = scope.offerings.filter(o => {
     const course = scope.courses.find(c => c.id === o.course_id);
     return course && offeringCapability(context, course, o.id);
   });
-  const staff = scope.courses.some(c => courseCapability(context, c)) || supported.length > 0 || context.memberships.some(m => m.status === 'active' && ['owner', 'admin'].includes(m.role) && (!search.organization || search.organization === m.organization_id));
+  const staff = !preview && (scope.courses.some(c => courseCapability(context, c)) || supported.length > 0 || context.memberships.some(m => m.status === 'active' && ['owner', 'admin'].includes(m.role) && (!search.organization || search.organization === m.organization_id)));
 
   return <div className="space-y-8"><LimitNotice limited={scope.limited} />
     {staff ? <AdminHome phase1 adminName={context.viewer.displayName} metrics={await studentAdministration<AdminMetrics>('metrics',search.organization?{organizationId:search.organization}:{})} recentSignups={[]} recentSubmissions={[]} /> :
-    <StudentLearning home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={scope.offerings} lessons={scope.limited ? [] : v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} />}
+    <StudentLearning home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={preview ? previewOfferings(scope) : scope.offerings} lessons={scope.limited ? [] : v2StudentLessons({ ...scope, offerings: preview ? previewOfferings(scope) : scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} />}
     {scope.limited && <p className="text-sm text-slate-500"><L id="common.open_a_course_for_its"/></p>}
-    {!staff&&<p className="text-sm text-slate-600"><L id="common.need_course_access_use_your"/>{" "}<Link className="underline" href="/access"><L id="common.view_your_access_requests"/></Link>.</p>}
-    <Offerings scope={scope} hideEmpty />{!staff&&<Assessments scope={scope} />}
+    {!staff&&!preview&&<p className="text-sm text-slate-600"><L id="common.need_course_access_use_your"/>{" "}<Link className="underline" href="/access"><L id="common.view_your_access_requests"/></Link>.</p>}
+    <Offerings scope={preview ? { ...scope, offerings: previewOfferings(scope) } : scope} hideEmpty />{!staff&&!preview&&<Assessments scope={scope} />}
   </div>;
 }
-export async function WebsiteCourses({ search = {}, teacher = false }: { search?: WebsiteSearch; teacher?: boolean }) {
+export async function WebsiteCourses({ search = {}, teacher = false, preview = false }: { search?: WebsiteSearch; teacher?: boolean; preview?: boolean }) {
   if (!teacher) {
     const { scope } = await scopeFor(search);
-    if (search.offering && !scope.offerings.some(o => o.id === search.offering)) notFound();
-    const enrolled=scope.offerings.filter(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'&&(!e.expires_at||Date.parse(e.expires_at)>Date.now())&&(!e.enrolled_at||Date.parse(e.enrolled_at)<=Date.now())));
-    return <><LimitNotice limited={scope.limited}/><StudentLearning organizationId={search.organization} limited={scope.limited} offerings={enrolled} lessons={[]} chapters={scope.limited ? [] : v2OfferingChapters({...scope,offerings:enrolled}, search.offering)}/><Offerings scope={scope} hideEmpty/></>;
+    // Preview (display-only) shows the teacher's accessible published courses through the same student components.
+    const visible = preview ? previewOfferings(scope) : null;
+    if (search.offering && !(visible ?? scope.offerings).some(o => o.id === search.offering)) notFound();
+    const enrolled = visible ?? scope.offerings.filter(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'&&(!e.expires_at||Date.parse(e.expires_at)>Date.now())&&(!e.enrolled_at||Date.parse(e.enrolled_at)<=Date.now())));
+    return <><LimitNotice limited={scope.limited}/><StudentLearning organizationId={search.organization} limited={scope.limited} offerings={enrolled} lessons={[]} chapters={scope.limited ? [] : v2OfferingChapters({...scope,offerings:enrolled}, search.offering)}/><Offerings scope={visible ? {...scope,offerings:visible} : scope} hideEmpty/>{preview&&!enrolled.length&&<p role="status" className="text-sm text-slate-500"><L id="preview.no_courses"/></p>}</>;
   }
   const context = await requireWebsiteContext();
   if (Object.values(search).some(v => v !== undefined && (typeof v !== 'string' || v.length > 200)) || (search.organization && !context.organizations.some(o => o.id === search.organization))) notFound();
@@ -98,9 +111,11 @@ export async function WebsiteSearchCourses({search={}}:{search?:WebsiteSearch}) 
 
 export async function WebsiteCourse({ courseId, search = {} }: { courseId: string; search?: WebsiteSearch }) {
   const { context, scope } = await scopeFor(search, courseId);
+  const preview = await previewFor(context);
   const course = scope.courses[0];
+  if (preview && course?.status !== 'published') notFound();
   if (search.offering && !scope.offerings.some(o => o.id === search.offering)) notFound();
-  const offering = scope.offerings.find(o => o.id === search.offering) ?? scope.offerings.find(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'));
+  const offering = scope.offerings.find(o => o.id === search.offering) ?? (preview ? previewOfferings(scope)[0] : scope.offerings.find(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active')));
   return <div className="space-y-6"><OriginalCourseDetail initialCourse={course}/><LimitNotice limited={scope.limited}/><Offerings scope={scope}/><SelfLearningView chapters={scope.limited ? [] : v2Chapters(scope, offering?.id)}/><p role="status"><L id="common.choose_a_lesson_to_study"/></p></div>;
 
 }

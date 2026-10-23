@@ -584,5 +584,13 @@ export const ar: Record<keyof typeof en, string> = {
   "countdown.starts": "تبدأ الجلسة خلال",
   "countdown.label": "الوقت المتبقي لجلستك القادمة",
   "countdown.unavailable": "موعد الجلسة غير متاح بعد.",
-  "countdown.prepare": "جهّز ملاحظاتك وأسئلتك قبل الجلسة."
+  "countdown.prepare": "جهّز ملاحظاتك وأسئلتك قبل الجلسة.",
+  "preview.view_as_student": "العرض كطالب",
+  "preview.back_to_teacher": "العودة إلى عرض المعلم",
+  "preview.banner": "معاينة الطالب",
+  "preview.banner_note": "أنت ترى ما يراه الطالب. لا يتم حفظ أي شيء هنا.",
+  "preview.exit": "إنهاء المعاينة",
+  "preview.homework_note": "تظهر الواجبات والإجابات هنا للطلاب. وهي متوقفة في المعاينة.",
+  "preview.not_saved": "لا يتم الحفظ في المعاينة",
+  "preview.no_courses": "لا توجد دورات منشورة للمعاينة بعد."
 };

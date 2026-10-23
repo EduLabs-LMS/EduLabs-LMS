@@ -8,6 +8,7 @@ test('Firebase sidebar labels contextual students/staff and places its only bell
    'next/link':link,'next/navigation':{usePathname:()=>'/home'},'@/shared/auth-config':{isFirebaseStaging:()=>true},
    '@/frontend/components/providers/application-auth-provider':{useWebsiteNavigation:()=>({staffOrganizationIds:staff?['org']:[]})},
    '@/frontend/components/providers/v2-identity':{useUser:()=>({user:{fullName:'Fictional Student'}}),useClerk:()=>({signOut:()=>{}}),UserButton:()=>React.createElement('button',null,'Account')},
+   '@/frontend/features/dashboard/student-preview':{StudentPreviewToggle:()=>null},
    '@/frontend/lib/api':{api:{}},'@/frontend/components/edulabs-mark':()=>null,'@/shared/utils':{cn:(...x)=>x.filter(Boolean).join(' ')},
    '@/frontend/features/notifications/notifications-view':{NotificationBell:()=>React.createElement('button',null,'Notification preview')},
   }).default;

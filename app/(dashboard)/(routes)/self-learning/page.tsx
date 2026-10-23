@@ -1,5 +1,6 @@
 import { isFirebaseStaging } from '@/shared/auth-config';
-import { WebsiteCourses, type WebsiteSearch } from '../../_components/website-pages';
+import { WebsiteCourses, previewFor, type WebsiteSearch } from '../../_components/website-pages';
+import { isTeacherSide } from '@/shared/student-preview';
 import { LegacyTeacherCourses } from '../../_components/legacy-teacher-courses';
 import { getWebsiteContext } from '@/server/services/website';
 import { auth } from '@clerk/nextjs/server';
@@ -15,8 +16,9 @@ const SelfLearningPage = async ({ searchParams }: { searchParams: Promise<Websit
 		const search = await searchParams;
 		const context = await getWebsiteContext();
 		if (!context) redirect('/sign-in');
-		const teacherSide = context.memberships.some(m => m.status === 'active') && !!(context.courseStaff.length || context.offeringStaff.length || context.memberships.some(m => m.status === 'active' && ['owner','admin','teacher','assistant'].includes(m.role)));
-		return <WebsiteCourses search={search} teacher={teacherSide} />;
+		const teacherSide = isTeacherSide(context.memberships, context.courseStaff, context.offeringStaff);
+		const preview = await previewFor(context);
+		return <WebsiteCourses search={search} teacher={teacherSide && !preview} preview={preview} />;
 	}
 	const { userId } = await auth();
 

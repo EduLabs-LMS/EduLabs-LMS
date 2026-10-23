@@ -22,6 +22,7 @@ import {
 import EduLabsMark from '@/frontend/components/edulabs-mark';
 import { NotificationBell } from '@/frontend/features/notifications/notifications-view';
 import { cn } from '@/shared/utils';
+import { StudentPreviewToggle } from '@/frontend/features/dashboard/student-preview';
 
 interface SidebarProps {
 	className?: string;
@@ -51,6 +52,8 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	}, []);
 
 	const isAdminOrTeacher = isFirebaseStaging() ? !!navigation?.staffOrganizationIds.length : role === 'admin' || role === 'teacher';
+
+	const studentPreview = !!navigation?.teacherSide && !!navigation?.studentPreview;
 
 	const isHomeActive = pathname === '/' || pathname === '/home';
 	// Teacher-side users manage courses inside Self-learning, including the teacher-only pages (create, programs, website).
@@ -96,6 +99,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 
 		{/* 2. TACTILE NAVIGATION LINKS */}
 		<div className="p-3 flex flex-col space-y-1.5 overflow-y-auto scrollbar-none flex-1">
+		<StudentPreviewToggle onNavigate={onNavigate} />
 		<Link
 		href="/home"
 		onClick={() => onNavigate?.()}
@@ -134,6 +138,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		<span><L id="navigation.self_learning"/></span>
 		</Link>
 
+		{!studentPreview && (
 		<Link
 		href="/sessions-groups"
 		onClick={() => onNavigate?.()}
@@ -152,7 +157,9 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		/>
 		<span><L id="navigation.sessions_groups"/></span>
 		</Link>
+		)}
 
+		{!studentPreview && (
 		<Link
 		href="/exams"
 		onClick={() => onNavigate?.()}
@@ -171,6 +178,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		/>
 		<span><L id="navigation.exams"/></span>
 		</Link>
+		)}
 
 		<a role="link"
 		href="/support"
@@ -194,7 +202,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 
 		<Link href="/settings" onClick={() => onNavigate?.()} aria-current={isSettingsActive?'page':undefined} className={cn('relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',isSettingsActive?'bg-primary text-black border-black font-semibold shadow-hard-sm':'text-slate-700 hover:text-black hover:bg-slate-100')}><Settings aria-hidden className={cn('w-[22px] h-[22px] shrink-0',isSettingsActive?'text-black':'text-slate-500')}/><span><L id="navigation.settings"/></span></Link>
 
-		{isAdminOrTeacher && (
+		{isAdminOrTeacher && !studentPreview && (
 			<div className="pt-3 mt-1 border-t border-slate-200/80 flex flex-col space-y-1.5">
 			<span className="px-4 text-[11px] font-bold uppercase tracking-wider text-slate-400"><L id="navigation.admin_teacher"/></span>
 			<Link

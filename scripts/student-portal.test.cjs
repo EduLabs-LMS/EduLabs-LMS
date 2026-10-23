@@ -6,6 +6,8 @@ const empty={courses:[],offerings:[],enrollments:[],modules:[],lessons:[],progre
 function pages(scope,failure){return load('app/(dashboard)/_components/website-pages.tsx',n=>{if(n==='@/frontend/components/language-provider')return require('./localization-test-loader.cjs').language();
  if(n==='@/server/services/website')return {getWebsiteContext:async()=>context,loadWebsiteScope:async()=>{if(failure)throw Error('Load failed');return scope},courseCapability:()=>false,offeringCapability:()=>false};
  if(n==='react/jsx-runtime')return require(n);
+ if(n==='next/headers')return {cookies:async()=>({get:()=>undefined})};
+ if(n==='@/shared/student-preview')return {isTeacherSide:()=>false,studentPreviewActive:()=>false,studentPreviewCookie:'edulabs_student_preview'};
  if(n==='next/link')return props=>React.createElement('a',props);
  if(n==='next/navigation')return {notFound:()=>{throw Error('404')},redirect:()=>{throw Error('redirect')}};
  if(n==='@/shared/v2-learning-model')return {v2StudentLessons:()=>[],v2Chapters:()=>[],v2OfferingChapters:()=>[]};
