@@ -1,4 +1,5 @@
-import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile, type Auth } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, type Auth } from 'firebase/auth';
+import { requestBrandedVerification } from '@/frontend/lib/branded-auth-email';
 
 /** Resume only an already authenticated Firebase identity; never link by email. */
 export async function registerFirebaseAccount(auth: Auth, email: string, password: string, name: string) {
@@ -10,7 +11,7 @@ export async function registerFirebaseAccount(auth: Auth, email: string, passwor
   catch { return { user, retryAfterSeconds: 0, message: 'Your account is saved. Your name could not be updated. Retry while signed in; do not create another account.' }; }
   if (user.emailVerified) return { user, retryAfterSeconds: 0, message: 'Your account is already verified.' };
   try {
-    await sendEmailVerification(user);
+    await requestBrandedVerification(user);
     return { user, retryAfterSeconds: 60, message: 'Your account is saved. Check your email for a verification link. You can sign in later with the same account.' };
   } catch (failure) {
     const throttled = (failure as { code?: string }).code === 'auth/too-many-requests';
