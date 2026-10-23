@@ -138,6 +138,25 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		<span><L id="navigation.self_learning"/></span>
 		</Link>
 
+		{isAdminOrTeacher && !studentPreview && (<Link
+			href="/admin/users"
+			onClick={() => onNavigate?.()}
+			className={cn(
+				'relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',
+				 isAdminUsersActive
+				 ? 'bg-primary text-black border-black font-semibold shadow-hard-sm'
+				 : 'text-slate-700 hover:text-black hover:bg-slate-100'
+			)}
+			>
+			<Users
+			className={cn(
+				'w-[22px] h-[22px] shrink-0',
+				 isAdminUsersActive ? 'text-black' : 'text-slate-500'
+			)}
+			/>
+			<span><L id="navigation.users_groups"/></span>
+			</Link>)}
+
 		{!studentPreview && (
 		<Link
 		href="/sessions-groups"
@@ -158,6 +177,25 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		<span><L id="navigation.sessions_groups"/></span>
 		</Link>
 		)}
+
+		{isAdminOrTeacher && !studentPreview && (<Link
+			href="/admin/submissions"
+			onClick={() => onNavigate?.()}
+			className={cn(
+				'relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',
+				 isAdminSubmissionsActive
+				 ? 'bg-primary text-black border-black font-semibold shadow-hard-sm'
+				 : 'text-slate-700 hover:text-black hover:bg-slate-100'
+			)}
+			>
+			<CheckSquare
+			className={cn(
+				'w-[22px] h-[22px] shrink-0',
+				 isAdminSubmissionsActive ? 'text-black' : 'text-slate-500'
+			)}
+			/>
+			<span><L id="navigation.homework_queue"/></span>
+			</Link>)}
 
 		{!studentPreview && (
 		<Link
@@ -202,48 +240,6 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 
 		<Link href="/settings" onClick={() => onNavigate?.()} aria-current={isSettingsActive?'page':undefined} className={cn('relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',isSettingsActive?'bg-primary text-black border-black font-semibold shadow-hard-sm':'text-slate-700 hover:text-black hover:bg-slate-100')}><Settings aria-hidden className={cn('w-[22px] h-[22px] shrink-0',isSettingsActive?'text-black':'text-slate-500')}/><span><L id="navigation.settings"/></span></Link>
 
-		{isAdminOrTeacher && !studentPreview && (
-			<div className="pt-3 mt-1 border-t border-slate-200/80 flex flex-col space-y-1.5">
-			<span className="px-4 text-[11px] font-bold uppercase tracking-wider text-slate-400"><L id="navigation.admin_teacher"/></span>
-			<Link
-			href="/admin/users"
-			onClick={() => onNavigate?.()}
-			className={cn(
-				'relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',
-				 isAdminUsersActive
-				 ? 'bg-primary text-black border-black font-semibold shadow-hard-sm'
-				 : 'text-slate-700 hover:text-black hover:bg-slate-100'
-			)}
-			>
-			<Users
-			className={cn(
-				'w-[22px] h-[22px] shrink-0',
-				 isAdminUsersActive ? 'text-black' : 'text-slate-500'
-			)}
-			/>
-			<span><L id="navigation.users_groups"/></span>
-			</Link>
-
-			<Link
-			href="/admin/submissions"
-			onClick={() => onNavigate?.()}
-			className={cn(
-				'relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out cursor-pointer active:translate-x-0.5 active:translate-y-0.5',
-				 isAdminSubmissionsActive
-				 ? 'bg-primary text-black border-black font-semibold shadow-hard-sm'
-				 : 'text-slate-700 hover:text-black hover:bg-slate-100'
-			)}
-			>
-			<CheckSquare
-			className={cn(
-				'w-[22px] h-[22px] shrink-0',
-				 isAdminSubmissionsActive ? 'text-black' : 'text-slate-500'
-			)}
-			/>
-			<span><L id="navigation.homework_queue"/></span>
-			</Link>
-			</div>
-		)}
 		</div>
 		</div>
 

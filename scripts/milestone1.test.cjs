@@ -15,8 +15,9 @@ test('Firebase sidebar labels contextual students/staff and places its only bell
   const html=renderToStaticMarkup(React.createElement(Sidebar));
   assert.match(html,staff?/>STAFF</:/>STUDENT</);assert.doesNotMatch(html,/LEARNER|>Logout</);
   assert.equal((html.match(/Notification preview/g)||[]).length,1);assert.ok(html.indexOf('Notification preview')>html.indexOf('Fictional Student'));assert.match(html,/Sign out/);
-  assert.equal(html.includes('Admin &amp; Teacher'),staff);
-  assert.match(html,/font-family:&#x27;Times New Roman&#x27;, Times, serif/);
+  assert.equal(html.includes('Admin &amp; Teacher'),false);
+  assert.match(html,/class="font-display text-2xl/);assert.doesNotMatch(html,/Times New Roman/);
+  assert.equal(html.includes('Users &amp; Groups'),staff);assert.equal(html.includes('Homework Queue'),staff);
  }
 });
 test('shared tree mark defaults to its existing black offset shadow and retains explicit opt-out',()=>{
