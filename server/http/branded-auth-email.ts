@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { getFirebaseAdminAuth } from '@/server/integrations/firebase-admin';
-import { getFirebaseSession, verifyFirebaseToken } from '@/server/services/firebase-auth';
+import { verifyFirebaseToken } from '@/server/services/firebase-auth';
 import { sendPasswordResetForAddress, sendVerificationEmailForUser } from '@/server/services/branded-auth-email';
 import { validFirebaseOrigin } from '@/server/http/firebase/route';
 
