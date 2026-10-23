@@ -10,6 +10,7 @@ feature: where something is missing, the screen leaves it out and the gap is lis
 | 2 | Users page: richer student data and a real waitlist setting | reduced version shipped |
 | 3 | Sessions & Groups and Jitsi | see the section |
 | 4 | Support: fields the target design shows | reduced version shipped |
+| 5 | A real "platform Admin" signal for the role badge | label derived from memberships |
 
 ## Request 1: teachers and assistants manage academic programs and stages
 
@@ -142,6 +143,15 @@ The shipped Support screen (`supabase-support-view.tsx`) was rebuilt to the targ
 3. Attachments (images and PDFs up to 16 MB): no storage or endpoint exists in the Supabase support model.
 4. Visibility question for the owner: assistants and organization `teacher` members cannot see students' tickets unless
    someone adds them to `private.organization_support_staff`, and no screen manages that table.
+
+## Request 5: platform Admin signal for the role badge
+
+The sidebar badge now names the person's role (Admin, Teacher, Assistant, Student) in its own colour. The front end derives it from
+what the page already receives: organization memberships (`owner` and `teacher` show as Teacher, `admin` as Admin, `assistant` as
+Assistant) and course or group staff rows. The project owners' platform-level access (the private `support_operators` list) is not
+visible to the front end, so those accounts show their organization role instead of "Admin".
+Please expose one boolean for the signed-in user, for example `is_platform_admin`, through the existing viewer or navigation data,
+without exposing the list itself. The front end will then show "Admin" for those accounts with a one-line change in `shared/roles.ts`.
 
 ## Provider acceptance
 
