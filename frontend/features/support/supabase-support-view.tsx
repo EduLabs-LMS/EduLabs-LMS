@@ -133,7 +133,7 @@ export function SupabaseSupportView() {
 				<div className="relative min-w-[12rem] flex-1"><Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2" /><Localized as={Input} labels={{ 'aria-label': 'support.search_tickets', placeholder: 'support.search_ticket_subjects' }} className="min-h-[44px] rounded-full border-2 ps-9" value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(0); }} /></div></div>
 			{loading ? <div role="status" className="space-y-3"><span className="sr-only"><L id="support.loading_tickets" /></span>{[0, 1, 2].map(i => <div key={i} className={cn(panel, 'h-28 animate-pulse bg-slate-100')} />)}</div>
 				: !error && rows.length === 0 ? <div className={cn(panel, 'text-center')}><MessageCircle aria-hidden className="mx-auto h-8 w-8 text-slate-500" /><p className="mt-2"><L id="support.no_matching_tickets_use_new" /></p></div>
-				: <ul className="space-y-3">{rows.map(t => {
+				: <ul className="m-list space-y-3">{rows.map(t => {
 					const due = !!t.response_due_at && t.status !== 'RESOLVED', overdue = due && Date.parse(t.response_due_at!) < Date.now(), mine = !t.staff;
 					return <li key={t.id}><button type="button" className={cn(panel, 'flex w-full items-center gap-4 p-4 text-start transition-all hover:-translate-y-px hover:shadow-hard')} onClick={() => void openTicket(t.id)}>
 						<SupportAvatar name={mine ? ownName : null} url={mine ? user?.imageUrl : null} />

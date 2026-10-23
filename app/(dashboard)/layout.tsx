@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { isTeacherSide, studentPreviewActive, studentPreviewCookie } from '@/shared/student-preview';
 import { StudentPreviewBar } from '@/frontend/features/dashboard/student-preview';
+import { PageTransition } from '@/frontend/components/page-transition';
 import { auth } from '@clerk/nextjs/server';
 import Sidebar from '@/frontend/components/sidebar';
 import MobileSidebar from '@/frontend/features/dashboard/mobile-sidebar';
@@ -30,7 +31,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
             <MobileSidebar />
             <aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50"><Sidebar /></aside>
             <main className="md:ps-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between">
-              <div className={`flex-1 w-full p-4 sm:p-6 md:p-8${studentPreview ? ' pb-28' : ''}`}>{children}</div><Footer />
+              <div className={`flex-1 w-full p-4 sm:p-6 md:p-8${studentPreview ? ' pb-28' : ''}`}><PageTransition>{children}</PageTransition></div><Footer />
             </main>
             <StudentPreviewBar />
           </div>
@@ -73,7 +74,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
 		{/* Main Content Canvas: Removed overflow-y-auto so native mobile window scroll works 100% */}
 		<main className="md:ps-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between">
 		<div className="flex-1 w-full p-4 sm:p-6 md:p-8">
-		{children}
+		<PageTransition>{children}</PageTransition>
 		</div>
 		<Footer />
 		</main>

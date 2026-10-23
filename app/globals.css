@@ -179,3 +179,47 @@ body,
   pointer-events: auto !important;
   z-index: 99999 !important;
 }
+
+/* ───────── Motion system ─────────
+   Rules: animate only transform and opacity (compositor-friendly), short durations, capped staggers,
+   hover effects only on devices that can hover, and softer (fade only) motion when the person asks for less. */
+:root {
+  --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --m-fast: 140ms;
+  --m-base: 280ms;
+}
+@keyframes m-rise { from { opacity: 0; transform: translate3d(0, 12px, 0); } to { opacity: 1; transform: none; } }
+@keyframes m-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes m-pop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
+/* A page fades and rises in when you open it. */
+.m-page { animation: m-rise var(--m-base) var(--m-ease) both; }
+/* Children of a list rise in one after another; only the first ten get a delay, so long lists never feel slow. */
+.m-list > * { animation: m-rise var(--m-base) var(--m-ease) both; animation-delay: calc(var(--i, 9) * 40ms); }
+.m-list > :nth-child(1) { --i: 0; } .m-list > :nth-child(2) { --i: 1; } .m-list > :nth-child(3) { --i: 2; }
+.m-list > :nth-child(4) { --i: 3; } .m-list > :nth-child(5) { --i: 4; } .m-list > :nth-child(6) { --i: 5; }
+.m-list > :nth-child(7) { --i: 6; } .m-list > :nth-child(8) { --i: 7; } .m-list > :nth-child(9) { --i: 8; }
+/* Panels that appear after a click (forms, dialogs content, notices). */
+.m-pop { animation: m-pop 200ms var(--m-ease) both; }
+.m-fade { animation: m-fade 200ms linear both; }
+/* Every button gets a soft press; raised (shadowed) buttons and links also lift on hover where hover exists. */
+button:not(:disabled), [role='button']:not([aria-disabled='true']), a[href].shadow-hard-sm, a[href].shadow-hard {
+  transition: transform var(--m-fast) var(--m-ease), background-color var(--m-fast) linear, color var(--m-fast) linear, opacity var(--m-fast) linear;
+}
+button:not(:disabled):active, [role='button']:not([aria-disabled='true']):active, a[href].shadow-hard-sm:active { transform: translate3d(1px, 1px, 0) scale(0.985); }
+@media (hover: hover) {
+  button.shadow-hard-sm:not(:disabled):hover, a[href].shadow-hard-sm:hover { transform: translate3d(-1px, -1px, 0); }
+  button.shadow-hard-sm:not(:disabled):active, a[href].shadow-hard-sm:active { transform: translate3d(1px, 1px, 0) scale(0.985); }
+}
+/* Skeletons shimmer by sliding a light band (transform only). */
+.m-skeleton { position: relative; overflow: hidden; background: hsl(var(--muted)); }
+.m-skeleton::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.55), transparent); animation: m-shimmer 1.4s ease-in-out infinite; }
+@keyframes m-shimmer { to { transform: translateX(100%); } }
+/* Progress bars grow with a transform, not a width change. */
+.m-bar { transform-origin: left center; animation: m-grow 600ms var(--m-ease) both; }
+[dir='rtl'] .m-bar { transform-origin: right center; }
+@keyframes m-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .m-page, .m-list > *, .m-pop { animation: m-fade 120ms linear both; animation-delay: 0ms; }
+  .m-skeleton::after, .m-bar { animation: none; transform: none; }
+  button:not(:disabled):active, [role='button']:active, a[href].shadow-hard-sm:active, button.shadow-hard-sm:hover, a[href].shadow-hard-sm:hover { transform: none; }
+}
