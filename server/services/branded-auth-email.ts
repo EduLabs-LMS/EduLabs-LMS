@@ -95,6 +95,9 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
   const textAlign = isArabic ? 'right' : 'left';
   const headerCellPadding = isArabic ? '0 14px 0 0' : '0 0 0 14px';
   const letterSpacing = isArabic ? '0' : '1.2px';
+  const headlineLetterSpacing = isArabic ? '0' : '-0.7px';
+  const headlineLineHeight = isArabic ? '1.5' : '1.2';
+  const buttonLineHeight = isArabic ? '1.5' : '1.25';
   const logoAlt = isArabic ? 'علامة شجرة EduLabs' : 'EduLabs tree mark';
   const fallbackHeading = isArabic ? 'الزر لا يعمل؟' : 'BUTTON NOT WORKING?';
   const fallbackIntro = isArabic ? 'انسخ هذا الرابط الآمن والصقه في المتصفح:' : 'Copy and paste this secure link into your browser:';
@@ -154,13 +157,13 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
                         <td bgcolor="#e4f6d9" style="padding:7px 10px;background:#e4f6d9;border:1.5px solid #111;border-radius:7px;font-size:10px;line-height:1.1;font-weight:800;letter-spacing:${letterSpacing};color:#245b2d;">${eyebrow}</td>
                       </tr>
                     </table>
-                    <h1 style="margin:0 0 18px;color:#142011;font-family:Tahoma,Arial,Helvetica,sans-serif;font-size:29px;line-height:1.2;font-weight:800;letter-spacing:-0.7px;">${headline}</h1>
+                    <h1 style="margin:0 0 18px;color:#142011;font-family:Tahoma,Arial,Helvetica,sans-serif;font-size:29px;line-height:${headlineLineHeight};font-weight:800;letter-spacing:${headlineLetterSpacing};">${headline}</h1>
                     ${greeting}
                     ${paragraphs}
                     <table role="presentation" dir="${direction}" align="${isArabic ? 'right' : 'left'}" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 25px;border-collapse:separate;">
                       <tr>
                         <td align="center" bgcolor="#7ed957" style="background:#7ed957;border:2px solid #111;border-radius:12px;box-shadow:3px 3px 0 #111;">
-                          <a href="${escapeHtml(actionUrl)}" target="_blank" style="display:inline-block;padding:14px 22px;color:#142011;text-decoration:none;font-size:15px;line-height:1.25;font-weight:800;border-radius:10px;" dir="${direction}">${buttonLabel}&nbsp; ${buttonArrow}</a>
+                          <a href="${escapeHtml(actionUrl)}" target="_blank" style="display:inline-block;padding:14px 22px;color:#142011;text-decoration:none;font-size:15px;line-height:${buttonLineHeight};font-weight:800;border-radius:10px;" dir="${direction}">${buttonLabel}&nbsp; ${buttonArrow}</a>
                         </td>
                       </tr>
                     </table>
