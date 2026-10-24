@@ -38,6 +38,12 @@ test('branded Firebase action URL accepts only generated same-project HTTPS acti
   assert.equal(parsed.pathname, '/auth/action');
   assert.equal(parsed.searchParams.get('mode'), 'verifyEmail');
   assert.equal(parsed.searchParams.get('oobCode'), 'synthetic-one-time-code');
+  const arabic = new URL(api.buildBrandedActionUrl(
+    'https://diagonproduction.firebaseapp.com/__/auth/action?mode=verifyEmail&oobCode=synthetic-one-time-code',
+    'verifyEmail',
+    'ar',
+  ));
+  assert.equal(arabic.searchParams.get('lang'), 'ar');
   for (const bad of [
     'https://evil.example/__/auth/action?mode=verifyEmail&oobCode=x',
     'http://diagonproduction.firebaseapp.com/__/auth/action?mode=verifyEmail&oobCode=x',
@@ -153,4 +159,55 @@ test('password-reset email uses the matching security variant and real EduLabs b
   assert.match(body.htmlContent, /header-logo-tight\.png/);
   assert.match(body.htmlContent, /This secure link is single-use and expires/);
   assert.match(body.textContent, /If the button does not work, copy this link/);
+});
+
+
+test('Arabic verification and password-reset emails use natural Arabic copy, RTL layout and Arabic action links', async () => {
+  const calls = [];
+  const firebaseAuth = {
+    generateEmailVerificationLink: async () =>
+      'https://diagonproduction.firebaseapp.com/__/auth/action?mode=verifyEmail&oobCode=synthetic-ar-verification',
+    getUserByEmail: async email => ({
+      email,
+      displayName: 'محمد Example',
+      disabled: false,
+      providerData: [{ providerId: 'password' }],
+    }),
+    generatePasswordResetLink: async () =>
+      'https://diagonproduction.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=synthetic-ar-reset',
+  };
+  const api = service({}, {
+    firebaseAuth,
+    fetch: async (url, request) => {
+      calls.push({ url, request });
+      return { ok: true, status: 201 };
+    },
+  });
+
+  await api.sendVerificationEmailForUser({ email: 'student@example.com', displayName: 'محمد Example' }, 'ar');
+  await api.sendPasswordResetForAddress('student@example.com', 'ar');
+
+  assert.equal(calls.length, 2);
+  const verification = JSON.parse(calls[0].request.body);
+  assert.equal(verification.subject, 'تأكيد بريدك الإلكتروني في EduLabs');
+  assert.match(verification.htmlContent, /<html lang="ar" dir="rtl">/);
+  assert.match(verification.htmlContent, /<body dir="rtl"/);
+  assert.match(verification.htmlContent, /تأكيد البريد الإلكتروني/);
+  assert.match(verification.htmlContent, /خطوة واحدة لتفعيل حسابك/);
+  assert.match(verification.htmlContent, /تأكيد بريدي الإلكتروني/);
+  assert.match(verification.htmlContent, /الزر لا يعمل؟/);
+  assert.match(verification.htmlContent, /dir="ltr".*header-logo-tight\.png|header-logo-tight\.png/);
+  assert.match(verification.htmlContent, /text-align:right/);
+  assert.match(verification.htmlContent, /lang=ar/);
+  assert.match(verification.textContent, /إذا لم يعمل الزر/);
+  assert.doesNotMatch(verification.htmlContent, /BUTTON NOT WORKING\?/);
+
+  const reset = JSON.parse(calls[1].request.body);
+  assert.equal(reset.subject, 'إعادة تعيين كلمة مرور EduLabs');
+  assert.match(reset.htmlContent, /<html lang="ar" dir="rtl">/);
+  assert.match(reset.htmlContent, /اختر كلمة مرور جديدة/);
+  assert.match(reset.htmlContent, /إعادة تعيين كلمة المرور/);
+  assert.match(reset.htmlContent, /ستظل كلمة مرورك الحالية كما هي/);
+  assert.match(reset.htmlContent, /lang=ar/);
+  assert.match(reset.textContent, /إذا لم يعمل الزر/);
 });
