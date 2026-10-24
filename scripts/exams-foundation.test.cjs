@@ -151,7 +151,7 @@ test('missing identity redirects while load failures render a safe error, not an
   const components={ExamsErrorView:()=>React.createElement('p',null,'Safe error'),ExamsListView:()=>React.createElement('p',null,'Listing')};
   const page=service=>load('app/(dashboard)/_components/website-exams.tsx',{
     'react/jsx-runtime':require('react/jsx-runtime'),'next/navigation':{redirect:()=>{throw Error('sign-in redirect')},notFound:()=>{throw Error('not found')}},
-    '@/frontend/features/exams/exams-list':components,'@/frontend/features/exams/exam-runner':{ExamRunner:()=>React.createElement('p',null,'Runner')},'@/frontend/features/exams/exam-teacher-portal':{ExamTeacherPortal:components.ExamsListView},'@/frontend/features/exams/exam-staff':{ExamStaffActions:()=>null},'@/server/services/exam-authoring':{examAuthoringAvailable:async()=>false},'@/server/services/exams':service});
+    '@/frontend/components/teacher-foundation-notice':{TeacherFoundationNotice:()=>null},'@/frontend/features/exams/exams-list':components,'@/frontend/features/exams/exam-runner':{ExamRunner:()=>React.createElement('p',null,'Runner')},'@/frontend/features/exams/exam-teacher-portal':{ExamTeacherPortal:components.ExamsListView},'@/frontend/features/exams/exam-staff':{ExamStaffActions:()=>null},'@/server/services/exam-authoring':{examAuthoringAvailable:async()=>false},'@/server/services/exams':service});
   await assert.rejects(page({loadExamList:async()=>null}).WebsiteExams(),/sign-in redirect/);
   const html=renderToStaticMarkup(await page({loadExamList:async()=>{throw Error('private error')}}).WebsiteExams());
   assert.match(html,/Safe error/);assert.doesNotMatch(html,/private error|Listing/);

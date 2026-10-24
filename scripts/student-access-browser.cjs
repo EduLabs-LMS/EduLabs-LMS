@@ -30,6 +30,7 @@ const stubs={
  'firebase/auth':sdk,'firebase/app':`export const getApps=()=>[{}],getApp=()=>({}),initializeApp=()=>({});`,
  '@/shared/auth-config':`export const getFirebaseConfig=()=>({});`,
  '@/frontend/lib/account-draft':`export async function storeAccountDraft(){}`,
+ 'next/navigation':`const router={replace(path){location.replace(path);},refresh(){throw Error('Unexpected global refresh');}};export const useRouter=()=>router;export const usePathname=()=>location.pathname;`,
  'next/link':`import React from'react';export default function Link(p){return <a {...p}/>;}`,
 };
 (async()=>{

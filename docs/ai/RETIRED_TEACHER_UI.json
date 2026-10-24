@@ -1,0 +1,368 @@
+{
+  "base": "fa67875fdab88f0fc640804e2f96b6aa7c44b0c1",
+  "files": [
+    {
+      "path": "frontend/features/teacher/academics/course-stages.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/courses/course-editor.tsx:2"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/academics/program-workspace.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/programs/page.tsx:4",
+        "frontend/features/teacher/academics/course-stages.tsx:5"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/analytics/chart.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/analytics/page.tsx:6"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/analytics/data-card.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/analytics/page.tsx:5"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/course-create.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/_components/teacher-editor.tsx:7"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/course-editor.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/_components/teacher-editor.tsx:8"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/course-list.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/_components/website-pages.tsx:17"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/create-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/create/page.tsx:2"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/teacher-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/_components/teacher-editor.tsx:9"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/website/custom-domains.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/website/website-workspace.tsx:4"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/website/website-workspace.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/website/page.tsx:4"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/actions.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx:17",
+        "frontend/features/teacher/courses/course-editor.tsx:17"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/attachment-form.tsx",
+      "baselineConsumers": [],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/category-form.tsx",
+      "baselineConsumers": [],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/chapter-naming-form.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/courses/course-editor.tsx:14"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/chapter-number-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx:15"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/chapters-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx:16",
+        "frontend/features/teacher/courses/course-editor.tsx:16"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/chapters-list.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/courses/editor/chapters-form.tsx:24"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/description-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx:13",
+        "frontend/features/teacher/chapters/editor/learning-editor.tsx:15",
+        "frontend/features/teacher/courses/course-editor.tsx:13"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/image-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx:14",
+        "frontend/features/teacher/courses/course-editor.tsx:15"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/editor/title-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx:12",
+        "frontend/features/teacher/chapters/editor/learning-editor.tsx:14",
+        "frontend/features/teacher/courses/course-editor.tsx:12"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/list/columns.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/page.tsx:12",
+        "frontend/features/teacher/courses/course-list.tsx:5"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/courses/list/data-table.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/page.tsx:11",
+        "frontend/features/teacher/courses/course-list.tsx:4"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/attachment-form.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/chapters/editor/chapter-content-type-form.tsx:11"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/chapter-actions.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/chapters/[chapterId]/page.tsx:14"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/chapter-content-type-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/chapters/[chapterId]/page.tsx:15"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/chapter-description-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/chapters/[chapterId]/page.tsx:13"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/chapter-solution-video-form.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/chapters/editor/chapter-content-type-form.tsx:14"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/chapter-title-form.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/teacher/courses/[courseId]/chapters/[chapterId]/page.tsx:12"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/chapter-video-form.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/chapters/editor/chapter-content-type-form.tsx:12"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/homework-editor.tsx",
+      "baselineConsumers": [
+        "frontend/features/courses/lesson/homework-assignments.tsx:7"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/homework-questions-form.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/chapters/editor/chapter-content-type-form.tsx:13"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/learning-editor.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/_components/learning-part-page.tsx:5",
+        "frontend/features/teacher/courses/course-editor.tsx:3"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/lesson-cover-form.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/chapters/editor/learning-editor.tsx:2"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/teacher/chapters/editor/module-details-form.tsx",
+      "baselineConsumers": [
+        "frontend/features/teacher/chapters/editor/learning-editor.tsx:18"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/dashboard/admin-home.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/home/page.tsx:8",
+        "app/(dashboard)/_components/website-pages.tsx:7"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/admin/users/add-students-modal.tsx",
+      "baselineConsumers": [
+        "frontend/features/admin/users/admin-users-view.tsx:35"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/admin/users/admin-users-view.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/admin/users/page.tsx:5"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/admin/users/group-form-modal.tsx",
+      "baselineConsumers": [
+        "frontend/features/admin/users/admin-users-view.tsx:32",
+        "frontend/features/admin/users/master-user-directory.tsx:36"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/admin/users/master-user-directory.tsx",
+      "baselineConsumers": [
+        "frontend/features/admin/users/admin-users-view.tsx:36"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/admin/users/reassign-modal.tsx",
+      "baselineConsumers": [
+        "frontend/features/admin/users/admin-users-view.tsx:33"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/admin/users/student-mirror-drawer.tsx",
+      "baselineConsumers": [
+        "frontend/features/admin/submissions/submissions-view.tsx:34",
+        "frontend/features/admin/users/admin-users-view.tsx:34"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/admin/users/supabase-student-admin.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/admin/users/page.tsx:8"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/admin/submissions/homework-inbox.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/_components/homework-inbox-page.tsx:3"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/admin/submissions/submissions-view.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/(routes)/admin/submissions/page.tsx:5"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/exams/exam-builder.tsx",
+      "baselineConsumers": [
+        "frontend/features/exams/exam-staff.tsx:7",
+        "frontend/features/exams/exam-teacher-portal.tsx:5",
+        "frontend/features/exams/exams-view.tsx:22"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/exams/exam-grading-panel.tsx",
+      "baselineConsumers": [
+        "frontend/features/exams/exam-staff.tsx:6",
+        "frontend/features/exams/exams-view.tsx:23"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/exams/exam-staff.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/_components/website-exams.tsx:5"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/exams/exam-teacher-portal.tsx",
+      "baselineConsumers": [
+        "app/(dashboard)/_components/website-exams.tsx:6"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    },
+    {
+      "path": "frontend/features/groups/group-presentation-form.tsx",
+      "baselineConsumers": [
+        "frontend/features/groups/group-workspace.tsx:6"
+      ],
+      "disposition": "Removed presentation; outside consumers replaced or student branch retained. Backend/contracts preserved."
+    }
+  ]
+}

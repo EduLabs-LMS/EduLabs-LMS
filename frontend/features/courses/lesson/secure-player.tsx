@@ -4,7 +4,7 @@ import { useCallback,useEffect,useRef,useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/frontend/components/ui/button';
 import { lessonPlayback } from '@/shared/contracts/lessons';
-import { markLearningOverviewDirty, clearLearningOverviewDirty } from '@/frontend/features/self-learning/learning-overview-freshness';
+import { markLearningOverviewDirty } from '@/frontend/features/self-learning/learning-overview-freshness';
 
 export type SecurePlayerData={offeringId:string;revision:number;position:number;assetId:string|null;status:string;thumbnailUrl?:string|null;preview?:boolean};
 export function SecureLessonPlayer({courseId,segmentId,url,data}:{courseId:string;segmentId:string;url:string|null;data:SecurePlayerData}) {
@@ -27,7 +27,7 @@ export function SecureLessonPlayer({courseId,segmentId,url,data}:{courseId:strin
   active.current=true;
   if(saving.current){if(complete)pendingComplete.current=true;return;} saving.current=true;setBusy(true);setError('');
   const saved=Math.floor(position.current);
-  try {const r=await fetch(`/api/learning/${courseId}/progress`,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({offeringId:data.offeringId,segmentId,position:saved,complete,revision:revision.current})});const v=await r.json();if(!r.ok)throw new Error(v.error);revision.current=v.revision;savedPosition.current=saved;recorded.current=true;lastSave.current=Date.now();setCompleted(v.status==='completed');if(complete){active.current=false;clearLearningOverviewDirty();router.refresh();}else markLearningOverviewDirty({key:`${data.offeringId}:${segmentId}`,revision:v.revision});}
+  try {const r=await fetch(`/api/learning/${courseId}/progress`,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({offeringId:data.offeringId,segmentId,position:saved,complete,revision:revision.current})});const v=await r.json();if(!r.ok)throw new Error(v.error);revision.current=v.revision;savedPosition.current=saved;recorded.current=true;lastSave.current=Date.now();setCompleted(v.status==='completed');markLearningOverviewDirty({key:`${data.offeringId}:${segmentId}`,revision:v.revision});if(complete){active.current=false;router.refresh();}}
   catch(e){setError(e instanceof Error?e.message:'Progress could not be saved');}finally{saving.current=false;setBusy(false);if(pendingComplete.current){pendingComplete.current=false;void save(true);}}
  },[courseId,data.offeringId,data.preview,segmentId,router]);
  useEffect(()=>{

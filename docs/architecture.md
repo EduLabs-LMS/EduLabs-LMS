@@ -1,3 +1,15 @@
+# Current architecture notice — clean foundation, 2026-10-24
+
+The NEW LMS uses Firebase identity and Supabase/PostgreSQL/RLS when its explicit
+Firebase/Supabase flags are selected. Clerk/Prisma is a retained fallback, not the
+new academic model. See [current architecture](ai/ARCHITECTURE.md), [state](ai/PROJECT_STATE.md)
+and [decisions](ai/DECISIONS.md). Legacy teacher presentation has been retired on this
+branch; backend operations and student screens remain. The text below records the
+original layer refactor and must not be read as the full current authentication,
+persistence or test architecture. Some local SQL suites do use disposable databases.
+
+## Historical layer-refactor documentation
+
 # Frontend and backend boundaries
 
 The portal is one Next.js application with three distinct code layers. It still

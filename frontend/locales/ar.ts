@@ -596,5 +596,7 @@ export const ar: Record<keyof typeof en, string> = {
   "countdown.starts": "تبدأ الجلسة خلال",
   "countdown.label": "الوقت المتبقي لجلستك القادمة",
   "countdown.unavailable": "موعد الجلسة غير متاح بعد.",
-  "countdown.prepare": "جهّز ملاحظاتك وأسئلتك قبل الجلسة."
+  "countdown.prepare": "جهّز ملاحظاتك وأسئلتك قبل الجلسة.",
+"foundation.teacher_rebuild": "يجري إعادة بناء مساحة المعلم. شاشات الإدارة غير متاحة مؤقتًا في هذه النسخة التطويرية.",
+"foundation.data_preserved": "البيانات الحالية وصلاحيات الخادم محفوظة. هذه الشاشة لا تغيّر بياناتك.",
 };

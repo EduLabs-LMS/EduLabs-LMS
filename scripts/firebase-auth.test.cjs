@@ -26,6 +26,7 @@ test('restored-session and form completion navigate home only once', async () =>
     react: { useState: initial => [initial, () => {}], useEffect: effect => effects.push(effect), useRef: value => ({ current: value }), useCallback: callback => callback },
     'react/jsx-runtime': { jsx, jsxs: jsx },
     'next/link': { default: 'Link' },
+    'next/navigation': { useRouter:()=>({replace:path=>navigations.push(path),refresh:()=>{throw Error('No redundant refresh');}}) },
     'lucide-react': {},
     '@/shared/contracts/account': {},
     '@/frontend/lib/signup-recovery': {},

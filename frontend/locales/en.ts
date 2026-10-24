@@ -596,5 +596,7 @@ export const en = {
   "countdown.starts": "Class starts in",
   "countdown.label": "Time until your next class",
   "countdown.unavailable": "Class time is not available yet.",
-  "countdown.prepare": "Have your notes and questions ready for class."
+  "countdown.prepare": "Have your notes and questions ready for class.",
+"foundation.teacher_rebuild": "The teacher workspace is being rebuilt. Management screens are temporarily unavailable in this development foundation.",
+"foundation.data_preserved": "Existing records and server permissions are preserved. This screen does not change your data.",
 } as const;

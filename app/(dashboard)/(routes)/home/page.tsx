@@ -5,8 +5,8 @@ import { redirect } from 'next/navigation';
 import { Clock } from 'lucide-react';
 
 import StudentHome from '@/frontend/features/dashboard/student-home';
-import AdminHome from '@/frontend/features/dashboard/admin-home';
-import { getAdminHomeData, getStudentHomeData } from '@/server/queries/home';
+import { TeacherFoundationNotice } from '@/frontend/components/teacher-foundation-notice';
+import { getStudentHomeData } from '@/server/queries/home';
 import { isTeacher } from '@/server/services/teacher';
 import { getDbUser } from '@/server/services/user';
 
@@ -27,30 +27,7 @@ const HomePage = async ({ searchParams }: { searchParams: Promise<WebsiteSearch>
 		(await isTeacher(userId, sessionClaims));
 
 	// If authenticated user is ADMIN or TEACHER, render the dedicated Admin Command Center!
-	if (isStaff) {
-		const { totalStudents, pendingWaitlistCount, pendingHomeworkCount, activeGroupsCount, recentSignups, recentSubmissions } = await getAdminHomeData();
-
-		return (
-			<AdminHome
-				adminName={dbUser?.name || 'Mrs. Ghada'}
-				metrics={{
-					totalStudents,
-					pendingWaitlistCount,
-					pendingHomeworkCount,
-					activeGroupsCount,
-				}}
-				recentSignups={recentSignups}
-				recentSubmissions={recentSubmissions.map((s) => ({
-					id: s.id,
-					userName: s.userName,
-					status: s.status,
-					createdAt: s.createdAt,
-					chapterTitle: s.chapter.title,
-					courseTitle: s.chapter.course?.title,
-				}))}
-			/>
-		);
-	}
+	if(isStaff)return <TeacherFoundationNotice title="Teacher dashboard"/>;
 
 	// Check if student account is approved in Prisma
 	const isPending = dbUser ? !dbUser.isApproved : false;

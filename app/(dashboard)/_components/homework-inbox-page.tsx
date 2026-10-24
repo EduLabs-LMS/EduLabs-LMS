@@ -1,4 +1,2 @@
-import { notFound,redirect } from 'next/navigation';
-import { getWebsiteContext,loadWebsiteScope,offeringCapability } from '@/server/services/website';
-import { HomeworkInbox } from '@/frontend/features/admin/submissions/homework-inbox';
-export async function HomeworkInboxPage(){const context=await getWebsiteContext();if(!context)redirect('/sign-in');const scope=await loadWebsiteScope(context);if(!scope)notFound();const offerings=scope.offerings.flatMap(o=>{const course=scope.courses.find(c=>c.id===o.course_id);return course&&offeringCapability(context,course,o.id)?[{id:o.id,name:o.name,courseId:course.id,courseTitle:course.title}]:[];});if(!offerings.length&&!context.memberships.some(m=>m.status==='active'&&['owner','admin','teacher'].includes(m.role)))notFound();return <HomeworkInbox offerings={offerings} limited={scope.limited}/>;}
+import { TeacherFoundationPage } from './teacher-foundation-page';
+export function HomeworkInboxPage(){return <TeacherFoundationPage title="Homework correction queue"/>;}

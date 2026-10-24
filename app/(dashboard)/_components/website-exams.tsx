@@ -2,9 +2,8 @@ import { notFound, redirect } from 'next/navigation';
 import { ExamDetailView, ExamNotFoundView, ExamsErrorView } from '@/frontend/features/exams/exams-list';
 import { loadExam, loadExamList } from '@/server/services/exams';
 import { ExamRunner } from '@/frontend/features/exams/exam-runner';
-import { ExamStaffActions } from '@/frontend/features/exams/exam-staff';
-import { ExamTeacherPortal } from '@/frontend/features/exams/exam-teacher-portal';
-import { examAuthoringAvailable } from '@/server/services/exam-authoring';
+import { TeacherFoundationNotice } from '@/frontend/components/teacher-foundation-notice';
+import { ExamsListView } from '@/frontend/features/exams/exams-list';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -20,7 +19,7 @@ export async function WebsiteExams() {
     return <ExamsErrorView />;
   }
   if (!data) redirect('/sign-in'); // outside try/catch so the redirect signal is not swallowed
-  return <ExamTeacherPortal items={data.items} isStaff={data.isStaff} truncated={data.truncated} offerings={data.authoringOfferings} />;
+  return data.isStaff?<TeacherFoundationNotice title="Exam management"/>:<ExamsListView items={data.items} isStaff={false} truncated={data.truncated}/>;
 }
 
 export async function WebsiteExam({ examId }: { examId: string }) {
@@ -34,5 +33,5 @@ export async function WebsiteExam({ examId }: { examId: string }) {
   if (!data) redirect('/sign-in');
   if (!data.exam) return <ExamNotFoundView />;
   if (!data.isStaff) return <ExamRunner examId={examId} secure />;
-  return <><ExamDetailView exam={data.exam} isStaff={data.isStaff} /><ExamStaffActions examId={examId} offeringId={data.exam.offeringId} authoringReady={data.canAuthor && await examAuthoringAvailable()} /></>;
+  return <TeacherFoundationNotice title="Exam management"/>;
 }
