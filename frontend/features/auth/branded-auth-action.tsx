@@ -174,8 +174,8 @@ export default function BrandedAuthAction() {
         <span dir="ltr" className="text-2xl font-extrabold tracking-tight">EduLabs</span>
       </header>
       <section className="rounded-3xl border-2 border-black bg-[#f7f8f3] p-6 shadow-[5px_5px_0_#111] sm:p-9">
-        <p className="mb-3 text-xs font-extrabold uppercase tracking-[.16em] text-[#276b39]">{text.account}</p>
-        <h1 className="mb-3 text-3xl font-extrabold tracking-tight">
+        <p className={"mb-3 text-xs font-extrabold uppercase text-[#276b39] " + (locale === 'ar' ? '' : 'tracking-[.16em]')}>{text.account}</p>
+        <h1 className={"mb-3 text-3xl font-extrabold " + (locale === 'ar' ? 'leading-relaxed' : 'tracking-tight')}>
           {!ready ? text.loading : mode === 'verifyEmail' ? text.verifyHeading : mode === 'resetPassword' ? text.resetHeading : text.actionHeading}
         </h1>
         {email && <p className="mb-4 break-words text-sm text-slate-600"><bdi dir="ltr">{email}</bdi></p>}
