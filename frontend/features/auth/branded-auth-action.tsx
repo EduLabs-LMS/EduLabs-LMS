@@ -63,10 +63,10 @@ const actionCopy = {
   },
 } as const;
 
-export default function BrandedAuthAction() {
+export default function BrandedAuthAction({ initialLocale = 'en' }: { initialLocale?: 'en' | 'ar' }) {
   const [mode, setMode] = useState<Mode>('');
   const initialAction = useRef<{ action: string | null; code: string; locale: 'en' | 'ar' } | null>(null);
-  const [locale, setLocale] = useState<'en' | 'ar'>('en');
+  const [locale, setLocale] = useState<'en' | 'ar'>(initialLocale);
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
