@@ -85,7 +85,7 @@ function safeActionUrl(value: string) {
 export function renderBrandedEmail(content: BrandedEmailContent) {
   const origin = appOrigin();
   const actionUrl = safeActionUrl(content.actionUrl);
-  const logoUrl = escapeHtml(origin + '/edulabs-logo.svg');
+  const logoUrl = escapeHtml(origin + '/header-logo-tight.png');
   const preheader = escapeHtml(content.preheader);
   const eyebrow = escapeHtml(content.eyebrow ?? 'ACCOUNT SECURITY');
   const headline = escapeHtml(content.headline);
