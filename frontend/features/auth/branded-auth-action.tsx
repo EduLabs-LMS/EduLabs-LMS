@@ -86,13 +86,12 @@ export default function BrandedAuthAction() {
     const requestedLocale = current.searchParams.get('lang');
     const requestedAction = current.searchParams.get('mode');
     const requestedCode = current.searchParams.get('oobCode') ?? '';
-    if (!initialAction.current) {
-      const selectedLocale: 'en' | 'ar' = requestedLocale === 'ar' || requestedLocale === 'en'
-        ? requestedLocale
-        : previousLanguage === 'ar' ? 'ar' : 'en';
-      initialAction.current = { action: requestedAction, code: requestedCode, locale: selectedLocale };
-    }
-    const { action, code: oobCode, locale: selectedLocale } = initialAction.current;
+    const fallbackLocale: 'en' | 'ar' = requestedLocale === 'ar' || requestedLocale === 'en'
+      ? requestedLocale
+      : previousLanguage === 'ar' ? 'ar' : 'en';
+    const actionParams = initialAction.current ?? { action: requestedAction, code: requestedCode, locale: fallbackLocale };
+    initialAction.current = actionParams;
+    const { action, code: oobCode, locale: selectedLocale } = actionParams;
     const text = actionCopy[selectedLocale];
     setLocale(selectedLocale);
     document.documentElement.lang = selectedLocale;
