@@ -109,7 +109,7 @@ test('Brevo sends branded HTML and text without exposing the API key to the mess
   assert.match(body.htmlContent, /EMAIL VERIFICATION/);
   assert.match(body.htmlContent, /One quick step to activate your account/);
   assert.match(body.htmlContent, /Verify my email/);
-  assert.match(body.htmlContent, /BUTTON NOT WORKING\?/);
+  assert.match(body.htmlContent, /Button not working\?/);
   assert.match(body.htmlContent, /<html lang="en" dir="ltr">/);
   assert.match(body.htmlContent, /text-align:left/);
   assert.doesNotMatch(body.htmlContent, /box-shadow/);
