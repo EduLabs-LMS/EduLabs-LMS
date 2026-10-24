@@ -7,6 +7,12 @@ import { getFirebaseAdminAuth } from '@/server/integrations/firebase-admin';
 import { verifyFirebaseToken } from '@/server/services/firebase-auth';
 import { sendPasswordResetForAddress, sendVerificationEmailForUser } from '@/server/services/branded-auth-email';
 import { validFirebaseOrigin } from '@/server/http/firebase/route';
+import { isLanguage, languageCookieKey, type Language } from '@/shared/language';
+
+function requestedLanguage(request: NextRequest): Language {
+  const value = request.cookies.get(languageCookieKey)?.value;
+  return isLanguage(value) ? value : 'en';
+}
 
 const json = (body: unknown, status = 200) =>
   NextResponse.json(body, { status, headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
@@ -63,7 +69,7 @@ export async function POST(request: NextRequest) {
         const user = await getFirebaseAdminAuth().getUser(identity.uid);
         if (user.disabled || user.email?.toLowerCase() !== identity.email?.toLowerCase()) return json({ error: 'Verified sign-in required' }, 401);
         await limited(request, 'verification', user.email ?? identity.uid);
-        await sendVerificationEmailForUser(user);
+        await sendVerificationEmailForUser(user, requestedLanguage(request));
       }
       return json({ ok: true });
     }
@@ -73,7 +79,7 @@ export async function POST(request: NextRequest) {
         return json({ ok: true });
       }
       await limited(request, 'password-reset', body.email);
-      try { await sendPasswordResetForAddress(body.email.trim()); }
+      try { await sendPasswordResetForAddress(body.email.trim(), requestedLanguage(request)); }
       catch (failure) {
         if ((failure as { code?: string }).code === 'auth/user-not-found') { /* Avoid account enumeration. */ }
         else throw failure;
