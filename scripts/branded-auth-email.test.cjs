@@ -98,6 +98,14 @@ test('Brevo sends branded HTML and text without exposing the API key to the mess
   assert.equal(body.to[0].email, 'student@example.com');
   assert.match(body.htmlContent, /staging\.edulabs-eg\.com\/auth\/action/);
   assert.match(body.textContent, /staging\.edulabs-eg\.com\/auth\/action/);
+  assert.match(body.htmlContent, /src="https:\/\/staging\.edulabs-eg\.com\/edulabs-logo\.svg"/);
+  assert.match(body.htmlContent, /alt="EduLabs tree mark"/);
+  assert.match(body.htmlContent, /EMAIL VERIFICATION/);
+  assert.match(body.htmlContent, /One quick step to activate your account/);
+  assert.match(body.htmlContent, /Verify my email/);
+  assert.match(body.htmlContent, /BUTTON NOT WORKING\?/);
+  assert.match(body.htmlContent, /box-shadow:5px 5px 0 #111/);
+  assert.doesNotMatch(body.htmlContent, /Firebase/);
   assert.doesNotMatch(calls[0].request.body, /synthetic-key/);
 });
 
@@ -113,4 +121,36 @@ test('Brevo errors fail closed and do not disclose provider responses', async ()
   await assert.rejects(networkError.sendVerificationEmailForUser({ email: 'test@example.com' }),
     error => /Branded email provider is unavailable/.test(error.message) && !/private details/.test(error.message));
   assert.throws(() => service({ AUTH_EMAIL_FROM: 'Evil\r\nBcc: bad@example.com' }).assertBrandedEmailConfigured());
+});
+
+
+test('password-reset email uses the matching security variant and real EduLabs branding', async () => {
+  const calls = [];
+  const firebaseAuth = {
+    getUserByEmail: async email => ({
+      email,
+      displayName: 'Student Example',
+      disabled: false,
+      providerData: [{ providerId: 'password' }],
+    }),
+    generatePasswordResetLink: async () =>
+      'https://diagonproduction.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=synthetic-reset-code',
+  };
+  const api = service({}, {
+    firebaseAuth,
+    fetch: async (url, request) => {
+      calls.push({ url, request });
+      return { ok: true, status: 201 };
+    },
+  });
+  await api.sendPasswordResetForAddress('student@example.com');
+  assert.equal(calls.length, 1);
+  const body = JSON.parse(calls[0].request.body);
+  assert.equal(body.subject, 'Reset your EduLabs password');
+  assert.match(body.htmlContent, /PASSWORD SECURITY/);
+  assert.match(body.htmlContent, /Choose a new password/);
+  assert.match(body.htmlContent, /Reset password/);
+  assert.match(body.htmlContent, /edulabs-logo\.svg/);
+  assert.match(body.htmlContent, /This secure link is single-use and expires/);
+  assert.match(body.textContent, /If the button does not work, copy this link/);
 });
