@@ -130,7 +130,7 @@ export default function BrandedAuthAction() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!ready || !code || busy || success) return;
+    if (!ready || !code || busy || success || linkInvalid) return;
     setBusy(true);
     setMessage('');
     const text = actionCopy[locale];
@@ -177,11 +177,11 @@ export default function BrandedAuthAction() {
         {message && <p role="status" aria-live="polite" className="mb-5 rounded-xl border border-[#cbd8c4] bg-white p-4 text-sm leading-7">{message}</p>}
         {canSubmit && <form onSubmit={submit} className="space-y-4">
           {mode === 'resetPassword' && <>
-            <label className="block text-sm font-semibold">New password
+            <label className="block text-sm font-semibold">{text.newPassword}
               <input autoComplete="new-password" type="password" minLength={12} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} dir="ltr" className="mt-2 w-full rounded-xl border-2 border-black bg-white p-3 text-left outline-none focus:ring-2 focus:ring-[#7ed957]" />
             </label>
-            <label className="block text-sm font-semibold">Confirm new password
-              <input autoComplete="new-password" type="password" minLength={12} maxLength={128} required value={confirm} onChange={e => setConfirm(e.target.value)} className="mt-2 w-full rounded-xl border-2 border-black bg-white p-3 outline-none focus:ring-2 focus:ring-[#7ed957]" />
+            <label className="block text-sm font-semibold">{text.confirmPassword}
+              <input autoComplete="new-password" type="password" minLength={12} maxLength={128} required value={confirm} onChange={e => setConfirm(e.target.value)} dir="ltr" className="mt-2 w-full rounded-xl border-2 border-black bg-white p-3 text-left outline-none focus:ring-2 focus:ring-[#7ed957]" />
             </label>
           </>}
           <button type="submit" disabled={busy} className="w-full rounded-xl border-2 border-black bg-[#7ed957] p-3 font-bold shadow-[3px_3px_0_#111] disabled:opacity-60">
