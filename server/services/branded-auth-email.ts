@@ -118,7 +118,6 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
                   </td>
                   <td valign="middle" style="padding:0 0 0 14px;">
                     <div style="font-size:25px;line-height:1.1;font-weight:800;letter-spacing:-0.7px;color:#142011;">EduLabs</div>
-                    <div style="padding-top:5px;font-size:10px;line-height:1.2;font-weight:700;letter-spacing:1.5px;color:#52634b;">LEARN · PRACTICE · PROGRESS</div>
                   </td>
                 </tr>
               </table>
