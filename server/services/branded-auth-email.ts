@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getFirebaseAdminAuth } from '@/server/integrations/firebase-admin';
+import type { Language } from '@/shared/language';
 
 export type FirebaseEmailActionMode = 'verifyEmail' | 'resetPassword';
 
@@ -13,6 +14,7 @@ type BrandedEmailContent = {
   actionUrl: string;
   footer: string;
   eyebrow?: string;
+  locale?: Language;
 };
 
 function appOrigin() {
@@ -42,7 +44,7 @@ export function assertBrandedEmailConfigured() {
  * place it in our own action-handler URL so Firebase Hosting is never the
  * user-facing destination. Never invent or sign an action code ourselves.
  */
-export function buildBrandedActionUrl(firebaseActionLink: string, expectedMode: FirebaseEmailActionMode) {
+export function buildBrandedActionUrl(firebaseActionLink: string, expectedMode: FirebaseEmailActionMode, preferredLanguage?: Language) {
   let generated: URL;
   try { generated = new URL(firebaseActionLink); } catch { throw new Error('Firebase generated an invalid action link'); }
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
@@ -63,6 +65,8 @@ export function buildBrandedActionUrl(firebaseActionLink: string, expectedMode: 
   const language = generated.searchParams.get('lang');
   if (language && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(language)) {
     actionUrl.searchParams.set('lang', language);
+  } else if (preferredLanguage) {
+    actionUrl.searchParams.set('lang', preferredLanguage);
   }
   return actionUrl.toString();
 }
@@ -85,17 +89,31 @@ function safeActionUrl(value: string) {
 export function renderBrandedEmail(content: BrandedEmailContent) {
   const origin = appOrigin();
   const actionUrl = safeActionUrl(content.actionUrl);
+  const locale = content.locale ?? 'en';
+  const isArabic = locale === 'ar';
+  const direction = isArabic ? 'rtl' : 'ltr';
+  const textAlign = isArabic ? 'right' : 'left';
+  const headerCellPadding = isArabic ? '0 14px 0 0' : '0 0 0 14px';
+  const letterSpacing = isArabic ? '0' : '1.2px';
+  const logoAlt = isArabic ? 'علامة شجرة EduLabs' : 'EduLabs tree mark';
+  const fallbackHeading = isArabic ? 'الزر لا يعمل؟' : 'BUTTON NOT WORKING?';
+  const fallbackIntro = isArabic ? 'انسخ هذا الرابط الآمن والصقه في المتصفح:' : 'Copy and paste this secure link into your browser:';
+  const fallbackText = isArabic ? `إذا لم يعمل الزر، انسخ الرابط التالي والصقه في المتصفح: ${actionUrl}` : `If the button does not work, copy this link into your browser: ${actionUrl}`;
+  const footerTagline = isArabic ? 'التعلّم، منظّم حول احتياجاتك.' : 'EduLabs · Learning, organized around you.';
+  const visitLabel = isArabic ? 'زيارة EduLabs' : 'Visit EduLabs';
+  const automatedLabel = isArabic ? 'رسالة آلية خاصة بالحساب' : 'Automated account email';
+  const buttonArrow = isArabic ? '&#8592;' : '&#8594;';
   const logoUrl = escapeHtml(origin + '/header-logo-tight.png');
   const preheader = escapeHtml(content.preheader);
   const eyebrow = escapeHtml(content.eyebrow ?? 'ACCOUNT SECURITY');
   const headline = escapeHtml(content.headline);
-  const greeting = content.greeting ? `<p style="margin:0 0 16px;color:#1b2819;font-size:16px;line-height:1.65;">${escapeHtml(content.greeting)}</p>` : '';
+  const greeting = content.greeting ? `<p dir="auto" style="margin:0 0 16px;color:#1b2819;font-size:16px;line-height:1.85;text-align:${textAlign};">${escapeHtml(content.greeting)}</p>` : '';
   const paragraphs = content.paragraphs.map(value =>
-    `<p style="margin:0 0 16px;color:#354333;font-size:15px;line-height:1.75;">${escapeHtml(value)}</p>`).join('');
+    `<p dir="${direction}" style="margin:0 0 16px;color:#354333;font-size:15px;line-height:1.85;text-align:${textAlign};">${escapeHtml(value)}</p>`).join('');
   const buttonLabel = escapeHtml(content.buttonLabel);
   const footer = escapeHtml(content.footer);
   const html = `<!doctype html>
-<html lang="en">
+<html lang="${locale}" dir="${direction}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -103,9 +121,9 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
   <meta name="supported-color-schemes" content="light">
   <title>${headline} · EduLabs</title>
 </head>
-<body style="margin:0;padding:0;background:#e9eee5;color:#142011;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<body dir="${direction}" style="margin:0;padding:0;background:#e9eee5;color:#142011;font-family:Tahoma,Arial,Helvetica,sans-serif;direction:${direction};text-align:${textAlign};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
   <div style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">${preheader} &#847; &zwnj;&nbsp;&#847; &zwnj;&nbsp;&#847;</div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#e9eee5" style="width:100%;background:#e9eee5;border-collapse:collapse;">
+  <table role="presentation" dir="${direction}" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#e9eee5" style="width:100%;background:#e9eee5;border-collapse:collapse;">
     <tr>
       <td align="center" style="padding:32px 14px 36px;">
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;">
@@ -114,10 +132,10 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:separate;">
                 <tr>
                   <td width="48" height="48" align="center" valign="middle" bgcolor="#f8faf5" style="width:48px;height:48px;background:#f8faf5;border:2px solid #111;border-radius:13px;box-shadow:3px 3px 0 #111;">
-                    <img src="${logoUrl}" width="34" height="40" alt="EduLabs tree mark" style="display:block;width:34px;height:40px;border:0;outline:none;text-decoration:none;">
+                    <img src="${logoUrl}" width="34" height="40" alt="${logoAlt}" style="display:block;width:34px;height:40px;border:0;outline:none;text-decoration:none;">
                   </td>
-                  <td valign="middle" style="padding:0 0 0 14px;">
-                    <div style="font-size:25px;line-height:1.1;font-weight:800;letter-spacing:-0.7px;color:#142011;">EduLabs</div>
+                  <td valign="middle" style="padding:${headerCellPadding};">
+                    <div style="font-size:25px;line-height:1.1;font-weight:800;letter-spacing:-0.7px;color:#142011;"><bdi dir="ltr">EduLabs</bdi></div>
                   </td>
                 </tr>
               </table>
@@ -133,7 +151,7 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
                   <td style="padding:30px 30px 28px;">
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 17px;border-collapse:separate;">
                       <tr>
-                        <td bgcolor="#e4f6d9" style="padding:7px 10px;background:#e4f6d9;border:1.5px solid #111;border-radius:7px;font-size:10px;line-height:1.1;font-weight:800;letter-spacing:1.2px;color:#245b2d;">${eyebrow}</td>
+                        <td bgcolor="#e4f6d9" style="padding:7px 10px;background:#e4f6d9;border:1.5px solid #111;border-radius:7px;font-size:10px;line-height:1.1;font-weight:800;letter-spacing:${letterSpacing};color:#245b2d;">${eyebrow}</td>
                       </tr>
                     </table>
                     <h1 style="margin:0 0 18px;color:#142011;font-family:Arial,Helvetica,sans-serif;font-size:29px;line-height:1.2;font-weight:800;letter-spacing:-0.7px;">${headline}</h1>
@@ -142,22 +160,22 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 25px;border-collapse:separate;">
                       <tr>
                         <td align="center" bgcolor="#7ed957" style="background:#7ed957;border:2px solid #111;border-radius:12px;box-shadow:3px 3px 0 #111;">
-                          <a href="${escapeHtml(actionUrl)}" target="_blank" style="display:inline-block;padding:14px 22px;color:#142011;text-decoration:none;font-size:15px;line-height:1.25;font-weight:800;border-radius:10px;">${buttonLabel}&nbsp; &#8594;</a>
+                          <a href="${escapeHtml(actionUrl)}" target="_blank" style="display:inline-block;padding:14px 22px;color:#142011;text-decoration:none;font-size:15px;line-height:1.25;font-weight:800;border-radius:10px;" dir="${direction}">${buttonLabel}&nbsp; ${buttonArrow}</a>
                         </td>
                       </tr>
                     </table>
                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#eef2e9" style="width:100%;background:#eef2e9;border:1px solid #d7dfd0;border-radius:12px;border-collapse:separate;">
                       <tr>
                         <td style="padding:14px 15px;">
-                          <p style="margin:0 0 7px;color:#52634b;font-size:11px;line-height:1.4;font-weight:800;letter-spacing:0.8px;">BUTTON NOT WORKING?</p>
-                          <p style="margin:0 0 7px;color:#52634b;font-size:12px;line-height:1.6;">Copy and paste this secure link into your browser:</p>
-                          <p style="margin:0;overflow-wrap:anywhere;word-break:break-all;font-size:12px;line-height:1.7;"><a href="${escapeHtml(actionUrl)}" style="color:#245b2d;text-decoration:underline;overflow-wrap:anywhere;word-break:break-all;">${escapeHtml(actionUrl)}</a></p>
+                          <p style="margin:0 0 7px;color:#52634b;font-size:11px;line-height:1.4;font-weight:800;letter-spacing:0.8px;">${fallbackHeading}</p>
+                          <p style="margin:0 0 7px;color:#52634b;font-size:12px;line-height:1.6;">${fallbackIntro}</p>
+                          <p dir="ltr" style="margin:0;overflow-wrap:anywhere;word-break:break-all;font-size:12px;line-height:1.7;text-align:left;"><a href="${escapeHtml(actionUrl)}" dir="ltr" style="color:#245b2d;text-decoration:underline;overflow-wrap:anywhere;word-break:break-all;"><bdi dir="ltr">${escapeHtml(actionUrl)}</bdi></a></p>
                         </td>
                       </tr>
                     </table>
                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin-top:23px;border-collapse:collapse;">
                       <tr><td style="border-top:1px solid #d7dfd0;padding-top:17px;">
-                        <p style="margin:0;color:#52634b;font-size:12px;line-height:1.75;">${footer}</p>
+                        <p dir="${direction}" style="margin:0;color:#52634b;font-size:12px;line-height:1.85;text-align:${textAlign};">${footer}</p>
                       </td></tr>
                     </table>
                   </td>
@@ -167,10 +185,10 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
           </tr>
           <tr>
             <td align="center" style="padding:23px 8px 0;color:#52634b;text-align:center;font-size:11px;line-height:1.8;">
-              <p style="margin:0 0 5px;font-weight:700;color:#354333;">EduLabs · Learning, organized around you.</p>
-              <a href="${escapeHtml(origin)}" style="color:#245b2d;text-decoration:underline;">Visit EduLabs</a>
+              <p style="margin:0 0 5px;font-weight:700;color:#354333;"><bdi dir="ltr">EduLabs</bdi> · ${footerTagline}</p>
+              <a href="${escapeHtml(origin)}" style="color:#245b2d;text-decoration:underline;">${visitLabel}</a>
               <span style="padding:0 7px;color:#a1ad9b;">·</span>
-              <span>Automated account email</span>
+              <span>${automatedLabel}</span>
             </td>
           </tr>
         </table>
@@ -185,9 +203,9 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
     content.greeting ?? '',
     ...content.paragraphs,
     `${content.buttonLabel}: ${actionUrl}`,
-    `If the button does not work, copy this link into your browser: ${actionUrl}`,
+    fallbackText,
     content.footer,
-    `EduLabs · Learning, organized around you. ${origin}`,
+    `EduLabs · ${footerTagline} ${origin}`,
   ].filter(Boolean).join('\n\n');
   return { html, text };
 }
@@ -233,28 +251,33 @@ async function sendEmail(to: string, subject: string, content: BrandedEmailConte
   }
 }
 
-export async function sendVerificationEmailForUser(user: { email?: string | null; displayName?: string | null }) {
+export async function sendVerificationEmailForUser(user: { email?: string | null; displayName?: string | null }, locale: Language = 'en') {
   assertBrandedEmailConfigured();
   if (!user.email) throw new Error('Firebase user has no email address');
   const link = await getFirebaseAdminAuth().generateEmailVerificationLink(user.email);
-  const actionUrl = buildBrandedActionUrl(link, 'verifyEmail');
+  const actionUrl = buildBrandedActionUrl(link, 'verifyEmail', locale);
   const name = user.displayName?.trim().split(/\s+/)[0];
-  await sendEmail(user.email, 'Verify your EduLabs email address', {
-    preheader: 'One quick step to finish setting up your EduLabs account.',
-    eyebrow: 'EMAIL VERIFICATION',
-    headline: 'One quick step to activate your account',
-    greeting: name ? `Hello ${name},` : 'Hello,',
-    paragraphs: [
+  const arabic = locale === 'ar';
+  await sendEmail(user.email, arabic ? 'تأكيد بريدك الإلكتروني في EduLabs' : 'Verify your EduLabs email address', {
+    locale,
+    preheader: arabic ? 'خطوة أخيرة لإكمال إعداد حسابك على EduLabs.' : 'One quick step to finish setting up your EduLabs account.',
+    eyebrow: arabic ? 'تأكيد البريد الإلكتروني' : 'EMAIL VERIFICATION',
+    headline: arabic ? 'خطوة واحدة لتفعيل حسابك' : 'One quick step to activate your account',
+    greeting: name ? (arabic ? `مرحبًا ${name}،` : `Hello ${name},`) : (arabic ? 'مرحبًا،' : 'Hello,'),
+    paragraphs: arabic ? [
+      'شكرًا لانضمامك إلى EduLabs. أكّد عنوان بريدك الإلكتروني لإكمال إعداد حسابك.',
+      'إذا لم تنشئ حسابًا على EduLabs، يمكنك تجاهل هذه الرسالة. لن يحدث أي تغيير.',
+    ] : [
       'Thanks for joining EduLabs. Confirm your email address to finish setting up your account.',
       'If you did not create an EduLabs account, you can ignore this message. No changes will be made.',
     ],
-    buttonLabel: 'Verify my email',
+    buttonLabel: arabic ? 'تأكيد بريدي الإلكتروني' : 'Verify my email',
     actionUrl,
-    footer: 'This secure link is single-use and expires. For your safety, do not forward it or share it with anyone.',
+    footer: arabic ? 'هذا الرابط آمن ويُستخدم مرة واحدة وتنتهي صلاحيته. حفاظًا على أمانك، لا تُعِد توجيهه ولا تشاركه مع أي شخص.' : 'This secure link is single-use and expires. For your safety, do not forward it or share it with anyone.',
   });
 }
 
-export async function sendPasswordResetForAddress(email: string) {
+export async function sendPasswordResetForAddress(email: string, locale: Language = 'en') {
   assertBrandedEmailConfigured();
   const auth = getFirebaseAdminAuth();
   let user;
@@ -265,19 +288,24 @@ export async function sendPasswordResetForAddress(email: string) {
   }
   if (user.disabled || !user.providerData.some(provider => provider.providerId === 'password')) return;
   const link = await auth.generatePasswordResetLink(email);
-  const actionUrl = buildBrandedActionUrl(link, 'resetPassword');
+  const actionUrl = buildBrandedActionUrl(link, 'resetPassword', locale);
   const name = user.displayName?.trim().split(/\s+/)[0];
-  await sendEmail(email, 'Reset your EduLabs password', {
-    preheader: 'Choose a new password for your EduLabs account.',
-    eyebrow: 'PASSWORD SECURITY',
-    headline: 'Choose a new password',
-    greeting: name ? `Hello ${name},` : 'Hello,',
-    paragraphs: [
+  const arabic = locale === 'ar';
+  await sendEmail(email, arabic ? 'إعادة تعيين كلمة مرور EduLabs' : 'Reset your EduLabs password', {
+    locale,
+    preheader: arabic ? 'اختر كلمة مرور جديدة لحسابك على EduLabs.' : 'Choose a new password for your EduLabs account.',
+    eyebrow: arabic ? 'أمان كلمة المرور' : 'PASSWORD SECURITY',
+    headline: arabic ? 'اختر كلمة مرور جديدة' : 'Choose a new password',
+    greeting: name ? (arabic ? `مرحبًا ${name}،` : `Hello ${name},`) : (arabic ? 'مرحبًا،' : 'Hello,'),
+    paragraphs: arabic ? [
+      'تلقّينا طلبًا لإعادة تعيين كلمة المرور لحسابك على EduLabs.',
+      'إذا كنت أنت من طلب ذلك، فاستخدم الزر أدناه لاختيار كلمة مرور جديدة. أما إذا لم تطلبه، فتجاهل الرسالة؛ ستظل كلمة مرورك الحالية كما هي.',
+    ] : [
       'We received a request to reset the password for your EduLabs account.',
       'If you requested this, use the button below to set a new password. If not, ignore this email—your current password will stay unchanged.',
     ],
-    buttonLabel: 'Reset password',
+    buttonLabel: arabic ? 'إعادة تعيين كلمة المرور' : 'Reset password',
     actionUrl,
-    footer: 'This secure link is single-use and expires. EduLabs will never ask you to send us your password.',
+    footer: arabic ? 'هذا الرابط آمن ويُستخدم مرة واحدة وتنتهي صلاحيته. لن تطلب منك EduLabs إرسال كلمة مرورك أبدًا.' : 'This secure link is single-use and expires. EduLabs will never ask you to send us your password.',
   });
 }
