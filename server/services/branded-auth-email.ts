@@ -1,6 +1,5 @@
 import 'server-only';
 
-import { Resend } from 'resend';
 import { getFirebaseAdminAuth } from '@/server/integrations/firebase-admin';
 
 export type FirebaseEmailActionMode = 'verifyEmail' | 'resetPassword';
@@ -30,9 +29,10 @@ function appOrigin() {
 }
 
 export function assertBrandedEmailConfigured() {
-  if (!process.env.RESEND_API_KEY?.trim() || !process.env.AUTH_EMAIL_FROM?.trim()) {
+  if (!process.env.BREVO_API_KEY?.trim()) {
     throw new Error('Branded email delivery is not configured');
   }
+  brevoSender();
   appOrigin();
 }
 
@@ -137,19 +137,43 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
   return { html, text };
 }
 
+function brevoSender() {
+  const from = process.env.AUTH_EMAIL_FROM?.trim() ?? '';
+  const parsed = /^([^<>\r\n]+?)\s*<([^\s<>@]+@[^\s<>@]+)>$/.exec(from);
+  if (!parsed || !parsed[1].trim()) throw new Error('Branded email sender is not configured');
+  return { name: parsed[1].trim(), email: parsed[2].toLowerCase() };
+}
+
 async function sendEmail(to: string, subject: string, content: BrandedEmailContent) {
   assertBrandedEmailConfigured();
-  const resend = new Resend(process.env.RESEND_API_KEY!.trim());
   const { html, text } = renderBrandedEmail(content);
-  const result = await resend.emails.send({
-    from: process.env.AUTH_EMAIL_FROM!.trim(),
-    to,
-    subject,
-    html,
-    text,
-  });
-  if (result.error) {
-    // Do not log recipient addresses, action codes, full provider responses, or email bodies.
+  const sender = brevoSender();
+  let response: Response;
+  try {
+    response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': process.env.BREVO_API_KEY!.trim(),
+        'accept': 'application/json',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender,
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text,
+        tags: ['edulabs-auth'],
+      }),
+      cache: 'no-store',
+      redirect: 'error',
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    // Never reveal API keys, recipients, Firebase action codes or provider bodies.
+    throw new Error('Branded email provider is unavailable');
+  }
+  if (!response.ok) {
     throw new Error('Branded email provider rejected the message');
   }
 }
