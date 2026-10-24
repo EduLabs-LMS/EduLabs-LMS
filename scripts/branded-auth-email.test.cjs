@@ -194,7 +194,7 @@ test('Arabic verification and password-reset emails use natural Arabic copy, RTL
   assert.match(verification.htmlContent, /<body dir="rtl"/);
   assert.match(verification.htmlContent, /تأكيد البريد الإلكتروني/);
   assert.match(verification.htmlContent, /خطوة واحدة لتفعيل حسابك/);
-  assert.match(verification.htmlContent, /تأكيد البريد الإلكتروني/);
+  assert.match(verification.htmlContent, /<a[^>]*>تأكيد البريد الإلكتروني&nbsp;/);
   assert.match(verification.htmlContent, /الزر لا يعمل؟/);
   assert.match(verification.htmlContent, /dir="ltr".*header-logo-tight\.png|header-logo-tight\.png/);
   assert.match(verification.htmlContent, /text-align:right/);
