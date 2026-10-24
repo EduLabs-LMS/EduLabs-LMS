@@ -92,8 +92,8 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
   const locale = content.locale ?? 'en';
   const isArabic = locale === 'ar';
   const direction = isArabic ? 'rtl' : 'ltr';
-  const textAlign = isArabic ? 'right' : 'left';
-  const headerCellPadding = isArabic ? '0 14px 0 0' : '0 0 0 14px';
+  const textAlign = 'left';
+  const headerCellPadding = '0 0 0 14px';
   const letterSpacing = isArabic ? '0' : '1.2px';
   const headlineLetterSpacing = isArabic ? '0' : '-0.7px';
   const headlineLineHeight = isArabic ? '1.5' : '1.2';
@@ -132,7 +132,7 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
         <table role="presentation" dir="${direction}" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;">
           <tr>
             <td style="padding:0 2px 20px;">
-              <table role="presentation" dir="${direction}" cellspacing="0" cellpadding="0" border="0" style="border-collapse:separate;">
+              <table role="presentation" dir="ltr" align="left" cellspacing="0" cellpadding="0" border="0" style="border-collapse:separate;">
                 <tr>
                   <td width="48" height="48" align="center" valign="middle" bgcolor="#f8faf5" style="width:48px;height:48px;background:#f8faf5;border:2px solid #111;border-radius:13px;box-shadow:3px 3px 0 #111;">
                     <img src="${logoUrl}" width="34" height="40" alt="${logoAlt}" style="display:block;width:34px;height:40px;border:0;outline:none;text-decoration:none;">
@@ -152,15 +152,15 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
                 </tr>
                 <tr>
                   <td style="padding:30px 30px 28px;">
-                    <table role="presentation" dir="${direction}" align="${isArabic ? 'right' : 'left'}" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 17px;border-collapse:separate;">
+                    <table role="presentation" dir="${direction}" align="left" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 17px;border-collapse:separate;">
                       <tr>
                         <td bgcolor="#e4f6d9" style="padding:7px 10px;background:#e4f6d9;border:1.5px solid #111;border-radius:7px;font-size:10px;line-height:1.1;font-weight:800;letter-spacing:${letterSpacing};color:#245b2d;">${eyebrow}</td>
                       </tr>
                     </table>
-                    <h1 style="margin:0 0 18px;color:#142011;font-family:Tahoma,Arial,Helvetica,sans-serif;font-size:29px;line-height:${headlineLineHeight};font-weight:800;letter-spacing:${headlineLetterSpacing};">${headline}</h1>
+                    <h1 dir="${direction}" style="margin:0 0 18px;text-align:${textAlign};color:#142011;font-family:Tahoma,Arial,Helvetica,sans-serif;font-size:29px;line-height:${headlineLineHeight};font-weight:800;letter-spacing:${headlineLetterSpacing};">${headline}</h1>
                     ${greeting}
                     ${paragraphs}
-                    <table role="presentation" dir="${direction}" align="${isArabic ? 'right' : 'left'}" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 25px;border-collapse:separate;">
+                    <table role="presentation" dir="${direction}" align="left" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 25px;border-collapse:separate;">
                       <tr>
                         <td align="center" bgcolor="#7ed957" style="background:#7ed957;border:2px solid #111;border-radius:12px;box-shadow:3px 3px 0 #111;">
                           <a href="${escapeHtml(actionUrl)}" target="_blank" style="display:inline-block;padding:14px 22px;color:#142011;text-decoration:none;font-size:15px;line-height:${buttonLineHeight};font-weight:800;border-radius:10px;" dir="${direction}">${buttonLabel}&nbsp; ${buttonArrow}</a>
@@ -170,8 +170,8 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
                     <table role="presentation" dir="${direction}" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#eef2e9" style="width:100%;background:#eef2e9;border:1px solid #d7dfd0;border-radius:12px;border-collapse:separate;">
                       <tr>
                         <td style="padding:14px 15px;">
-                          <p style="margin:0 0 7px;color:#52634b;font-size:11px;line-height:1.4;font-weight:800;letter-spacing:${letterSpacing};">${fallbackHeading}</p>
-                          <p style="margin:0 0 7px;color:#52634b;font-size:12px;line-height:1.6;">${fallbackIntro}</p>
+                          <p dir="${direction}" style="margin:0 0 7px;color:#52634b;font-size:11px;line-height:1.4;font-weight:800;letter-spacing:${letterSpacing};text-align:${textAlign};">${fallbackHeading}</p>
+                          <p dir="${direction}" style="margin:0 0 7px;color:#52634b;font-size:12px;line-height:1.6;text-align:${textAlign};">${fallbackIntro}</p>
                           <p dir="ltr" style="margin:0;overflow-wrap:anywhere;word-break:break-all;font-size:12px;line-height:1.7;text-align:left;"><a href="${escapeHtml(actionUrl)}" dir="ltr" style="color:#245b2d;text-decoration:underline;overflow-wrap:anywhere;word-break:break-all;"><bdi dir="ltr">${escapeHtml(actionUrl)}</bdi></a></p>
                         </td>
                       </tr>
