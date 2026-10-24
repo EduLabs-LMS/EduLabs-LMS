@@ -12,6 +12,7 @@ type BrandedEmailContent = {
   buttonLabel: string;
   actionUrl: string;
   footer: string;
+  eyebrow?: string;
 };
 
 function appOrigin() {
@@ -84,7 +85,9 @@ function safeActionUrl(value: string) {
 export function renderBrandedEmail(content: BrandedEmailContent) {
   const origin = appOrigin();
   const actionUrl = safeActionUrl(content.actionUrl);
+  const logoUrl = escapeHtml(origin + '/edulabs-logo.svg');
   const preheader = escapeHtml(content.preheader);
+  const eyebrow = escapeHtml(content.eyebrow ?? 'ACCOUNT SECURITY');
   const headline = escapeHtml(content.headline);
   const greeting = content.greeting ? `<p style="margin:0 0 16px;color:#1b2819;font-size:16px;line-height:1.65;">${escapeHtml(content.greeting)}</p>` : '';
   const paragraphs = content.paragraphs.map(value =>
@@ -93,34 +96,87 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
   const footer = escapeHtml(content.footer);
   const html = `<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
-<body style="margin:0;padding:0;background:#e9eee5;font-family:Arial,Helvetica,sans-serif;color:#142011;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div>
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#e9eee5;width:100%;">
-    <tr><td align="center" style="padding:32px 14px;">
-      <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;">
-        <tr><td style="padding:0 0 18px;">
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
-            <td valign="middle" style="width:42px;height:42px;background:#7ed957;border:2px solid #111;border-radius:12px;text-align:center;font-size:22px;font-weight:800;color:#142011;">E</td>
-            <td valign="middle" style="padding-left:12px;font-size:25px;font-weight:800;letter-spacing:-0.6px;color:#142011;">EduLabs</td>
-          </tr></table>
-        </td></tr>
-        <tr><td style="background:#f7f8f3;border:2px solid #111;border-radius:22px;padding:34px 32px;box-shadow:5px 5px 0 #111;">
-          <p style="margin:0 0 12px;color:#276b39;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">EDULABS ACCOUNT</p>
-          <h1 style="margin:0 0 20px;color:#142011;font-size:28px;line-height:1.2;font-weight:800;letter-spacing:-0.5px;">${headline}</h1>
-          ${greeting}${paragraphs}
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 22px;">
-            <tr><td bgcolor="#7ed957" style="border:2px solid #111;border-radius:13px;box-shadow:3px 3px 0 #111;">
-              <a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:14px 22px;color:#142011;text-decoration:none;font-size:15px;font-weight:800;">${buttonLabel} &rarr;</a>
-            </td></tr>
-          </table>
-          <p style="margin:0 0 10px;color:#5c6a58;font-size:12px;line-height:1.7;">If the button does not work, copy this link into your browser:</p>
-          <p style="margin:0 0 22px;overflow-wrap:anywhere;font-size:12px;line-height:1.7;"><a href="${escapeHtml(actionUrl)}" style="color:#276b39;">${escapeHtml(actionUrl)}</a></p>
-          <div style="border-top:1px solid #d7dfd0;padding-top:18px;color:#5c6a58;font-size:12px;line-height:1.7;">${footer}</div>
-        </td></tr>
-        <tr><td style="padding:22px 8px 0;color:#5c6a58;text-align:center;font-size:11px;line-height:1.7;">EduLabs · Learning, organized around you.<br><a href="${escapeHtml(origin)}" style="color:#276b39;text-decoration:underline;">Visit EduLabs</a></td></tr>
-      </table>
-    </td></tr>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>${headline} · EduLabs</title>
+</head>
+<body style="margin:0;padding:0;background:#e9eee5;color:#142011;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <div style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">${preheader} &#847; &zwnj;&nbsp;&#847; &zwnj;&nbsp;&#847;</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#e9eee5" style="width:100%;background:#e9eee5;border-collapse:collapse;">
+    <tr>
+      <td align="center" style="padding:32px 14px 36px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;">
+          <tr>
+            <td style="padding:0 2px 20px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:separate;">
+                <tr>
+                  <td width="48" height="48" align="center" valign="middle" bgcolor="#f8faf5" style="width:48px;height:48px;background:#f8faf5;border:2px solid #111;border-radius:13px;box-shadow:3px 3px 0 #111;">
+                    <img src="${logoUrl}" width="34" height="40" alt="EduLabs tree mark" style="display:block;width:34px;height:40px;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td valign="middle" style="padding:0 0 0 14px;">
+                    <div style="font-size:25px;line-height:1.1;font-weight:800;letter-spacing:-0.7px;color:#142011;">EduLabs</div>
+                    <div style="padding-top:5px;font-size:10px;line-height:1.2;font-weight:700;letter-spacing:1.5px;color:#52634b;">LEARN · PRACTICE · PROGRESS</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f8faf5" style="width:100%;background:#f8faf5;border:2px solid #111;border-radius:22px;box-shadow:5px 5px 0 #111;border-collapse:separate;">
+                <tr>
+                  <td height="7" bgcolor="#7ed957" style="height:7px;background:#7ed957;border-radius:18px 18px 0 0;font-size:0;line-height:0;">&nbsp;</td>
+                </tr>
+                <tr>
+                  <td style="padding:30px 30px 28px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 17px;border-collapse:separate;">
+                      <tr>
+                        <td bgcolor="#e4f6d9" style="padding:7px 10px;background:#e4f6d9;border:1.5px solid #111;border-radius:7px;font-size:10px;line-height:1.1;font-weight:800;letter-spacing:1.2px;color:#245b2d;">${eyebrow}</td>
+                      </tr>
+                    </table>
+                    <h1 style="margin:0 0 18px;color:#142011;font-family:Arial,Helvetica,sans-serif;font-size:29px;line-height:1.2;font-weight:800;letter-spacing:-0.7px;">${headline}</h1>
+                    ${greeting}
+                    ${paragraphs}
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 25px;border-collapse:separate;">
+                      <tr>
+                        <td align="center" bgcolor="#7ed957" style="background:#7ed957;border:2px solid #111;border-radius:12px;box-shadow:3px 3px 0 #111;">
+                          <a href="${escapeHtml(actionUrl)}" target="_blank" style="display:inline-block;padding:14px 22px;color:#142011;text-decoration:none;font-size:15px;line-height:1.25;font-weight:800;border-radius:10px;">${buttonLabel}&nbsp; &#8594;</a>
+                        </td>
+                      </tr>
+                    </table>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#eef2e9" style="width:100%;background:#eef2e9;border:1px solid #d7dfd0;border-radius:12px;border-collapse:separate;">
+                      <tr>
+                        <td style="padding:14px 15px;">
+                          <p style="margin:0 0 7px;color:#52634b;font-size:11px;line-height:1.4;font-weight:800;letter-spacing:0.8px;">BUTTON NOT WORKING?</p>
+                          <p style="margin:0 0 7px;color:#52634b;font-size:12px;line-height:1.6;">Copy and paste this secure link into your browser:</p>
+                          <p style="margin:0;overflow-wrap:anywhere;word-break:break-all;font-size:12px;line-height:1.7;"><a href="${escapeHtml(actionUrl)}" style="color:#245b2d;text-decoration:underline;overflow-wrap:anywhere;word-break:break-all;">${escapeHtml(actionUrl)}</a></p>
+                        </td>
+                      </tr>
+                    </table>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin-top:23px;border-collapse:collapse;">
+                      <tr><td style="border-top:1px solid #d7dfd0;padding-top:17px;">
+                        <p style="margin:0;color:#52634b;font-size:12px;line-height:1.75;">${footer}</p>
+                      </td></tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:23px 8px 0;color:#52634b;text-align:center;font-size:11px;line-height:1.8;">
+              <p style="margin:0 0 5px;font-weight:700;color:#354333;">EduLabs · Learning, organized around you.</p>
+              <a href="${escapeHtml(origin)}" style="color:#245b2d;text-decoration:underline;">Visit EduLabs</a>
+              <span style="padding:0 7px;color:#a1ad9b;">·</span>
+              <span>Automated account email</span>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
   </table>
 </body>
 </html>`;
@@ -130,9 +186,9 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
     content.greeting ?? '',
     ...content.paragraphs,
     `${content.buttonLabel}: ${actionUrl}`,
-    actionUrl,
+    `If the button does not work, copy this link into your browser: ${actionUrl}`,
     content.footer,
-    `EduLabs · ${origin}`,
+    `EduLabs · Learning, organized around you. ${origin}`,
   ].filter(Boolean).join('\n\n');
   return { html, text };
 }
@@ -185,16 +241,17 @@ export async function sendVerificationEmailForUser(user: { email?: string | null
   const actionUrl = buildBrandedActionUrl(link, 'verifyEmail');
   const name = user.displayName?.trim().split(/\s+/)[0];
   await sendEmail(user.email, 'Verify your EduLabs email address', {
-    preheader: 'Confirm your email to finish setting up your EduLabs account.',
-    headline: 'Verify your email address',
+    preheader: 'One quick step to finish setting up your EduLabs account.',
+    eyebrow: 'EMAIL VERIFICATION',
+    headline: 'One quick step to activate your account',
     greeting: name ? `Hello ${name},` : 'Hello,',
     paragraphs: [
-      'Please confirm that this email address belongs to you so we can keep your EduLabs account secure.',
-      'Use the button below to verify your email address. If you did not create an EduLabs account, you can safely ignore this message.',
+      'Thanks for joining EduLabs. Confirm your email address to finish setting up your account.',
+      'If you did not create an EduLabs account, you can ignore this message. No changes will be made.',
     ],
-    buttonLabel: 'Verify email address',
+    buttonLabel: 'Verify my email',
     actionUrl,
-    footer: 'For your security, this link is single-use and expires. EduLabs will never ask you to share your password or verification link.',
+    footer: 'This secure link is single-use and expires. For your safety, do not forward it or share it with anyone.',
   });
 }
 
@@ -213,14 +270,15 @@ export async function sendPasswordResetForAddress(email: string) {
   const name = user.displayName?.trim().split(/\s+/)[0];
   await sendEmail(email, 'Reset your EduLabs password', {
     preheader: 'Choose a new password for your EduLabs account.',
-    headline: 'Reset your password',
+    eyebrow: 'PASSWORD SECURITY',
+    headline: 'Choose a new password',
     greeting: name ? `Hello ${name},` : 'Hello,',
     paragraphs: [
       'We received a request to reset the password for your EduLabs account.',
-      'Choose a new password using the button below. If you did not request this, you can safely ignore this message; your password will not change.',
+      'If you requested this, use the button below to set a new password. If not, ignore this email—your current password will stay unchanged.',
     ],
-    buttonLabel: 'Choose a new password',
+    buttonLabel: 'Reset password',
     actionUrl,
-    footer: 'For your security, this link is single-use and expires. Never share password-reset links with anyone.',
+    footer: 'This secure link is single-use and expires. EduLabs will never ask you to send us your password.',
   });
 }
