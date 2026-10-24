@@ -25,9 +25,12 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const params = await searchParams;
   const locale = await resolveLocale(params);
   const reset = actionMode(params) === 'resetPassword';
-  const title = locale === 'ar'
-    ? (reset ? 'إعادة تعيين كلمة مرور EduLabs' : 'تأكيد بريدك الإلكتروني · EduLabs')
-    : (reset ? 'Reset your EduLabs password' : 'Verify your EduLabs email');
+  let title: string;
+  if (locale === 'ar') {
+    title = reset ? 'إعادة تعيين كلمة مرور EduLabs' : 'تأكيد بريدك الإلكتروني · EduLabs';
+  } else {
+    title = reset ? 'Reset your EduLabs password' : 'Verify your EduLabs email';
+  }
   const description = locale === 'ar'
     ? 'أكمل التحقق من بريدك الإلكتروني أو حدّث كلمة مرورك بأمان.'
     : 'Verify your email or securely update your EduLabs password.';
