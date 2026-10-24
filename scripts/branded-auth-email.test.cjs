@@ -215,12 +215,16 @@ test('Arabic verification and password-reset emails use natural Arabic copy, RTL
 
 test('secure auth action page follows the email language and preserves bidirectional fields', () => {
   const page = fs.readFileSync('frontend/features/auth/branded-auth-action.tsx', 'utf8');
+  const pageShell = fs.readFileSync('app/auth/action/page.tsx', 'utf8');
   const handler = fs.readFileSync('server/http/branded-auth-email.ts', 'utf8');
   assert.match(page, /current\.searchParams\.get\('lang'\)/);
   assert.match(page, /document\.documentElement\.dir = selectedLocale === 'ar' \? 'rtl' : 'ltr'/);
   assert.match(page, /lang=\{locale\} dir=\{direction\}/);
   assert.match(page, /تأكيد بريدك الإلكتروني/);
   assert.match(page, /dir="ltr"/);
+  assert.match(pageShell, /generateMetadata/);
+  assert.match(pageShell, /initialLocale=\{locale\}/);
+  assert.match(pageShell, /lang=\{locale\} dir=\{direction\}/);
   assert.match(handler, /request\.cookies\.get\(languageCookieKey\)/);
   assert.match(handler, /sendVerificationEmailForUser\(user, requestedLanguage\(request\)\)/);
   assert.match(handler, /sendPasswordResetForAddress\(body\.email\.trim\(\), requestedLanguage\(request\)\)/);
