@@ -4,24 +4,23 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const ts = require('typescript');
 
-function service(env = {}) {
+function service(env = {}, options = {}) {
   const module = { exports: {} };
   const source = ts.transpileModule(fs.readFileSync('server/services/branded-auth-email.ts', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   vm.runInNewContext(source, {
-    module, exports: module.exports, URL, process: { env: {
+    module, exports: module.exports, URL, AbortSignal, fetch: options.fetch, process: { env: {
       NODE_ENV: 'production',
       APP_ORIGIN: 'https://staging.edulabs-eg.com',
       NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'diagonproduction',
-      RESEND_API_KEY: 'synthetic-key',
+      BREVO_API_KEY: 'synthetic-key',
       AUTH_EMAIL_FROM: 'EduLabs <no-reply@mail.edulabs-eg.com>',
       ...env,
     } },
     require(name) {
       if (name === 'server-only') return {};
-      if (name === 'resend') return { Resend: class { constructor() {} } };
-      if (name === '@/server/integrations/firebase-admin') return { getFirebaseAdminAuth: () => ({}) };
+      if (name === '@/server/integrations/firebase-admin') return { getFirebaseAdminAuth: () => options.firebaseAuth ?? {} };
       throw new Error('Unexpected import: ' + name);
     },
   });
@@ -71,5 +70,47 @@ test('branded HTML and text escape untrusted content and use only the configured
 });
 
 test('branded delivery fails closed without configured provider credentials', () => {
-  assert.throws(() => service({ RESEND_API_KEY: '', AUTH_EMAIL_FROM: '' }).assertBrandedEmailConfigured());
+  assert.throws(() => service({ BREVO_API_KEY: '', AUTH_EMAIL_FROM: '' }).assertBrandedEmailConfigured());
+});
+
+
+test('Brevo sends branded HTML and text without exposing the API key to the message', async () => {
+  const calls = [];
+  const firebaseAuth = {
+    generateEmailVerificationLink: async () =>
+      'https://diagonproduction.firebaseapp.com/__/auth/action?mode=verifyEmail&oobCode=synthetic-code',
+  };
+  const api = service({}, {
+    firebaseAuth,
+    fetch: async (url, request) => {
+      calls.push({ url, request });
+      return { ok: true, status: 201 };
+    },
+  });
+  await api.sendVerificationEmailForUser({ email: 'student@example.com', displayName: 'Student Example' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://api.brevo.com/v3/smtp/email');
+  assert.equal(calls[0].request.method, 'POST');
+  assert.equal(calls[0].request.headers['api-key'], 'synthetic-key');
+  const body = JSON.parse(calls[0].request.body);
+  assert.deepEqual(JSON.parse(JSON.stringify(body.sender)), { name: 'EduLabs', email: 'no-reply@mail.edulabs-eg.com' });
+  assert.equal(body.to.length, 1);
+  assert.equal(body.to[0].email, 'student@example.com');
+  assert.match(body.htmlContent, /staging\.edulabs-eg\.com\/auth\/action/);
+  assert.match(body.textContent, /staging\.edulabs-eg\.com\/auth\/action/);
+  assert.doesNotMatch(calls[0].request.body, /synthetic-key/);
+});
+
+test('Brevo errors fail closed and do not disclose provider responses', async () => {
+  const firebaseAuth = {
+    generateEmailVerificationLink: async () =>
+      'https://diagonproduction.firebaseapp.com/__/auth/action?mode=verifyEmail&oobCode=synthetic-code',
+  };
+  const badHttp = service({}, { firebaseAuth, fetch: async () => ({ ok: false, status: 429, body: 'private Brevo detail' }) });
+  await assert.rejects(badHttp.sendVerificationEmailForUser({ email: 'test@example.com' }),
+    error => /Branded email provider rejected/.test(error.message) && !/private Brevo detail/.test(error.message));
+  const networkError = service({}, { firebaseAuth, fetch: async () => { throw new Error('network failure with private details'); } });
+  await assert.rejects(networkError.sendVerificationEmailForUser({ email: 'test@example.com' }),
+    error => /Branded email provider is unavailable/.test(error.message) && !/private details/.test(error.message));
+  assert.throws(() => service({ AUTH_EMAIL_FROM: 'Evil\r\nBcc: bad@example.com' }).assertBrandedEmailConfigured());
 });
