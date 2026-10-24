@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { applyActionCode, checkActionCode, confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import EduLabsMark from '@/frontend/components/edulabs-mark';
@@ -65,6 +65,7 @@ const actionCopy = {
 
 export default function BrandedAuthAction() {
   const [mode, setMode] = useState<Mode>('');
+  const initialAction = useRef<{ action: string | null; code: string; locale: 'en' | 'ar' } | null>(null);
   const [locale, setLocale] = useState<'en' | 'ar'>('en');
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
@@ -82,15 +83,19 @@ export default function BrandedAuthAction() {
     const previousDirection = document.documentElement.dir || 'ltr';
     const current = new URL(window.location.href);
     const requestedLocale = current.searchParams.get('lang');
-    const selectedLocale: 'en' | 'ar' = requestedLocale === 'ar' || requestedLocale === 'en'
-      ? requestedLocale
-      : previousLanguage === 'ar' ? 'ar' : 'en';
+    const requestedAction = current.searchParams.get('mode');
+    const requestedCode = current.searchParams.get('oobCode') ?? '';
+    if (!initialAction.current) {
+      const selectedLocale: 'en' | 'ar' = requestedLocale === 'ar' || requestedLocale === 'en'
+        ? requestedLocale
+        : previousLanguage === 'ar' ? 'ar' : 'en';
+      initialAction.current = { action: requestedAction, code: requestedCode, locale: selectedLocale };
+    }
+    const { action, code: oobCode, locale: selectedLocale } = initialAction.current;
     const text = actionCopy[selectedLocale];
     setLocale(selectedLocale);
     document.documentElement.lang = selectedLocale;
     document.documentElement.dir = selectedLocale === 'ar' ? 'rtl' : 'ltr';
-    const action = current.searchParams.get('mode');
-    const oobCode = current.searchParams.get('oobCode') ?? '';
     window.history.replaceState({}, document.title, '/auth/action');
     if ((action !== 'verifyEmail' && action !== 'resetPassword') || !oobCode || oobCode.length > 4096) {
       setLinkInvalid(true);
