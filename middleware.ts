@@ -24,7 +24,14 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   }
   if (path === '/teacher/website') {const response=NextResponse.next();response.headers.set('X-Robots-Tag','noindex, nofollow');if(isFirebaseStaging())return response;}
   if (path === '/api/health') return NextResponse.next();
-  if (path.startsWith('/api/auth/firebase/')) return NextResponse.next();
+  if (path === '/auth/action' && isFirebaseStaging()) {
+    const response = NextResponse.next();
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    response.headers.set('Cache-Control', 'private, no-store');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return response;
+  }
+  if (path.startsWith('/api/auth/firebase/') || path.startsWith('/api/auth/branded-email/')) return NextResponse.next();
   if (!isFirebaseStaging()) {
     if (path === '/lms-staging') return NextResponse.redirect(new URL('/sign-in', request.url));
     return legacyMiddleware(request, event);

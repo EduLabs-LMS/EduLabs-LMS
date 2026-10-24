@@ -29,6 +29,7 @@ test('restored-session and form completion navigate home only once', async () =>
     'lucide-react': {},
     '@/shared/contracts/account': {},
     '@/frontend/lib/signup-recovery': {},
+    '@/frontend/lib/branded-auth-email': { requestBrandedVerification: async () => {}, requestBrandedPasswordReset: async () => {} },
     '@/frontend/lib/account-draft': {},
     '@/frontend/components/edulabs-mark': {},
     './avatar-picker': {}, './provider-icons': {},
@@ -98,7 +99,7 @@ test('Firebase staging never routes legacy APIs to Clerk or Prisma', () => {
   for (const path of ['/api/teacher/organizations', '/api/teacher/courses', '/api/teacher/courses/20000000-0000-0000-0000-000000000001']) assert.equal(middleware(request(path), {}), 'allowed');
   for (const path of ['/api/teacher/courses/invalid', '/api/teacher/courses/20000000-0000-0000-0000-000000000001/chapters']) assert.equal(middleware(request(path), {}), 503);
   assert.equal(middleware(request('/courses/id/chapters/lesson'), {}), '/unavailable');
-  for (const path of ['/sign-in', '/lms-staging', '/api/auth/firebase/session']) assert.equal(middleware(request(path), {}), 'allowed');
+  for (const path of ['/sign-in', '/lms-staging', '/auth/action', '/api/auth/firebase/session', '/api/auth/branded-email/password-reset']) assert.equal(middleware(request(path), {}), 'allowed');
 });
 test('same-origin CSRF validation fails closed in production without an exact configured origin', () => {
   const deps = { 'next/server': {}, '@supabase/supabase-js': {}, '@/shared/supabase-config': {}, '@/shared/auth-config': {}, '@/server/services/firebase-auth': {}, '@/server/integrations/firebase-admin': {} };

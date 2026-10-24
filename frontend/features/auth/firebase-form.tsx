@@ -1,13 +1,14 @@
 'use client';
 import { useCallback,useEffect,useRef,useState } from 'react';
 import Link from 'next/link';
-import { GoogleAuthProvider,OAuthProvider,sendEmailVerification,sendPasswordResetEmail,signInWithEmailAndPassword,signInWithPopup,signInWithRedirect,getRedirectResult,getAdditionalUserInfo } from 'firebase/auth';
+import { GoogleAuthProvider,OAuthProvider,signInWithEmailAndPassword,signInWithPopup,signInWithRedirect,getRedirectResult,getAdditionalUserInfo } from 'firebase/auth';
 import { Eye,EyeOff,ArrowRight,ShieldCheck } from 'lucide-react';
 import { getFirebaseAuth,restoreFirebaseAuth } from '@/frontend/lib/firebase';
 import { synchronizeFirebaseSession,useFirebaseAuth } from '@/frontend/components/providers/firebase-auth-provider';
 import { safeStudentAuthDestination } from '@/shared/contracts/student-administration';
 import { accountNames } from '@/shared/contracts/account';
 import { registerFirebaseAccount } from '@/frontend/lib/signup-recovery';
+import { requestBrandedPasswordReset,requestBrandedVerification } from '@/frontend/lib/branded-auth-email';
 import { storeAccountDraft } from '@/frontend/lib/account-draft';
 import EduLabsMark from '@/frontend/components/edulabs-mark';
 import { AvatarPicker } from './avatar-picker';
@@ -55,8 +56,8 @@ export function FirebaseForm({register=false}:{register?:boolean}){
     <button className={button+' !bg-primary'}>{busy?'Please wait…':register?'Create account':'Sign in'}<ArrowRight className="h-4 w-4"/></button>
    </fieldset></form>
    <div className="space-y-3"><button disabled={busy||loading} onClick={()=>void provider('google')} className={button}><GoogleIcon/>Continue with Google</button><button disabled={!apple||busy||loading} aria-describedby={!apple?'apple-setup':undefined} onClick={()=>void provider('apple')} className={button}><AppleIcon/>Continue with Apple</button>{!apple&&<p id="apple-setup" className="text-xs text-slate-600">Apple sign-in requires provider setup and is currently unavailable.</p>}</div>
-   {!register&&<button disabled={busy||!email} className="text-sm font-semibold underline" onClick={()=>void run(async()=>{try{await sendPasswordResetEmail(getFirebaseAuth(),email.trim());}catch(e){if(!['auth/user-not-found','auth/invalid-email'].includes((e as {code:string}).code))throw e;}setMessage('If an account exists, a password reset email has been sent.');})}>Forgot password?</button>}
-   {user&&!user.emailVerified&&<div className="space-y-3 rounded-2xl border-2 border-black bg-primary/15 p-4"><p className="text-sm">Check your inbox and spam folder. Learning access remains locked until your email is verified.</p><div className="flex flex-wrap gap-3"><button disabled={busy||now<retryAt} className="text-sm font-bold underline disabled:opacity-50" onClick={()=>void run(async()=>{if(Date.now()<retryAt)throw Error('Wait before requesting another verification email.');setRetryAt(Date.now()+60000);await sendEmailVerification(user);setMessage('Verification email sent. Check your inbox.');})}>{now<retryAt?`Resend in ${Math.ceil((retryAt-now)/1000)}s`:'Resend verification'}</button><button disabled={busy} className="text-sm font-bold underline" onClick={()=>void run(async()=>{await refresh();goHome();})}>I verified my email</button></div></div>}
+   {!register&&<button disabled={busy||!email} className="text-sm font-semibold underline" onClick={()=>void run(async()=>{try{await requestBrandedPasswordReset(email.trim());}catch(e){if(!['auth/user-not-found','auth/invalid-email'].includes((e as {code:string}).code))throw e;}setMessage('If an account exists, a password reset email has been sent.');})}>Forgot password?</button>}
+   {user&&!user.emailVerified&&<div className="space-y-3 rounded-2xl border-2 border-black bg-primary/15 p-4"><p className="text-sm">Check your inbox and spam folder. Learning access remains locked until your email is verified.</p><div className="flex flex-wrap gap-3"><button disabled={busy||now<retryAt} className="text-sm font-bold underline disabled:opacity-50" onClick={()=>void run(async()=>{if(Date.now()<retryAt)throw Error('Wait before requesting another verification email.');setRetryAt(Date.now()+60000);await requestBrandedVerification(user);setMessage('Verification email sent. Check your inbox.');})}>{now<retryAt?`Resend in ${Math.ceil((retryAt-now)/1000)}s`:'Resend verification'}</button><button disabled={busy} className="text-sm font-bold underline" onClick={()=>void run(async()=>{await refresh();goHome();})}>I verified my email</button></div></div>}
    {(message||error)&&<p role="status" aria-live="polite" className="break-words rounded-xl border-2 border-black bg-white p-3 text-sm">{message||error}</p>}
    <p className="text-sm"><Link className="font-bold underline" href={(register?'/sign-in':'/sign-up')+(next==='/home'?'':'?next='+encodeURIComponent(next))}>{register?'Already have an account? Sign in':'Create an account'}</Link></p>
   </div>
