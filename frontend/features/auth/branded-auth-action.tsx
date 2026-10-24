@@ -97,6 +97,11 @@ export default function BrandedAuthAction() {
     setLocale(selectedLocale);
     document.documentElement.lang = selectedLocale;
     document.documentElement.dir = selectedLocale === 'ar' ? 'rtl' : 'ltr';
+    if (selectedLocale === 'ar') {
+      document.title = action === 'resetPassword' ? 'إعادة تعيين كلمة مرور EduLabs' : 'تأكيد بريدك الإلكتروني · EduLabs';
+    } else {
+      document.title = action === 'resetPassword' ? 'Reset your EduLabs password' : 'Verify your EduLabs email';
+    }
     window.history.replaceState({}, document.title, '/auth/action');
     if ((action !== 'verifyEmail' && action !== 'resetPassword') || !oobCode || oobCode.length > 4096) {
       setLinkInvalid(true);
