@@ -7,7 +7,9 @@
 - Branch: `codex/teacher-ui-clean-foundation`.
 - Worktree: `C:/dev/EduLabs-LMS/.local/worktrees/teacher-ui-clean-foundation`.
 - Exact starting/current HEAD: `fa67875fdab88f0fc640804e2f96b6aa7c44b0c1`.
-- Changes remain unstaged/uncommitted for independent review. No new commit is claimed.
+- Correction (2026-10-24): this foundation was subsequently committed as `d3451e5`; the
+  branch/uncommitted statements here describe the time of writing. Platform-admin work
+  continues on `claude/admin-provisioning-v1`.
 - Separate worktree created from that exact SHA; no other worktree was overwritten.
 - Friend redesign second-parent `16acf2f` and merge `f1be2f8` were NOT imported.
 - No push, merge, deployment, connected database/provider mutation, email PR change or

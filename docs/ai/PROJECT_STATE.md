@@ -1,10 +1,15 @@
 # Current development state — 2026-10-24 (Africa/Cairo)
 
 - Repository: EduLabs-LMS/EduLabs-LMS.
-- Branch: codex/teacher-ui-clean-foundation.
-- Exact starting HEAD: fa67875fdab88f0fc640804e2f96b6aa7c44b0c1.
-- This preparation is local and uncommitted pending independent review; there is no
-  new final commit SHA. Use Git status/diff, not this document alone, to inspect it.
+- Branch: claude/admin-provisioning-v1 (worktree .local/worktrees/admin-provisioning-v1).
+- Base HEAD: d3451e52c13a64f28d865ace8c9bd32059b4e696 (the committed clean teacher-UI
+  foundation, itself on top of fa67875). Correction: earlier text named branch
+  codex/teacher-ui-clean-foundation at fa67875 as uncommitted; that preparation is
+  committed as d3451e5.
+- Teacher Provisioning V1 (Platform Admin) is implemented in the
+  working tree, UNCOMMITTED, pending review. Its migration is authored but NOT applied
+  anywhere. See docs/platform-admin-teacher-provisioning.md. Not built: invitation acceptance page,
+  email delivery, workspace reset.
 - Owner authorization: issue #20 comment 6383545623 and the explicit chat instruction.
 - Neither friend branch 16acf2f nor integration merge f1be2f8 was merged/cherry-picked.
 - Continue Learning fix d96c40e was selectively ported, retaining baseline styles.
@@ -14,7 +19,7 @@
   are in RETIRED_TEACHER_UI.json. Shared views retain student behavior.
 - Old teacher administration is intentionally unavailable on this branch. APIs and
   contextual authorization remain. It is NOT a deployable teacher-pilot release.
-- Baseline has 31 local migration files. No connected database was queried or changed
+- Baseline had 31 local migration files; Teacher Provisioning V1 adds a 32nd (unapplied). No connected database was queried or changed
   in this preparation. The prior audit counted 31 development migrations; the ledger
   records six historical version mappings. Do not replay or repair history.
 - main, staging/integration, other worktrees and PR #19 are outside this change.

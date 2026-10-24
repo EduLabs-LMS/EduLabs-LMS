@@ -1,0 +1,123 @@
+/* EduLabs design system: TOKENS.
+ *
+ * This is the one file to edit to change typography, surfaces, borders, shadows, radii or
+ * themes for every screen built on the design system (Platform Admin today, teacher UI next).
+ * Components (components.css) and screens never contain a literal color, font or radius.
+ *
+ * Scope: everything is declared on `.eds-root`, so student pages never inherit it. The root also
+ * carries `data-appearance-island` so the legacy light/dark remapping in appearance.css skips it.
+ *
+ * Brand values are the ones the student app already uses:
+ *   fonts   app/layout.tsx          Figtree (body), Caprasimo (display), Cairo / Lalezar (Arabic)
+ *   colors  tailwind.config.js      physics.black #e9eee4, charcoal #f6f9f2, panel #d8e2d0,
+ *                                   cyan #7ed957 (the signature green), white #1c2418, muted #44523d
+ *   shape   globals.css             --radius 1rem, 24px cards, 2px-2.5px black borders, hard offset shadow
+ * The font variables are injected by next/font on <body>; the fallbacks inside var() keep the
+ * brand family names valid even where those variables are absent (tests, embeds). */
+
+.eds-root {
+  /* ---- Typography ---- */
+  --eds-font-body: var(--font-body, 'Figtree'), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --eds-font-display: var(--font-display, 'Caprasimo'), 'Cooper Black', Georgia, serif;
+  --eds-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --eds-text-xs: 0.75rem;
+  --eds-text-sm: 0.875rem;
+  --eds-text-md: 0.9375rem;
+  --eds-text-lg: 1.125rem;
+  --eds-text-xl: 1.5rem;
+  --eds-text-2xl: 2rem;
+  --eds-weight-regular: 500;
+  --eds-weight-strong: 650;
+  --eds-weight-heavy: 750;
+  --eds-leading: 1.5;
+
+  /* ---- Shape ---- */
+  --eds-radius-sm: 10px;
+  --eds-radius-md: 14px;
+  --eds-radius-lg: 24px;
+  --eds-radius-pill: 999px;
+  --eds-border-width: 1.5px;
+  --eds-border-width-strong: 2px;
+  --eds-border-width-selected: 2.5px;
+
+  /* ---- Spacing ---- */
+  --eds-space-1: 0.25rem;
+  --eds-space-2: 0.5rem;
+  --eds-space-3: 0.75rem;
+  --eds-space-4: 1rem;
+  --eds-space-5: 1.5rem;
+  --eds-space-6: 2.25rem;
+  /* Page container widths (see .eds-page): focused workflows, regular forms/settings, wide tables, fluid dashboards */
+  --eds-page-focused: 44rem;
+  --eds-page-regular: 56rem;
+  --eds-page-wide: 80rem;
+
+  /* ---- Surfaces and ink (light) ---- */
+  --eds-bg: #e9eee4;
+  --eds-surface: #f6f9f2;
+  --eds-surface-sunken: #e1e9da;
+  --eds-surface-selected: #ffffff;
+  --eds-text: #1c2418;
+  --eds-text-muted: #44523d;
+  --eds-border: #b9c6b1;
+  --eds-border-strong: #000000;
+  --eds-brand: #7ed957;
+  --eds-brand-hover: #9be573;
+  --eds-brand-contrast: #000000;
+  --eds-brand-soft: #daf0cc;
+  --eds-link: #1c5a1a;
+  --eds-danger: #b3261e;
+  --eds-danger-soft: #fbe3e0;
+  --eds-warn-soft: #fcefc7;
+  --eds-warn-border: #a2700a;
+  --eds-focus: #1c5a1a;
+  --eds-scrim: rgb(0 0 0 / 0.45);
+  /* ---- Native controls: selection, focus ring, select chevron ---- */
+  --eds-selection-bg: #7ed957;
+  --eds-selection-text: #1c2418;
+  --eds-focus-ring: rgb(126 217 87 / 0.55);
+  --eds-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231c2418' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --eds-disabled-bg: #e1e9da;
+
+  /* ---- Elevation: the brand uses a hard offset, never a blur ---- */
+  --eds-shadow-accent: 3px 3px 0 var(--eds-border-strong);
+  --eds-shadow-accent-lift: 4px 4px 0 var(--eds-border-strong);
+  --eds-shadow-none: none;
+
+  color-scheme: light;
+}
+
+html.dark .eds-root {
+  --eds-bg: hsl(140 19% 8%);
+  --eds-surface: hsl(140 14% 13%);
+  --eds-surface-sunken: hsl(140 14% 10%);
+  --eds-surface-selected: hsl(140 12% 17%);
+  --eds-text: hsl(90 25% 93%);
+  --eds-text-muted: hsl(90 14% 75%);
+  --eds-border: hsl(100 13% 28%);
+  --eds-border-strong: hsl(100 15% 58%);
+  --eds-brand: #7ed957;
+  --eds-brand-hover: #9be573;
+  --eds-brand-contrast: #000000;
+  --eds-brand-soft: hsl(115 25% 21%);
+  --eds-link: hsl(102 63% 72%);
+  --eds-danger: #ff9b92;
+  --eds-danger-soft: #3d1f1c;
+  --eds-warn-soft: #3a2f10;
+  --eds-warn-border: #d9a441;
+  --eds-focus: #9be573;
+  --eds-selection-bg: #7ed957;
+  --eds-selection-text: #0b1608;
+  --eds-focus-ring: rgb(126 217 87 / 0.45);
+  --eds-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e8f2de' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --eds-disabled-bg: hsl(140 14% 10%);
+  --eds-shadow-accent: 3px 3px 0 hsl(100 15% 58% / 0.55);
+  --eds-shadow-accent-lift: 4px 4px 0 hsl(100 15% 58% / 0.7);
+  color-scheme: dark;
+}
+
+/* Arabic uses the app's Arabic families for both body and display. */
+html[lang='ar'] .eds-root {
+  --eds-font-body: var(--font-arabic-body, 'Cairo'), var(--font-body, 'Figtree'), ui-sans-serif, system-ui, sans-serif;
+  --eds-font-display: var(--font-arabic-display, 'Lalezar'), var(--font-display, 'Caprasimo'), serif;
+}

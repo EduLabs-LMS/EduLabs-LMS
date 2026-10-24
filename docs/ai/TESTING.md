@@ -25,7 +25,7 @@ this preparation installed nothing and did not change the lockfile.
 ## Disposable SQL only
 npm run test:exam-sql:postgres
 The existing harness reads a loopback PostgreSQL port from ignored .local/step03a/
-pg-port.txt, creates a unique owned database, replays 31 migrations and executes 23
+pg-port.txt, creates a unique owned database, replays 32 migrations and executes 24
 rollback suites plus independent-session concurrency tests. Run only against an owned
 local disposable cluster. It does not use a Supabase URL. No hosted migration replay,
 db push, history repair or real academic records. Keep the migration ledger intact.
@@ -54,3 +54,11 @@ real Firebase/Next integration. SQL tests prove local RLS, not hosted configurat
 Test failures referencing intentionally deleted UI were replaced with retirement
 assertions; backend/service/contract/RLS coverage remains. See the review report for
 exact counts, initial failures and remaining live-provider/cross-browser limits.
+
+Platform admin (teacher provisioning): scripts/platform-admin.test.cjs (unit/contract/render, part of npm test), scripts/platform-admin-browser.cjs (Chromium, fictional HTTP, real brand fonts from .next after a build, a11y/contrast scans, screenshots; needs LMS_BROWSER_RUNTIME/LMS_ESBUILD_RUNTIME), supabase/tests/platform-admin-provisioning.sql (via exam-sql-local --postgres). None of these is Firebase/Supabase/email end-to-end verification.
+
+SQL runtime note: the default in-memory runtime (PGlite 0.5.8) is PostgreSQL 18 and reports ON DELETE RESTRICT as
+23001, which the existing academic-programs-stages suite (written against PostgreSQL 17, 23503) rejects. This is
+independent of any migration (it fails identically on the 31-file baseline). The authoritative run is
+`npm run test:exam-sql:postgres` against a disposable PostgreSQL 17 on loopback. Release procedure and rollback:
+docs/platform-admin-staging-release.md.

@@ -6,7 +6,30 @@ test('foundation: anonymous and student cannot open management scaffold',async()
 test('foundation: active contextual staff retain route integrity without granting new permissions',async()=>{for(const role of ['owner','admin','teacher','assistant']){const result=await page({memberships:[{role,status:'active'}],courseStaff:[],offeringStaff:[]})({title:'Courses'});assert.equal(result.props.title,'Courses');}await assert.rejects(page({memberships:[{role:'owner',status:'suspended'}],courseStaff:[{}],offeringStaff:[]})({title:'Courses'}),/redirect:\/home/);});
 test('foundation: legacy route guard still denies student and anonymous identities',async()=>{await assert.rejects(page(null,null,false)({title:'Courses'}),/redirect:\/sign-in/);await assert.rejects(page(null,{id:'self',role:'STUDENT'},false)({title:'Courses'}),/redirect:\/home/);assert.equal((await page(null,{id:'self',role:'TEACHER'},false)({title:'Courses'})).props.title,'Courses');});
 test('foundation: scaffold states unavailable, contains no old forms or fake saved data',()=>{const Notice=load('frontend/components/teacher-foundation-notice.tsx',{'@/frontend/components/language-provider':{L:({id})=>React.createElement('span',null,id)}}).TeacherFoundationNotice;const html=require('react-dom/server').renderToStaticMarkup(React.createElement(Notice,{title:'Course editor'}));assert.match(html,/data-teacher-foundation/);assert.match(html,/foundation.teacher_rebuild/);assert.doesNotMatch(html,/<form|<input|<button|saved successfully|Create your organization/i);});
-test('foundation: academic data, existing server authorization, API adapters and contracts are byte-preserved',()=>{const changed=cp.execFileSync('git',['diff','--name-only','fa67875fdab88f0fc640804e2f96b6aa7c44b0c1','--','server','app/api','shared','supabase','infra'],{encoding:'utf8'}).trim();assert.deepEqual(changed.split('\n').filter(Boolean).filter(p=>!['server/http/learning-overview.ts','app/api/learning-overview/route.ts'].includes(p)),[]);assert.equal(fs.readdirSync('supabase/migrations').filter(p=>p.endsWith('.sql')).length,31);});
+// The staging manager validates an extracted `git archive` (no .git directory, shallow origin): history-based checks are skipped there,
+// and the pinned-hash test below covers the migrations in every environment.
+const hasBaselineHistory=(()=>{try{cp.execFileSync('git',['cat-file','-e','fa67875fdab88f0fc640804e2f96b6aa7c44b0c1^{commit}'],{stdio:'ignore'});return true;}catch{return false;}})();
+test('foundation: the 31 baseline migrations are byte-identical to the approved staging baseline (pinned SHA-256, any checkout)',()=>{
+const crypto=require('node:crypto'),pinned=JSON.parse(fs.readFileSync('scripts/baseline-migrations.json','utf8')),names=Object.keys(pinned);
+assert.equal(names.length,31);
+for(const name of names){const raw=fs.readFileSync('supabase/migrations/'+name),hash=b=>crypto.createHash('sha256').update(b).digest('hex');
+// A Windows checkout may convert line endings; the manager hashes the Git blob, so accept the LF-normalised form too.
+const lf=hash(Buffer.from(raw.toString('latin1').replace(/\r\n/g,'\n'),'latin1'));
+assert.ok(hash(raw)===pinned[name]||lf===pinned[name],name+' differs from the approved baseline');}
+const present=fs.readdirSync('supabase/migrations').filter(n=>n.endsWith('.sql')).sort();
+assert.deepEqual(present.filter(n=>!(n in pinned)),['20261024120000_platform_admin_teacher_provisioning.sql'],'exactly one new migration is allowed');
+});
+test('foundation: academic data, existing server authorization, API adapters and contracts are byte-preserved',{skip:hasBaselineHistory?false:'requires Git history (not present in a git-archive checkout)'},()=>{const git=args=>cp.execFileSync('git',['diff',...args,'fa67875fdab88f0fc640804e2f96b6aa7c44b0c1','--','server','app/api','shared','supabase','infra'],{encoding:'utf8'}).trim().split(String.fromCharCode(10)).filter(Boolean);
+// Existing files may not be modified, deleted or renamed except the one listed below. Additions (Continue Learning handler, platform-admin milestone) have their own tests.
+assert.deepEqual(git(['--name-only','--diff-filter=MDR']).filter(p=>p!=='shared/contracts/database.types.ts'),[]);
+// The single permitted edit to an existing backend file is additive typings for teacher provisioning: zero deleted lines.
+assert.deepEqual(git(['--numstat','--diff-filter=M']).filter(l=>l.endsWith('database.types.ts')).map(l=>l.split(String.fromCharCode(9))[1]),['0']);
+// The provisioning migration must exist, names must be unique, and it must sort after every baseline migration. Later migrations are allowed.
+const migrations=fs.readdirSync('supabase/migrations').filter(p=>p.endsWith('.sql')).sort();
+const provisioning='20261024120000_platform_admin_teacher_provisioning.sql';
+assert.ok(migrations.includes(provisioning));assert.equal(new Set(migrations).size,migrations.length);
+const baseline=cp.execFileSync('git',['ls-tree','--name-only','fa67875fdab88f0fc640804e2f96b6aa7c44b0c1','supabase/migrations/'],{encoding:'utf8'}).split(/\r?\n/).filter(p=>p.endsWith('.sql')).map(p=>p.split('/').pop());
+assert.ok(baseline.length>0);for(const name of baseline){assert.ok(migrations.includes(name));assert.ok(name<provisioning);}});
 test('foundation: original student routes remain; redesign relocation and preview are absent',()=>{assert.ok(fs.existsSync('app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx'));assert.ok(fs.existsSync('app/(dashboard)/(routes)/courses/[courseId]/chapters/[chapterId]/page.tsx'));assert.equal(fs.existsSync('app/(dashboard)/(routes)/self-learning/[courseId]/layout.tsx'),false);assert.equal(fs.existsSync('shared/student-preview.ts'),false);});
 test('foundation: successful Firebase login uses one soft replace without redundant refresh or email imports',()=>{const code=fs.readFileSync('frontend/features/auth/firebase-form.tsx','utf8');assert.match(code,/router.replace\(destination\)/);assert.doesNotMatch(code,/router.refresh\(|location.replace\(destination\)|BREVO|auth\/action/);});
 

@@ -1,10 +1,10 @@
 # Handoff state — not yet approved for Claude implementation
 
-Branch: codex/teacher-ui-clean-foundation.
-Starting/HEAD commit: fa67875fdab88f0fc640804e2f96b6aa7c44b0c1.
-Candidate changes are uncommitted for owner review. Pin the resulting independently
-reviewed commit before a portable source handoff; do not pretend HEAD contains these
-working-tree changes. No push/merge/deployment has occurred.
+Branch: claude/admin-provisioning-v1. Base HEAD: d3451e52c13a64f28d865ace8c9bd32059b4e696
+(the committed clean foundation; the former codex/teacher-ui-clean-foundation text at
+fa67875 was stale). Teacher Provisioning V1 (platform admin) is in the working
+tree, uncommitted, for owner review; its migration is unapplied. Do not pretend HEAD
+contains these changes. No push/merge/deployment has occurred. Next milestone not started.
 
 Read PROJECT_STATE, ARCHITECTURE, DECISIONS, TEACHER_UI_SPEC, TESTING and the preparation
 review. RETIRED_TEACHER_UI.json lists every deleted teacher presentation path with its

@@ -29,3 +29,7 @@ Canonical references: ../architecture.md (current notice plus historical details
 ../database-architecture.md, ../firebase-auth-integration.md (historical rollout),
 ../development-db-migration-ledger.md, ../organization-provisioning.md, migrations,
 server/services/application-auth.ts, server/integrations/supabase.ts and middleware.ts.
+
+Platform admin: /platform-admin/teachers and /api/platform-admin/portals, plus
+/api/teacher-invitations/accept (middleware allowlisted in Firebase mode). Authorization is
+private.is_platform_admin() in PostgreSQL; see ../platform-admin-teacher-provisioning.md.

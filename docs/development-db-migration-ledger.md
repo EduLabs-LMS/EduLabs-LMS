@@ -135,3 +135,7 @@ Verified GitHub blob SHA: `ffb266022381ba1faa5b1bb1665fee3d9723adad`. The Git fi
 **Never reapply M6A.** Git version `20261019004546` and remote history version `20261019132423` differ. The **six** Git/remote version differences through M6 must be respected. Do not run `supabase db push`, `supabase migration up`, or history repair without separately approved reconciliation. No staging/VPS/production website, Caddy or external DNS/TLS change occurred. M6B editor, M6C public routes, M6D domain verifier and real authenticated/Storage acceptance remain pending.
 
 This is a **ledger-only GitHub commit** made after source commit `b46faff6619e7bb0a664c0e9253a233140c3e231`; the Codex M6 worktree must fetch and **fast-forward** before developing M6B. Do not reset or force-push its local changes. The reviewed SQL and prior migrations remain unchanged.
+
+## Pending, NOT applied: 20261024120000_platform_admin_teacher_provisioning.sql
+
+Authored locally on `claude/admin-provisioning-v1`; verified only on a disposable local PostgreSQL. It has not been applied to any Supabase project. Application requires separate explicit owner approval.

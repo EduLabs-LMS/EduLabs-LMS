@@ -1,0 +1,52 @@
+/* Platform administration layout only. Colors, fonts, radii and borders come from the design system
+ * (frontend/design-system/tokens.css); nothing here may declare a literal color or font family.
+ * Every selector is scoped to .pa-root so student and teacher pages never inherit it. */
+.pa-root { min-height: 100dvh; display: grid; grid-template-columns: 16.5rem minmax(0, 1fr); }
+
+/* Sidebar */
+.pa-sidebar { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; gap: var(--eds-space-5); padding: var(--eds-space-4) var(--eds-space-3);
+  background: var(--eds-surface); border-inline-end: var(--eds-border-width-strong) solid var(--eds-border-strong); overflow-y: auto; z-index: 40; }
+.pa-brand { display: flex; align-items: center; gap: var(--eds-space-3); padding: var(--eds-space-1) var(--eds-space-2); text-decoration: none; color: var(--eds-text); }
+.pa-brand .eds-brand { display: inline-flex; align-items: center; gap: var(--eds-space-3); }
+.pa-brand .eds-brand-mark { width: 2.4rem; height: 2.4rem; flex: none; transition: transform 0.2s ease; }
+.pa-brand:hover .eds-brand-mark { transform: rotate(-6deg) scale(1.05); }
+.pa-brand .eds-wordmark { font-size: 1.55rem; line-height: 1; }
+.pa-brand small { display: block; margin-top: 0.2rem; color: var(--eds-text-muted); font-size: 0.68rem; font-weight: var(--eds-weight-heavy); letter-spacing: 0.08em; text-transform: uppercase; }
+.pa-nav { display: flex; flex-direction: column; gap: var(--eds-space-1); }
+.pa-link { display: flex; align-items: center; gap: var(--eds-space-3); padding: 0.55rem 0.9rem; border: var(--eds-border-width-strong) solid transparent; border-radius: var(--eds-radius-pill);
+  color: var(--eds-text); text-decoration: none; font-weight: var(--eds-weight-strong); }
+.pa-link:hover { background: var(--eds-surface-sunken); }
+.pa-link[aria-current='page'] { background: var(--eds-brand); color: var(--eds-brand-contrast); border-color: var(--eds-border-strong); }
+.pa-sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--eds-space-2); padding: var(--eds-space-1) var(--eds-space-2); font-size: var(--eds-text-sm); color: var(--eds-text-muted); }
+
+/* Main column */
+.pa-main { min-width: 0; display: flex; flex-direction: column; }
+.pa-topbar { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: var(--eds-space-2) var(--eds-space-3); padding: var(--eds-space-3) var(--eds-space-5);
+  background: color-mix(in srgb, var(--eds-bg) 90%, transparent); backdrop-filter: blur(8px); }
+.pa-topbar-spacer { flex: 1; }
+.pa-menu-btn { display: none; }
+.pa-topbar { display: none; }
+.pa-content { width: 100%; padding: var(--eds-space-6) var(--eds-space-5) var(--eds-space-6); display: flex; flex-direction: column; gap: var(--eds-space-5); }
+.pa-form { display: flex; flex-direction: column; gap: var(--eds-space-5); }
+.pa-scrim { display: none; }
+.pa-split { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: var(--eds-space-5); align-items: start; }
+.pa-stack { display: flex; flex-direction: column; gap: var(--eds-space-5); min-width: 0; }
+.pa-system { display: flex; flex-direction: column; gap: var(--eds-space-3); }
+.pa-system-head { display: flex; align-items: center; justify-content: space-between; gap: var(--eds-space-3); }
+.pa-inline-add { display: flex; flex-wrap: wrap; gap: var(--eds-space-2); align-items: center; padding: var(--eds-space-3); border: var(--eds-border-width-strong) dashed var(--eds-border); border-radius: var(--eds-radius-md); }
+.pa-inline-add .eds-input { flex: 1 1 10rem; width: auto; }
+.pa-actions-row { display: flex; flex-wrap: wrap; gap: var(--eds-space-3); align-items: center; }
+
+@media (max-width: 1060px) { .pa-split { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) {
+  .pa-root { grid-template-columns: minmax(0, 1fr); }
+  .pa-menu-btn { display: inline-flex; }
+  .pa-topbar { display: flex; }
+  .pa-sidebar { position: fixed; inset-block: 0; inset-inline-start: 0; width: min(18rem, 86vw); transform: translateX(-102%); visibility: hidden; transition: transform 0.2s ease, visibility 0s linear 0.2s; }
+  [dir='rtl'] .pa-sidebar { transform: translateX(102%); }
+  .pa-root[data-nav-open='true'] .pa-sidebar { transform: none; visibility: visible; transition-delay: 0s; }
+  .pa-root[data-nav-open='true'] .pa-scrim { display: block; position: fixed; inset: 0; z-index: 35; background: var(--eds-scrim); border: 0; }
+  .pa-content { padding-inline: var(--eds-space-4); }
+  .pa-topbar { padding-inline: var(--eds-space-4); }
+}
+@media (prefers-reduced-motion: reduce) { .pa-sidebar, .pa-brand .eds-brand-mark { transition: none; } }

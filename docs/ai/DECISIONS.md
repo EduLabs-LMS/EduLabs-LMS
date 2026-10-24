@@ -20,3 +20,10 @@
   retiring forms does not disable the backend or change data.
 - No migrations, connected fixtures, provider writes, staging or production deployment
   were authorized by this preparation. Local disposable PostgreSQL is test-only.
+- Platform administration is a dedicated private registry (private.platform_admins) keyed to
+  the verified Firebase identity; it is not a role, membership or claim. Initial admin is
+  granted only by a trusted operator SQL procedure; there is no UI/API to grant it.
+- Teacher provisioning is invitation-only. Educational structure stays tenant-owned (no global
+  catalog): Education System = academic_programs (+ optional examination_board), Grade Level =
+  academic_stages, Subject = new academic_subjects, Course.subject_id. Creating a portal does
+  not grant ownership; a verified-email-bound, single-use, hash-only invitation does.
