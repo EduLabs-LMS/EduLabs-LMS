@@ -25,15 +25,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const params = await searchParams;
   const locale = await resolveLocale(params);
   const reset = actionMode(params) === 'resetPassword';
-  return {
-    title: locale === 'ar'
-      ? reset ? 'إعادة تعيين كلمة مرور EduLabs' : 'تأكيد بريدك الإلكتروني · EduLabs'
-      : reset ? 'Reset your EduLabs password' : 'Verify your EduLabs email',
-    description: locale === 'ar'
-      ? 'أكمل التحقق من بريدك الإلكتروني أو حدّث كلمة مرورك بأمان.'
-      : 'Verify your email or securely update your EduLabs password.',
-    robots: { index: false, follow: false },
-  };
+  const title = locale === 'ar'
+    ? (reset ? 'إعادة تعيين كلمة مرور EduLabs' : 'تأكيد بريدك الإلكتروني · EduLabs')
+    : (reset ? 'Reset your EduLabs password' : 'Verify your EduLabs email');
+  const description = locale === 'ar'
+    ? 'أكمل التحقق من بريدك الإلكتروني أو حدّث كلمة مرورك بأمان.'
+    : 'Verify your email or securely update your EduLabs password.';
+  return { title, description, robots: { index: false, follow: false } };
 }
 
 export default async function AuthActionPage({ searchParams }: PageProps) {
