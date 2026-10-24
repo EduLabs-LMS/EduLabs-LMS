@@ -81,6 +81,7 @@ export default function BrandedAuthAction() {
     // Remove the one-time code from the address bar/history as soon as it is read.
     const previousLanguage = document.documentElement.lang || 'en';
     const previousDirection = document.documentElement.dir || 'ltr';
+    const previousTitle = document.title;
     const current = new URL(window.location.href);
     const requestedLocale = current.searchParams.get('lang');
     const requestedAction = current.searchParams.get('mode');
@@ -104,6 +105,7 @@ export default function BrandedAuthAction() {
       return () => {
         document.documentElement.lang = previousLanguage;
         document.documentElement.dir = previousDirection;
+        document.title = previousTitle;
       };
     }
     setMode(action);
@@ -130,6 +132,7 @@ export default function BrandedAuthAction() {
     return () => {
       document.documentElement.lang = previousLanguage;
       document.documentElement.dir = previousDirection;
+      document.title = previousTitle;
     };
   }, []);
 
