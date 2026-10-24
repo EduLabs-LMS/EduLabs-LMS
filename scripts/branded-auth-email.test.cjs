@@ -98,7 +98,7 @@ test('Brevo sends branded HTML and text without exposing the API key to the mess
   assert.equal(body.to[0].email, 'student@example.com');
   assert.match(body.htmlContent, /staging\.edulabs-eg\.com\/auth\/action/);
   assert.match(body.textContent, /staging\.edulabs-eg\.com\/auth\/action/);
-  assert.match(body.htmlContent, /src="https:\/\/staging\.edulabs-eg\.com\/edulabs-logo\.svg"/);
+  assert.match(body.htmlContent, /src="https:\/\/staging\.edulabs-eg\.com\/header-logo-tight\.png"/);
   assert.match(body.htmlContent, /alt="EduLabs tree mark"/);
   assert.match(body.htmlContent, /EMAIL VERIFICATION/);
   assert.match(body.htmlContent, /One quick step to activate your account/);
@@ -150,7 +150,7 @@ test('password-reset email uses the matching security variant and real EduLabs b
   assert.match(body.htmlContent, /PASSWORD SECURITY/);
   assert.match(body.htmlContent, /Choose a new password/);
   assert.match(body.htmlContent, /Reset password/);
-  assert.match(body.htmlContent, /edulabs-logo\.svg/);
+  assert.match(body.htmlContent, /header-logo-tight\.png/);
   assert.match(body.htmlContent, /This secure link is single-use and expires/);
   assert.match(body.textContent, /If the button does not work, copy this link/);
 });
