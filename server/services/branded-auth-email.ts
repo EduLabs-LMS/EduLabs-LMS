@@ -99,7 +99,7 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
   const fallbackHeading = isArabic ? 'الزر لا يعمل؟' : 'BUTTON NOT WORKING?';
   const fallbackIntro = isArabic ? 'انسخ هذا الرابط الآمن والصقه في المتصفح:' : 'Copy and paste this secure link into your browser:';
   const fallbackText = isArabic ? `إذا لم يعمل الزر، انسخ الرابط التالي والصقه في المتصفح: ${actionUrl}` : `If the button does not work, copy this link into your browser: ${actionUrl}`;
-  const footerTagline = isArabic ? 'التعلّم، منظّم حول احتياجاتك.' : 'EduLabs · Learning, organized around you.';
+  const footerTagline = isArabic ? 'التعلّم، منظّم حول احتياجاتك.' : 'Learning, organized around you.';
   const visitLabel = isArabic ? 'زيارة EduLabs' : 'Visit EduLabs';
   const automatedLabel = isArabic ? 'رسالة آلية خاصة بالحساب' : 'Automated account email';
   const buttonArrow = isArabic ? '&#8592;' : '&#8594;';
