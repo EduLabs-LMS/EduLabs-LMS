@@ -135,7 +135,7 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
                     <img src="${logoUrl}" width="34" height="40" alt="${logoAlt}" style="display:block;width:34px;height:40px;border:0;outline:none;text-decoration:none;">
                   </td>
                   <td valign="middle" style="padding:${headerCellPadding};">
-                    <div style="font-size:25px;line-height:1.1;font-weight:800;letter-spacing:-0.7px;color:#142011;"><bdi dir="ltr">EduLabs</bdi></div>
+                    <div style="font-size:25px;line-height:1.1;font-weight:800;letter-spacing:-0.7px;color:#142011;"><span dir="ltr">EduLabs</span></div>
                   </td>
                 </tr>
               </table>
@@ -149,15 +149,15 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
                 </tr>
                 <tr>
                   <td style="padding:30px 30px 28px;">
-                    <table role="presentation" dir="${direction}" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 17px;border-collapse:separate;">
+                    <table role="presentation" dir="${direction}" align="${isArabic ? 'right' : 'left'}" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 17px;border-collapse:separate;">
                       <tr>
                         <td bgcolor="#e4f6d9" style="padding:7px 10px;background:#e4f6d9;border:1.5px solid #111;border-radius:7px;font-size:10px;line-height:1.1;font-weight:800;letter-spacing:${letterSpacing};color:#245b2d;">${eyebrow}</td>
                       </tr>
                     </table>
-                    <h1 style="margin:0 0 18px;color:#142011;font-family:Arial,Helvetica,sans-serif;font-size:29px;line-height:1.2;font-weight:800;letter-spacing:-0.7px;">${headline}</h1>
+                    <h1 style="margin:0 0 18px;color:#142011;font-family:Tahoma,Arial,Helvetica,sans-serif;font-size:29px;line-height:1.2;font-weight:800;letter-spacing:-0.7px;">${headline}</h1>
                     ${greeting}
                     ${paragraphs}
-                    <table role="presentation" dir="${direction}" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 25px;border-collapse:separate;">
+                    <table role="presentation" dir="${direction}" align="${isArabic ? 'right' : 'left'}" cellspacing="0" cellpadding="0" border="0" style="margin:26px 0 25px;border-collapse:separate;">
                       <tr>
                         <td align="center" bgcolor="#7ed957" style="background:#7ed957;border:2px solid #111;border-radius:12px;box-shadow:3px 3px 0 #111;">
                           <a href="${escapeHtml(actionUrl)}" target="_blank" style="display:inline-block;padding:14px 22px;color:#142011;text-decoration:none;font-size:15px;line-height:1.25;font-weight:800;border-radius:10px;" dir="${direction}">${buttonLabel}&nbsp; ${buttonArrow}</a>
@@ -185,7 +185,7 @@ export function renderBrandedEmail(content: BrandedEmailContent) {
           </tr>
           <tr>
             <td align="center" style="padding:23px 8px 0;color:#52634b;text-align:center;font-size:11px;line-height:1.8;">
-              <p style="margin:0 0 5px;font-weight:700;color:#354333;"><bdi dir="ltr">EduLabs</bdi> · ${footerTagline}</p>
+              <p style="margin:0 0 5px;font-weight:700;color:#354333;"><span dir="ltr">EduLabs</span> · ${footerTagline}</p>
               <a href="${escapeHtml(origin)}" style="color:#245b2d;text-decoration:underline;">${visitLabel}</a>
               <span style="padding:0 7px;color:#a1ad9b;">·</span>
               <span>${automatedLabel}</span>
@@ -271,7 +271,7 @@ export async function sendVerificationEmailForUser(user: { email?: string | null
       'Thanks for joining EduLabs. Confirm your email address to finish setting up your account.',
       'If you did not create an EduLabs account, you can ignore this message. No changes will be made.',
     ],
-    buttonLabel: arabic ? 'تأكيد بريدي الإلكتروني' : 'Verify my email',
+    buttonLabel: arabic ? 'تأكيد البريد الإلكتروني' : 'Verify my email',
     actionUrl,
     footer: arabic ? 'هذا الرابط آمن ويُستخدم مرة واحدة وتنتهي صلاحيته. حفاظًا على أمانك، لا تُعِد توجيهه ولا تشاركه مع أي شخص.' : 'This secure link is single-use and expires. For your safety, do not forward it or share it with anyone.',
   });
