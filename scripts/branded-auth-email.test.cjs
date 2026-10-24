@@ -110,7 +110,9 @@ test('Brevo sends branded HTML and text without exposing the API key to the mess
   assert.match(body.htmlContent, /One quick step to activate your account/);
   assert.match(body.htmlContent, /Verify my email/);
   assert.match(body.htmlContent, /BUTTON NOT WORKING\?/);
-  assert.match(body.htmlContent, /box-shadow:5px 5px 0 #111/);
+  assert.match(body.htmlContent, /<html lang="en" dir="ltr">/);
+  assert.match(body.htmlContent, /text-align:left/);
+  assert.doesNotMatch(body.htmlContent, /box-shadow/);
   assert.doesNotMatch(body.htmlContent, /Firebase/);
   assert.doesNotMatch(calls[0].request.body, /synthetic-key/);
 });
@@ -194,12 +196,12 @@ test('Arabic verification and password-reset emails use natural Arabic copy, RTL
   assert.match(verification.htmlContent, /<body dir="rtl"/);
   assert.match(verification.htmlContent, /تأكيد البريد الإلكتروني/);
   assert.match(verification.htmlContent, /خطوة واحدة لتفعيل حسابك/);
-  assert.match(verification.htmlContent, /<a[^>]*>تأكيد البريد الإلكتروني&nbsp;/);
+  assert.match(verification.htmlContent, /<a[^>]*>تأكيد البريد الإلكتروني<\/a>/);
   assert.match(verification.htmlContent, /الزر لا يعمل؟/);
   assert.match(verification.htmlContent, /dir="ltr".*header-logo-tight\.png|header-logo-tight\.png/);
-  assert.match(verification.htmlContent, /text-align:left/);
-  assert.match(verification.htmlContent, /<table role="presentation" dir="rtl" align="left"/);
-  assert.doesNotMatch(verification.htmlContent, /text-align:right/);
+  assert.match(verification.htmlContent, /text-align:right/);
+  assert.match(verification.htmlContent, /<table role="presentation" dir="rtl" align="right"/);
+  assert.doesNotMatch(verification.htmlContent, /box-shadow/);
   assert.match(verification.htmlContent, /lang=ar/);
   assert.match(verification.textContent, /إذا لم يعمل الزر/);
   assert.doesNotMatch(verification.htmlContent, /BUTTON NOT WORKING\?/);
