@@ -58,7 +58,7 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
  }
  async function sendEmailNow() {
   const baseline: Unknown = { action: 'send-email', baselineId: latest?.id, baselineStatus: latest?.status };
-  setBusy('send'); setNotice(null); setSecret(null);
+  setBusy('send'); setNotice(null);
   const out = await api<ReissueResult>(`/api/platform-admin/portals/${portalId}`, { method: 'POST', body: { action: 'send-email', expiresInDays: 7 } });
   setBusy(null);
   if (out.ok) {
@@ -68,7 +68,7 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
    setNotice({ tone: out.data.delivery === 'sent' ? 'ok' : 'warn', key: out.data.delivery === 'sent' ? 'pa.portal.email_sent' : 'pa.portal.email_failed' });
    return;
   }
-  if (out.reason === 'network') { setUnknown(baseline); setConfirmSend(false); return; }
+  if (out.reason === 'network') { setSecret(null); setUnknown(baseline); setConfirmSend(false); return; }
   setConfirmSend(false); failure(out.reason);
  }
  /** Read-only: asks the server what the invitation looks like now and explains what that means. */

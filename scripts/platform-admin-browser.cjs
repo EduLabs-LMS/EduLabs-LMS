@@ -406,7 +406,7 @@ createRoot(document.getElementById('root')).render(
   assert.deepEqual(Object.keys(request.course).sort(), ['gradeKey', 'subjectKey', 'title']);
   const shown = await page.locator('[data-invitation-link]').innerText(); assert.ok(shown.endsWith('/teacher-invitation/' + secrets.at(-1))); assert.match(shown, /\/teacher-invitation\/[A-Za-z0-9_-]{43}$/);
   assert.ok(!JSON.stringify(posts).includes(shown), 'the secret was never sent by the browser');
-  await page.getByText('No email was sent').waitFor(); await page.getByText('not an owner yet').waitFor();
+  await page.getByText('No email was sent').waitFor(); await page.getByText('can access this teaching space after accepting').waitFor();
   assert.equal(await page.getByRole('link', { name: 'Inspect portal' }).count(), 1);
   assert.equal(portals.length, 1);
   await accessible('created, light');

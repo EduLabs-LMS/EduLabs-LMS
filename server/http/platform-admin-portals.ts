@@ -106,10 +106,11 @@ export async function platformPortalHTTP(request: NextRequest, portalId: string)
    const current = await gate.service.detail(portalId);
    const recipient = current.invitations[0]?.teacherEmail;
    if (!recipient) return reply({ error: 'Invitation not found.', reason: 'not_found' }, 404);
+   // Check the durable rate limit before replacing the current link.
+   await limitInvitationEmail(request, recipient);
    const renewed = await gate.service.reissue(portalId, input.data.expiresInDays);
    let delivery: 'sent' | 'failed' = 'failed';
    try {
-    await limitInvitationEmail(request, recipient);
     await sendTeacherInvitationEmail(recipient, renewed.invitationSecret, requestedLanguage(request));
     delivery = 'sent';
    } catch {
