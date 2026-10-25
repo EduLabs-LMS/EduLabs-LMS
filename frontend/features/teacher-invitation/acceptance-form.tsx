@@ -27,7 +27,7 @@ export function TeacherInvitationAcceptance() {
   const { language } = useLanguage();
   const t = (key: TeacherInvitationMessageKey, values?: Record<string, string | number>) =>
     translateTeacherInvitation(language, key, values);
-  const { user, loading, error: authError } = useFirebaseAuth();
+  const { user, loading, error: authError, logout } = useFirebaseAuth();
   const [token, setToken] = useState('');
   const [attempted, setAttempted] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,6 +58,25 @@ export function TeacherInvitationAcceptance() {
       }
     }
     router.push(signInHref);
+  }
+
+  async function switchAccount() {
+    const secret = token.trim();
+    try {
+      if (tokenPattern.test(secret)) sessionStorage.setItem(storedTokenKey, secret);
+      sessionStorage.setItem('edulabs-auth-next', '/accept-teacher-invitation');
+    } catch {
+      if (tokenPattern.test(secret)) {
+        setNotice({ tone: 'error', key: 'ti.error.storage' });
+        return;
+      }
+    }
+    try {
+      await logout();
+    } catch {
+      // The logout handler has already signed out locally; continue to sign-in if its response failed.
+      window.location.assign(signInHref);
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -171,7 +190,6 @@ export function TeacherInvitationAcceptance() {
                         maxLength={43}
                         disabled={busy || accepted || outcomeUnknown}
                         placeholder={t('ti.code_placeholder')}
-                        required
                       />
                     </Field>
                     <p className="eds-hint">{t('ti.privacy_note')}</p>
@@ -184,7 +202,11 @@ export function TeacherInvitationAcceptance() {
                         <Button onClick={() => { if (tokenPattern.test(token.trim())) continueToSignIn(); else router.push(signInHref); }}>
                           {t('ti.sign_in')}
                         </Button>
-                      ) : null}
+                      ) : (
+                        <Button onClick={() => { void switchAccount(); }}>
+                          {t('ti.switch_account')}
+                        </Button>
+                      )}
                     </div>
                   </form>
                 </>

@@ -485,6 +485,8 @@ test('teacher invitation acceptance is staging-only, localized, and uses the exi
  assert.match(client, /edulabs-teacher-invitation-code/);
  assert.match(client, /outcomeUnknown/);
  assert.match(client, /emailVerified/);
+ assert.match(client, /switchAccount/);
+ assert.match(client, /edulabs-auth-next/);
  assert.doesNotMatch(client, /[?&]token=|encodeURIComponent\(\s*token/i, 'the secret must never be put in the URL');
  const middleware = read('middleware.ts');
  assert.match(middleware, /path === '\/accept-teacher-invitation'/);
