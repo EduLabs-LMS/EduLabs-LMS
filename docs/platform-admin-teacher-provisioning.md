@@ -68,10 +68,16 @@ Firebase UID copied from the console. Nothing in the repo contains a real UID.
 
 ## Not built / blockers before staging
 
-- **Acceptance page**: only the API exists. The teacher has no screen to paste the code and
-  complete onboarding (display name, language, time zone, Home introduction are out of scope).
-- **Email delivery**: not connected. The UI states "No email was sent"; the code must be
-  shared manually. Brevo/email branch not merged.
+- **Teacher acceptance page**: implemented at `/teacher-invitation/<token>`. The link returns
+  through the existing Firebase sign-in/sign-up flow, requires a verified matching email, and
+  accepts the invitation only once. Profile completion uses the existing EduLabs account flow;
+  there is no separate invitation login.
+- **Invitation email**: uses the existing EduLabs-branded Brevo renderer. The admin can send a
+  fresh link and then copy that same link for WhatsApp. Sending replaces the previous link.
+  Live delivery still requires protected `BREVO_API_KEY`, `AUTH_EMAIL_FROM`, `APP_ORIGIN`,
+  and the deployed/configured durable rate-limit Worker. If delivery fails, the newly issued link
+  is returned once for manual sharing; the UI never claims email was sent. No secret is stored
+  or logged, and the link token is never written to the database in plaintext.
 - Arabic-only names produce neutral generated slugs (`education-system`, `subject`, ...).
 - Migration not applied; requires owner approval and a pre-apply review of staging data.
 - Real Firebase/Supabase end-to-end (JWT claims shape, `email_verified`) is unverified.

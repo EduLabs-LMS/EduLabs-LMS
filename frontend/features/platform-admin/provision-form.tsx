@@ -130,7 +130,7 @@ export function ProvisionForm() {
   return <Page layout="focused">
    <PageHeader title={t('pa.done.title')} intro={t('pa.done.intro')} />
    <Banner tone="ok" role="status">{t('pa.done.pending_owner')}</Banner>
-   <SecretCard secret={result.invitationSecret} expiresAt={result.expiresAt} />
+   <SecretCard secret={result.invitationSecret} expiresAt={result.expiresAt} delivery={result.delivery} />
    <div className="eds-actions">
     <ButtonLink variant="primary" href={`/platform-admin/teachers/${result.organizationId}`}>{t('pa.done.inspect')}</ButtonLink>
     <ButtonLink href="/platform-admin/teachers">{t('pa.done.list')}</ButtonLink>
