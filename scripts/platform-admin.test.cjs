@@ -459,7 +459,7 @@ test('view: the portal page reports owner state, honest delivery and the audit t
   courses: [{ id: uuid(6), title: 'Physics 10', status: 'draft', subject: 'Physics', gradeLevel: 'Grade 10', educationSystem: 'IGCSE' }],
   activity: [{ action: 'portal.provision', occurredAt: '2030-01-02T00:00:00Z', actor: 'administrator' }] };
  const html = render(React.createElement(PortalView, { initial: detail, portalId: uuid(1) }));
- assert.match(html, /Access starts after the teacher accepts the invitation/); assert.match(html, /Not sent by email/); assert.match(html, /Revoke invitation/); assert.match(html, /Issue a replacement link/); assert.match(html, /Send invitation email/); assert.match(html, /Portal created/); assert.match(html, /Administrator/);
+ assert.match(html, /Access starts after the teacher accepts the invitation/); assert.match(html, /Email delivery status isn't retained here/); assert.match(html, /Revoke invitation/); assert.match(html, /Issue a replacement link/); assert.match(html, /Send invitation email/); assert.match(html, /Portal created/); assert.match(html, /Administrator/);
  assert.match(html, /Draft, no content yet/); assert.doesNotMatch(html, /data-invitation-secret/, 'a secret is never rendered from stored data');
  const accepted = render(React.createElement(PortalView, { initial: { ...detail, hasOwner: true, invitations: [{ ...detail.invitations[0], status: 'accepted', acceptedAt: '2030-01-03T00:00:00Z' }] }, portalId: uuid(1) }));
  assert.match(accepted, /accepted the invitation/); assert.doesNotMatch(accepted, /Revoke invitation|Issue a replacement link|Send invitation email/); assert.match(accepted, /can no longer be changed/);

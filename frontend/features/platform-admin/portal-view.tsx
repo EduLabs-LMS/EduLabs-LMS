@@ -68,7 +68,7 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
    setNotice({ tone: out.data.delivery === 'sent' ? 'ok' : 'warn', key: out.data.delivery === 'sent' ? 'pa.portal.email_sent' : 'pa.portal.email_failed' });
    return;
   }
-  if (out.reason === 'network') { setSecret(null); setUnknown(baseline); setConfirmSend(false); return; }
+  if (out.reason === 'network' || out.reason === 'unavailable') { setSecret(null); setUnknown(baseline); setConfirmSend(false); return; }
   setConfirmSend(false); failure(out.reason);
  }
  /** Read-only: asks the server what the invitation looks like now and explains what that means. */

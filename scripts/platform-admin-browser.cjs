@@ -435,7 +435,7 @@ createRoot(document.getElementById('root')).render(
   const id = portals.find(p => p.invitations[0].teacherEmail === 'list.teacher@example.test').organizationId;
   await open('view=detail&id=' + id);
   await page.getByText('Access starts after the teacher accepts the invitation.').waitFor();
-  const text = await page.locator('main').innerText(); for (const expected of ['Not sent by email', 'IGCSE', 'Grade 10', 'Physics - Grade 10', 'Draft, no content yet', 'Portal created', 'Administrator']) assert.ok(text.includes(expected), expected);
+  const text = await page.locator('main').innerText(); for (const expected of ['Email delivery status isn't retained here', 'IGCSE', 'Grade 10', 'Physics - Grade 10', 'Draft, no content yet', 'Portal created', 'Administrator']) assert.ok(text.includes(expected), expected);
   assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'a stored invitation never displays a secret');
   await accessible('portal, light');
   await page.getByRole('button', { name: 'Issue a replacement link' }).click(); await page.locator('#pa-re-days').selectOption('14');

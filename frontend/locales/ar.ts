@@ -739,7 +739,7 @@ export const ar: Record<keyof typeof en, string> = {
   "pa.portal.outcome_email_unknown": "تغير رابط الدعوة، لكن تعذّر تأكيد إرسال البريد. تحقق من صندوق بريد المعلم قبل إصدار رابط آخر.",
   "pa.portal.outcome_email_not_started": "لم يتم إنشاء رابط بديل. يمكنك محاولة إرسال الدعوة مرة أخرى.",
   "pa.portal.sent": "التسليم",
-  "pa.portal.not_sent": "لم تُرسل بالبريد. انسخ الرابط وشاركه يدويًا.",
+  "pa.portal.not_sent": "لا تُحفظ حالة إرسال البريد هنا. استخدم زر إرسال الدعوة لإرسال رابط جديد؛ سيظهر الرابط بعد ذلك لتتمكن من مشاركته عبر واتساب أيضًا.",
   "pa.portal.expires": "صالحة حتى",
   "pa.portal.accepted_at": "تاريخ القبول",
   "pa.portal.accepted_note": "تم قبول الدعوة، لذا لا يمكن تغييرها بعد الآن.",

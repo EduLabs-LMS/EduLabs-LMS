@@ -739,7 +739,7 @@ export const en = {
   "pa.portal.outcome_email_unknown": "The invitation link changed, but we could not confirm email delivery. Check the teacher’s inbox before issuing another link.",
   "pa.portal.outcome_email_not_started": "No replacement link was created. You can try sending the invitation again.",
   "pa.portal.sent": "Delivery",
-  "pa.portal.not_sent": "Not sent by email. Copy and share the link manually.",
+  "pa.portal.not_sent": "Email delivery status isn't retained here. Use Send invitation email to send a fresh link; the link is shown afterward so you can also share it through WhatsApp.",
   "pa.portal.expires": "Valid until",
   "pa.portal.accepted_at": "Accepted",
   "pa.portal.accepted_note": "The invitation was accepted, so it can no longer be changed.",

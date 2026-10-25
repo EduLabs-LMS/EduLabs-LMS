@@ -75,9 +75,11 @@ Firebase UID copied from the console. Nothing in the repo contains a real UID.
 - **Invitation email**: uses the existing EduLabs-branded Brevo renderer. The admin can send a
   fresh link and then copy that same link for WhatsApp. Sending replaces the previous link.
   Live delivery still requires protected `BREVO_API_KEY`, `AUTH_EMAIL_FROM`, `APP_ORIGIN`,
-  and the deployed/configured durable rate-limit Worker. If delivery fails, the newly issued link
-  is returned once for manual sharing; the UI never claims email was sent. No secret is stored
-  or logged, and the link token is never written to the database in plaintext.
+  and the deployed/configured durable rate-limit Worker. If delivery fails after link renewal, the
+  newly issued link is returned once for manual sharing; the UI never claims email was sent. The
+  detailed portal view does not persist delivery status across reloads, so it does not infer that
+  an old invitation was or was not emailed. No secret is stored or logged, and the link token is
+  never written to the database in plaintext.
 - Arabic-only names produce neutral generated slugs (`education-system`, `subject`, ...).
 - Migration not applied; requires owner approval and a pre-apply review of staging data.
 - Real Firebase/Supabase end-to-end (JWT claims shape, `email_verified`) is unverified.
