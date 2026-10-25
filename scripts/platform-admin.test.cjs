@@ -466,6 +466,7 @@ test('view: the portal page reports owner state, honest delivery and the audit t
 test('view: the one-time secret card states plainly that no email was sent', () => {
  const { SecretCard } = view('common'); const html = render(React.createElement(SecretCard, { secret: 'A'.repeat(43), expiresAt: '2030-01-09T00:00:00Z' }));
  assert.match(html, /data-invitation-secret/); assert.match(html, /shown once/); assert.match(html, /No email was sent/); assert.match(html, /not connected yet/);
+ assert.match(html, /accept-teacher-invitation/); assert.match(html, /Copy teacher page link/);
 });
 
 

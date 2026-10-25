@@ -43,8 +43,12 @@ export async function api<T>(path: string, init?: { method: 'GET' | 'POST'; body
 export function SecretCard({ secret, expiresAt, onDone }: { secret: string; expiresAt: string; onDone?: () => void }) {
  const { t } = useLanguage();
  const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
+ const [copiedLink, setCopiedLink] = useState<'yes' | 'no' | null>(null);
  async function copy() {
   try { await navigator.clipboard.writeText(secret); setCopied('yes'); } catch { setCopied('no'); }
+ }
+ async function copyAcceptanceLink() {
+  try { await navigator.clipboard.writeText(new URL('/accept-teacher-invitation', window.location.origin).toString()); setCopiedLink('yes'); } catch { setCopiedLink('no'); }
  }
  return <Card emphasis labelledBy="pa-secret-title">
   <CardHead id="pa-secret-title" title={t('pa.secret.title')} aside={<>{t('pa.secret.expires')} <UtcDate value={expiresAt} /></>} />
@@ -55,6 +59,12 @@ export function SecretCard({ secret, expiresAt, onDone }: { secret: string; expi
     <Button onClick={copy}>{copied === 'yes' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{t(copied === 'yes' ? 'pa.secret.copied' : 'pa.secret.copy')}</Button>
    </div>
    {copied === 'no' ? <p className="eds-error" role="alert">{t('pa.secret.copy_failed')}</p> : null}
+   <p>{t('pa.secret.acceptance_link')}</p>
+   <div className="eds-input-row">
+    <code className="eds-code" dir="ltr">/accept-teacher-invitation</code>
+    <Button onClick={copyAcceptanceLink}>{copiedLink === 'yes' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{t(copiedLink === 'yes' ? 'pa.secret.link_copied' : 'pa.secret.copy_link')}</Button>
+   </div>
+   {copiedLink === 'no' ? <p className="eds-error" role="alert">{t('pa.secret.link_copy_failed')}</p> : null}
    <Banner tone="warn" role="note">{t('pa.secret.not_sent')}</Banner>
    {onDone ? <div className="eds-actions"><Button variant="primary" onClick={onDone}>{t('pa.secret.done')}</Button></div> : null}
   </CardBody>
