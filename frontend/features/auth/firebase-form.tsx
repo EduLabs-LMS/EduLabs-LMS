@@ -6,7 +6,7 @@ import { GoogleAuthProvider,OAuthProvider,sendEmailVerification,sendPasswordRese
 import { Eye,EyeOff,ArrowRight,ShieldCheck } from 'lucide-react';
 import { getFirebaseAuth,restoreFirebaseAuth } from '@/frontend/lib/firebase';
 import { synchronizeFirebaseSession,useFirebaseAuth } from '@/frontend/components/providers/firebase-auth-provider';
-import { safeStudentAuthDestination } from '@/shared/contracts/student-administration';
+import { safeApplicationAuthDestination } from '@/shared/contracts/application-auth';
 import { accountNames } from '@/shared/contracts/account';
 import { registerFirebaseAccount } from '@/frontend/lib/signup-recovery';
 import { storeAccountDraft } from '@/frontend/lib/account-draft';
@@ -33,8 +33,8 @@ export function FirebaseForm({register=false}:{register?:boolean}){
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[firstName,setFirstName]=useState(''),[lastName,setLastName]=useState(''),[photo,setPhoto]=useState<File|null>(null),[show,setShow]=useState(false),[next,setNext]=useState('/home'),[busy,setBusy]=useState(false),[message,setMessage]=useState<string|null>(null),[retryAt,setRetryAt]=useState(0),[now,setNow]=useState(0);
  const [redirectReady,setRedirectReady]=useState(false);
  const redirecting=useRef(false),operation=useRef(false);const apple=process.env.NEXT_PUBLIC_FIREBASE_APPLE_ENABLED==='true';
- useEffect(()=>{setNext(safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext()));const tick=()=>setNow(Date.now());tick();const timer=setInterval(tick,1000);return()=>clearInterval(timer);},[]);
- const goHome=useCallback(()=>{if(redirecting.current)return;redirecting.current=true;const destination=safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext());try{sessionStorage.removeItem('edulabs-auth-next');}catch{}router.replace(destination);},[router]);
+ useEffect(()=>{setNext(safeApplicationAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext()));const tick=()=>setNow(Date.now());tick();const timer=setInterval(tick,1000);return()=>clearInterval(timer);},[]);
+ const goHome=useCallback(()=>{if(redirecting.current)return;redirecting.current=true;const destination=safeApplicationAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext());try{sessionStorage.removeItem('edulabs-auth-next');}catch{}router.replace(destination);},[router]);
  const run=async(fn:()=>Promise<void>)=>{if(operation.current)return;operation.current=true;setBusy(true);setMessage(null);try{await restoreFirebaseAuth();await fn();}catch(e){setMessage(readableAuthError(e));}finally{operation.current=false;setBusy(false);}};
  useEffect(()=>{let active=true;void restoreFirebaseAuth().then(()=>getRedirectResult(getFirebaseAuth())).then(async value=>{if(value)await rememberProviderProfile(value);}).catch(e=>{if(active)setMessage(readableAuthError(e));}).finally(()=>{if(active)setRedirectReady(true);});return()=>{active=false;};},[]);
  useEffect(()=>{if(user?.emailVerified&&!loading&&!error&&!busy&&redirectReady)goHome();},[user,loading,error,busy,redirectReady,goHome]);
