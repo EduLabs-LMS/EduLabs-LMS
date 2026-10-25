@@ -50,7 +50,8 @@ test('contract: portal actions and acceptance accept only their own closed shape
  assert.ok(contract.portalAction.safeParse({ action: 'revoke' }).success);
  assert.ok(contract.portalAction.safeParse({ action: 'reissue', expiresInDays: 3 }).success);
  assert.ok(contract.portalAction.safeParse({ action: 'reissue', expiresInDays: 3, teacherEmail: 'T@Example.test' }).success);
- for (const bad of [{ action: 'delete' }, { action: 'revoke', organizationId: uuid(1) }, { action: 'reissue' }, { action: 'reissue', expiresInDays: 9 }, { action: 'accept', token: 'x' }]) assert.equal(contract.portalAction.safeParse(bad).success, false);
+ assert.ok(contract.portalAction.safeParse({ action: 'send-email', expiresInDays: 7 }).success);
+ for (const bad of [{ action: 'delete' }, { action: 'revoke', organizationId: uuid(1) }, { action: 'reissue' }, { action: 'reissue', expiresInDays: 9 }, { action: 'send-email' }, { action: 'send-email', expiresInDays: 7, token: 'x' }, { action: 'accept', token: 'x' }]) assert.equal(contract.portalAction.safeParse(bad).success, false);
  const token = crypto.randomBytes(32).toString('base64url');
  assert.ok(contract.acceptInvitationRequest.safeParse({ token }).success);
  for (const bad of [{ token: 'short' }, { token: token + 'x' }, { token, organizationId: uuid(1) }, { token, role: 'owner' }, {}, { token: token.slice(0, 42) + '!' }]) assert.equal(contract.acceptInvitationRequest.safeParse(bad).success, false);
@@ -458,12 +459,12 @@ test('view: the portal page reports owner state, honest delivery and the audit t
   courses: [{ id: uuid(6), title: 'Physics 10', status: 'draft', subject: 'Physics', gradeLevel: 'Grade 10', educationSystem: 'IGCSE' }],
   activity: [{ action: 'portal.provision', occurredAt: '2030-01-02T00:00:00Z', actor: 'administrator' }] };
  const html = render(React.createElement(PortalView, { initial: detail, portalId: uuid(1) }));
- assert.match(html, /Owner pending/); assert.match(html, /Not sent by email/); assert.match(html, /Revoke invitation/); assert.match(html, /Issue a new code/); assert.match(html, /Portal created/); assert.match(html, /Administrator/);
+ assert.match(html, /Access starts after the teacher accepts the invitation/); assert.match(html, /Not sent by email/); assert.match(html, /Revoke invitation/); assert.match(html, /Issue a replacement link/); assert.match(html, /Send invitation email/); assert.match(html, /Portal created/); assert.match(html, /Administrator/);
  assert.match(html, /Draft, no content yet/); assert.doesNotMatch(html, /data-invitation-secret/, 'a secret is never rendered from stored data');
  const accepted = render(React.createElement(PortalView, { initial: { ...detail, hasOwner: true, invitations: [{ ...detail.invitations[0], status: 'accepted', acceptedAt: '2030-01-03T00:00:00Z' }] }, portalId: uuid(1) }));
- assert.match(accepted, /owns this portal/); assert.doesNotMatch(accepted, /Revoke invitation|Issue a new code/); assert.match(accepted, /can no longer be changed/);
+ assert.match(accepted, /accepted the invitation/); assert.doesNotMatch(accepted, /Revoke invitation|Issue a replacement link|Send invitation email/); assert.match(accepted, /can no longer be changed/);
 });
-test('view: the one-time secret card states plainly that no email was sent', () => {
- const { SecretCard } = view('common'); const html = render(React.createElement(SecretCard, { secret: 'A'.repeat(43), expiresAt: '2030-01-09T00:00:00Z' }));
- assert.match(html, /data-invitation-secret/); assert.match(html, /shown once/); assert.match(html, /No email was sent/); assert.match(html, /not connected yet/);
+test('view: the one-time invitation link is shown once and copying shares a first-party URL', () => {
+ const { SecretCard } = view('common'); const token = 'A'.repeat(43); const html = render(React.createElement(SecretCard, { secret: token, expiresAt: '2030-01-09T00:00:00Z' }));
+ assert.match(html, /data-invitation-link/); assert.match(html, /teacher-invitation/); assert.match(html, /shown once/); assert.match(html, /No email was sent/); assert.doesNotMatch(html, new RegExp('>\\s*' + token + '\\s*<'));
 });

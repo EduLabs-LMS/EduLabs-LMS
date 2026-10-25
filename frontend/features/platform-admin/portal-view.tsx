@@ -12,13 +12,14 @@ const activityKey: Record<string, MessageKey> = {
  'portal.provision': 'pa.activity.provision', 'invitation.reissue': 'pa.activity.reissue', 'invitation.revoke': 'pa.activity.revoke', 'invitation.accept': 'pa.activity.accept',
 };
 /** A write whose response never arrived: what we knew before it, so a refresh can tell what really happened. */
-type Unknown = { action: 'reissue' | 'revoke'; baselineId: string | undefined; baselineStatus: InvitationStatus | undefined };
+type Unknown = { action: 'reissue' | 'revoke' | 'send-email'; baselineId: string | undefined; baselineStatus: InvitationStatus | undefined };
 
 export function PortalView({ initial, portalId }: { initial: PortalDetail; portalId: string }) {
  const { t } = useLanguage();
  const [detail, setDetail] = useState(initial);
- const [busy, setBusy] = useState<'revoke' | 'reissue' | 'refresh' | null>(null);
+ const [busy, setBusy] = useState<'revoke' | 'reissue' | 'send' | 'refresh' | null>(null);
  const [confirmRevoke, setConfirmRevoke] = useState(false);
+ const [confirmSend, setConfirmSend] = useState(false);
  const [reissue, setReissue] = useState({ open: false, days: 7, email: '' });
  const [secret, setSecret] = useState<ReissueResult | null>(null);
  const [notice, setNotice] = useState<{ tone: 'ok' | 'error' | 'warn'; key: MessageKey } | null>(null);
@@ -51,9 +52,24 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
   const email = reissue.email.trim();
   const out = await api<ReissueResult>(`/api/platform-admin/portals/${portalId}`, { method: 'POST', body: { action: 'reissue', expiresInDays: reissue.days, ...(email ? { teacherEmail: email } : {}) } });
   setBusy(null);
-  if (out.ok) { setSecret(out.data); setReplacement(false); setReissue({ open: false, days: 7, email: '' }); await reload('pa.portal.reissued'); return; }
+  if (out.ok) { setSecret(out.data); setReplacement(false); setConfirmSend(false); setReissue({ open: false, days: 7, email: '' }); await reload('pa.portal.reissued'); return; }
   if (out.reason === 'network') { setUnknown(baseline); setReissue({ ...reissue, open: false }); return; }
   failure(out.reason);
+ }
+ async function sendEmailNow() {
+  const baseline: Unknown = { action: 'send-email', baselineId: latest?.id, baselineStatus: latest?.status };
+  setBusy('send'); setNotice(null);
+  const out = await api<ReissueResult>(`/api/platform-admin/portals/${portalId}`, { method: 'POST', body: { action: 'send-email', expiresInDays: 7 } });
+  setBusy(null);
+  if (out.ok) {
+   setSecret(out.data); setConfirmSend(false); setReplacement(false);
+   const fresh = await api<PortalDetail>(`/api/platform-admin/portals/${portalId}`);
+   if (fresh.ok) setDetail(fresh.data);
+   setNotice({ tone: out.data.delivery === 'sent' ? 'ok' : 'warn', key: out.data.delivery === 'sent' ? 'pa.portal.email_sent' : 'pa.portal.email_failed' });
+   return;
+  }
+  if (out.reason === 'network') { setSecret(null); setUnknown(baseline); setConfirmSend(false); return; }
+  setConfirmSend(false); failure(out.reason);
  }
  /** Read-only: asks the server what the invitation looks like now and explains what that means. */
  async function checkStatus() {
@@ -65,6 +81,10 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
   const now = out.data.invitations[0];
   setDetail(out.data);
   if (out.data.invitations.some((i) => i.status === 'accepted') && unknown.baselineStatus !== 'accepted') setNotice({ tone: 'warn', key: 'pa.portal.outcome_accepted' });
+  else if (unknown.action === 'send-email') {
+   if (now?.id !== unknown.baselineId) { setNotice({ tone: 'warn', key: 'pa.portal.outcome_email_unknown' }); setReplacement(true); }
+   else { setNotice({ tone: 'ok', key: 'pa.portal.outcome_email_not_started' }); setReplacement(true); }
+  }
   else if (unknown.action === 'revoke') setNotice(now?.status === 'revoked' ? { tone: 'ok', key: 'pa.portal.outcome_revoke_done' } : now?.status === 'expired' ? { tone: 'warn', key: 'pa.portal.outcome_expired' } : { tone: 'warn', key: 'pa.portal.outcome_revoke_none' });
   else if (now?.id !== unknown.baselineId) { setNotice({ tone: 'warn', key: 'pa.portal.outcome_reissue_lost' }); setReplacement(true); }
   else setNotice({ tone: 'ok', key: 'pa.portal.outcome_reissue_none' });
@@ -78,7 +98,7 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
    actions={<ButtonLink href="/platform-admin/teachers" variant="ghost"><ArrowLeft size={16} className="eds-flip" aria-hidden="true" />{t('pa.portal.back')}</ButtonLink>} />
   {notice ? <Banner tone={notice.tone} role={notice.tone === 'error' ? 'alert' : 'status'}>{t(notice.key)}</Banner> : null}
   {unknown ? <Banner tone="warn" role="alert">
-   <span><strong>{t('pa.portal.unknown_title')}</strong><br />{t(unknown.action === 'revoke' ? 'pa.portal.unknown_revoke' : 'pa.portal.unknown_reissue')}</span>
+   <span><strong>{t('pa.portal.unknown_title')}</strong><br />{t(unknown.action === 'revoke' ? 'pa.portal.unknown_revoke' : unknown.action === 'send-email' ? 'pa.portal.unknown_send_email' : 'pa.portal.unknown_reissue')}</span>
    <Button variant="primary" size="sm" onClick={checkStatus} disabled={busy !== null} aria-busy={busy === 'refresh'}>
     {busy === 'refresh' ? <Loader2 size={14} className="eds-spin" aria-hidden="true" /> : null}{t('pa.portal.refresh_status')}</Button>
   </Banner> : null}
@@ -86,7 +106,7 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
    <span>{t('pa.portal.replacement_hint')}</span>
    {!reissue.open ? <Button size="sm" onClick={openReplacement} disabled={locked}>{t('pa.portal.issue_replacement')}</Button> : null}
   </Banner> : null}
-  {secret ? <SecretCard secret={secret.invitationSecret} expiresAt={secret.expiresAt} onDone={() => setSecret(null)} /> : null}
+  {secret ? <SecretCard secret={secret.invitationSecret} expiresAt={secret.expiresAt} delivery={secret.delivery} onDone={() => setSecret(null)} /> : null}
 
   <div className="pa-split">
    <div className="pa-stack">
@@ -120,9 +140,19 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
        ...(latest.acceptedAt ? [{ key: 'a', term: t('pa.portal.accepted_at'), detail: <UtcDate value={latest.acceptedAt} /> }] : []),
       ]} /> : null}
       {!accepted ? <div className="eds-actions">
-       <Button onClick={() => { setReissue({ ...reissue, open: !reissue.open }); setConfirmRevoke(false); }} aria-expanded={reissue.open} disabled={locked}>{t('pa.portal.reissue')}</Button>
-       {pending ? <Button variant="danger" onClick={() => { setConfirmRevoke(true); setReissue({ ...reissue, open: false }); }} disabled={locked}>{t('pa.portal.revoke')}</Button> : null}
+       <Button onClick={() => { setConfirmSend(true); setReissue({ ...reissue, open: false }); setConfirmRevoke(false); }} disabled={locked}>{t('pa.portal.send_email')}</Button>
+       <Button onClick={() => { setReissue({ ...reissue, open: !reissue.open }); setConfirmRevoke(false); setConfirmSend(false); }} aria-expanded={reissue.open} disabled={locked}>{t('pa.portal.reissue')}</Button>
+       {pending ? <Button variant="danger" onClick={() => { setConfirmRevoke(true); setReissue({ ...reissue, open: false }); setConfirmSend(false); }} disabled={locked}>{t('pa.portal.revoke')}</Button> : null}
       </div> : <p className="eds-hint">{t('pa.portal.accepted_note')}</p>}
+      {confirmSend ? <Banner tone="warn" role="group">
+       <span>{t('pa.portal.send_email_confirm', { email: latest?.teacherEmail ?? '' })}</span>
+       <span className="eds-actions">
+        <Button variant="primary" onClick={sendEmailNow} disabled={busy !== null} aria-busy={busy === 'send'}>
+         {busy === 'send' ? <Loader2 size={14} className="eds-spin" aria-hidden="true" /> : null}{t(busy === 'send' ? 'pa.portal.sending_email' : 'pa.portal.send_email_confirm_yes')}
+        </Button>
+        <Button onClick={() => setConfirmSend(false)} disabled={busy !== null}>{t('pa.action.cancel')}</Button>
+       </span>
+      </Banner> : null}
       {unknown ? <p className="eds-hint">{t('pa.portal.locked_hint')}</p> : null}
       {confirmRevoke ? <Banner tone="warn" role="group">
        <span>{t('pa.portal.revoke_confirm')}</span>

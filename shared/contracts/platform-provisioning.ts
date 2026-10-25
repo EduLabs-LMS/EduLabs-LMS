@@ -43,6 +43,7 @@ export type ProvisionTeacherRequest = z.infer<typeof provisionTeacherRequest>;
 export const portalAction = z.discriminatedUnion('action', [
  z.object({ action: z.literal('reissue'), expiresInDays: lifetime, teacherEmail: email.optional() }).strict(),
  z.object({ action: z.literal('revoke') }).strict(),
+ z.object({ action: z.literal('send-email'), expiresInDays: lifetime }).strict(),
 ]);
 export type PortalAction = z.infer<typeof portalAction>;
 
@@ -67,4 +68,4 @@ export type PortalDetail = {
 };
 /** `delivery` is always 'not_sent': email delivery is a separate, unconnected workstream. */
 export type ProvisionResult = { organizationId: string; invitationId: string; courseId: string; expiresAt: string; invitationSecret: string; delivery: 'not_sent' };
-export type ReissueResult = { organizationId: string; invitationId: string; expiresAt: string; invitationSecret: string; delivery: 'not_sent' };
+export type ReissueResult = { organizationId: string; invitationId: string; expiresAt: string; invitationSecret: string; delivery: 'not_sent' | 'sent' | 'failed' };

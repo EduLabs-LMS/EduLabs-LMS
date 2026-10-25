@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { useLanguage } from '@/frontend/components/language-provider';
 import { Badge, Banner, Button, Card, CardBody, CardHead } from '@/frontend/design-system';
@@ -40,22 +40,27 @@ export async function api<T>(path: string, init?: { method: 'GET' | 'POST'; body
 }
 
 /** The invitation secret is displayed once and kept only in component state; it is never persisted. */
-export function SecretCard({ secret, expiresAt, onDone }: { secret: string; expiresAt: string; onDone?: () => void }) {
+export function SecretCard({ secret, expiresAt, delivery = 'not_sent', onDone }: { secret: string; expiresAt: string; delivery?: 'not_sent' | 'sent' | 'failed'; onDone?: () => void }) {
  const { t } = useLanguage();
  const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
+ const [origin, setOrigin] = useState('');
+ useEffect(() => { setOrigin(window.location.origin); }, []);
+ const path = '/teacher-invitation/' + secret;
+ const link = origin ? origin + path : path;
  async function copy() {
-  try { await navigator.clipboard.writeText(secret); setCopied('yes'); } catch { setCopied('no'); }
+  try { await navigator.clipboard.writeText(window.location.origin + path); setCopied('yes'); } catch { setCopied('no'); }
  }
+ const message = delivery === 'sent' ? 'pa.secret.email_sent' : delivery === 'failed' ? 'pa.secret.email_failed' : 'pa.secret.not_sent';
  return <Card emphasis labelledBy="pa-secret-title">
   <CardHead id="pa-secret-title" title={t('pa.secret.title')} aside={<>{t('pa.secret.expires')} <UtcDate value={expiresAt} /></>} />
   <CardBody>
    <p>{t('pa.secret.once')}</p>
    <div className="eds-input-row">
-    <code className="eds-code" dir="ltr" data-invitation-secret>{secret}</code>
+    <code className="eds-code" dir="ltr" data-invitation-link>{link}</code>
     <Button onClick={copy}>{copied === 'yes' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{t(copied === 'yes' ? 'pa.secret.copied' : 'pa.secret.copy')}</Button>
    </div>
    {copied === 'no' ? <p className="eds-error" role="alert">{t('pa.secret.copy_failed')}</p> : null}
-   <Banner tone="warn" role="note">{t('pa.secret.not_sent')}</Banner>
+   <Banner tone={delivery === 'sent' ? 'ok' : 'warn'} role="status">{t(message)}</Banner>
    {onDone ? <div className="eds-actions"><Button variant="primary" onClick={onDone}>{t('pa.secret.done')}</Button></div> : null}
   </CardBody>
  </Card>;
