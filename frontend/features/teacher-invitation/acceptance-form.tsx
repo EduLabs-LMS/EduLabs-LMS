@@ -40,12 +40,12 @@ export function TeacherInvitationAcceptance() {
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(storedTokenKey);
-      if (saved && tokenPattern.test(saved)) setToken(saved);
+      if (saved && tokenPattern.test(saved)) setToken((current) => current || saved);
       sessionStorage.removeItem(storedTokenKey);
     } catch {
       // The teacher can always paste the code again; storage is never required to accept it.
     }
-  }, []);
+  }, [user?.emailVerified]);
 
   function continueToSignIn() {
     const secret = token.trim();
@@ -54,7 +54,6 @@ export function TeacherInvitationAcceptance() {
         sessionStorage.setItem(storedTokenKey, secret);
       } catch {
         setNotice({ tone: 'error', key: 'ti.error.storage' });
-        return;
       }
     }
     router.push(signInHref);
