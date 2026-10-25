@@ -404,7 +404,7 @@ createRoot(document.getElementById('root')).render(
   assert.deepEqual(Object.keys(request).sort(), ['course', 'expiresInDays', 'subjects', 'systems', 'teacherEmail']);
   assert.equal(request.teacherEmail, 'new.teacher@example.test'); assert.equal(request.systems[0].examinationBoard, 'Cambridge');
   assert.deepEqual(Object.keys(request.course).sort(), ['gradeKey', 'subjectKey', 'title']);
-  const shown = await page.locator('[data-invitation-secret]').innerText(); assert.equal(shown, secrets.at(-1)); assert.match(shown, /^[A-Za-z0-9_-]{43}$/);
+  const shown = await page.locator('[data-invitation-link]').innerText(); assert.ok(shown.endsWith('/teacher-invitation/' + secrets.at(-1))); assert.match(shown, /\/teacher-invitation\/[A-Za-z0-9_-]{43}$/);
   assert.ok(!JSON.stringify(posts).includes(shown), 'the secret was never sent by the browser');
   await page.getByText('No email was sent').waitFor(); await page.getByText('not an owner yet').waitFor();
   assert.equal(await page.getByRole('link', { name: 'Inspect portal' }).count(), 1);
@@ -431,18 +431,18 @@ createRoot(document.getElementById('root')).render(
   assert.equal(await page.locator('table').count(), 1, 'stale data stays visible beside the error rather than becoming an empty list');
   await page.unroute('**/api/platform-admin/portals'); await page.getByRole('button', { name: 'Retry' }).click(); await page.getByRole('alert').waitFor({ state: 'detached' });
  });
- await step('portal page: inspect, reissue shows a new one-time code, revoke needs confirmation, refresh failure is not reported as a failed change', async () => {
+ await step('portal page: inspect, reissue shows a new one-time link, revoke needs confirmation, refresh failure is not reported as a failed change', async () => {
   const id = portals.find(p => p.invitations[0].teacherEmail === 'list.teacher@example.test').organizationId;
   await open('view=detail&id=' + id);
-  await page.getByText('Owner pending').waitFor();
+  await page.getByText('Access starts after the teacher accepts the invitation.').waitFor();
   const text = await page.locator('main').innerText(); for (const expected of ['Not sent by email', 'IGCSE', 'Grade 10', 'Physics - Grade 10', 'Draft, no content yet', 'Portal created', 'Administrator']) assert.ok(text.includes(expected), expected);
-  assert.equal(await page.locator('[data-invitation-secret]').count(), 0, 'a stored invitation never displays a secret');
+  assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'a stored invitation never displays a secret');
   await accessible('portal, light');
-  await page.getByRole('button', { name: 'Issue a new code' }).click(); await page.locator('#pa-re-days').selectOption('14');
-  await page.getByRole('button', { name: 'Issue new code' }).click(); await page.getByText('A new invitation code was issued.').waitFor();
-  assert.equal(await page.locator('[data-invitation-secret]').innerText(), secrets.at(-1));
-  await page.getByRole('button', { name: 'I have saved the code' }).click(); assert.equal(await page.locator('[data-invitation-secret]').count(), 0);
-  await page.getByText('New invitation code issued').waitFor();
+  await page.getByRole('button', { name: 'Issue a replacement link' }).click(); await page.locator('#pa-re-days').selectOption('14');
+  await page.getByRole('button', { name: 'Issue replacement link' }).click(); await page.getByText('A new invitation link was issued.').waitFor();
+  assert.ok((await page.locator('[data-invitation-link]').innerText()).endsWith('/teacher-invitation/' + secrets.at(-1)));
+  await page.getByRole('button', { name: 'I have saved the link' }).click(); assert.equal(await page.locator('[data-invitation-link]').count(), 0);
+  await page.getByText('New invitation link issued').waitFor();
   await page.getByRole('button', { name: 'Revoke invitation' }).click(); await page.getByText('Revoke this invitation?').waitFor();
   assert.equal(portals.find(p => p.organizationId === id).invitations[0].status, 'pending', 'nothing happens before confirmation');
   detailFailures = 1; await page.getByRole('button', { name: 'Yes, revoke' }).click();
@@ -450,7 +450,7 @@ createRoot(document.getElementById('root')).render(
   assert.equal(portals.find(p => p.organizationId === id).invitations[0].status, 'revoked');
  });
 
- const newPortal = async email => { const portal = fictionalPortal(sampleRequest(email)); portals.unshift(portal); await open('view=detail&id=' + portal.organizationId); await page.getByText('Owner pending').waitFor(); return portal; };
+ const newPortal = async email => { const portal = fictionalPortal(sampleRequest(email)); portals.unshift(portal); await open('view=detail&id=' + portal.organizationId); await page.getByText('Access starts after the teacher accepts the invitation.').waitFor(); return portal; };
  const unknownBanner = () => page.getByText('The outcome is unknown');
  await step('revoke with a dropped connection that DID apply: unknown first, no blind retry, a safe refresh confirms the revocation', async () => {
   reset(); const portal = await newPortal('revoke.applied@example.test'); dropActions = 'applied';
@@ -459,7 +459,7 @@ createRoot(document.getElementById('root')).render(
   assert.equal(await page.getByText('The connection dropped while revoking').count(), 1);
   assert.equal(await page.getByText(/could not be revoked|try again later/i).count(), 0, 'a dropped connection is not reported as a failure');
   assert.equal(await page.getByRole('button', { name: 'Revoke invitation' }).isDisabled(), true, 'revoke is locked, so the administrator cannot retry blindly');
-  assert.equal(await page.getByRole('button', { name: 'Issue a new code' }).isDisabled(), true);
+  assert.equal(await page.getByRole('button', { name: 'Issue a replacement link' }).isDisabled(), true);
   await accessible('portal, unknown revoke');
   const sent = actionPosts; dropActions = null;
   await page.getByRole('button', { name: 'Refresh invitation status' }).click();
@@ -477,11 +477,11 @@ createRoot(document.getElementById('root')).render(
  });
  await step('reissue with a dropped connection that DID apply: the lost secret is explained and a deliberate replacement path issues a visible code', async () => {
   reset(); const portal = await newPortal('reissue.applied@example.test'); const original = portal.invitations[0].id; dropActions = 'applied';
-  await page.getByRole('button', { name: 'Issue a new code' }).click(); await page.getByRole('button', { name: 'Issue new code' }).click();
+  await page.getByRole('button', { name: 'Issue a replacement link' }).click(); await page.getByRole('button', { name: 'Issue replacement link' }).click();
   await unknownBanner().waitFor();
-  assert.equal(await page.getByText('The connection dropped while issuing a new code').count(), 1);
-  assert.equal(await page.locator('[data-invitation-secret]').count(), 0, 'no secret exists to show');
-  assert.equal(await page.getByRole('button', { name: 'Issue a new code' }).isDisabled(), true);
+  assert.equal(await page.getByText('The connection dropped while issuing a replacement link').count(), 1);
+  assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'no secret exists to show');
+  assert.equal(await page.getByRole('button', { name: 'Issue a replacement link' }).isDisabled(), true);
   assert.equal(await page.getByRole('button', { name: 'Issue a replacement code' }).count(), 0, 'no replacement is offered until the status is known');
   const sent = actionPosts; dropActions = null;
   await page.getByRole('button', { name: 'Refresh invitation status' }).click();
@@ -489,14 +489,14 @@ createRoot(document.getElementById('root')).render(
   assert.equal(actionPosts, sent, 'refreshing sent no write'); assert.notEqual(portal.invitations[0].id, original, 'the server did issue a code');
   await accessible('portal, lost secret');
   await page.getByRole('button', { name: 'Issue a replacement code' }).click();
-  await page.getByRole('button', { name: 'Issue new code' }).click(); await page.getByText('A new invitation code was issued.').waitFor();
-  assert.equal(await page.locator('[data-invitation-secret]').innerText(), secrets.at(-1));
+  await page.getByRole('button', { name: 'Issue replacement link' }).click(); await page.getByText('A new invitation link was issued.').waitFor();
+  assert.ok((await page.locator('[data-invitation-link]').innerText()).endsWith('/teacher-invitation/' + secrets.at(-1)));
   assert.equal(portal.invitations.length, 3, 'original, the lost code and the deliberate replacement');
   assert.equal(portal.invitations.filter(i => i.status === 'pending').length, 1, 'exactly one code works');
  });
  await step('reissue with a dropped connection that did NOT apply: nothing changed and the current code still works', async () => {
   reset(); const portal = await newPortal('reissue.lost@example.test'); dropActions = 'unapplied';
-  await page.getByRole('button', { name: 'Issue a new code' }).click(); await page.getByRole('button', { name: 'Issue new code' }).click();
+  await page.getByRole('button', { name: 'Issue a replacement link' }).click(); await page.getByRole('button', { name: 'Issue replacement link' }).click();
   await unknownBanner().waitFor(); dropActions = null;
   await page.getByRole('button', { name: 'Refresh invitation status' }).click();
   await page.getByText('Confirmed: no new code was issued. The current code still works.').waitFor();
@@ -552,7 +552,7 @@ createRoot(document.getElementById('root')).render(
   await page.getByRole('button', { name: 'Review setup', exact: true }).click(); await page.getByRole('heading', { name: 'Review before creating' }).waitFor(); await noOverflow('review 390'); await visible('Create portal');
   portals.unshift(fictionalPortal(sampleRequest('phone.teacher@example.test')));
   await open('view=list'); await page.getByText('phone.teacher@example.test').waitFor(); await noOverflow('list 390');
-  await open('view=detail&id=' + portals[0].organizationId); await page.getByText('Owner pending').waitFor(); await noOverflow('detail 390');
+  await open('view=detail&id=' + portals[0].organizationId); await page.getByText('Access starts after the teacher accepts the invitation.').waitFor(); await noOverflow('detail 390');
   await page.setViewportSize({ width: 1440, height: 900 });
  });
  await step('desktop: the tallest filled step keeps Back and Next inside a normal 1440x900 window', async () => {
@@ -712,7 +712,7 @@ createRoot(document.getElementById('root')).render(
     await nextStep(); await stepHeading('First course').waitFor(); await page.locator('#pa-course-grade').selectOption({ label: 'Grade 10' }); await page.locator('#pa-course-subject').selectOption({ label: 'Physics' });
     await noOverflow(`step4 ${device} ${mode}`); await accessible(`step4 ${device} ${mode}`); await shot('5-create-step4-course');
     await page.getByRole('button', { name: 'Review setup', exact: true }).click(); await page.getByRole('heading', { name: 'Review before creating' }).waitFor(); await noOverflow(`review ${device} ${mode}`); await accessible(`review ${device} ${mode}`); await shot('6-review-setup');
-    await open('view=detail&id=' + detailId); await page.getByText('Owner pending').waitFor(); await setMode(); await noOverflow(`detail ${device} ${mode}`); await accessible(`detail ${device} ${mode}`); await shot('7-portal-detail');
+    await open('view=detail&id=' + detailId); await page.getByText('Access starts after the teacher accepts the invitation.').waitFor(); await setMode(); await noOverflow(`detail ${device} ${mode}`); await accessible(`detail ${device} ${mode}`); await shot('7-portal-detail');
     await open('view=settings'); await setMode(); await noOverflow(`settings ${device} ${mode}`); await accessible(`settings ${device} ${mode}`); await shot('8-settings');
    }
   }

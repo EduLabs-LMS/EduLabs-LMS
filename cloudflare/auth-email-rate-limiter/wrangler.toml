@@ -1,0 +1,16 @@
+name = "edulabs-auth-email-rate-limiter"
+main = "src/index.js"
+compatibility_date = "2026-10-24"
+workers_dev = true
+
+[vars]
+# Set AUTH_EMAIL_GATEWAY_TOKEN with: npx wrangler secret put AUTH_EMAIL_GATEWAY_TOKEN
+# Never put the token in this file or commit it.
+
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimitState"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateLimitState"]
