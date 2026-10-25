@@ -1,9 +1,10 @@
 # Platform Admin: Teacher Provisioning V1
 
-Status: implemented locally on branch `claude/admin-provisioning-v1` (base `d3451e5`),
-**uncommitted; the migration is authored but NOT applied to any database**. No provider
-(Firebase, Supabase, Brevo, Cloudflare) was contacted. Local verification used a disposable
-loopback PostgreSQL and a fictional-HTTP browser harness only.
+Status: Admin V1 is based on branch `claude/admin-provisioning-v1` (release candidate commit
+`0f9b889b392d5af8bf6406151a4d515dd67da5ed`). The teacher acceptance UI follow-on is developed on
+`codex/teacher-invitation-acceptance`. This follow-on changes no database schema and does not
+apply SQL or mutate Firebase, Supabase, Brevo or Cloudflare. Operator-attested migration history
+must be verified independently; the staging manager cannot prove remote SQL execution.
 
 ## What an administrator can do
 
@@ -66,10 +67,14 @@ No UI/API grants administration. A trusted operator runs
 `supabase/manual/bootstrap_platform_admin.sql` (and `revoke_platform_admin.sql`) with the real
 Firebase UID copied from the console. Nothing in the repo contains a real UID.
 
-## Not built / blockers before staging
+## Remaining blockers and follow-up work
 
-- **Acceptance page**: only the API exists. The teacher has no screen to paste the code and
-  complete onboarding (display name, language, time zone, Home introduction are out of scope).
+- The follow-on branch `codex/teacher-invitation-acceptance` adds a staging-only page at
+  `/accept-teacher-invitation` for invitation-code entry, verified-email sign-in continuation,
+  English/Arabic copy, safe unknown-outcome handling and a success state. It calls the existing
+  acceptance API and adds no migration. It remains a release candidate until isolated validation
+  and a real Firebase/Supabase staging acceptance test pass.
+- Display name, language, time zone and Home introduction are out of scope for this acceptance flow.
 - **Email delivery**: not connected. The UI states "No email was sent"; the code must be
   shared manually. Brevo/email branch not merged.
 - Arabic-only names produce neutral generated slugs (`education-system`, `subject`, ...).

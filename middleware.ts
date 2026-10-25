@@ -32,6 +32,13 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   // Platform administration: handlers authorize in PostgreSQL; this only lets the paths reach them.
   if (path === '/platform-admin' || path.startsWith('/platform-admin/')) {const response=NextResponse.next();response.headers.set('X-Robots-Tag','noindex, nofollow');response.headers.set('Cache-Control','private, no-store');return response;}
   if (path === '/api/platform-admin/portals' || /^\/api\/platform-admin\/portals\/[0-9a-f-]{36}$/.test(path) || path === '/api/teacher-invitations/accept') return NextResponse.next();
+  if (path === '/accept-teacher-invitation') {
+    const response = NextResponse.next();
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    response.headers.set('Cache-Control', 'private, no-store');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return response;
+  }
   if (path === '/api/personalization') return NextResponse.next();
   if (path === '/api/student-academics') return NextResponse.next();
   if (path === '/api/learning-overview') return NextResponse.next();

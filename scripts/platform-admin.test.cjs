@@ -466,4 +466,35 @@ test('view: the portal page reports owner state, honest delivery and the audit t
 test('view: the one-time secret card states plainly that no email was sent', () => {
  const { SecretCard } = view('common'); const html = render(React.createElement(SecretCard, { secret: 'A'.repeat(43), expiresAt: '2030-01-09T00:00:00Z' }));
  assert.match(html, /data-invitation-secret/); assert.match(html, /shown once/); assert.match(html, /No email was sent/); assert.match(html, /not connected yet/);
+ assert.match(html, /accept-teacher-invitation/); assert.match(html, /Copy teacher page link/);
+});
+
+
+test('teacher invitation acceptance is staging-only, localized, and uses the existing safe API flow', () => {
+ const page = read('app/accept-teacher-invitation/page.tsx');
+ assert.match(page, /isFirebaseStaging\(\)/);
+ assert.match(page, /notFound\(\)/);
+ assert.match(page, /index:\s*false/);
+ assert.match(page, /no-referrer/);
+ const layout = read('app/accept-teacher-invitation/layout.tsx');
+ assert.match(layout, /design-system\/tokens\.css/);
+ assert.match(layout, /design-system\/components\.css/);
+ const client = read('frontend/features/teacher-invitation/acceptance-form.tsx');
+ assert.match(client, /\/api\/teacher-invitations\/accept/);
+ assert.match(client, /credentials:\s*'same-origin'/);
+ assert.match(client, /cache:\s*'no-store'/);
+ assert.match(client, /edulabs-teacher-invitation-code/);
+ assert.match(client, /outcomeUnknown/);
+ assert.match(client, /emailVerified/);
+ assert.match(client, /switchAccount/);
+ assert.match(client, /edulabs-auth-next/);
+ assert.doesNotMatch(client, /[?&]token=|encodeURIComponent\(\s*token/i, 'the secret must never be put in the URL');
+ const middleware = read('middleware.ts');
+ assert.match(middleware, /path === '\/accept-teacher-invitation'/);
+ assert.match(middleware, /Referrer-Policy', 'no-referrer'/);
+ const locale = load('frontend/locales/teacher-invitation.ts');
+ const enKeys = Object.keys(locale.teacherInvitationMessages.en).sort();
+ assert.deepEqual(Object.keys(locale.teacherInvitationMessages.ar).sort(), enKeys);
+ for (const key of enKeys) assert.ok(locale.teacherInvitationMessages.ar[key], 'Arabic copy missing: ' + key);
+ assert.ok(enKeys.length >= 20);
 });

@@ -35,7 +35,7 @@ test('restored-session and form completion navigate home only once', async () =>
     './avatar-picker': {}, './provider-icons': {},
     'firebase/auth': { signInWithEmailAndPassword: async () => ({ user }), getRedirectResult: async () => null },
     '@/frontend/lib/firebase': { getFirebaseAuth: () => ({}), restoreFirebaseAuth: async () => {} },
-    '@/shared/contracts/student-administration': load('shared/contracts/student-administration.ts',{zod:require('zod')}),
+    '@/shared/contracts/application-auth': load('shared/contracts/application-auth.ts',{}),
     '@/frontend/components/providers/firebase-auth-provider': {
       useFirebaseAuth: () => ({ user, loading: false, error: null }),
       synchronizeFirebaseSession: () => syncing,
@@ -177,3 +177,18 @@ function adminFixture(value,extra={}) {
 test('protected service-account configuration signs locally without remote IAM escalation',()=>{const f=adminFixture({type:'service_account',project_id:'synthetic-project',client_email:'synthetic@example.invalid',private_key:'synthetic-key'},{GOOGLE_APPLICATION_CREDENTIALS:'protected-credential.json'});f.admin.getFirebaseAdminAuth();assert.equal(f.events.includes('adc'),false);assert.equal(f.events.find(e=>e.cert)?.cert.projectId,'synthetic-project');assert.equal(f.events.find(e=>e.initialized)?.initialized.credential,'local-cert');});
 test('protected service-account configuration rejects mismatched projects before initialization',()=>{const f=adminFixture({type:'service_account',project_id:'wrong-project',client_email:'synthetic@example.invalid',private_key:'synthetic-key'},{GOOGLE_APPLICATION_CREDENTIALS:'protected-credential.json'});assert.throws(()=>f.admin.getFirebaseAdminAuth(),/does not match/);assert.equal(f.events.some(e=>e.initialized),false);});
 test('workload ADC and explicit server credential modes remain supported',()=>{const workload=adminFixture({});workload.admin.getFirebaseAdminAuth();assert.equal(workload.events.includes('adc'),true);assert.equal(workload.events.includes('read'),false);const explicit=adminFixture({},{FIREBASE_CLIENT_EMAIL:'synthetic@example.invalid',FIREBASE_PRIVATE_KEY:'synthetic-key',GOOGLE_APPLICATION_CREDENTIALS:'unused.json'});explicit.admin.getFirebaseAdminAuth();assert.equal(explicit.events.includes('read'),false);assert.equal(explicit.events.find(e=>e.initialized)?.initialized.credential,'local-cert');});
+
+
+test('application sign-in continuation allows only exact internal access and invitation routes', () => {
+  const safe = load('shared/contracts/application-auth.ts', {}).safeApplicationAuthDestination;
+  assert.equal(safe('/home'), '/home');
+  assert.equal(safe('/access'), '/access');
+  assert.equal(safe('/join/' + 'a'.repeat(43)), '/join/' + 'a'.repeat(43));
+  assert.equal(safe('/accept-teacher-invitation'), '/accept-teacher-invitation');
+  for (const value of [
+    'https://evil.example', '//evil.example', '/admin/users',
+    '/accept-teacher-invitation?token=secret', '/accept-teacher-invitation/extra',
+    '/join/short', '/join/' + 'a'.repeat(43) + '?next=https://evil.example',
+    'javascript:alert(1)', null,
+  ]) assert.equal(safe(value), '/home', String(value));
+});
