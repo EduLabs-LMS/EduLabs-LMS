@@ -1,4 +1,5 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { acceptInvitationRequest, portalAction, provisionTeacherRequest } from '@/shared/contracts/platform-provisioning';
 import { getPlatformAdminAccess } from '@/server/services/platform-admin';
@@ -7,10 +8,40 @@ import { validFirebaseOrigin } from '@/server/http/firebase/route';
 import { getApplicationViewer } from '@/server/services/application-auth';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import { isFirebaseStaging } from '@/shared/auth-config';
+import { sendTeacherInvitationEmail } from '@/server/services/branded-auth-email';
+import { isLanguage, languageCookieKey, type Language } from '@/shared/language';
 
 // The response may carry a one-time invitation secret: it must never be cached or indexed.
 const reply = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store', 'Vary': 'Cookie', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' } });
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function requestedLanguage(request: NextRequest): Language {
+ const value = request.cookies.get(languageCookieKey)?.value;
+ return isLanguage(value) ? value : 'en';
+}
+
+async function limitInvitationEmail(request: NextRequest, email: string) {
+ const endpoint = process.env.AUTH_EMAIL_RATE_LIMIT_URL;
+ const secret = process.env.AUTH_EMAIL_RATE_LIMIT_TOKEN;
+ if (!endpoint || !secret) throw new Error('Invitation email rate limiting is not configured');
+ let url: URL;
+ try {
+  url = new URL(endpoint);
+  if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error();
+ } catch { throw new Error('Invitation email rate limiting is not configured'); }
+ const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+ const identity = createHash('sha256').update(email.trim().toLowerCase()).digest('hex');
+ const ipHash = createHash('sha256').update(ip).digest('hex');
+ const response = await fetch(url, {
+  method: 'POST', headers: { Authorization: 'Bearer ' + secret, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ bucket: 'teacher-invitation', identity, ip: ipHash }),
+  cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(2500),
+ }).catch(() => null);
+ if (!response?.ok) throw new Error('Invitation email rate limiter is unavailable');
+ const verdict = await response.json().catch(() => null);
+ if (!verdict || typeof verdict.allowed !== 'boolean') throw new Error('Invitation email rate limiter is unavailable');
+ if (!verdict.allowed) throw new Error('Invitation email rate limit exceeded');
+}
 
 async function readJson(request: NextRequest): Promise<{ body: unknown } | { response: NextResponse }> {
  if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') return { response: reply({ error: 'JSON required' }, 415) };
@@ -71,6 +102,21 @@ export async function platformPortalHTTP(request: NextRequest, portalId: string)
   const input = portalAction.safeParse(parsed.body);
   if (!input.success) return reply({ error: 'Some details are not valid.', reason: 'invalid' }, 400);
   if (input.data.action === 'revoke') return reply(await gate.service.revoke(portalId));
+  if (input.data.action === 'send-email') {
+   const current = await gate.service.detail(portalId);
+   const recipient = current.invitations[0]?.teacherEmail;
+   if (!recipient) return reply({ error: 'Invitation not found.', reason: 'not_found' }, 404);
+   const renewed = await gate.service.reissue(portalId, input.data.expiresInDays);
+   let delivery: 'sent' | 'failed' = 'failed';
+   try {
+    await limitInvitationEmail(request, recipient);
+    await sendTeacherInvitationEmail(recipient, renewed.invitationSecret, requestedLanguage(request));
+    delivery = 'sent';
+   } catch {
+    // The invitation remains valid and is returned once for manual sharing. Never claim delivery.
+   }
+   return reply({ ...renewed, delivery }, 200);
+  }
   return reply(await gate.service.reissue(portalId, input.data.expiresInDays, input.data.teacherEmail));
  } catch (error) { return failure(error); }
 }
