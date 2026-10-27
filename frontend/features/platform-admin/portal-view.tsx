@@ -1,26 +1,35 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Link2, Loader2, Mail } from 'lucide-react';
 import { useLanguage } from '@/frontend/components/language-provider';
-import { Banner, Button, ButtonLink, Page, Card, CardBody, CardHead, Chip, ChipList, DefinitionList, Field, Input, PageHeader, Select } from '@/frontend/design-system';
+import { Badge, Banner, Button, ButtonLink, Page, Card, CardBody, CardHead, Chip, ChipList, DefinitionList, Field, Input, PageHeader, Select } from '@/frontend/design-system';
 import type { MessageKey } from '@/frontend/locales/messages';
-import { invitationLifetimes, type InvitationStatus, type PortalDetail, type ReissueResult } from '@/shared/contracts/platform-provisioning';
-import { SecretCard, StatusBadge, UtcDate, api, reasonMessage } from './common';
+import { invitationLifetimes, type CopyLinkResult, type InvitationStatus, type DeliveryStatus, type PortalDetail, type ReissueResult, type SendEmailResult } from '@/shared/contracts/platform-provisioning';
+import { InvitationLinkCard, StatusBadge, UtcDate, api, reasonMessage } from './common';
 
 const activityKey: Record<string, MessageKey> = {
  'portal.provision': 'pa.activity.provision', 'invitation.reissue': 'pa.activity.reissue', 'invitation.revoke': 'pa.activity.revoke', 'invitation.accept': 'pa.activity.accept',
 };
 /** A write whose response never arrived: what we knew before it, so a refresh can tell what really happened. */
-type Unknown = { action: 'reissue' | 'revoke'; baselineId: string | undefined; baselineStatus: InvitationStatus | undefined };
+type Unknown = { action: 'reissue' | 'revoke' | 'send_email'; baselineId: string | undefined; baselineStatus: InvitationStatus | undefined; baselineAttempts: number };
+
+const deliveryTone: Record<DeliveryStatus, 'neutral' | 'pending' | 'ok' | 'off'> = { not_sent: 'neutral', sending: 'pending', sent: 'ok', failed: 'off' };
+const deliveryLabel: Record<DeliveryStatus, MessageKey> = { not_sent: 'pa.delivery.not_sent', sending: 'pa.delivery.sending', sent: 'pa.delivery.sent', failed: 'pa.delivery.failed' };
+const deliveryNote: Record<DeliveryStatus, MessageKey> = { not_sent: 'pa.delivery.not_sent_note', sending: 'pa.delivery.sending_note', sent: 'pa.delivery.sent_note', failed: 'pa.delivery.failed_note' };
+/** What the e-mail provider actually told the server; never inferred from the click. */
+function DeliveryState({ delivery }: { delivery: PortalDetail['invitations'][number]['delivery'] }) {
+ const { t } = useLanguage();
+ return <span className="pa-delivery-state"><Badge tone={deliveryTone[delivery.status]} data-delivery={delivery.status}>{t(deliveryLabel[delivery.status])}</Badge>{delivery.attemptedAt ? <> <UtcDate value={delivery.attemptedAt} /></> : null}</span>;
+}
 
 export function PortalView({ initial, portalId }: { initial: PortalDetail; portalId: string }) {
  const { t } = useLanguage();
  const [detail, setDetail] = useState(initial);
- const [busy, setBusy] = useState<'revoke' | 'reissue' | 'refresh' | null>(null);
+ const [busy, setBusy] = useState<'revoke' | 'reissue' | 'email' | 'link' | 'refresh' | null>(null);
  const [confirmRevoke, setConfirmRevoke] = useState(false);
  const [reissue, setReissue] = useState({ open: false, days: 7, email: '' });
- const [secret, setSecret] = useState<ReissueResult | null>(null);
+ const [link, setLink] = useState<Pick<ReissueResult | CopyLinkResult, 'invitationLink' | 'expiresAt'> | null>(null);
  const [notice, setNotice] = useState<{ tone: 'ok' | 'error' | 'warn'; key: MessageKey } | null>(null);
  const [unknown, setUnknown] = useState<Unknown | null>(null);
  const [replacement, setReplacement] = useState(false);
@@ -30,30 +39,61 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
  const locked = busy !== null || unknown !== null;
 
  // A successful write is never reported as failed just because the follow-up read failed.
- async function reload(done: MessageKey) {
+ async function reload(done: MessageKey, tone: 'ok' | 'warn' | 'error' = 'ok') {
   const out = await api<PortalDetail>(`/api/platform-admin/portals/${portalId}`);
-  if (out.ok) { setDetail(out.data); setNotice({ tone: 'ok', key: done }); } else setNotice({ tone: 'warn', key: 'pa.portal.refresh_failed' });
+  if (out.ok) { setDetail(out.data); setNotice({ tone, key: done }); } else setNotice({ tone: 'warn', key: 'pa.portal.refresh_failed' });
  }
  const failure = (reason: Parameters<typeof reasonMessage>[0] | 'network') => setNotice({ tone: 'error', key: reason === 'network' ? 'pa.err.network' : reasonMessage(reason) });
 
  async function revoke() {
-  const baseline: Unknown = { action: 'revoke', baselineId: latest?.id, baselineStatus: latest?.status };
+  const baseline: Unknown = { action: 'revoke', baselineId: latest?.id, baselineStatus: latest?.status, baselineAttempts: latest?.delivery.attempts ?? 0 };
   setBusy('revoke'); setNotice(null);
   const out = await api<unknown>(`/api/platform-admin/portals/${portalId}`, { method: 'POST', body: { action: 'revoke' } });
   setBusy(null); setConfirmRevoke(false);
-  if (out.ok) { setSecret(null); await reload('pa.portal.revoked'); return; }
+  if (out.ok) { setLink(null); await reload('pa.portal.revoked'); return; }
   if (out.reason === 'network') { setUnknown(baseline); return; }
   failure(out.reason);
  }
- async function reissueNow() {
-  const baseline: Unknown = { action: 'reissue', baselineId: latest?.id, baselineStatus: latest?.status };
-  setBusy('reissue'); setNotice(null);
-  const email = reissue.email.trim();
-  const out = await api<ReissueResult>(`/api/platform-admin/portals/${portalId}`, { method: 'POST', body: { action: 'reissue', expiresInDays: reissue.days, ...(email ? { teacherEmail: email } : {}) } });
+ /** The ONLY rotation: issues a brand-new link (the old link and any e-mail carrying it stop working) without sending anything. */
+ async function issueLink(source: 'reissue', days: number, teacherEmail?: string) {
+  const baseline: Unknown = { action: 'reissue', baselineId: latest?.id, baselineStatus: latest?.status, baselineAttempts: latest?.delivery.attempts ?? 0 };
+  setBusy(source); setNotice(null);
+  const out = await api<ReissueResult>(`/api/platform-admin/portals/${portalId}`, { method: 'POST', body: { action: 'reissue', expiresInDays: days, ...(teacherEmail ? { teacherEmail } : {}) } });
   setBusy(null);
-  if (out.ok) { setSecret(out.data); setReplacement(false); setReissue({ open: false, days: 7, email: '' }); await reload('pa.portal.reissued'); return; }
+  if (out.ok) {
+   setLink(out.data); setReplacement(false); setReissue({ open: false, days: 7, email: '' });
+   try { await navigator.clipboard.writeText(out.data.invitationLink); } catch { /* the link card has an explicit copy button */ }
+   await reload('pa.portal.reissued'); return;
+  }
   if (out.reason === 'network') { setUnknown(baseline); setReissue({ ...reissue, open: false }); return; }
   failure(out.reason);
+ }
+ const reissueNow = () => issueLink('reissue', reissue.days, reissue.email.trim() || undefined);
+ /** E-mails the SAME active link to the recorded address. Nothing is replaced; the outcome is recorded by the server, never assumed. */
+ async function sendEmail() {
+  const baseline: Unknown = { action: 'send_email', baselineId: latest?.id, baselineStatus: latest?.status, baselineAttempts: latest?.delivery.attempts ?? 0 };
+  setBusy('email'); setNotice(null);
+  const out = await api<SendEmailResult>(`/api/platform-admin/portals/${portalId}`, { method: 'POST', body: { action: 'send_email' } });
+  setBusy(null);
+  if (out.ok) {
+   const { delivery, statusSaved } = out.data;
+   if (delivery === 'sent') await reload(statusSaved ? 'pa.portal.email_sent' : 'pa.portal.email_sent_unsaved', statusSaved ? 'ok' : 'warn');
+   else if (delivery === 'failed') await reload(statusSaved ? 'pa.portal.email_failed' : 'pa.portal.email_failed_unsaved', 'error');
+   else await reload('pa.portal.email_unconfirmed', 'warn');
+   return;
+  }
+  if (out.reason === 'network') { setUnknown(baseline); return; }
+  failure(out.reason);
+ }
+ /** Shows the same active link again. Read-only on the server: nothing is created, replaced or sent, so a failed or interrupted copy is harmless to repeat. */
+ async function copyLink() {
+  setBusy('link'); setNotice(null);
+  const out = await api<CopyLinkResult>(`/api/platform-admin/portals/${portalId}`, { method: 'POST', body: { action: 'copy_link' } });
+  setBusy(null);
+  if (!out.ok) { failure(out.reason); return; }
+  setLink(out.data);
+  try { await navigator.clipboard.writeText(out.data.invitationLink); } catch { /* the link card has an explicit copy button */ }
+  setNotice({ tone: 'ok', key: 'pa.portal.link_copied' });
  }
  /** Read-only: asks the server what the invitation looks like now and explains what that means. */
  async function checkStatus() {
@@ -66,6 +106,7 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
   setDetail(out.data);
   if (out.data.invitations.some((i) => i.status === 'accepted') && unknown.baselineStatus !== 'accepted') setNotice({ tone: 'warn', key: 'pa.portal.outcome_accepted' });
   else if (unknown.action === 'revoke') setNotice(now?.status === 'revoked' ? { tone: 'ok', key: 'pa.portal.outcome_revoke_done' } : now?.status === 'expired' ? { tone: 'warn', key: 'pa.portal.outcome_expired' } : { tone: 'warn', key: 'pa.portal.outcome_revoke_none' });
+  else if (unknown.action === 'send_email') setNotice(now?.id !== unknown.baselineId ? { tone: 'warn', key: 'pa.portal.outcome_send_changed' } : (now?.delivery.attempts ?? 0) > unknown.baselineAttempts ? { tone: 'warn', key: 'pa.portal.outcome_send_recorded' } : { tone: 'ok', key: 'pa.portal.outcome_send_none' });
   else if (now?.id !== unknown.baselineId) { setNotice({ tone: 'warn', key: 'pa.portal.outcome_reissue_lost' }); setReplacement(true); }
   else setNotice({ tone: 'ok', key: 'pa.portal.outcome_reissue_none' });
   setUnknown(null);
@@ -78,15 +119,15 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
    actions={<ButtonLink href="/platform-admin/teachers" variant="ghost"><ArrowLeft size={16} className="eds-flip" aria-hidden="true" />{t('pa.portal.back')}</ButtonLink>} />
   {notice ? <Banner tone={notice.tone} role={notice.tone === 'error' ? 'alert' : 'status'}>{t(notice.key)}</Banner> : null}
   {unknown ? <Banner tone="warn" role="alert">
-   <span><strong>{t('pa.portal.unknown_title')}</strong><br />{t(unknown.action === 'revoke' ? 'pa.portal.unknown_revoke' : 'pa.portal.unknown_reissue')}</span>
+   <span><strong>{t('pa.portal.unknown_title')}</strong><br />{t(unknown.action === 'revoke' ? 'pa.portal.unknown_revoke' : unknown.action === 'send_email' ? 'pa.portal.unknown_send' : 'pa.portal.unknown_reissue')}</span>
    <Button variant="primary" size="sm" onClick={checkStatus} disabled={busy !== null} aria-busy={busy === 'refresh'}>
     {busy === 'refresh' ? <Loader2 size={14} className="eds-spin" aria-hidden="true" /> : null}{t('pa.portal.refresh_status')}</Button>
   </Banner> : null}
-  {replacement && !secret ? <Banner tone="warn" role="status">
+  {replacement && !link ? <Banner tone="warn" role="status">
    <span>{t('pa.portal.replacement_hint')}</span>
    {!reissue.open ? <Button size="sm" onClick={openReplacement} disabled={locked}>{t('pa.portal.issue_replacement')}</Button> : null}
   </Banner> : null}
-  {secret ? <SecretCard secret={secret.invitationSecret} expiresAt={secret.expiresAt} onDone={() => setSecret(null)} /> : null}
+  {link ? <InvitationLinkCard link={link.invitationLink} expiresAt={link.expiresAt} onDone={() => setLink(null)} /> : null}
 
   <div className="pa-split">
    <div className="pa-stack">
@@ -115,10 +156,18 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
      <CardBody>
       {latest ? <DefinitionList items={[
        { key: 'e', term: t('pa.field.email'), detail: <bdi dir="ltr">{latest.teacherEmail}</bdi> },
-       { key: 's', term: t('pa.portal.sent'), detail: t('pa.portal.not_sent') },
        { key: 'x', term: t('pa.portal.expires'), detail: <UtcDate value={latest.expiresAt} /> },
        ...(latest.acceptedAt ? [{ key: 'a', term: t('pa.portal.accepted_at'), detail: <UtcDate value={latest.acceptedAt} /> }] : []),
       ]} /> : null}
+      {latest ? <div className="pa-delivery" data-invitation-delivery><span className="eds-strong">{t('pa.portal.sent')}</span><DeliveryState delivery={latest.delivery} /></div> : null}
+      {latest && !accepted ? <p className="eds-hint" data-delivery-note>{t(deliveryNote[latest.delivery.status])}</p> : null}
+      {!accepted ? <div className="pa-system" data-invitation-share>
+       <div className="eds-actions">
+        <Button variant="primary" onClick={sendEmail} disabled={locked || !pending} aria-busy={busy === 'email'}>{busy === 'email' ? <Loader2 size={16} className="eds-spin" aria-hidden="true" /> : <Mail size={16} aria-hidden="true" />}{t(latest && latest.delivery.status !== 'not_sent' ? 'pa.portal.send_again' : 'pa.portal.send_email')}</Button>
+        <Button onClick={() => void copyLink()} disabled={locked || !pending} aria-busy={busy === 'link'}>{busy === 'link' ? <Loader2 size={16} className="eds-spin" aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}{t('pa.portal.copy_link')}</Button>
+       </div>
+       <p className="eds-hint">{t('pa.portal.share_hint')}</p>
+      </div> : null}
       {!accepted ? <div className="eds-actions">
        <Button onClick={() => { setReissue({ ...reissue, open: !reissue.open }); setConfirmRevoke(false); }} aria-expanded={reissue.open} disabled={locked}>{t('pa.portal.reissue')}</Button>
        {pending ? <Button variant="danger" onClick={() => { setConfirmRevoke(true); setReissue({ ...reissue, open: false }); }} disabled={locked}>{t('pa.portal.revoke')}</Button> : null}

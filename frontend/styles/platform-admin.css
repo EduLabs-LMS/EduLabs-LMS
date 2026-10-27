@@ -4,8 +4,9 @@
 .pa-root { min-height: 100dvh; display: grid; grid-template-columns: 16.5rem minmax(0, 1fr); }
 
 /* Sidebar */
-.pa-sidebar { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; gap: var(--eds-space-5); padding: var(--eds-space-4) var(--eds-space-3);
-  background: var(--eds-surface); border-inline-end: var(--eds-border-width-strong) solid var(--eds-border-strong); overflow-y: auto; z-index: 40; }
+.pa-sidebar { position: relative; background: var(--eds-surface); border-inline-end: var(--eds-border-width-strong) solid var(--eds-border-strong); z-index: 40; }
+/* The column spans the whole page; only its content is pinned, so full-page captures taken while scrolled stay correct. */
+.pa-sidebar-inner { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; gap: var(--eds-space-5); padding: var(--eds-space-4) var(--eds-space-3); overflow-y: auto; }
 .pa-brand { display: flex; align-items: center; gap: var(--eds-space-3); padding: var(--eds-space-1) var(--eds-space-2); text-decoration: none; color: var(--eds-text); }
 .pa-brand .eds-brand { display: inline-flex; align-items: center; gap: var(--eds-space-3); }
 .pa-brand .eds-brand-mark { width: 2.4rem; height: 2.4rem; flex: none; transition: transform 0.2s ease; }
@@ -42,6 +43,7 @@
   .pa-root { grid-template-columns: minmax(0, 1fr); }
   .pa-menu-btn { display: inline-flex; }
   .pa-topbar { display: flex; }
+  .pa-sidebar-inner { position: static; height: 100%; }
   .pa-sidebar { position: fixed; inset-block: 0; inset-inline-start: 0; width: min(18rem, 86vw); transform: translateX(-102%); visibility: hidden; transition: transform 0.2s ease, visibility 0s linear 0.2s; }
   [dir='rtl'] .pa-sidebar { transform: translateX(102%); }
   .pa-root[data-nav-open='true'] .pa-sidebar { transform: none; visibility: visible; transition-delay: 0s; }
@@ -50,3 +52,12 @@
   .pa-topbar { padding-inline: var(--eds-space-4); }
 }
 @media (prefers-reduced-motion: reduce) { .pa-sidebar, .pa-brand .eds-brand-mark { transition: none; } }
+
+/* Teacher invitation page (public, single column). */
+.pa-invite { min-height: 100vh; display: grid; align-content: start; padding: var(--eds-space-6, 24px) var(--eds-space-4, 16px); }
+.pa-invite-brand { display: flex; justify-content: center; padding-block: var(--eds-space-4, 16px); }
+.pa-invite main { display: grid; gap: var(--eds-space-4, 16px); }
+.pa-invite-brand a { text-decoration: none; }
+.pa-invite .eds-page-head { justify-content: center; text-align: center; }
+.pa-delivery { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--eds-space-2, 8px); }
+.pa-delivery-state { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--eds-space-2, 8px); }

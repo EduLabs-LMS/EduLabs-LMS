@@ -19,9 +19,10 @@ export function StatusBadge({ status }: { status: InvitationStatus }) {
  return <Badge tone={statusTone[status]} data-status={status}>{t(statusKey[status])}</Badge>;
 }
 
-const reasonKey: Record<ProvisioningReason, 'pa.err.invalid' | 'pa.err.duplicate' | 'pa.err.pending_exists' | 'pa.err.not_found' | 'pa.err.used' | 'pa.err.gone' | 'pa.err.forbidden' | 'pa.err.unavailable'> = {
+const reasonKey: Record<ProvisioningReason, 'pa.err.invalid' | 'pa.err.duplicate' | 'pa.err.pending_exists' | 'pa.err.not_found' | 'pa.err.used' | 'pa.err.gone' | 'pa.err.forbidden' | 'pa.err.unavailable' | 'pa.err.email_not_configured' | 'pa.err.origin_not_configured' | 'pa.err.link_key_not_configured' | 'pa.err.no_active_invitation'> = {
  invalid: 'pa.err.invalid', duplicate: 'pa.err.duplicate', pending_exists: 'pa.err.pending_exists', not_found: 'pa.err.not_found', used: 'pa.err.used',
- gone: 'pa.err.gone', forbidden: 'pa.err.forbidden', conflict: 'pa.err.used', unavailable: 'pa.err.unavailable',
+ gone: 'pa.err.gone', forbidden: 'pa.err.forbidden', conflict: 'pa.err.used', unavailable: 'pa.err.unavailable', email_not_configured: 'pa.err.email_not_configured', origin_not_configured: 'pa.err.origin_not_configured',
+ link_key_not_configured: 'pa.err.link_key_not_configured', no_active_invitation: 'pa.err.no_active_invitation',
 };
 export const reasonMessage = (reason: ProvisioningReason | undefined) => reasonKey[reason ?? 'unavailable'] ?? 'pa.err.unavailable';
 
@@ -39,19 +40,22 @@ export async function api<T>(path: string, init?: { method: 'GET' | 'POST'; body
  } catch { return { ok: false, status: 0, reason: 'network' }; }
 }
 
-/** The invitation secret is displayed once and kept only in component state; it is never persisted. */
-export function SecretCard({ secret, expiresAt, onDone }: { secret: string; expiresAt: string; onDone?: () => void }) {
+/**
+ * The invitation link holds the secret. It is displayed once, kept only in component state and never persisted; the server cannot
+ * show it again. Copying it is a private way to share the invitation (for example by message) and does not send any e-mail.
+ */
+export function InvitationLinkCard({ link, expiresAt, onDone }: { link: string; expiresAt: string; onDone?: () => void }) {
  const { t } = useLanguage();
  const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
  async function copy() {
-  try { await navigator.clipboard.writeText(secret); setCopied('yes'); } catch { setCopied('no'); }
+  try { await navigator.clipboard.writeText(link); setCopied('yes'); } catch { setCopied('no'); }
  }
  return <Card emphasis labelledBy="pa-secret-title">
   <CardHead id="pa-secret-title" title={t('pa.secret.title')} aside={<>{t('pa.secret.expires')} <UtcDate value={expiresAt} /></>} />
   <CardBody>
    <p>{t('pa.secret.once')}</p>
    <div className="eds-input-row">
-    <code className="eds-code" dir="ltr" data-invitation-secret>{secret}</code>
+    <code className="eds-code" dir="ltr" data-invitation-link>{link}</code>
     <Button onClick={copy}>{copied === 'yes' ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{t(copied === 'yes' ? 'pa.secret.copied' : 'pa.secret.copy')}</Button>
    </div>
    {copied === 'no' ? <p className="eds-error" role="alert">{t('pa.secret.copy_failed')}</p> : null}

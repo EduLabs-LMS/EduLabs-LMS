@@ -23,6 +23,7 @@ export function PlatformAdminShell({ name, children }: { name: string; children:
 
  return <div className="eds-root pa-root" data-platform-admin data-appearance-island data-nav-open={navOpen}>
   <aside className="pa-sidebar" id="pa-sidebar" aria-label={t('pa.nav.main')}>
+   <div className="pa-sidebar-inner">
    <Link href="/platform-admin/teachers" className="pa-brand" aria-label={`${t('pa.brand')} — ${t('pa.brand_sub')}`}>
     <span><Brand /><small>{t('pa.brand_sub')}</small></span>
    </Link>
@@ -39,6 +40,7 @@ export function PlatformAdminShell({ name, children }: { name: string; children:
     </nav>
     <span>{t('pa.signed_in_as', { name })}</span>
     <ButtonLink href="/home" variant="ghost" size="sm"><ArrowLeft size={16} className="eds-flip" aria-hidden="true" />{t('pa.nav.back')}</ButtonLink>
+   </div>
    </div>
   </aside>
   <button type="button" className="pa-scrim" aria-label={t('pa.nav.close')} tabIndex={-1} onClick={() => setNavOpen(false)} />

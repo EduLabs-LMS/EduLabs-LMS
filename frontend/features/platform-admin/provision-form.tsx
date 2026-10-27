@@ -12,7 +12,7 @@ import {
  type Draft, type DraftErrors,
 } from '@/frontend/lib/provisioning-draft';
 import { invitationLifetimes, provisioningLimits, type ProvisionResult } from '@/shared/contracts/platform-provisioning';
-import { SecretCard, api, reasonMessage } from './common';
+import { InvitationLinkCard, api, reasonMessage } from './common';
 
 type Phase = 'edit' | 'review' | 'creating' | 'done' | 'unknown';
 const msg = (code: string) => `pa.draft.${code}` as MessageKey;
@@ -130,7 +130,7 @@ export function ProvisionForm() {
   return <Page layout="focused">
    <PageHeader title={t('pa.done.title')} intro={t('pa.done.intro')} />
    <Banner tone="ok" role="status">{t('pa.done.pending_owner')}</Banner>
-   <SecretCard secret={result.invitationSecret} expiresAt={result.expiresAt} />
+   <InvitationLinkCard link={result.invitationLink} expiresAt={result.expiresAt} />
    <div className="eds-actions">
     <ButtonLink variant="primary" href={`/platform-admin/teachers/${result.organizationId}`}>{t('pa.done.inspect')}</ButtonLink>
     <ButtonLink href="/platform-admin/teachers">{t('pa.done.list')}</ButtonLink>

@@ -8,6 +8,8 @@ import { getFirebaseAuth,restoreFirebaseAuth } from '@/frontend/lib/firebase';
 import { synchronizeFirebaseSession,useFirebaseAuth } from '@/frontend/components/providers/firebase-auth-provider';
 import { safeStudentAuthDestination } from '@/shared/contracts/student-administration';
 import { accountNames } from '@/shared/contracts/account';
+import { hasPendingInvitation } from '@/frontend/lib/teacher-invitation-storage';
+import { invitationPagePath } from '@/shared/invitation-link';
 import { registerFirebaseAccount } from '@/frontend/lib/signup-recovery';
 import { storeAccountDraft } from '@/frontend/lib/account-draft';
 import EduLabsMark from '@/frontend/components/edulabs-mark';
@@ -24,6 +26,8 @@ async function rememberProviderProfile(credential:import('firebase/auth').UserCr
  // Provider-supplied names are editable presentation only, never authorization.
  try{await storeAccountDraft(credential.user.uid,first.slice(0,60),last.slice(0,60),null,'provider');}catch{/* Manual onboarding remains available. */}
 }
+// The student contract only knows student destinations. A teacher with a stored invitation is sent back to the invitation page, never anywhere else.
+function authDestination(raw:string|null){if(raw===invitationPagePath)return invitationPagePath;const destination=safeStudentAuthDestination(raw);return destination==='/home'&&hasPendingInvitation()?invitationPagePath:destination;}
 function readRememberedNext(){try{return sessionStorage.getItem('edulabs-auth-next');}catch{return null;}}
 const field='mt-1 w-full rounded-xl border-2 border-black bg-white p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60';
 const button='flex w-full items-center justify-center gap-3 rounded-xl border-2 border-black bg-white p-3 text-sm font-bold shadow-hard-sm transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-50';
@@ -33,8 +37,8 @@ export function FirebaseForm({register=false}:{register?:boolean}){
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[firstName,setFirstName]=useState(''),[lastName,setLastName]=useState(''),[photo,setPhoto]=useState<File|null>(null),[show,setShow]=useState(false),[next,setNext]=useState('/home'),[busy,setBusy]=useState(false),[message,setMessage]=useState<string|null>(null),[retryAt,setRetryAt]=useState(0),[now,setNow]=useState(0);
  const [redirectReady,setRedirectReady]=useState(false);
  const redirecting=useRef(false),operation=useRef(false);const apple=process.env.NEXT_PUBLIC_FIREBASE_APPLE_ENABLED==='true';
- useEffect(()=>{setNext(safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext()));const tick=()=>setNow(Date.now());tick();const timer=setInterval(tick,1000);return()=>clearInterval(timer);},[]);
- const goHome=useCallback(()=>{if(redirecting.current)return;redirecting.current=true;const destination=safeStudentAuthDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext());try{sessionStorage.removeItem('edulabs-auth-next');}catch{}router.replace(destination);},[router]);
+ useEffect(()=>{setNext(authDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext()));const tick=()=>setNow(Date.now());tick();const timer=setInterval(tick,1000);return()=>clearInterval(timer);},[]);
+ const goHome=useCallback(()=>{if(redirecting.current)return;redirecting.current=true;const destination=authDestination(new URLSearchParams(window.location.search).get('next')||readRememberedNext());try{sessionStorage.removeItem('edulabs-auth-next');}catch{}router.replace(destination);},[router]);
  const run=async(fn:()=>Promise<void>)=>{if(operation.current)return;operation.current=true;setBusy(true);setMessage(null);try{await restoreFirebaseAuth();await fn();}catch(e){setMessage(readableAuthError(e));}finally{operation.current=false;setBusy(false);}};
  useEffect(()=>{let active=true;void restoreFirebaseAuth().then(()=>getRedirectResult(getFirebaseAuth())).then(async value=>{if(value)await rememberProviderProfile(value);}).catch(e=>{if(active)setMessage(readableAuthError(e));}).finally(()=>{if(active)setRedirectReady(true);});return()=>{active=false;};},[]);
  useEffect(()=>{if(user?.emailVerified&&!loading&&!error&&!busy&&redirectReady)goHome();},[user,loading,error,busy,redirectReady,goHome]);
