@@ -2275,6 +2275,11 @@ export type Database = {
       accept_teacher_invitation: { Args: { p_token_hash: string }; Returns: Json }
       platform_portal_overview: { Args: { p_limit?: number }; Returns: Json }
       platform_portal_detail: { Args: { p_organization_id: string }; Returns: Json }
+      platform_record_invitation_delivery: { Args: { p_invitation_id: string; p_status: string; p_provider_ref?: string | null; p_failure?: string | null }; Returns: Json }
+      platform_invitation_delivery: { Args: { p_organization_id: string }; Returns: Json }
+      platform_store_invitation_salt: { Args: { p_invitation_id: string; p_salt: string }; Returns: Json }
+      platform_invitation_link: { Args: { p_organization_id: string }; Returns: Json }
+      teacher_invitation_preview: { Args: { p_token_hash: string }; Returns: Json }
       academic_command: {
         Args: { p_action: string; p_organization_id: string; p_entity_id?: string; p_revision?: number; p_data?: Json }
         Returns: Json

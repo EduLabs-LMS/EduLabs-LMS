@@ -42,29 +42,45 @@ export type ProvisionTeacherRequest = z.infer<typeof provisionTeacherRequest>;
 
 export const portalAction = z.discriminatedUnion('action', [
  z.object({ action: z.literal('reissue'), expiresInDays: lifetime, teacherEmail: email.optional() }).strict(),
+ z.object({ action: z.literal('send_email') }).strict(),
+ z.object({ action: z.literal('copy_link') }).strict(),
  z.object({ action: z.literal('revoke') }).strict(),
 ]);
 export type PortalAction = z.infer<typeof portalAction>;
 
-export const acceptInvitationRequest = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }).strict();
+/** 32 random bytes, base64url: the only shape a link secret can have. */
+export const invitationTokenPattern = /^[A-Za-z0-9_-]{43}$/;
+export const acceptInvitationRequest = z.object({ token: z.string().regex(invitationTokenPattern) }).strict();
+export const previewInvitationRequest = acceptInvitationRequest;
 
 export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 /** Closed vocabulary so the interface can localize failures without parsing database text. */
-export type ProvisioningReason = 'invalid' | 'duplicate' | 'pending_exists' | 'not_found' | 'used' | 'gone' | 'forbidden' | 'conflict' | 'unavailable';
+export type ProvisioningReason = 'invalid' | 'duplicate' | 'pending_exists' | 'not_found' | 'used' | 'gone' | 'forbidden' | 'conflict' | 'unavailable' | 'email_not_configured' | 'origin_not_configured' | 'link_key_not_configured' | 'no_active_invitation';
 
 export type PortalSummary = {
  organizationId: string; teacherEmail: string; createdAt: string; expiresAt: string; acceptedAt: string | null; invitationStatus: InvitationStatus;
  course: { id: string; title: string; subject: string | null; grade: string | null; educationSystem: string | null; examinationBoard: string | null } | null;
 };
 export type PortalOverview = { items: PortalSummary[]; hasMore: boolean };
+/** sent = accepted by the e-mail provider (not proof of inbox delivery); sending = an attempt whose outcome was never recorded (unconfirmed). */
+export type DeliveryStatus = 'not_sent' | 'sending' | 'sent' | 'failed';
+export type InvitationDelivery = { status: DeliveryStatus; attemptedAt: string | null; failure: 'rejected' | null; attempts: number };
 export type PortalDetail = {
  organizationId: string; status: string; createdAt: string; hasOwner: boolean;
- invitations: { id: string; teacherEmail: string; createdAt: string; expiresAt: string; acceptedAt: string | null; revokedAt: string | null; revokeReason: 'revoked' | 'superseded' | null; status: InvitationStatus }[];
+ invitations: { id: string; teacherEmail: string; createdAt: string; expiresAt: string; acceptedAt: string | null; revokedAt: string | null; revokeReason: 'revoked' | 'superseded' | null; status: InvitationStatus; delivery: InvitationDelivery }[];
  educationSystems: { id: string; name: string; examinationBoard: string | null; gradeLevels: { id: string; name: string }[] }[];
  subjects: { id: string; name: string }[];
  courses: { id: string; title: string; status: string; subject: string | null; gradeLevel: string | null; educationSystem: string | null }[];
  activity: { action: string; occurredAt: string; actor: 'administrator' | 'teacher' }[];
 };
-/** `delivery` is always 'not_sent': email delivery is a separate, unconnected workstream. */
-export type ProvisionResult = { organizationId: string; invitationId: string; courseId: string; expiresAt: string; invitationSecret: string; delivery: 'not_sent' };
-export type ReissueResult = { organizationId: string; invitationId: string; expiresAt: string; invitationSecret: string; delivery: 'not_sent' };
+/** The link is built on the server from the configured canonical origin; its secret exists only in this response. */
+export type ProvisionResult = { organizationId: string; invitationId: string; courseId: string; expiresAt: string; invitationLink: string; delivery: 'not_sent'; reusable: boolean };
+/** A replacement: every earlier link and e-mail for this teaching space stops working. */
+export type ReissueResult = { organizationId: string; invitationId: string; expiresAt: string; invitationLink: string; delivery: 'not_sent'; reusable: boolean };
+/** The same active link again. Nothing was rotated, so an e-mail already sent keeps working. */
+export type CopyLinkResult = { organizationId: string; invitationId: string; expiresAt: string; invitationLink: string };
+/** 'unconfirmed': the provider call did not return a verdict; the invitation stays in "sending" until an administrator checks. */
+export type SendEmailResult = { organizationId: string; invitationId: string; expiresAt: string; delivery: 'sent' | 'failed' | 'unconfirmed'; statusSaved: boolean; attempt: number };
+
+export type InvitationPreviewState = 'valid' | 'expired' | 'revoked' | 'used' | 'unavailable';
+export type InvitationPreview = { state: InvitationPreviewState; emailVerified: boolean; emailMatches?: boolean; acceptedByMe?: boolean; maskedEmail?: string };

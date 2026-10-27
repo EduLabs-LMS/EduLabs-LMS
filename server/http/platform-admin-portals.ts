@@ -1,14 +1,14 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
-import { acceptInvitationRequest, portalAction, provisionTeacherRequest } from '@/shared/contracts/platform-provisioning';
+import { acceptInvitationRequest, portalAction, previewInvitationRequest, provisionTeacherRequest } from '@/shared/contracts/platform-provisioning';
 import { getPlatformAdminAccess } from '@/server/services/platform-admin';
-import { acceptTeacherInvitation, platformProvisioningService } from '@/server/services/platform-provisioning';
+import { acceptTeacherInvitation, platformProvisioningService, previewTeacherInvitation } from '@/server/services/platform-provisioning';
 import { validFirebaseOrigin } from '@/server/http/firebase/route';
 import { getApplicationViewer } from '@/server/services/application-auth';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import { isFirebaseStaging } from '@/shared/auth-config';
 
-// The response may carry a one-time invitation secret: it must never be cached or indexed.
+// The response may carry a one-time invitation link: it must never be cached or indexed.
 const reply = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store', 'Vary': 'Cookie', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' } });
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -71,6 +71,8 @@ export async function platformPortalHTTP(request: NextRequest, portalId: string)
   const input = portalAction.safeParse(parsed.body);
   if (!input.success) return reply({ error: 'Some details are not valid.', reason: 'invalid' }, 400);
   if (input.data.action === 'revoke') return reply(await gate.service.revoke(portalId));
+  if (input.data.action === 'send_email') return reply(await gate.service.sendEmail(portalId));
+  if (input.data.action === 'copy_link') return reply(await gate.service.copyLink(portalId));
   return reply(await gate.service.reissue(portalId, input.data.expiresInDays, input.data.teacherEmail));
  } catch (error) { return failure(error); }
 }
@@ -89,6 +91,23 @@ export async function acceptTeacherInvitationHTTP(request: NextRequest) {
   if (!input.success) return reply({ error: 'This invitation link is not valid.', reason: 'invalid' }, 400);
   const client = await getSupabaseServerClient();
   return reply(await acceptTeacherInvitation(client, input.data.token));
+ } catch (error) { return failure(error); }
+}
+
+/** Read-only status of a link for the signed-in holder. It never consumes the invitation. */
+export async function previewTeacherInvitationHTTP(request: NextRequest) {
+ try {
+  if (!isFirebaseStaging()) return reply({ error: 'Not found' }, 404);
+  if (request.method !== 'POST' || !validFirebaseOrigin(request)) return reply({ error: 'Invalid origin' }, 403);
+  if (new URL(request.url).search) return reply({ error: 'Unexpected query' }, 400);
+  const viewer = await getApplicationViewer();
+  if (!viewer || viewer.backend !== 'firebase') return reply({ error: 'Sign in required' }, 401);
+  const parsed = await readJson(request);
+  if ('response' in parsed) return parsed.response;
+  const input = previewInvitationRequest.safeParse(parsed.body);
+  if (!input.success) return reply({ error: 'This invitation link is not valid.', reason: 'invalid' }, 400);
+  const client = await getSupabaseServerClient();
+  return reply(await previewTeacherInvitation(client, input.data.token));
  } catch (error) { return failure(error); }
 }
 
