@@ -6,10 +6,14 @@
   foundation, itself on top of fa67875). Correction: earlier text named branch
   codex/teacher-ui-clean-foundation at fa67875 as uncommitted; that preparation is
   committed as d3451e5.
-- Teacher Provisioning V1 (Platform Admin) is implemented in the
-  working tree, UNCOMMITTED, pending review. Its migration is authored but NOT applied
-  anywhere. See docs/platform-admin-teacher-provisioning.md. Not built: invitation acceptance page,
-  email delivery, workspace reset.
+- Teacher Provisioning V1 (Platform Admin) and Teacher Invitation Delivery are implemented on
+  branch claude/teacher-invitation-delivery (pending review; not merged, not deployed). Implemented:
+  invitation acceptance page (/teacher-invitation, with a display-name step), admin Send/Copy/Replace/Revoke,
+  e-mail delivery through Resend with honest delivery status. Migrations 20261024120000 and
+  20261025100000 (migration 33) are authored but NOT applied to any database. Nothing was live-tested
+  with real Firebase, Supabase or Resend; verification used a disposable local PostgreSQL and a
+  fictional-HTTP browser harness. Not built: workspace reset, a dedicated teacher onboarding screen.
+  See docs/platform-admin-teacher-provisioning.md.
 - Owner authorization: issue #20 comment 6383545623 and the explicit chat instruction.
 - Neither friend branch 16acf2f nor integration merge f1be2f8 was merged/cherry-picked.
 - Continue Learning fix d96c40e was selectively ported, retaining baseline styles.
