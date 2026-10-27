@@ -136,6 +136,21 @@ invitation; an attempt with no verdict can be repeated only after 60 seconds). D
 
 If the provider verdict cannot be saved the administrator is told the real verdict and that the stored status may be stale.
 
+### Final link design (summary)
+
+- Each invitation has a random 16-byte **salt** (stored, not secret) and the link secret is `HMAC-SHA256(INVITATION_LINK_KEY, "teacher-invitation-link-v1:" + salt)`, base64url. The key must be at least 32 characters, lives only in server configuration, and is never sent to the browser or the database. The database stores the secret's SHA-256 (used on acceptance) and the salt.
+- **Send invitation email** and **Copy invitation link** reuse the same link for the active invitation; neither rotates, replaces or invalidates anything.
+- **Replace invitation** is the only action that rotates: it supersedes the old invitation, so the old link, its salt and any e-mail carrying it stop working immediately, and the new invitation starts with no delivery history.
+- **Revoke invitation** ends the invitation: nothing can be copied, sent or accepted afterwards.
+- If `INVITATION_LINK_KEY` is rotated or removed, existing pending links can no longer be re-derived (Copy/Send refuse, acceptance of already-shared links stops matching): replace those invitations.
+
+### Staging environment required (names only; values are set by the operator, never committed)
+
+- `APP_ORIGIN` (exact public HTTPS origin used in links)
+- `INVITATION_LINK_KEY` (secret, 32+ characters)
+- `RESEND_API_KEY` (only for e-mail)
+- `INVITATION_EMAIL_FROM` (verified sender, only for e-mail)
+
 ### Migration 33
 
 `supabase/migrations/20261025100000_teacher_invitation_delivery.sql` is additive: six `private.teacher_invitations` columns (`delivery_status`, `delivery_attempted_at`, `delivery_provider_ref`,
