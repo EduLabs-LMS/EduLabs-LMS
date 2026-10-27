@@ -37,6 +37,7 @@ const needKey = (deps: InvitationDeps) => {
  if (!key) throw provisioningFailure('Invitation links are not configured, so no invitation link can be created.', 503, 'link_key_not_configured');
  return key;
 };
+const keyChanged = () => provisioningFailure('The invitation link key changed, so this link can no longer be reproduced.', 409, 'link_key_changed');
 const noActiveLink = () => provisioningFailure('There is no active invitation link to reuse.', 409, 'no_active_invitation');
 
 const notSent: InvitationDelivery = { status: 'not_sent', attemptedAt: null, failure: null, attempts: 0 };
@@ -74,9 +75,12 @@ export function platformProvisioningService(client: Client, deps: InvitationDeps
  async function activeLink(key: string, origin: string, organizationId: string) {
   const { data, error } = await client.rpc('platform_invitation_link', { p_organization_id: organizationId });
   if (error) throw error.code === 'PT404' || error.code === 'PT410' ? noActiveLink() : provisioningError(error);
-  const row = data as { invitationId: string; expiresAt: string; salt: string | null } | null;
+  const row = data as { invitationId: string; expiresAt: string; salt: string | null; tokenHash: string } | null;
   if (!row?.salt) throw noActiveLink(); // issued without a stored salt: it cannot be shown again, only replaced
-  return { invitationId: row.invitationId, expiresAt: row.expiresAt, invitationLink: buildInvitationLink(origin, deriveInvitationSecret(key, row.salt)) };
+  const secret = deriveInvitationSecret(key, row.salt);
+  // A changed or wrong server key would derive a link the database no longer recognises: refuse instead of handing out a dead link.
+  if (hashInvitationSecret(secret) !== row.tokenHash) throw keyChanged();
+  return { invitationId: row.invitationId, expiresAt: row.expiresAt, invitationLink: buildInvitationLink(origin, secret) };
  }
  async function record(invitationId: string, status: 'sending' | 'sent' | 'failed', providerRef?: string | null, failure?: 'rejected') {
   const { data, error } = await client.rpc('platform_record_invitation_delivery', { p_invitation_id: invitationId, p_status: status, ...(providerRef ? { p_provider_ref: providerRef } : {}), ...(failure ? { p_failure: failure } : {}) });

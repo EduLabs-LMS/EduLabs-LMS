@@ -75,6 +75,7 @@ test('mailer: the message carries the link only in the body, escapes it, and nev
 
 // --- service orchestration ---------------------------------------------------------------------------------------------------
 const linkKey = 'k'.repeat(40);
+const rotatedKey = 'j'.repeat(40);
 const sha = secret => crypto.createHash('sha256').update(secret).digest('hex');
 /** A small stateful stand-in for the database functions, enough to prove token reuse, rotation and attempt numbering. */
 function harness({ configured = true, originValue = origin, keyValue = linkKey, mail = { outcome: 'sent', providerRef: 'msg_1' }, failRecord = null, failSalt = false } = {}) {
@@ -88,7 +89,7 @@ function harness({ configured = true, originValue = origin, keyValue = linkKey, 
   if (name === 'platform_reissue_teacher_invitation') { const r = issue(args.p_token_hash); return { data: { organizationId: args.p_organization_id, invitationId: r.id, expiresAt: r.expiresAt }, error: null }; }
   if (name === 'platform_provision_teacher') { const r = issue(args.p_token_hash); return { data: { organizationId: uuid(1), invitationId: r.id, courseId: uuid(3), expiresAt: r.expiresAt }, error: null }; }
   if (name === 'platform_store_invitation_salt') { if (failSalt) return { data: null, error: { code: 'XX000', message: 'boom' } }; db.invitations.find(i => i.id === args.p_invitation_id).salt = args.p_salt; return { data: { invitationId: args.p_invitation_id }, error: null }; }
-  if (name === 'platform_invitation_link') { const i = active(); if (!i) return { data: null, error: { code: 'PT404', message: 'No active invitation' } }; return { data: { invitationId: i.id, expiresAt: i.expiresAt, salt: i.salt, deliveryStatus: i.status_d, attempts: i.attempts }, error: null }; }
+  if (name === 'platform_invitation_link') { const i = active(); if (!i) return { data: null, error: { code: 'PT404', message: 'No active invitation' } }; return { data: { invitationId: i.id, expiresAt: i.expiresAt, salt: i.salt, tokenHash: i.hash, deliveryStatus: i.status_d, attempts: i.attempts }, error: null }; }
   if (name === 'platform_portal_detail') return { data: { organizationId: uuid(1), invitations: db.invitations.map(i => ({ id: i.id, teacherEmail: db.email, status: i.status === 'pending' ? 'pending' : 'revoked', expiresAt: i.expiresAt })), educationSystems: [], subjects: [], courses: [], activity: [] }, error: null };
   if (name === 'platform_invitation_delivery') return { data: db.invitations.map(i => ({ invitationId: i.id, status: i.status_d, attemptedAt: i.attemptedAt, failure: null, attempts: i.attempts })), error: null };
   if (name === 'platform_record_invitation_delivery') {
@@ -100,9 +101,10 @@ function harness({ configured = true, originValue = origin, keyValue = linkKey, 
   if (name === 'teacher_invitation_preview') return { data: { state: 'valid', emailVerified: true, emailMatches: true, acceptedByMe: false, maskedEmail: 'r***@example.test' }, error: null };
   return { data: null, error: { code: 'XX000' } };
  } };
- const deps = { origin: () => originValue, linkKey: () => keyValue, mailer: { configured: () => configured, send: async m => { calls.push({ name: 'MAIL' }); mailed.push(m); return typeof mail === 'function' ? mail(m) : mail; } } };
+ const keyBox = { v: keyValue };
+ const deps = { origin: () => originValue, linkKey: () => keyBox.v, mailer: { configured: () => configured, send: async m => { calls.push({ name: 'MAIL' }); mailed.push(m); return typeof mail === 'function' ? mail(m) : mail; } } };
  const mod = load('server/services/platform-provisioning.ts', { 'server-only': {}, 'node:crypto': crypto, '@/server/services/invitation-delivery': { productionInvitationDeps: () => deps, deriveInvitationSecret: delivery.deriveInvitationSecret }, '@/shared/invitation-link': linkLib, '@/shared/contracts/platform-provisioning': contract });
- return { ...mod, client, calls, mailed, db, svc: mod.platformProvisioningService(client, deps), names: () => calls.map(c => c.name) };
+ return { ...mod, client, calls, mailed, db, keyBox, svc: mod.platformProvisioningService(client, deps), names: () => calls.map(c => c.name) };
 }
 function require_delivery() { return load('server/services/invitation-delivery.ts', { 'server-only': {}, 'node:crypto': crypto, resend: { Resend: class {} }, '@/shared/public-website': publicWebsite }); }
 const provisionInput = () => contract.provisionTeacherRequest.parse({ teacherEmail: 'a@example.test', expiresInDays: 7, systems: [{ label: 'S', grades: [{ key: 'g', label: 'G' }] }], subjects: [{ key: 's', label: 'Sub' }], course: { title: 'C', gradeKey: 'g', subjectKey: 's' } });
@@ -164,6 +166,16 @@ test('service: Copy refuses, without creating anything, when there is no stored 
  await assert.rejects(lostSalt.svc.copyLink(uuid(1)), e => e.reason === 'no_active_invitation');
  await assert.rejects(lostSalt.svc.sendEmail(uuid(1)), e => e.reason === 'no_active_invitation'); assert.equal(lostSalt.mailed.length, 0);
  assert.equal(lostSalt.calls.filter(c => c.name === 'platform_reissue_teacher_invitation').length, 1, 'nothing was rotated to compensate');
+});
+test('service: a changed link key is detected: Copy and Send refuse and send nothing instead of handing out a dead link', async () => {
+ const h = harness(); await h.svc.reissue(uuid(1), 7); h.keyBox.v = rotatedKey; h.calls.length = 0;
+ await assert.rejects(h.svc.copyLink(uuid(1)), e => e.status === 409 && e.reason === 'link_key_changed');
+ await assert.rejects(h.svc.sendEmail(uuid(1)), e => e.reason === 'link_key_changed'); assert.equal(h.mailed.length, 0);
+ assert.equal(h.calls.some(c => c.name === 'platform_record_invitation_delivery'), false, 'no attempt was recorded');
+ assert.equal(h.calls.some(c => c.name === 'platform_reissue_teacher_invitation'), false, 'nothing was rotated to compensate');
+ h.keyBox.v = linkKey; assert.match((await h.svc.copyLink(uuid(1))).invitationLink, /#[A-Za-z0-9_-]{43}$/, 'restoring the key restores Copy');
+ const replaced = harness(); await replaced.svc.reissue(uuid(1), 7); replaced.keyBox.v = rotatedKey; const fresh = await replaced.svc.reissue(uuid(1), 7);
+ assert.equal((await replaced.svc.copyLink(uuid(1))).invitationLink, fresh.invitationLink, 'Replace under the new key works and Copy follows it');
 });
 test('service: the database never receives a secret or a key, only the hash and a non-secret salt', async () => {
  const h = harness(); const out = await h.svc.provision(provisionInput()); const secret = secretOf(out.invitationLink); await h.svc.sendEmail(uuid(1)); await h.svc.copyLink(uuid(1));
@@ -352,7 +364,7 @@ test('copy: the teacher-facing page exists in English and Arabic, says "teaching
  for (const k of keys) { assert.ok(messages.en[k] && messages.ar[k], k); assert.doesNotMatch(messages.en[k], /portal|owner|organi[sz]ation/i, k); assert.equal((messages.en[k].match(/\{[a-z]+\}/g) || []).join(), (messages.ar[k].match(/\{[a-z]+\}/g) || []).join(), 'placeholders match: ' + k); }
  const view = read('frontend/features/teacher-invitation/invitation-view.tsx');
  for (const used of new Set([...view.matchAll(/'(ti\.[a-z_.]+)'/g)].map(m => m[1]))) assert.ok(messages.en[used], 'defined: ' + used);
- for (const k of ['pa.err.email_not_configured', 'pa.err.origin_not_configured', 'pa.portal.send_email', 'pa.portal.copy_link', 'pa.delivery.sent_note', 'pa.delivery.sending_note']) assert.ok(messages.en[k] && messages.ar[k], k);
+ for (const k of ['pa.err.link_key_changed', 'pa.err.email_not_configured', 'pa.err.origin_not_configured', 'pa.portal.send_email', 'pa.portal.copy_link', 'pa.delivery.sent_note', 'pa.delivery.sending_note']) assert.ok(messages.en[k] && messages.ar[k], k);
  assert.equal(messages.en['ti.valid.text'], 'Accepting gives you your own teaching space on EduLabs, where you can set up your courses. Accept only if you expected this invitation.');
  assert.doesNotMatch(Object.entries(messages.en).filter(([k]) => k.startsWith('ti.')).map(([, v]) => v).join(' '), /you become the owner/i);
  assert.match(messages.en['pa.err.link_key_not_configured'], /INVITATION_LINK_KEY/); assert.match(messages.en['pa.portal.share_hint'], /Only .Replace invitation. creates a new link/);

@@ -8,7 +8,7 @@ Cloudflare were not touched while preparing it.
 
 After the release commit `0f9b889` the branch gained, **uncommitted and unreviewed**, the teacher invitation link onboarding. It
 needs a second migration, `supabase/migrations/20261025100000_teacher_invitation_delivery.sql` (migration 33, SHA-256
-`a26a5ab0a433fc104477c04a6c2abe3bb3803e75af923992859c7dd3a86023d2`, LF, `.gitattributes` `-text`; recompute from `git show <sha>:<path>`
+`033b24d030b89adae71b6e916cdf86c7ba7157e3663c2c51909dd5cb8f8be530`, LF, `.gitattributes` `-text`; recompute from `git show <sha>:<path>`
 after the commit). Migration 32 is unchanged (`96a06dd3...`). The activation order below therefore becomes: apply 32, then 33
 (each its own `begin; ... commit;`), verify, extend the manager approval to **both** files. Behaviour before 33 is applied: the
 administrator page still works (delivery status reads fall back to "No email sent"), **Send invitation email** is refused before

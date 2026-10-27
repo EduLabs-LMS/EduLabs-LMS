@@ -105,6 +105,7 @@ select pg_temp.denied(format($s$select public.platform_store_invitation_salt(%L,
 select pg_temp.denied(format($s$select public.platform_store_invitation_salt(%L,repeat('a',32))$s$,gen_random_uuid()),'PT404','salt for an unknown invitation rejected');
 select pg_temp.ok(public.platform_store_invitation_salt(pg_temp.key('inv1'),'00112233445566778899aabbccddeeff') is not null,'administrator stores the salt');
 select pg_temp.denied(format($s$select public.platform_store_invitation_salt(%L,repeat('b',32))$s$,pg_temp.key('inv1')),'PT409','the salt cannot be overwritten (the link cannot silently change)');
+select pg_temp.ok((select l->>'tokenHash'=pg_temp.hash('secret-1') from (select public.platform_invitation_link(pg_temp.key('org')) l) x),'the link material carries the stored hash so the server can verify its derivation');
 select pg_temp.ok((select l->>'salt'='00112233445566778899aabbccddeeff' and (l->>'invitationId')::uuid=pg_temp.key('inv1') and l->>'deliveryStatus'='sent' and (l->>'attempts')::int=1
  from (select public.platform_invitation_link(pg_temp.key('org')) l) x),'the link material reads back unchanged and nothing rotates');
 select pg_temp.ok((select l->>'salt'='00112233445566778899aabbccddeeff' from (select public.platform_invitation_link(pg_temp.key('org')) l) x),'reading it twice gives the same salt');

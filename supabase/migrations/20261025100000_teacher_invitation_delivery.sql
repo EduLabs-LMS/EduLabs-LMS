@@ -79,7 +79,8 @@ begin
  return jsonb_build_object('invitationId',inv.id);
 end $$;
 
--- The active invitation's id, expiry and salt, so the server can re-derive the same link. Never rotates anything.
+-- The active invitation's id, expiry, salt and token hash, so the server can re-derive the same link and prove it still matches the
+-- stored hash (a changed server key would otherwise yield a dead link). The hash is not a secret. Never rotates anything.
 create function private.platform_invitation_link(p_organization_id uuid) returns jsonb
 language plpgsql stable security definer set search_path='' as $$
 declare inv private.teacher_invitations;
@@ -89,7 +90,7 @@ begin
  if inv.id is null then raise exception 'No active invitation' using errcode='PT404'; end if;
  if inv.expires_at <= clock_timestamp() then raise exception 'The invitation has expired' using errcode='PT410'; end if;
  return jsonb_build_object('invitationId',inv.id,'expiresAt',inv.expires_at,'salt',case when inv.link_salt is null then null else encode(inv.link_salt,'hex') end,
-  'deliveryStatus',inv.delivery_status,'attempts',inv.delivery_attempts);
+  'tokenHash',encode(inv.token_hash,'hex'),'deliveryStatus',inv.delivery_status,'attempts',inv.delivery_attempts);
 end $$;
 
 -- Read-only: the signed-in caller learns the state of a link they already hold. Unknown secrets and states never differ in

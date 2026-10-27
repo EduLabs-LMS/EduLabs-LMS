@@ -19,10 +19,10 @@ export function StatusBadge({ status }: { status: InvitationStatus }) {
  return <Badge tone={statusTone[status]} data-status={status}>{t(statusKey[status])}</Badge>;
 }
 
-const reasonKey: Record<ProvisioningReason, 'pa.err.invalid' | 'pa.err.duplicate' | 'pa.err.pending_exists' | 'pa.err.not_found' | 'pa.err.used' | 'pa.err.gone' | 'pa.err.forbidden' | 'pa.err.unavailable' | 'pa.err.email_not_configured' | 'pa.err.origin_not_configured' | 'pa.err.link_key_not_configured' | 'pa.err.no_active_invitation'> = {
+const reasonKey: Record<ProvisioningReason, 'pa.err.invalid' | 'pa.err.duplicate' | 'pa.err.pending_exists' | 'pa.err.not_found' | 'pa.err.used' | 'pa.err.gone' | 'pa.err.forbidden' | 'pa.err.unavailable' | 'pa.err.email_not_configured' | 'pa.err.origin_not_configured' | 'pa.err.link_key_not_configured' | 'pa.err.link_key_changed' | 'pa.err.no_active_invitation'> = {
  invalid: 'pa.err.invalid', duplicate: 'pa.err.duplicate', pending_exists: 'pa.err.pending_exists', not_found: 'pa.err.not_found', used: 'pa.err.used',
  gone: 'pa.err.gone', forbidden: 'pa.err.forbidden', conflict: 'pa.err.used', unavailable: 'pa.err.unavailable', email_not_configured: 'pa.err.email_not_configured', origin_not_configured: 'pa.err.origin_not_configured',
- link_key_not_configured: 'pa.err.link_key_not_configured', no_active_invitation: 'pa.err.no_active_invitation',
+ link_key_not_configured: 'pa.err.link_key_not_configured', link_key_changed: 'pa.err.link_key_changed', no_active_invitation: 'pa.err.no_active_invitation',
 };
 export const reasonMessage = (reason: ProvisioningReason | undefined) => reasonKey[reason ?? 'unavailable'] ?? 'pa.err.unavailable';
 

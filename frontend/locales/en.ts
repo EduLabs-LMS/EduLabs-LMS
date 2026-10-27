@@ -857,5 +857,6 @@ export const en = {
   "ti.name.failed": "We could not save your name. Check your connection and try again. Your invitation was not accepted.",
   "ti.name.invalid": "Enter both your first and last name.",
   "ti.name.loading": "Checking your profile…",
+  "pa.err.link_key_changed": "The invitation link key changed since this invitation was created, so its link can no longer be reproduced. Use \"Replace invitation\" to create a new link. Nothing was sent.",
   "pa.err.network": "Could not reach the server. Check your connection and retry.",
 } as const;
