@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 
 import EduLabsMark from '@/frontend/components/edulabs-mark';
+import { showTeacherNav } from '@/shared/teacher-home';
+import { TeacherNav } from '@/frontend/features/teacher-home/teacher-nav';
 import { NotificationBell } from '@/frontend/features/notifications/notifications-view';
 import { cn } from '@/shared/utils';
 
@@ -52,6 +54,8 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 	}, []);
 
 	const isAdminOrTeacher = isFirebaseStaging() ? !!navigation?.staffOrganizationIds.length : role === 'admin' || role === 'teacher';
+
+	const teacherMode = showTeacherNav(isFirebaseStaging(), navigation?.staffOrganizationIds);
 
 	const isHomeActive = pathname === '/' || pathname === '/home';
 	const isSelfLearningActive =
@@ -95,6 +99,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		</div>
 
 		{/* 2. TACTILE NAVIGATION LINKS */}
+		{teacherMode ? <TeacherNav onNavigate={onNavigate} /> : (
 		<div className="p-3 flex flex-col space-y-1.5 overflow-y-auto scrollbar-none flex-1">
 		<Link
 		href="/home"
@@ -256,6 +261,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 			</div>
 		)}
 		</div>
+		)}
 		</div>
 
 		{/* 3. BOTTOM FOOTER WITH USER PROFILE & LOGOUT */}

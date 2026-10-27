@@ -1,4 +1,5 @@
 import { resumeLearning } from '@/shared/continue-learning';
+import { TeacherHomePage } from './teacher-home-pages';
 import { L, Localized } from '@/frontend/components/language-provider';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -62,8 +63,7 @@ export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
   const staff = scope.courses.some(c => courseCapability(context, c)) || supported.length > 0 || context.memberships.some(m => m.status === 'active' && ['owner', 'admin'].includes(m.role) && (!search.organization || search.organization === m.organization_id));
 
   return <div className="space-y-8"><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited} />
-    {staff && <Localized as="nav" labels={{"aria-label":"common.teaching_tools"}} className="flex flex-wrap gap-4 text-sm text-sky-700">{context.memberships.some(m=>m.status==='active'&&['owner','admin','teacher'].includes(m.role))&&<Link href="/teacher/create"><L id="common.create_a_course"/></Link>}<Link href="/teacher/programs"><L id="common.academic_programs"/></Link><Link href="/teacher/website"><L id="common.website_studio"/></Link></Localized>}
-    {staff ? <TeacherFoundationNotice title="Teacher dashboard"/> :
+    {staff ? <TeacherHomePage/> :
     <StudentLearning resume={resumeLearning(scope, context.organizations)} home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={scope.offerings} lessons={scope.contentLimited ? [] : v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} />}
     {scope.limited && <p className="text-sm text-slate-500"><L id="common.open_a_course_for_its"/></p>}
     {!staff&&<p className="text-sm text-slate-600"><L id="common.need_course_access_use_your"/>{" "}<Link className="underline" href="/access"><L id="common.view_your_access_requests"/></Link>.</p>}
