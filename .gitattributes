@@ -17,3 +17,4 @@ supabase/migrations/20261019004546_teacher_websites_public_catalogs.sql -text
 # Platform admin migration: the staging manager pins the SHA-256 of the exact Git blob.
 supabase/migrations/20261024120000_platform_admin_teacher_provisioning.sql -text
 supabase/migrations/20261025100000_teacher_invitation_delivery.sql -text
+supabase/migrations/20261027120000_demo_spaces.sql -text

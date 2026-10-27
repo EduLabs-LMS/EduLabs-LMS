@@ -13,6 +13,7 @@ import {
 } from '@/frontend/lib/provisioning-draft';
 import { invitationLifetimes, provisioningLimits, type ProvisionResult } from '@/shared/contracts/platform-provisioning';
 import { InvitationLinkCard, api, reasonMessage } from './common';
+import type { DemoMarkResult } from '@/shared/contracts/platform-demo';
 
 type Phase = 'edit' | 'review' | 'creating' | 'done' | 'unknown';
 const msg = (code: string) => `pa.draft.${code}` as MessageKey;
@@ -41,6 +42,10 @@ export function ProvisionForm() {
  const [boardOpen, setBoardOpen] = useState<Record<string, boolean>>({});
  const [settingsOpen, setSettingsOpen] = useState(false);
  const submitting = useRef(false);
+ // Demo is a separate, second step after provisioning. It is never part of the provisioning request, so no state of it can fake a created space.
+ const [demo, setDemo] = useState(false);
+ const [demoState, setDemoState] = useState<'none' | 'working' | 'on' | { failed: MessageKey } | 'unknown'>('none');
+ const demoBusy = useRef(false);
  const formRef = useRef<HTMLFormElement>(null);
  const headingRef = useRef<HTMLHeadingElement>(null);
  // Only the step the administrator has tried to leave shows errors; the rest of the draft stays quiet.
@@ -105,6 +110,18 @@ export function ProvisionForm() {
   return true;
  }
 
+ /** Runs once after provisioning succeeded. A definite refusal can be retried; an unknown outcome cannot (the portal page shows the truth). */
+ async function markDemo(organizationId: string) {
+  if (demoBusy.current) return;
+  demoBusy.current = true; setDemoState('working');
+  const out = await api<DemoMarkResult>(`/api/platform-admin/portals/${organizationId}/demo`, { method: 'POST', body: { action: 'mark' } });
+  demoBusy.current = false;
+  if (out.ok && out.data.demo === true) setDemoState('on');
+  else if (out.ok) setDemoState({ failed: 'pa.err.unavailable' });
+  else if (out.reason === 'network') setDemoState('unknown');
+  else setDemoState({ failed: reasonMessage(out.reason) });
+ }
+
  async function create() {
   if (submitting.current) return;
   const request = toRequest(draft);
@@ -112,7 +129,7 @@ export function ProvisionForm() {
   submitting.current = true; setPhase('creating'); setFailure(null);
   const out = await api<ProvisionResult>('/api/platform-admin/portals', { method: 'POST', body: request });
   submitting.current = false;
-  if (out.ok) { setResult(out.data); setPhase('done'); window.scrollTo({ top: 0 }); return; }
+  if (out.ok) { setResult(out.data); setPhase('done'); window.scrollTo({ top: 0 }); if (demo) void markDemo(out.data.organizationId); return; }
   // Nothing was saved on a definite refusal. After a network error the outcome is unknown.
   if (out.reason === 'network') { setPhase('unknown'); return; }
   setFailure(reasonMessage(out.reason)); setPhase('review');
@@ -131,6 +148,15 @@ export function ProvisionForm() {
    <PageHeader title={t('pa.done.title')} intro={t('pa.done.intro')} />
    <Banner tone="ok" role="status">{t('pa.done.pending_owner')}</Banner>
    <InvitationLinkCard link={result.invitationLink} expiresAt={result.expiresAt} />
+   {demo ? <div data-demo-result>
+    {demoState === 'working' ? <Banner tone="info" role="status">{t('pa.demo.loading')}</Banner> : null}
+    {demoState === 'on' ? <Banner tone="ok" role="status">{t('pa.demo.partial_done')}</Banner> : null}
+    {demoState === 'unknown' ? <Banner tone="warn" role="alert"><span><strong>{t('pa.demo.partial_title')}</strong><br />{t('pa.demo.partial_unknown')}</span></Banner> : null}
+    {typeof demoState === 'object' ? <Banner tone="warn" role="alert">
+     <span><strong>{t('pa.demo.partial_title')}</strong><br />{t('pa.demo.partial_body')}<br />{t(demoState.failed)}</span>
+     <Button size="sm" onClick={() => void markDemo(result.organizationId)} disabled={demoBusy.current}>{t('pa.demo.partial_retry')}</Button>
+    </Banner> : null}
+   </div> : null}
    <div className="eds-actions">
     <ButtonLink variant="primary" href={`/platform-admin/teachers/${result.organizationId}`}>{t('pa.done.inspect')}</ButtonLink>
     <ButtonLink href="/platform-admin/teachers">{t('pa.done.list')}</ButtonLink>
@@ -167,9 +193,14 @@ export function ProvisionForm() {
        { key: 'systems', term: t('pa.section.systems'), detail: <ul className="eds-plain-list">{draft.systems.map((s) => <li key={s.id}><span className="eds-strong">{s.label.trim()}</span>{s.board.trim() ? <span className="eds-meta"> · {s.board.trim()}</span> : null}
         <ChipList label={s.label.trim()}>{s.grades.map((g) => <Chip key={g.key}>{g.label}</Chip>)}</ChipList></li>)}</ul> },
        { key: 'subjects', term: t('pa.section.subjects'), detail: <ChipList label={t('pa.section.subjects')}>{draft.subjects.map((s) => <Chip key={s.key}>{s.label}</Chip>)}</ChipList> },
+       { key: 'demo', term: t('pa.demo.review_term'), detail: t(demo ? 'pa.demo.review_on' : 'pa.demo.review_off') },
        { key: 'course', term: t('pa.section.course'), detail: <><span className="eds-strong">{draft.courseTitle.trim()}</span><span className="eds-meta"> · {subject?.label} · {grade?.label} ({grade?.system})</span></> },
       ]} />
       <p className="eds-hint">{t('pa.review.empty_course')}</p>
+      <label className="eds-check" data-demo-checkbox>
+       <input type="checkbox" checked={demo} disabled={busy} onChange={(e) => setDemo(e.target.checked)} />
+       <span><span className="eds-strong">{t('pa.demo.checkbox')}</span><span className="eds-hint eds-block">{t('pa.demo.checkbox_hint')}</span></span>
+      </label>
      </CardBody>
     </Card>
    </StepPanel>

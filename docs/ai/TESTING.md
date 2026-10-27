@@ -62,3 +62,8 @@ SQL runtime note: the default in-memory runtime (PGlite 0.5.8) is PostgreSQL 18 
 independent of any migration (it fails identically on the 31-file baseline). The authoritative run is
 `npm run test:exam-sql:postgres` against a disposable PostgreSQL 17 on loopback. Release procedure and rollback:
 docs/platform-admin-staging-release.md.
+
+Demo spaces: scripts/demo-spaces.test.cjs (part of npm test) covers the service, the admin HTTP routes (non-administrators denied,
+bounded strict body, no user/role/recipient injection), the pinned migration, locale parity, the Home label rule, and fails when
+the latest demo seed version in the SQL, the service constant and docs/ai/DEMO_DATA.md disagree. A feature that stores teacher data
+without extending the demo seed (see DEMO_DATA.md) must update those three places in the same change.

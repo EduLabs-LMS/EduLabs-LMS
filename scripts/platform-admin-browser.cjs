@@ -23,8 +23,9 @@ assert.ok(fontFaces.length >= 8 && fontVars.length === 4, 'expected Figtree, Cap
 const bodyClass = fontVars.map(v => v.match(/^\.([^{]+)\{/)[1]).join(' ');
 
 // ---- fictional backend -------------------------------------------------------------------------
+let demos = new Map(), demoPosts = [], demoBehaviors = [], demoStatusFailures = 0, demoLatest = 1;
 let lastAction, portals, posts, behaviors, detailFailures, secrets, dropActions, appliedOnce, actionPosts, emailMode, mailed, invites, viewer, acceptPosts, previewPosts, acceptBodies, acceptDrop, acceptApplied, previewDrop, account, accountSaves, accountFail, accountGets;
-function reset() { portals = []; posts = []; behaviors = []; detailFailures = 0; secrets = []; dropActions = null; appliedOnce = false; actionPosts = 0; emailMode = 'sent'; mailed = []; invites = new Map(); viewer = { email: 'invited.teacher@example.test', verified: true }; acceptPosts = 0; previewPosts = 0; acceptBodies = []; acceptDrop = null; acceptApplied = false; previewDrop = false; account = { user_id: 'u1', first_name: 'Invited', last_name: 'Teacher', avatar_id: null, onboarding_completed_at: '2030-01-01T00:00:00Z', revision: 3 }; accountSaves = []; accountFail = 0; accountGets = 0; }
+function reset() { demos = new Map(); demoPosts = []; demoBehaviors = []; demoStatusFailures = 0; demoLatest = 1; portals = []; posts = []; behaviors = []; detailFailures = 0; secrets = []; dropActions = null; appliedOnce = false; actionPosts = 0; emailMode = 'sent'; mailed = []; invites = new Map(); viewer = { email: 'invited.teacher@example.test', verified: true }; acceptPosts = 0; previewPosts = 0; acceptBodies = []; acceptDrop = null; acceptApplied = false; previewDrop = false; account = { user_id: 'u1', first_name: 'Invited', last_name: 'Teacher', avatar_id: null, onboarding_completed_at: '2030-01-01T00:00:00Z', revision: 3 }; accountSaves = []; accountFail = 0; accountGets = 0; }
 reset();
 const iso = (days = 0) => new Date(Date.UTC(2030, 0, 2, 3, 4) + days * 86400000).toISOString();
 function fictionalPortal(request, status = 'pending') {
@@ -152,6 +153,34 @@ createRoot(document.getElementById('root')).render(
     if (behavior === 'conflict' || portals.some(p => p.invitations[0].teacherEmail === input.teacherEmail && p.invitations[0].status === 'pending')) return send({ error: 'exists', reason: 'pending_exists' }, 409);
     const detail = fictionalPortal(input); portals.unshift(detail);
     send({ organizationId: detail.organizationId, invitationId: detail.invitations[0].id, courseId: detail.courses[0].id, expiresAt: detail.invitations[0].expiresAt, invitationLink: detail.invitations[0].link, delivery: 'not_sent', reusable: true }, 201);
+   });
+  }
+  const demoMatch = url.pathname.match(/^\/api\/platform-admin\/portals\/([0-9a-f-]{36})\/demo$/);
+  if (demoMatch) {
+   const id = demoMatch[1], portal = portals.find(p => p.organizationId === id);
+   if (!portal) return send({ error: 'Not found', reason: 'not_found' }, 404);
+   const current = () => demos.get(id) || { demo: false, filled: false, seedVersion: null, filledAt: null };
+   if (req.method === 'GET') { if (demoStatusFailures > 0) { demoStatusFailures--; return send({ error: 'down', reason: 'unavailable' }, 503); } return send({ ...current(), latestSeedVersion: demoLatest }); }
+   return body().then(async input => {
+    demoPosts.push(input);
+    // 'sticky-drop' keeps resetting every request until the test resets: the browser may retry a reset POST any number of times.
+    const behavior = demoBehaviors[0] === 'sticky-drop' ? 'drop' : (demoBehaviors.shift() || 'ok'), d = current();
+    const apply = () => {
+     if (input.action === 'mark') { demos.set(id, { ...d, demo: true }); return [200, { organizationId: id, demo: true }]; }
+     if (input.action === 'unmark') { if (d.filled) return [409, { error: 'clear first', reason: 'demo_not_cleared' }]; demos.delete(id); return [200, { organizationId: id, demo: false }]; }
+     if (!d.demo) return [409, { error: 'not demo', reason: 'demo_not_marked' }];
+     if (input.action === 'fill') {
+      if (d.filled) return [409, { error: 'filled', reason: 'demo_filled' }];
+      if (portal.invitations[0].status !== 'accepted') return [409, { error: 'not accepted', reason: 'not_accepted' }];
+      demos.set(id, { demo: true, filled: true, seedVersion: 1, filledAt: '2030-01-02T03:04:00Z' }); return [200, { seedVersion: 1, courses: 2, lessons: 5, groups: 2, sessions: 5 }];
+     }
+     demos.set(id, { demo: true, filled: false, seedVersion: null, filledAt: null }); return [200, { removedRows: 20 }];
+    };
+    if (behavior === 'drop') return req.socket.destroy();
+    if (behavior === 'drop-applied') { apply(); demoBehaviors.unshift('sticky-drop'); return req.socket.destroy(); }
+    if (behavior === 'outage') return send({ error: 'down', reason: 'unavailable' }, 503);
+    if (behavior === 'slow') await new Promise(r => setTimeout(r, 600));
+    const [status, payload] = apply(); send(payload, status);
    });
   }
   const match = url.pathname.match(/^\/api\/platform-admin\/portals\/([0-9a-f-]{36})$/);
@@ -658,7 +687,8 @@ createRoot(document.getElementById('root')).render(
    assert.match(await style(select, 'backgroundImage'), /data:image\/svg\+xml/, 'a themed chevron replaces it');
    assert.ok(parseFloat(await style(select, 'paddingRight')) >= 36, 'room for the chevron');
    const before = await page.locator('#pa-course-title').boundingBox(); await page.locator('#pa-course-title').focus();
-   const after = await page.locator('#pa-course-title').boundingBox(); assert.deepEqual([after.width, after.height], [before.width, before.height], 'focusing does not resize the field');
+   const after = await page.locator('#pa-course-title').boundingBox(); const px = v => Math.round(v * 10) / 10; // sub-pixel layout jitter (about 0.0001px) is not a resize
+   assert.deepEqual([px(after.width), px(after.height)], [px(before.width), px(before.height)], 'focusing does not resize the field');
    const ring = await style('#pa-course-title', 'outlineColor'); assert.doesNotMatch(ring, /^rgb\(\s*(11|140),/, 'not the old blue focus color');
    const ringRgb = ring.match(/\d+(\.\d+)?/g).map(Number); assert.ok(ringRgb[1] > ringRgb[2] && ringRgb[1] >= ringRgb[0], 'the focus ring is green: ' + ring);
    assert.equal(await style('#pa-course-title', 'borderTopLeftRadius'), await page.evaluate(() => { document.querySelector('#pa-course-title').blur(); return getComputedStyle(document.querySelector('#pa-course-title')).borderTopLeftRadius; }), 'radius is unchanged by focus');
@@ -871,7 +901,7 @@ createRoot(document.getElementById('root')).render(
   // Make the page genuinely tall, as a real portal with many grades and activity entries is.
   portal.activity = Array.from({ length: 40 }, (_, i) => ({ action: 'invitation.reissue', occurredAt: iso(i), actor: 'administrator' }));
   const measure = () => page.evaluate(() => { const r = document.querySelector('.pa-sidebar-inner').getBoundingClientRect(); const c = getComputedStyle(document.querySelector('#pa-sidebar')); const root = document.querySelector('.pa-root').getBoundingClientRect();
-   return { top: Math.round(r.top), height: Math.round(r.height), left: Math.round(r.left), width: Math.round(r.width), vh: window.innerHeight, scrollY: Math.round(window.scrollY), pageHeight: document.documentElement.scrollHeight, visibility: c.visibility, position: c.position, rootHeight: Math.round(root.height) }; });
+   return { top: Math.round(r.top) || 0, height: Math.round(r.height), left: Math.round(r.left) || 0, width: Math.round(r.width), vh: window.innerHeight, scrollY: Math.round(window.scrollY), pageHeight: document.documentElement.scrollHeight, visibility: c.visibility, position: c.position, rootHeight: Math.round(root.height) }; });
   for (const [label, width, height] of [['desktop', 1440, 900], ['tablet', 820, 1024], ['phone', 390, 844]]) {
    await page.setViewportSize({ width, height }); await open('view=detail&id=' + portal.organizationId); await page.getByText('Owner pending').waitFor();
    const docked = width > 900;
@@ -1056,6 +1086,103 @@ createRoot(document.getElementById('root')).render(
   await page.setViewportSize({ width: 1440, height: 900 }); await setLang('en'); await setTheme('light');
  });
 
+
+ // ------------------------------------------------------------------ demo spaces
+ const createWithDemo = async ({ tick, behaviors: demoB = [] }) => {
+  reset(); demoBehaviors = [...demoB]; await open('view=new'); await fillBasics();
+  await page.getByRole('button', { name: 'Review setup', exact: true }).click();
+  const box = page.getByRole('checkbox', { name: /Demo space/ }); await box.waitFor();
+  assert.equal(await box.isChecked(), false, 'off by default');
+  if (tick) await box.check();
+  await page.getByRole('button', { name: 'Create portal' }).click(); await page.getByRole('heading', { name: 'Portal created' }).waitFor();
+ };
+ const demoCard = () => page.locator('[data-demo-section]');
+ const openDemoPortal = async (id) => { await open('view=detail&id=' + id); await demoCard().waitFor(); };
+ const demoPortal = (status = 'pending', demo = null) => { const p = fictionalPortal(sampleRequest('demo.' + portals.length + '@example.test'), status); portals.push(p); if (demo) demos.set(p.organizationId, demo); return p; };
+ await step('demo checkbox: off by default, never part of the provisioning request, and nothing is marked unless ticked', async () => {
+  await createWithDemo({ tick: false });
+  assert.equal(demoPosts.length, 0, 'unticked: no demo request'); assert.equal(await page.locator('[data-demo-result]').count(), 0);
+  assert.equal('demo' in posts.at(-1), false, 'the provisioning body has no demo field'); assert.deepEqual(Object.keys(posts.at(-1)).sort(), ['course', 'expiresInDays', 'subjects', 'systems', 'teacherEmail']);
+  await createWithDemo({ tick: true });
+  await page.getByText('This teaching space is now a demo space.').waitFor();
+  assert.deepEqual(demoPosts, [{ action: 'mark' }]); assert.equal('demo' in posts.at(-1), false); assert.equal(demos.get(portals[0].organizationId).demo, true);
+ });
+ await step('demo mark fails after provisioning: honest partial state, the space exists, retry works and is single-flight', async () => {
+  await createWithDemo({ tick: true, behaviors: ['outage'] });
+  await page.getByText('Teaching space created, demo not set').waitFor(); assert.equal(portals.length, 1, 'the teaching space really exists');
+  assert.equal(await page.getByText('This teaching space is now a demo space.').count(), 0, 'no success is claimed');
+  assert.equal(demos.has(portals[0].organizationId), false);
+  await page.getByRole('button', { name: 'Try again to mark as demo' }).click(); await page.getByText('This teaching space is now a demo space.').waitFor();
+  assert.deepEqual(demoPosts.map(p => p.action), ['mark', 'mark']); assert.equal(demos.get(portals[0].organizationId).demo, true);
+ });
+ await step('demo mark with a dropped connection: unknown, no retry button, points to the portal page', async () => {
+  await createWithDemo({ tick: true, behaviors: ['sticky-drop'] });
+  await page.getByText('We could not confirm whether demo was set').waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Try again to mark as demo' }).count(), 0, 'no blind retry after an unknown outcome');
+  const sent = demoPosts.length; await page.waitForTimeout(700); assert.equal(demoPosts.length, sent, 'nothing is sent again by the page'); assert.equal(demos.has(portals[0].organizationId), false); assert.equal(await page.getByRole('link', { name: 'Inspect portal' }).count(), 1);
+ });
+ await step('Demo section: status, fill needs an accepted invitation, fill is single-flight, clear needs confirmation, turn off only when cleared', async () => {
+  reset(); const empty = { demo: true, filled: false, seedVersion: null, filledAt: null };
+  const pending = demoPortal('pending', empty), accepted = demoPortal('accepted', empty), plain = demoPortal('accepted');
+  await openDemoPortal(pending.organizationId);
+  await demoCard().getByText('Demo, empty').first().waitFor();
+  assert.equal(await demoCard().getByRole('button', { name: 'Fill with demo data' }).isDisabled(), true, 'fill is disabled until the invitation is accepted');
+  await demoCard().getByText('Available after the teacher has accepted the invitation.').waitFor();
+  assert.equal(await demoCard().getByRole('button', { name: 'Clear demo data' }).isDisabled(), true); assert.equal(await demoCard().getByRole('button', { name: 'Turn demo off' }).isEnabled(), true);
+  await openDemoPortal(plain.organizationId); await demoCard().getByText('Not a demo').first().waitFor();
+  assert.equal(await demoCard().getByRole('button', { name: 'Fill with demo data' }).count(), 0, 'nothing to fill until demo is on');
+  await demoCard().getByRole('button', { name: 'Turn demo on' }).click();
+  await demoCard().getByText('This space is now a demo space.').waitFor(); await demoCard().getByText('Demo, empty').first().waitFor();
+  await openDemoPortal(accepted.organizationId); demoBehaviors = ['slow'];
+  await demoCard().getByRole('button', { name: 'Fill with demo data' }).dblclick();
+  await demoCard().getByText('Demo data added: 2 courses, 5 lessons, 2 Groups, 5 sessions.').waitFor();
+  assert.equal(demoPosts.filter(p => p.action === 'fill').length, 1, 'a double click sends one fill');
+  await demoCard().getByText('Demo, filled').first().waitFor(); await demoCard().getByText('2030-01-02 03:04 UTC').waitFor();
+  assert.equal(await demoCard().getByRole('button', { name: 'Fill with demo data' }).isDisabled(), true); assert.equal(await demoCard().getByRole('button', { name: 'Turn demo off' }).isDisabled(), true);
+  await demoCard().getByText('Clear the demo data first to turn demo off.').waitFor();
+  await accessible('demo section, filled, light'); await page.screenshot({ path: path.join(shots, 'demo-section-filled-desktop-en.png'), fullPage: true });
+  await demoCard().getByRole('button', { name: 'Clear demo data' }).click(); await demoCard().getByRole('group').getByText(/Clear the demo data\? This deletes the sample courses/).waitFor();
+  assert.equal(demoPosts.filter(p => p.action === 'clear').length, 0, 'the confirmation sent nothing');
+  await demoCard().getByRole('button', { name: 'Cancel' }).click(); assert.equal(await demoCard().getByRole('group').count(), 0);
+  await demoCard().getByRole('button', { name: 'Clear demo data' }).click(); await demoCard().getByRole('button', { name: 'Yes, clear demo data' }).click();
+  await demoCard().getByText('Demo data cleared (20 rows removed).').waitFor(); await demoCard().getByText('Demo, empty').first().waitFor();
+  assert.equal(await demoCard().getByRole('button', { name: 'Turn demo off' }).isEnabled(), true); await demoCard().getByRole('button', { name: 'Turn demo off' }).click();
+  await demoCard().getByText('Demo is off for this space.').waitFor(); await demoCard().getByText('Not a demo').first().waitFor();
+  assert.deepEqual(demoPosts.map(p => Object.keys(p).join()), Array(demoPosts.length).fill('action'), 'only a verb is ever sent');
+ });
+ await step('Demo section: an outdated seed version is explained, a refusal refreshes the state, a failed status read is an error with retry, never a guess', async () => {
+  reset(); demoLatest = 2; const p = demoPortal('accepted', { demo: true, filled: true, seedVersion: 1, filledAt: '2030-01-02T03:04:00Z' });
+  await openDemoPortal(p.organizationId); await demoCard().getByText(/filled with an older seed version \(1\)\. Clear it and fill it again to get the latest sample data \(2\)/).waitFor();
+  demoLatest = 1; demos.set(p.organizationId, { demo: true, filled: false, seedVersion: null, filledAt: null }); demoStatusFailures = 1;
+  await open('view=detail&id=' + p.organizationId); await demoCard().getByRole('alert').getByText('The demo status could not be loaded, so nothing is shown here.').waitFor();
+  assert.equal(await demoCard().getByRole('button', { name: 'Fill with demo data' }).count(), 0, 'no controls while the state is unknown');
+  await demoCard().getByRole('button', { name: 'Try again' }).click(); await demoCard().getByText('Demo, empty').first().waitFor();
+  demos.set(p.organizationId, { demo: true, filled: true, seedVersion: 1, filledAt: '2030-01-02T03:04:00Z' }); // another administrator filled it meanwhile
+  await demoCard().getByRole('button', { name: 'Fill with demo data' }).click();
+  await demoCard().getByRole('alert').getByText('Demo data is already there. Clear it first to fill again.').waitFor(); await demoCard().getByText('Demo, filled').first().waitFor();
+ });
+ await step('Demo section: a dropped connection locks the controls, never retries by itself, and a status check restores them', async () => {
+  reset(); const p = demoPortal('accepted', { demo: true, filled: false, seedVersion: null, filledAt: null });
+  await openDemoPortal(p.organizationId); demoBehaviors = ['drop-applied'];
+  await demoCard().getByRole('button', { name: 'Fill with demo data' }).click(); await demoCard().getByText('No reply received').waitFor();
+  for (const name of ['Fill with demo data', 'Clear demo data', 'Turn demo off']) assert.equal(await demoCard().getByRole('button', { name }).isDisabled(), true, name + ' stays locked');
+  const sentFill = demoPosts.length; await page.waitForTimeout(700); assert.equal(demoPosts.length, sentFill, 'the page retried nothing by itself');
+  await demoCard().getByRole('button', { name: 'Check status' }).click(); await demoCard().getByText('Status refreshed. Check it before trying again.').waitFor(); await demoCard().getByText('Demo, filled').first().waitFor();
+  assert.equal(await demoCard().getByRole('button', { name: 'Clear demo data' }).isEnabled(), true); assert.equal(await demoCard().getByText('No reply received').count(), 0);
+ });
+ await step('Demo section on a phone and in Arabic (RTL): no overflow, 44px targets, Arabic copy, light and dark', async () => {
+  reset(); const p = demoPortal('accepted', { demo: true, filled: true, seedVersion: 1, filledAt: '2030-01-02T03:04:00Z' });
+  await page.setViewportSize({ width: 390, height: 844 }); await openDemoPortal(p.organizationId); await demoCard().getByText('Demo, filled').first().waitFor(); await noOverflow('demo phone en');
+  const tiny = await demoCard().locator('button').evaluateAll(n => n.filter(e => e.getBoundingClientRect().height < 43.5).map(e => e.textContent.trim()));
+  assert.deepEqual(tiny, [], 'buttons are at least 44px tall'); await page.screenshot({ path: path.join(shots, 'demo-section-phone-en.png'), fullPage: true });
+  await setLang('ar'); await openDemoPortal(p.organizationId); assert.equal(await page.locator('html').getAttribute('dir'), 'rtl');
+  await demoCard().getByText('تجريبية، ممتلئة').first().waitFor(); assert.match(await demoCard().innerText(), /املأ ببيانات تجريبية/); await noOverflow('demo phone ar');
+  await page.screenshot({ path: path.join(shots, 'demo-section-phone-ar.png'), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 }); await openDemoPortal(p.organizationId); await noOverflow('demo desktop ar'); await accessible('demo section, Arabic, light');
+  await page.screenshot({ path: path.join(shots, 'demo-section-desktop-ar.png'), fullPage: true });
+  await setLang('en'); await setTheme('dark'); await openDemoPortal(p.organizationId); await accessible('demo section, dark'); await page.screenshot({ path: path.join(shots, 'demo-section-desktop-en-dark.png'), fullPage: true });
+  await setTheme('light'); await page.setViewportSize({ width: 1440, height: 900 });
+ });
  await step('no uncaught errors, no external requests', async () => { assert.deepEqual(errors, []); assert.deepEqual(external, []); });
  await browser.close(); server.close();
  console.log(results.join('\n')); console.log('Platform-admin browser checks passed: ' + results.length + ' groups (fictional HTTP state, not provider E2E). Screenshots: ' + shots);

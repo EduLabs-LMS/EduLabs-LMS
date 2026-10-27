@@ -61,3 +61,9 @@
 .pa-invite .eds-page-head { justify-content: center; text-align: center; }
 .pa-delivery { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--eds-space-2, 8px); }
 .pa-delivery-state { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--eds-space-2, 8px); }
+
+/* Demo section: full-size touch targets on a phone, without changing other admin screens. */
+@media (max-width: 640px) {
+  .eds-root [data-demo-section] .eds-btn { min-height: 2.75rem; }
+  .eds-root [data-demo-section] .eds-actions { flex-direction: column; align-items: stretch; }
+}

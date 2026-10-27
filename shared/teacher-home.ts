@@ -37,7 +37,7 @@ export type TeacherHomeData = {
   firstVisit: boolean;
 };
 
-export type TeacherHomeLoad = TeacherHomeData & { createTargets: CreateTarget[] };
+export type TeacherHomeLoad = TeacherHomeData & { createTargets: CreateTarget[]; demo: boolean };
 
 const fail = <T>(r: Settled<unknown>): Section<T> => ({ state: 'error', status: r.ok ? null : r.status });
 
@@ -96,6 +96,23 @@ export function createTargets(organizations: { id: string; name: string; status?
   return organizations
     .filter(o => (o.status === undefined || o.status === 'active') && memberships.some(m => m.organization_id === o.id && m.status === 'active' && ['owner', 'admin', 'teacher'].includes(m.role)))
     .map(o => ({ id: o.id, name: o.name }));
+}
+
+export const DEMO_CHECK_LIMIT = 10;
+
+/** Every teaching space the teacher works in: where they can create courses plus where their listed courses live. */
+export function teachingSpaceIds(targets: CreateTarget[], courses: Settled<RawCourse[]>): string[] {
+  const ids = new Set(targets.map(t => t.id));
+  if (courses.ok) for (const c of courses.value) ids.add(c.organization_id);
+  return Array.from(ids);
+}
+
+/**
+ * The "Demo space" label is shown only when every one of the teacher's teaching spaces was confirmed as a demo space.
+ * One unknown answer, one real space, or no space at all means no label, so a real space is never labelled demo.
+ */
+export function showDemoLabel(spaceIds: readonly string[], answers: readonly boolean[]): boolean {
+  return spaceIds.length > 0 && spaceIds.length <= DEMO_CHECK_LIMIT && answers.length === spaceIds.length && answers.every(a => a === true);
 }
 
 /** A URL-safe name derived from the title; non-Latin titles fall back to a short random suffix so the server's slug rule always holds. */

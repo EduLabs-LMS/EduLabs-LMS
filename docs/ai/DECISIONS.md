@@ -27,3 +27,8 @@
   catalog): Education System = academic_programs (+ optional examination_board), Grade Level =
   academic_stages, Subject = new academic_subjects, Course.subject_id. Creating a portal does
   not grant ownership; a verified-email-bound, single-use, hash-only invitation does.
+- Demo spaces: a platform administrator may mark a provisioned teaching space as a demo and fill/clear tagged synthetic data
+  (migration 20261027120000, not applied anywhere by this change). Any new teacher-facing feature that stores data must extend
+  the demo seed in the same change: new seed module, bump the seed version, add its tables to the demo_seed_rows allowed list in
+  a new migration, and update docs/ai/DEMO_DATA.md. scripts/demo-spaces.test.cjs enforces that the SQL, the service constant and
+  the document agree.

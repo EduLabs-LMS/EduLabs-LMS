@@ -2,9 +2,11 @@ import 'server-only';
 import { courseCapability, type WebsiteContext } from '@/server/services/website';
 import { groupService } from '@/server/services/groups';
 import { communicationService } from '@/server/services/communications';
+import { spaceIsDemo } from '@/server/services/demo-space';
+import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import type { GroupPage, GroupSession, StudyGroup } from '@/shared/contracts/groups';
 import type { NotificationPage } from '@/shared/contracts/communications';
-import { buildTeacherHome, createTargets, mapCourses, type RawCourse, type Settled, type TeacherHomeLoad } from '@/shared/teacher-home';
+import { DEMO_CHECK_LIMIT, buildTeacherHome, createTargets, mapCourses, showDemoLabel, teachingSpaceIds, type RawCourse, type Settled, type TeacherHomeLoad } from '@/shared/teacher-home';
 
 /** Reads run independently; one failing read marks only its own section as failed. Uses the existing services, which stay authoritative. */
 export async function settle<T>(read: () => PromiseLike<T>): Promise<Settled<T>> {
@@ -25,7 +27,17 @@ export async function loadTeacherHome(context: WebsiteContext, now = Date.now())
   const upcoming = settle(async () => (await groupService()).view<GroupSession & { group_name?: string }>(null, 'upcoming'));
   const notifications = settle(async () => (await (await communicationService())('notifications', 'list', { page: 0, filter: 'unread' })) as unknown as NotificationPage);
   const [courses, g, u, n] = await Promise.all([teacherCourses(context), groups, upcoming, notifications]);
-  return { ...buildTeacherHome({ courses, groups: g, upcoming: u, notifications: n, now }), createTargets: createTargets(context.organizations, context.memberships) };
+  const targets = createTargets(context.organizations, context.memberships);
+  return { ...buildTeacherHome({ courses, groups: g, upcoming: u, notifications: n, now }), createTargets: targets, demo: await demoLabel(teachingSpaceIds(targets, courses)) };
+}
+
+/** A failed check shows no label and no error: the label only ever says something the database confirmed. */
+async function demoLabel(spaceIds: string[]): Promise<boolean> {
+  if (!spaceIds.length || spaceIds.length > DEMO_CHECK_LIMIT) return false;
+  try {
+    const client = await getSupabaseServerClient();
+    return showDemoLabel(spaceIds, await Promise.all(spaceIds.map(id => spaceIsDemo(client, id))));
+  } catch { return false; }
 }
 
 export async function loadTeacherCourses(context: WebsiteContext) {

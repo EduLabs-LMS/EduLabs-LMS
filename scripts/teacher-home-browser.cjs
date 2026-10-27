@@ -46,7 +46,7 @@ const scenarios = {
 };
 const raw = { ...scenarios[scenario], now: NOW };
 const targets = createTargets([{ id: uuid(50), name: 'Synthetic space', status: 'active' }, ...(q.get('spaces') === '2' ? [{ id: uuid(51), name: 'Second synthetic space', status: 'active' }] : [])], [{ organization_id: uuid(50), role: 'teacher', status: 'active' }, { organization_id: uuid(51), role: 'owner', status: 'active' }]);
-const home = { ...buildTeacherHome(raw), createTargets: targets };
+const home = { ...buildTeacherHome(raw), createTargets: targets, demo: q.get('demo') === '1' };
 function Body() {
  if (view === 'loading') return <TeacherCoursesLoading />;
  if (view === 'courses') return <TeacherCoursesView courses={mapCourses(raw.courses)} targets={targets} />;
@@ -305,6 +305,22 @@ createRoot(document.getElementById('root')).render(
   await two.page.screenshot({ path: path.join(shots, 'create-dialog-en-390.png') }); await two.context.close();
   const ar = await open(phone, 'view=courses&s=empty&lang=ar'); await ar.page.locator('[data-teacher-courses]').waitFor(); await ar.page.locator('header [data-create-course]').click(); await ar.page.getByRole('dialog').waitFor();
   await ar.page.screenshot({ path: path.join(shots, 'create-dialog-ar-390.png') }); await ar.context.close();
+ });
+ await step('Demo label: shown only when the server said demo, on Home and on first visit, in English and Arabic, light and dark, phone and desktop', async () => {
+  for (const [query, viewport, tag] of [['view=home&s=full', desktop, 'en-1440'], ['view=home&s=full', phone, 'en-390'], ['view=home&s=full&lang=ar', desktop, 'ar-1440'], ['view=home&s=full&lang=ar', phone, 'ar-390'], ['view=home&s=full&theme=dark', desktop, 'dark-1440']]) {
+   const off = await open(viewport, query); await off.page.locator('[data-teacher-home]').waitFor();
+   assert.equal(await off.page.locator('[data-demo-label]').count(), 0, 'no label for a non-demo space (' + tag + ')'); await off.context.close();
+   const on = await open(viewport, query + '&demo=1'); await on.page.locator('[data-teacher-home]').waitFor();
+   const label = on.page.locator('[data-demo-label]'); assert.equal(await label.count(), 1, 'one label (' + tag + ')'); assert.equal(await label.isVisible(), true);
+   assert.match((await label.innerText()).trim(), /^(Demo space|مساحة تجريبية)$/);
+   assert.ok(await overflow(on.page), 'no horizontal scroll (' + tag + ')'); assert.ok((await label.evaluate(e => parseFloat(getComputedStyle(e).fontSize))) >= 16, 'at least 16px');
+   assert.equal(await on.page.locator('[data-section="th-courses"] [data-demo-label]').count(), 0, 'the label is a page label, not a course label');
+   await on.page.screenshot({ path: path.join(shots, 'demo-label-home-' + tag + '.png'), fullPage: true }); await on.context.close();
+  }
+  const first = await open(desktop, 'view=home&s=first&demo=1'); await first.page.locator('[data-first-visit]').waitFor(); assert.equal(await first.page.locator('[data-demo-label]').count(), 1);
+  await first.page.screenshot({ path: path.join(shots, 'demo-label-first-visit-en-1440.png'), fullPage: true }); await first.context.close();
+  const none = await open(desktop, 'view=home&s=first'); await none.page.locator('[data-first-visit]').waitFor(); assert.equal(await none.page.locator('[data-demo-label]').count(), 0); await none.context.close();
+  const err = await open(desktop, 'view=home&s=errors'); await err.page.locator('[data-teacher-home]').waitFor(); assert.equal(await err.page.locator('[data-demo-label]').count(), 0, 'a failed check shows no label and no error'); await err.context.close();
  });
  await step('Keyboard: nothing on Home traps focus, every control shows a visible focus ring, and the dialog closes with Escape', async () => {
   const { page, context } = await open(desktop, 'view=home&s=full');

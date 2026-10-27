@@ -2280,6 +2280,11 @@ export type Database = {
       platform_store_invitation_salt: { Args: { p_invitation_id: string; p_salt: string }; Returns: Json }
       platform_invitation_link: { Args: { p_organization_id: string }; Returns: Json }
       teacher_invitation_preview: { Args: { p_token_hash: string }; Returns: Json }
+      platform_set_demo_space: { Args: { p_org: string; p_on: boolean }; Returns: Json }
+      platform_demo_fill: { Args: { p_org: string }; Returns: Json }
+      platform_demo_clear: { Args: { p_org: string }; Returns: Json }
+      platform_demo_status: { Args: { p_org: string }; Returns: Json }
+      space_is_demo: { Args: { p_org: string }; Returns: boolean }
       academic_command: {
         Args: { p_action: string; p_organization_id: string; p_entity_id?: string; p_revision?: number; p_data?: Json }
         Returns: Json

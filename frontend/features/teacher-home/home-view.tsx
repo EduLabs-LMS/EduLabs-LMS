@@ -94,12 +94,18 @@ function Courses({ data, targets, retry, slot }: { data: HomeData['courses']; ta
   </Section>;
 }
 
+/** Shown only when the server confirmed that every teaching space of this teacher is a demo space. */
+function DemoLabel() {
+  return <span data-demo-label className="inline-flex min-h-[28px] w-fit items-center rounded-full border-2 border-black bg-amber-100 px-3 text-base font-bold text-black"><L id="demo.space_label" /></span>;
+}
+
 /** Calm first visit: no tour, no steps, no numbers. Shown only when both reads succeeded and found nothing. */
 function FirstVisit({ data }: { data: HomeData }) {
   const retry = useRetry();
   const [how, setHow] = useState(false);
   return <div data-first-visit className="mx-auto w-full max-w-6xl space-y-6">
     <header className="space-y-1">
+      {data.demo && <DemoLabel />}
       <h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="th.first.title" /></h1>
       <p className="text-base text-slate-700"><L id="th.first.intro" /></p>
     </header>
@@ -134,6 +140,7 @@ export function TeacherHomeView({ data }: { data: HomeData }) {
   return <div data-teacher-home className="mx-auto w-full max-w-6xl space-y-6">
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0 space-y-1">
+        {data.demo && <DemoLabel />}
         <h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="th.home.title" /></h1>
         <p className="hidden text-base text-slate-700 lg:block"><L id="th.home.intro" /></p>
       </div>

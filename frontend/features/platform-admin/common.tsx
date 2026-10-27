@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { useLanguage } from '@/frontend/components/language-provider';
 import { Badge, Banner, Button, Card, CardBody, CardHead } from '@/frontend/design-system';
+import type { MessageKey } from '@/frontend/locales/messages';
 import type { InvitationStatus, ProvisioningReason } from '@/shared/contracts/platform-provisioning';
 
 /** Deterministic across server and browser, so server-rendered markup never mismatches on hydration. */
@@ -19,10 +20,11 @@ export function StatusBadge({ status }: { status: InvitationStatus }) {
  return <Badge tone={statusTone[status]} data-status={status}>{t(statusKey[status])}</Badge>;
 }
 
-const reasonKey: Record<ProvisioningReason, 'pa.err.invalid' | 'pa.err.duplicate' | 'pa.err.pending_exists' | 'pa.err.not_found' | 'pa.err.used' | 'pa.err.gone' | 'pa.err.forbidden' | 'pa.err.unavailable' | 'pa.err.email_not_configured' | 'pa.err.origin_not_configured' | 'pa.err.link_key_not_configured' | 'pa.err.link_key_changed' | 'pa.err.no_active_invitation'> = {
+const reasonKey: Record<ProvisioningReason, MessageKey> = {
  invalid: 'pa.err.invalid', duplicate: 'pa.err.duplicate', pending_exists: 'pa.err.pending_exists', not_found: 'pa.err.not_found', used: 'pa.err.used',
  gone: 'pa.err.gone', forbidden: 'pa.err.forbidden', conflict: 'pa.err.used', unavailable: 'pa.err.unavailable', email_not_configured: 'pa.err.email_not_configured', origin_not_configured: 'pa.err.origin_not_configured',
  link_key_not_configured: 'pa.err.link_key_not_configured', link_key_changed: 'pa.err.link_key_changed', no_active_invitation: 'pa.err.no_active_invitation',
+ demo_not_marked: 'pa.err.demo_not_marked', demo_filled: 'pa.err.demo_filled', demo_not_cleared: 'pa.err.demo_not_cleared', not_accepted: 'pa.err.not_accepted', has_students: 'pa.err.has_students',
 };
 export const reasonMessage = (reason: ProvisioningReason | undefined) => reasonKey[reason ?? 'unavailable'] ?? 'pa.err.unavailable';
 

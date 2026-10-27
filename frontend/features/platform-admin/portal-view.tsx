@@ -7,9 +7,11 @@ import { Badge, Banner, Button, ButtonLink, Page, Card, CardBody, CardHead, Chip
 import type { MessageKey } from '@/frontend/locales/messages';
 import { invitationLifetimes, type CopyLinkResult, type InvitationStatus, type DeliveryStatus, type PortalDetail, type ReissueResult, type SendEmailResult } from '@/shared/contracts/platform-provisioning';
 import { InvitationLinkCard, StatusBadge, UtcDate, api, reasonMessage } from './common';
+import { DemoSection } from './demo-section';
 
 const activityKey: Record<string, MessageKey> = {
  'portal.provision': 'pa.activity.provision', 'invitation.reissue': 'pa.activity.reissue', 'invitation.revoke': 'pa.activity.revoke', 'invitation.accept': 'pa.activity.accept',
+ 'demo.mark': 'pa.activity.demo_mark', 'demo.unmark': 'pa.activity.demo_unmark', 'demo.fill': 'pa.activity.demo_fill', 'demo.clear': 'pa.activity.demo_clear',
 };
 /** A write whose response never arrived: what we knew before it, so a refresh can tell what really happened. */
 type Unknown = { action: 'reissue' | 'revoke' | 'send_email'; baselineId: string | undefined; baselineStatus: InvitationStatus | undefined; baselineAttempts: number };
@@ -195,6 +197,7 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
       </div> : null}
      </CardBody>
     </Card>
+    <DemoSection portalId={portalId} accepted={accepted} />
     <Card labelledBy="pa-p-activity">
      <CardHead id="pa-p-activity" title={t('pa.portal.activity')} />
      <CardBody divided>

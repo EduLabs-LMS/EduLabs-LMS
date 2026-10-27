@@ -55,7 +55,8 @@ export const previewInvitationRequest = acceptInvitationRequest;
 
 export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 /** Closed vocabulary so the interface can localize failures without parsing database text. */
-export type ProvisioningReason = 'invalid' | 'duplicate' | 'pending_exists' | 'not_found' | 'used' | 'gone' | 'forbidden' | 'conflict' | 'unavailable' | 'email_not_configured' | 'origin_not_configured' | 'link_key_not_configured' | 'link_key_changed' | 'no_active_invitation';
+export type ProvisioningReason = 'invalid' | 'duplicate' | 'pending_exists' | 'not_found' | 'used' | 'gone' | 'forbidden' | 'conflict' | 'unavailable' | 'email_not_configured' | 'origin_not_configured' | 'link_key_not_configured' | 'link_key_changed' | 'no_active_invitation'
+ | 'demo_not_marked' | 'demo_filled' | 'demo_not_cleared' | 'not_accepted' | 'has_students';
 
 export type PortalSummary = {
  organizationId: string; teacherEmail: string; createdAt: string; expiresAt: string; acceptedAt: string | null; invitationStatus: InvitationStatus;

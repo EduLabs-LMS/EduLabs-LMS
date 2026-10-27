@@ -9,10 +9,10 @@ import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import { isFirebaseStaging } from '@/shared/auth-config';
 
 // The response may carry a one-time invitation link: it must never be cached or indexed.
-const reply = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store', 'Vary': 'Cookie', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' } });
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const reply = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store', 'Vary': 'Cookie', 'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' } });
+export const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-async function readJson(request: NextRequest): Promise<{ body: unknown } | { response: NextResponse }> {
+export async function readJson(request: NextRequest): Promise<{ body: unknown } | { response: NextResponse }> {
  if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') return { response: reply({ error: 'JSON required' }, 415) };
  const reader = request.body?.getReader();
  if (!reader) return { response: reply({ error: 'Missing body' }, 400) };
@@ -26,20 +26,25 @@ async function readJson(request: NextRequest): Promise<{ body: unknown } | { res
  try { return { body: JSON.parse(Buffer.concat(chunks).toString('utf8')) }; } catch { return { response: reply({ error: 'Invalid JSON' }, 400) }; }
 }
 
-function failure(error: unknown) {
+export function failure(error: unknown) {
  const { status, reason } = error as { status?: number; reason?: string };
  const known = status !== undefined && [400, 403, 404, 409, 410, 503].includes(status);
  return reply({ error: known ? (error as Error).message : 'Provisioning is unavailable. Please retry.', reason: known ? reason : 'unavailable' }, known ? status : 503);
 }
 
 /** Every handler authorizes on the server; the database re-checks inside each RPC. */
-async function adminGate(request: NextRequest, writing: boolean) {
+export async function adminAccess(request: NextRequest, writing: boolean) {
  if (writing && !validFirebaseOrigin(request)) return { response: reply({ error: 'Invalid origin' }, 403) };
  const access = await getPlatformAdminAccess();
  if (access.status === 'unavailable') return { response: reply({ error: 'Not found' }, 404) };
  if (access.status === 'anonymous') return { response: reply({ error: 'Sign in required' }, 401) };
  if (access.status === 'forbidden') return { response: reply({ error: 'Platform administration is not permitted.', reason: 'forbidden' }, 403) };
  if (new URL(request.url).search) return { response: reply({ error: 'Unexpected query' }, 400) };
+ return { client: access.client };
+}
+async function adminGate(request: NextRequest, writing: boolean) {
+ const access = await adminAccess(request, writing);
+ if ('response' in access) return { response: access.response };
  return { service: platformProvisioningService(access.client) };
 }
 
