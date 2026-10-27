@@ -262,6 +262,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		)}
 		</div>
 		)}
+		{teacherMode && <div data-teacher-support className="px-3 pb-3"><a href="/support" onClick={() => onNavigate?.()} aria-current={isSupportActive ? 'page' : undefined} className={cn('relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out', isSupportActive ? 'bg-primary text-black border-black font-semibold shadow-hard-sm' : 'text-slate-700 hover:text-black hover:bg-slate-100')}><HelpCircle aria-hidden className={cn('w-[22px] h-[22px] shrink-0', isSupportActive ? 'text-black' : 'text-slate-500')} /><span><L id="navigation.support" /></span></a></div>}
 		</div>
 
 		{/* 3. BOTTOM FOOTER WITH USER PROFILE & LOGOUT */}

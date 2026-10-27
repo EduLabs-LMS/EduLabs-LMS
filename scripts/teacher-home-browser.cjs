@@ -176,6 +176,7 @@ createRoot(document.getElementById('root')).render(
   assert.deepEqual(await page.locator('[role="dialog"] [data-teacher-nav] a').allInnerTexts(), ['Home', 'Courses', 'Students', 'Groups & Classes', 'Homework', 'Exams', 'Reports', 'Settings']);
   assert.equal(await page.locator('[role="dialog"] button[aria-label*="otification"]').count(), 1);
   const rows = await page.locator('[role="dialog"] [data-teacher-nav] a').evaluateAll(n => n.map(e => e.getBoundingClientRect().height)); assert.ok(rows.every(h => h >= 44));
+  const sup = page.locator('[role="dialog"] [data-teacher-support] a[href="/support"]'); await sup.waitFor(); assert.equal((await sup.innerText()).trim(), 'Support'); assert.ok((await sup.evaluate(e => e.getBoundingClientRect().height)) >= 44, 'Support is a full-size touch target'); assert.equal(await page.locator('[role="dialog"] [data-teacher-nav] a[href="/support"]').count(), 0, 'Support is not one of the eight');
   await page.screenshot({ path: path.join(shots, 'menu-en-390.png') });
   await page.locator('[role="dialog"] [data-teacher-nav] a[data-nav="courses"]').click(); await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
   assert.deepEqual(await page.evaluate(() => window.__clicks), ['/teacher/courses']);
@@ -196,6 +197,8 @@ createRoot(document.getElementById('root')).render(
    assert.equal(await page.locator('html').getAttribute('dir'), 'rtl');
    const body = await text(page); assert.match(body, /الحصة القادمة/); assert.match(body, /واجبات تنتظر التصحيح/); assert.match(body, /تحديثات مهمة/); assert.match(body, /قريبًا/); assert.match(body, /الدورات/); assert.match(body, /أنشئ دورة/);
    assert.ok(await overflow(page));
+   if (viewport === desktop) { assert.match(await page.locator('[data-teacher-support]').first().innerText(), /الدعم/); }
+   else { await page.getByRole('button', { name: /قائمة|navigation menu/i }).click(); await page.locator('[role="dialog"] [data-teacher-support]').waitFor(); assert.match(await page.locator('[role="dialog"] [data-teacher-support]').innerText(), /الدعم/); await page.keyboard.press('Escape'); }
    if (viewport === desktop) {
     const side = await page.locator('aside').first().evaluate(e => e.getBoundingClientRect()), main = await page.locator('[data-teacher-home]').evaluate(e => e.getBoundingClientRect());
     assert.ok(side.left > main.left, 'the sidebar sits on the right in RTL');

@@ -157,3 +157,11 @@ test('render: the Courses page states and the section errors render accessible, 
   assert.match(wrap(language, React.createElement(parts.StatusBadge, { status: 'draft' })), new RegExp(messages[language]['th.courses.draft']));
  }
 });
+
+test('sidebar: Support stays reachable for staff through the existing /support route, in both languages', () => {
+ const sidebar = read('frontend/components/sidebar.tsx');
+ assert.match(sidebar, /teacherMode && <div data-teacher-support[\s\S]*?href="\/support"[\s\S]*?<L id="navigation\.support" \/>/);
+ assert.equal(home.teacherNav.length, 8, 'eight teacher links');
+ assert.ok(messages.en['navigation.support'] && messages.ar['navigation.support'], 'Support label exists in en and ar');
+ assert.equal(home.teacherNav.some(n => n.href === '/support'), false, 'Support is the footer entry, not one of the eight');
+});

@@ -15,6 +15,8 @@ test('Firebase sidebar labels contextual students/staff and places its only bell
   assert.match(html,staff?/>STAFF</:/>STUDENT</);assert.doesNotMatch(html,/LEARNER|>Logout</);
   assert.equal((html.match(/Notification preview/g)||[]).length,1);assert.ok(html.indexOf('Notification preview')>html.indexOf('Fictional Student'));assert.match(html,/Sign out/);
   assert.equal(html.includes('data-teacher-nav'),staff,'staff get the teacher navigation, students do not');assert.equal(html.includes('Admin &amp; Teacher'),false,'the old mixed staff section is replaced');
+  assert.equal(html.includes('data-teacher-support'),staff,'only the teacher navigation gets the footer Support entry');assert.equal((html.match(/href="\/support"/g)||[]).length,1,'Support is reachable exactly once for staff and for students');assert.match(html,/>Support</);
+  if(!staff)for(const link of ['/home','/exams','/settings'])assert.match(html,new RegExp('href="'+link+'"'),'student navigation keeps '+link);
   assert.match(html,/font-family:&#x27;Times New Roman&#x27;, Times, serif/);
  }
 });
