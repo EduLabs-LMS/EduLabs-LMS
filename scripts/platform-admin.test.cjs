@@ -183,23 +183,28 @@ test('draft: validation reports each problem by field; a valid draft becomes the
  assert.equal(lib.isDirty(lib.emptyDraft()), false); assert.equal(lib.isDirty(ok), true);
 });
 
+const originOf = 'https://staging.example.test';
+const linkLib = load('shared/invitation-link.ts', { '@/shared/contracts/platform-provisioning': contract });
+const secretOf = link => link.slice(link.indexOf('#') + 1);
 function service(rpc = async () => ({ data: { organizationId: uuid(1), invitationId: uuid(2), courseId: uuid(3), expiresAt: '2030-01-01T00:00:00Z' }, error: null })) {
  const calls = [];
  const client = { rpc: async (name, args) => { calls.push({ name, args }); return rpc(name, args); } };
- return { ...load('server/services/platform-provisioning.ts', { 'server-only': {}, 'node:crypto': crypto }), client, calls };
+ const deps = { origin: () => originOf, linkKey: () => 'k'.repeat(40), mailer: { configured: () => false, send: async () => { throw Error('no mail in this suite'); } } };
+ return { ...load('server/services/platform-provisioning.ts', { 'server-only': {}, 'node:crypto': crypto, '@/server/services/invitation-delivery': { productionInvitationDeps: () => deps, deriveInvitationSecret: (key, salt) => crypto.createHmac('sha256', key).update('teacher-invitation-link-v1:' + salt).digest('base64url') }, '@/shared/invitation-link': linkLib, '@/shared/contracts/platform-provisioning': contract }), client, calls };
 }
-test('service: the secret is generated on the server, only its SHA-256 reaches the database, and it is returned once', async () => {
+test('service: the secret is generated on the server, only its SHA-256 reaches the database, and it is returned once inside a link', async () => {
  const s = service(); const svc = s.platformProvisioningService(s.client);
  const out = await svc.provision(parse(request()).data);
- assert.match(out.invitationSecret, /^[A-Za-z0-9_-]{43}$/); assert.equal(out.delivery, 'not_sent');
- assert.equal(s.calls.length, 1); assert.equal(s.calls[0].name, 'platform_provision_teacher');
- assert.equal(s.calls[0].args.p_token_hash, crypto.createHash('sha256').update(out.invitationSecret).digest('hex'));
- assert.doesNotMatch(JSON.stringify(s.calls), new RegExp(out.invitationSecret), 'the raw secret never reaches the database call');
- const next = await svc.provision(parse(request()).data); assert.notEqual(next.invitationSecret, out.invitationSecret);
+ assert.match(out.invitationLink, /^https:\/\/staging\.example\.test\/teacher-invitation#[A-Za-z0-9_-]{43}$/); assert.equal(out.delivery, 'not_sent'); assert.equal(out.invitationSecret, undefined);
+ assert.deepEqual(s.calls.map(c => c.name), ['platform_provision_teacher', 'platform_store_invitation_salt']); assert.match(s.calls[1].args.p_salt, /^[0-9a-f]{32}$/, 'only a non-secret salt is stored beside the hash');
+ assert.equal(s.calls[0].args.p_token_hash, crypto.createHash('sha256').update(secretOf(out.invitationLink)).digest('hex'));
+ assert.doesNotMatch(JSON.stringify(s.calls), new RegExp(secretOf(out.invitationLink)), 'the raw secret never reaches the database call');
+ const next = await svc.provision(parse(request()).data); assert.notEqual(next.invitationLink, out.invitationLink);
+ const lastReissue = () => s.calls.filter(c => c.name === 'platform_reissue_teacher_invitation').at(-1).args;
  const re = await svc.reissue(uuid(1), 3); assert.equal(re.delivery, 'not_sent');
- assert.deepEqual(Object.keys(s.calls.at(-1).args).sort(), ['p_expires_in_days', 'p_organization_id', 'p_token_hash']);
- await svc.reissue(uuid(1), 3, 'new@example.test'); assert.equal(s.calls.at(-1).args.p_email, 'new@example.test');
- assert.doesNotMatch(JSON.stringify(s.calls.at(-1).args), new RegExp(re.invitationSecret));
+ assert.deepEqual(Object.keys(lastReissue()).sort(), ['p_expires_in_days', 'p_organization_id', 'p_token_hash']);
+ await svc.reissue(uuid(1), 3, 'new@example.test'); assert.equal(lastReissue().p_email, 'new@example.test');
+ assert.doesNotMatch(JSON.stringify(s.calls), new RegExp(secretOf(re.invitationLink)));
 });
 test('service and HTTP code never log, so the secret cannot leak into logs', () => {
  assert.doesNotMatch(code('server/services/platform-provisioning.ts') + code('server/http/platform-admin-portals.ts'), /console\./);
@@ -250,8 +255,8 @@ function handlers({ status = 'ok', origin = true, staging = true, viewer = { bac
  const calls = [];
  class Response { constructor(body, init) { this.body = body; this.status = init?.status ?? 200; this.headers = init?.headers ?? {}; } }
  const service = {
-  provision: async input => { calls.push(['provision', input]); return { organizationId: uuid(1), invitationSecret: 'S'.repeat(43), delivery: 'not_sent' }; },
-  reissue: async (...a) => { calls.push(['reissue', ...a]); return { invitationSecret: 'R'.repeat(43) }; },
+  provision: async input => { calls.push(['provision', input]); return { organizationId: uuid(1), invitationLink: 'https://staging.example.test/teacher-invitation#' + 'S'.repeat(43), delivery: 'not_sent' }; },
+  reissue: async (...a) => { calls.push(['reissue', ...a]); return { invitationLink: 'https://staging.example.test/teacher-invitation#' + 'R'.repeat(43) }; },
   revoke: async id => { calls.push(['revoke', id]); return { organizationId: id }; },
   overview: async () => { calls.push(['overview']); return { items: [], hasMore: false }; },
   detail: async id => { calls.push(['detail', id]); return { organizationId: id }; }, ...svc,
@@ -395,11 +400,11 @@ test('portal: a dropped connection during reissue or revoke is an unknown outcom
  const src = read('frontend/features/platform-admin/portal-view.tsx');
  // both write actions route a network error to the unknown state before any failure message is chosen
  assert.equal((src.match(/out\.reason === 'network'/g) || []).length >= 2, true);
- assert.match(src, /action: 'revoke', baselineId/); assert.match(src, /action: 'reissue', baselineId/); assert.equal((src.match(/setUnknown\(baseline\)/g) || []).length, 2);
+ assert.match(src, /action: 'revoke', baselineId/); assert.match(src, /action: 'reissue', baselineId/); assert.match(src, /action: 'send_email', baselineId/); assert.equal((src.match(/setUnknown\(baseline\)/g) || []).length, 3);
  assert.match(src, /const locked = /); assert.match(src, /async function checkStatus/);
  const { PortalView } = view('portal-view');
  const detail = { organizationId: uuid(1), status: 'active', createdAt: '2030-01-02T00:00:00Z', hasOwner: false,
-  invitations: [{ id: uuid(2), teacherEmail: 'owner@example.test', createdAt: '2030-01-02T00:00:00Z', expiresAt: '2030-01-09T00:00:00Z', acceptedAt: null, revokedAt: null, revokeReason: null, status: 'pending' }],
+  invitations: [{ id: uuid(2), teacherEmail: 'owner@example.test', createdAt: '2030-01-02T00:00:00Z', expiresAt: '2030-01-09T00:00:00Z', acceptedAt: null, revokedAt: null, revokeReason: null, status: 'pending', delivery: { status: 'not_sent', attemptedAt: null, failure: null } }],
   educationSystems: [], subjects: [], courses: [], activity: [] };
  const html = render(React.createElement(PortalView, { initial: detail, portalId: uuid(1) }));
  assert.doesNotMatch(html, /The outcome is unknown/, 'normal state shows no unknown banner');
@@ -453,17 +458,17 @@ test('view: the creation form starts blank, asks for no display name or website,
 test('view: the portal page reports owner state, honest delivery and the audit trail', () => {
  const { PortalView } = view('portal-view');
  const detail = { organizationId: uuid(1), status: 'active', createdAt: '2030-01-02T00:00:00Z', hasOwner: false,
-  invitations: [{ id: uuid(2), teacherEmail: 'owner@example.test', createdAt: '2030-01-02T00:00:00Z', expiresAt: '2030-01-09T00:00:00Z', acceptedAt: null, revokedAt: null, revokeReason: null, status: 'pending' }],
+  invitations: [{ id: uuid(2), teacherEmail: 'owner@example.test', createdAt: '2030-01-02T00:00:00Z', expiresAt: '2030-01-09T00:00:00Z', acceptedAt: null, revokedAt: null, revokeReason: null, status: 'pending', delivery: { status: 'not_sent', attemptedAt: null, failure: null } }],
   educationSystems: [{ id: uuid(3), name: 'IGCSE', examinationBoard: 'Cambridge', gradeLevels: [{ id: uuid(4), name: 'Grade 10' }] }], subjects: [{ id: uuid(5), name: 'Physics' }],
   courses: [{ id: uuid(6), title: 'Physics 10', status: 'draft', subject: 'Physics', gradeLevel: 'Grade 10', educationSystem: 'IGCSE' }],
   activity: [{ action: 'portal.provision', occurredAt: '2030-01-02T00:00:00Z', actor: 'administrator' }] };
  const html = render(React.createElement(PortalView, { initial: detail, portalId: uuid(1) }));
- assert.match(html, /Owner pending/); assert.match(html, /Not sent by email/); assert.match(html, /Revoke invitation/); assert.match(html, /Issue a new code/); assert.match(html, /Portal created/); assert.match(html, /Administrator/);
- assert.match(html, /Draft, no content yet/); assert.doesNotMatch(html, /data-invitation-secret/, 'a secret is never rendered from stored data');
+ assert.match(html, /Owner pending/); assert.match(html, /No email sent/); assert.match(html, /Send invitation email/); assert.match(html, /Copy invitation link/); assert.match(html, /Revoke invitation/); assert.match(html, /Replace invitation/); assert.match(html, /Portal created/); assert.match(html, /Administrator/);
+ assert.match(html, /Draft, no content yet/); assert.doesNotMatch(html, /data-invitation-link/, 'a link is never rendered from stored data');
  const accepted = render(React.createElement(PortalView, { initial: { ...detail, hasOwner: true, invitations: [{ ...detail.invitations[0], status: 'accepted', acceptedAt: '2030-01-03T00:00:00Z' }] }, portalId: uuid(1) }));
- assert.match(accepted, /owns this portal/); assert.doesNotMatch(accepted, /Revoke invitation|Issue a new code/); assert.match(accepted, /can no longer be changed/);
+ assert.match(accepted, /owns this portal/); assert.doesNotMatch(accepted, /Revoke invitation|Replace invitation|Send invitation email|Copy invitation link/); assert.match(accepted, /can no longer be changed/);
 });
-test('view: the one-time secret card states plainly that no email was sent', () => {
- const { SecretCard } = view('common'); const html = render(React.createElement(SecretCard, { secret: 'A'.repeat(43), expiresAt: '2030-01-09T00:00:00Z' }));
- assert.match(html, /data-invitation-secret/); assert.match(html, /shown once/); assert.match(html, /No email was sent/); assert.match(html, /not connected yet/);
+test('view: the one-time link card states plainly that no email was sent', () => {
+ const { InvitationLinkCard } = view('common'); const html = render(React.createElement(InvitationLinkCard, { link: 'https://staging.example.test/teacher-invitation#' + 'A'.repeat(43), expiresAt: '2030-01-09T00:00:00Z' }));
+ assert.match(html, /data-invitation-link/); assert.match(html, /shown once/); assert.match(html, /No email was sent/); assert.match(html, /teacher-invitation#/);
 });

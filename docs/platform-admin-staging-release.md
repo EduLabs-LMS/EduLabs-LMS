@@ -4,6 +4,31 @@ Status: release candidate prepared; nothing has been applied, deployed or approv
 Everything below is a plan for the owner to review. The staging manager, Supabase, Firebase and
 Cloudflare were not touched while preparing it.
 
+## Addendum: invitation link onboarding (second migration, not yet committed)
+
+After the release commit `0f9b889` the branch gained, **uncommitted and unreviewed**, the teacher invitation link onboarding. It
+needs a second migration, `supabase/migrations/20261025100000_teacher_invitation_delivery.sql` (migration 33, SHA-256
+`a26a5ab0a433fc104477c04a6c2abe3bb3803e75af923992859c7dd3a86023d2`, LF, `.gitattributes` `-text`; recompute from `git show <sha>:<path>`
+after the commit). Migration 32 is unchanged (`96a06dd3...`). The activation order below therefore becomes: apply 32, then 33
+(each its own `begin; ... commit;`), verify, extend the manager approval to **both** files. Behaviour before 33 is applied: the
+administrator page still works (delivery status reads fall back to "No email sent"), **Send invitation email** is refused before
+anything changes (nothing is replaced or sent), and the teacher page cannot check a link (it reports "could not reach"/unavailable); copy-and-share links work
+for administrators but teachers cannot accept without the status check, so apply 33 together with 32.
+
+Rollback of 33 (run **first**, then the migration-32 rollback): `supabase/manual/rollback_teacher_invitation_delivery.sql`; it
+refuses if any delivery attempt or link salt is recorded. Tested on disposable PostgreSQL 17: after it runs the catalog equals the state after
+migration 32 exactly, and re-applying 33 reproduces the first application exactly. It also removes nothing else.
+
+Server configuration: `APP_ORIGIN` (canonical HTTPS origin) and **`INVITATION_LINK_KEY`** (secret, 32+ characters; without it no
+link is created, copied or sent) are needed for every invitation; `RESEND_API_KEY` and `INVITATION_EMAIL_FROM` only for e-mail.
+Nothing has been set on any server. Migration 33 changes (still additive, no existing object changed): columns `delivery_status`,
+`delivery_attempted_at`, `delivery_provider_ref`, `delivery_failure`, `delivery_attempts`, `link_salt` and constraint
+`teacher_invitations_delivery_shape`; functions `platform_record_invitation_delivery`, `platform_invitation_delivery`,
+`platform_store_invitation_salt`, `platform_invitation_link`, `teacher_invitation_preview` (private definer + public invoker
+wrapper each). It depends only on migration 32 (`private.teacher_invitations`, `is_platform_admin`, `current_app_user_id`,
+`token_hash_bytes`). Staging manager: the v1.5 approval must pin BOTH files (32 and 33) by name and SHA-256 and apply them in that
+order; the 33 hash above replaces any earlier recorded value.
+
 ## What is being released
 
 - Branch `claude/admin-provisioning-v1`, based on the clean foundation `d3451e5` (student V2 design,
@@ -87,7 +112,7 @@ to the reviewed `edulabs-staging` in the v1.4 package.
 
 A deliberately narrow revision, delivered like v1.4 (package with `upgrade.sh --check`, offline tests):
 
-1. Pin, in source, a second reviewed approval: filename, SHA-256, the exact release commit SHA, the
+1. Pin, in source, a second reviewed approval covering **both** new files (migration 32 and, if approved, migration 33; the addendum above): filename, SHA-256, the exact release commit SHA, the
    source branch name (`claude/admin-provisioning-v1`), the staging Supabase project and a new command
    `approve-schema-admin`. No generic "approve additions" switch.
 2. Preconditions it enforces: the current baseline is exactly the 31 approved hashes (the full manifest

@@ -23,15 +23,15 @@ assert.ok(fontFaces.length >= 8 && fontVars.length === 4, 'expected Figtree, Cap
 const bodyClass = fontVars.map(v => v.match(/^\.([^{]+)\{/)[1]).join(' ');
 
 // ---- fictional backend -------------------------------------------------------------------------
-let portals, posts, behaviors, detailFailures, secrets, dropActions, appliedOnce, actionPosts;
-function reset() { portals = []; posts = []; behaviors = []; detailFailures = 0; secrets = []; dropActions = null; appliedOnce = false; actionPosts = 0; }
+let lastAction, portals, posts, behaviors, detailFailures, secrets, dropActions, appliedOnce, actionPosts, emailMode, mailed, invites, viewer, acceptPosts, previewPosts, acceptBodies, acceptDrop, acceptApplied, previewDrop, account, accountSaves, accountFail, accountGets;
+function reset() { portals = []; posts = []; behaviors = []; detailFailures = 0; secrets = []; dropActions = null; appliedOnce = false; actionPosts = 0; emailMode = 'sent'; mailed = []; invites = new Map(); viewer = { email: 'invited.teacher@example.test', verified: true }; acceptPosts = 0; previewPosts = 0; acceptBodies = []; acceptDrop = null; acceptApplied = false; previewDrop = false; account = { user_id: 'u1', first_name: 'Invited', last_name: 'Teacher', avatar_id: null, onboarding_completed_at: '2030-01-01T00:00:00Z', revision: 3 }; accountSaves = []; accountFail = 0; accountGets = 0; }
 reset();
 const iso = (days = 0) => new Date(Date.UTC(2030, 0, 2, 3, 4) + days * 86400000).toISOString();
 function fictionalPortal(request, status = 'pending') {
  const id = randomUUID(), inv = randomUUID();
  const detail = {
   organizationId: id, status: 'active', createdAt: iso(), hasOwner: status === 'accepted',
-  invitations: [{ id: inv, teacherEmail: request.teacherEmail, createdAt: iso(), expiresAt: iso(request.expiresInDays), acceptedAt: status === 'accepted' ? iso(1) : null, revokedAt: null, revokeReason: null, status }],
+  invitations: [{ id: inv, teacherEmail: request.teacherEmail, createdAt: iso(), expiresAt: iso(request.expiresInDays), acceptedAt: status === 'accepted' ? iso(1) : null, revokedAt: null, revokeReason: null, status, delivery: { status: 'not_sent', attemptedAt: null, failure: null, attempts: 0 }, link: linkOf() }],
   educationSystems: request.systems.map(s => ({ id: randomUUID(), name: s.label, examinationBoard: s.examinationBoard ?? null, gradeLevels: s.grades.map(g => ({ id: randomUUID(), name: g.label })) })),
   subjects: request.subjects.map(s => ({ id: randomUUID(), name: s.label })),
   courses: [{ id: randomUUID(), title: request.course.title, status: 'draft', subject: request.subjects.find(s => s.key === request.course.subjectKey).label,
@@ -44,6 +44,8 @@ const sampleRequest = (email = 'list.teacher@example.test') => ({ teacherEmail: 
 const summary = d => ({ organizationId: d.organizationId, teacherEmail: d.invitations[0].teacherEmail, createdAt: d.createdAt, expiresAt: d.invitations[0].expiresAt, acceptedAt: d.invitations[0].acceptedAt,
  invitationStatus: d.invitations[0].status, course: { id: d.courses[0].id, title: d.courses[0].title, subject: d.courses[0].subject, grade: d.courses[0].gradeLevel, educationSystem: d.courses[0].educationSystem, examinationBoard: d.educationSystems[0].examinationBoard } });
 const secret = () => { const s = randomBytes(32).toString('base64url'); secrets.push(s); return s; };
+const linkOf = () => 'https://staging.example.test/teacher-invitation#' + secret();
+const newInvite = (state = 'valid', email = 'invited.teacher@example.test') => { const t = randomBytes(32).toString('base64url'); invites.set(t, { state, email, acceptedBy: null }); return t; };
 function applyRevoke(portal) {
  const latest = portal.invitations[0]; latest.status = 'revoked'; latest.revokedAt = iso(1); latest.revokeReason = 'revoked';
  portal.activity.unshift({ action: 'invitation.revoke', occurredAt: iso(1), actor: 'administrator' });
@@ -51,9 +53,18 @@ function applyRevoke(portal) {
 }
 function applyReissue(portal, input) {
  const latest = portal.invitations[0]; latest.status = 'revoked'; latest.revokeReason = 'superseded';
- const fresh = { ...latest, id: randomUUID(), status: 'pending', revokedAt: null, revokeReason: null, expiresAt: iso(input.expiresInDays), teacherEmail: input.teacherEmail || latest.teacherEmail };
+ const fresh = { ...latest, id: randomUUID(), status: 'pending', revokedAt: null, revokeReason: null, expiresAt: iso(input.expiresInDays), teacherEmail: input.teacherEmail || latest.teacherEmail, delivery: { status: 'not_sent', attemptedAt: null, failure: null, attempts: 0 }, link: linkOf() };
  portal.invitations.unshift(fresh); portal.activity.unshift({ action: 'invitation.reissue', occurredAt: iso(1), actor: 'administrator' });
- return { organizationId: portal.organizationId, invitationId: fresh.id, expiresAt: fresh.expiresAt, invitationSecret: secret(), delivery: 'not_sent' };
+ return { organizationId: portal.organizationId, invitationId: fresh.id, expiresAt: fresh.expiresAt, invitationLink: fresh.link, delivery: 'not_sent', reusable: true };
+}
+// The server e-mails the ACTIVE link to the address stored with the invitation and records exactly what the provider said. Nothing rotates.
+function applySend(portal) {
+ const current = portal.invitations[0];
+ mailed.push({ to: current.teacherEmail, link: current.link });
+ const attempts = current.delivery.attempts + 1;
+ const verdict = { sent: { status: 'sent', attemptedAt: iso(1), failure: null }, failed: { status: 'failed', attemptedAt: iso(1), failure: 'rejected' }, unconfirmed: { status: 'sending', attemptedAt: iso(1), failure: null } }[emailMode];
+ current.delivery = { ...verdict, attempts };
+ return { organizationId: portal.organizationId, invitationId: current.id, expiresAt: current.expiresAt, delivery: emailMode, statusSaved: true, attempt: attempts };
 }
 
 const entry = `
@@ -66,8 +77,9 @@ import { ProvisionForm } from '@/frontend/features/platform-admin/provision-form
 import { TeachersView } from '@/frontend/features/platform-admin/teachers-view';
 import { PortalView } from '@/frontend/features/platform-admin/portal-view';
 import { SettingsView } from '@/frontend/features/platform-admin/settings-view';
+import { TeacherInvitationView } from '@/frontend/features/teacher-invitation/invitation-view';
 const q = new URLSearchParams(location.search), view = q.get('view') || 'new';
-window.__pathname = view === 'settings' ? '/platform-admin/settings' : view === 'new' ? '/platform-admin/teachers/new' : '/platform-admin/teachers' + (view === 'detail' ? '/' + q.get('id') : '');
+window.__pathname = view === 'invite' ? '/teacher-invitation' : view === 'settings' ? '/platform-admin/settings' : view === 'new' ? '/platform-admin/teachers/new' : '/platform-admin/teachers' + (view === 'detail' ? '/' + q.get('id') : '');
 function Body() {
  const [data, setData] = React.useState(undefined);
  React.useEffect(() => {
@@ -83,7 +95,7 @@ function Body() {
 createRoot(document.getElementById('root')).render(
  <LanguageProvider initialLanguage={q.get('lang') === 'ar' ? 'ar' : 'en'}>
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-   <PlatformAdminShell name="Fictional Admin"><Body /></PlatformAdminShell>
+   {view === 'invite' ? <TeacherInvitationView /> : <PlatformAdminShell name="Fictional Admin"><Body /></PlatformAdminShell>}
   </ThemeProvider>
  </LanguageProvider>);
 `;
@@ -91,6 +103,20 @@ createRoot(document.getElementById('root')).render(
 (async () => {
  const stubs = {
   'next/navigation': 'export const usePathname = () => window.__pathname; export const useRouter = () => ({ push() {}, replace() {} });',
+  '@/frontend/components/providers/firebase-auth-provider': `
+  import { useSyncExternalStore } from 'react';
+  const listeners = new Set();
+  const kind = new URLSearchParams(location.search).get('auth') || 'none';
+  const email = kind === 'other' ? 'someone.else@example.test' : 'invited.teacher@example.test';
+  let state = { user: kind === 'none' ? null : { email, emailVerified: kind !== 'unverified', displayName: new URLSearchParams(location.search).get('dn') || null }, loading: false, error: null };
+  const emit = () => listeners.forEach(l => l());
+  window.__auth = { calls: { refresh: 0, logout: 0 }, autoVerify: false };
+  export function useFirebaseAuth() {
+   const current = useSyncExternalStore(l => { listeners.add(l); return () => listeners.delete(l); }, () => state, () => state);
+   return { ...current,
+    refresh: async () => { window.__auth.calls.refresh++; if (window.__auth.autoVerify) { state = { ...state, user: { ...state.user, emailVerified: true } }; emit(); } },
+    logout: async () => { window.__auth.calls.logout++; } };
+  }`,
   'next/link': 'import React from "react"; export default function Link({ href, children, ...rest }) { return React.createElement("a", { href: "#" + href, ...rest }, children); }',
  };
  const resolveAlias = p => { for (const candidate of [p + '.tsx', p + '.ts', path.join(p, 'index.tsx'), path.join(p, 'index.ts')]) if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate; return p; };
@@ -125,7 +151,7 @@ createRoot(document.getElementById('root')).render(
     if (behavior === 'outage') return send({ error: 'down', reason: 'unavailable' }, 503);
     if (behavior === 'conflict' || portals.some(p => p.invitations[0].teacherEmail === input.teacherEmail && p.invitations[0].status === 'pending')) return send({ error: 'exists', reason: 'pending_exists' }, 409);
     const detail = fictionalPortal(input); portals.unshift(detail);
-    send({ organizationId: detail.organizationId, invitationId: detail.invitations[0].id, courseId: detail.courses[0].id, expiresAt: detail.invitations[0].expiresAt, invitationSecret: secret(), delivery: 'not_sent' }, 201);
+    send({ organizationId: detail.organizationId, invitationId: detail.invitations[0].id, courseId: detail.courses[0].id, expiresAt: detail.invitations[0].expiresAt, invitationLink: detail.invitations[0].link, delivery: 'not_sent', reusable: true }, 201);
    });
   }
   const match = url.pathname.match(/^\/api\/platform-admin\/portals\/([0-9a-f-]{36})$/);
@@ -134,17 +160,62 @@ createRoot(document.getElementById('root')).render(
    if (!portal) return send({ error: 'Not found', reason: 'not_found' }, 404);
    if (req.method === 'GET') { if (detailFailures > 0) { detailFailures--; return send({ error: 'down', reason: 'unavailable' }, 503); } return send(portal); }
    return body().then(input => {
-    actionPosts++;
+    actionPosts++; lastAction = input;
     // A dropped connection: the write may or may not have happened. `applied` performs it once, silently.
     if (dropActions) {
-     if (dropActions === 'applied' && !appliedOnce && portal.invitations[0].status === 'pending') { appliedOnce = true; input.action === 'revoke' ? applyRevoke(portal) : applyReissue(portal, input); }
+     if (dropActions === 'applied' && !appliedOnce && portal.invitations[0].status === 'pending') { appliedOnce = true; input.action === 'revoke' ? applyRevoke(portal) : input.action === 'send_email' ? applySend(portal) : applyReissue(portal, input); }
      return req.socket.destroy();
+    }
+    if (input.action === 'send_email') {
+     if (emailMode === 'unconfigured') return send({ error: 'E-mail delivery is not configured.', reason: 'email_not_configured' }, 503);
+     if (portal.invitations[0].status !== 'pending') return send({ error: 'nothing', reason: 'no_active_invitation' }, 409);
+     return send(applySend(portal));
+    }
+    if (input.action === 'copy_link') {
+     if (portal.invitations[0].status !== 'pending') return send({ error: 'nothing', reason: 'no_active_invitation' }, 409);
+     return send({ organizationId: portal.organizationId, invitationId: portal.invitations[0].id, expiresAt: portal.invitations[0].expiresAt, invitationLink: portal.invitations[0].link });
     }
     if (input.action === 'revoke') {
      if (portal.invitations[0].status !== 'pending') return send({ error: 'nothing', reason: 'used' }, 409);
      return send(applyRevoke(portal));
     }
     send(applyReissue(portal, input));
+   });
+  }
+  if (url.pathname === '/api/auth/firebase/account' && req.method === 'POST') {
+   return body().then(input => {
+    if (input.action === 'get') { accountGets++; return send(account); }
+    if (input.action !== 'save') return send({ error: 'bad action' }, 400);
+    accountSaves.push(input);
+    if (accountFail > 0) { accountFail--; return send({ error: 'down' }, 503); }
+    if (input.revision !== account.revision) return send({ error: 'The profile changed elsewhere.' }, 409);
+    const { firstName, lastName, completeOnboarding } = input.data;
+    if (!firstName?.trim() || !lastName?.trim()) return send({ error: 'names required' }, 400);
+    account = { ...account, first_name: firstName.trim(), last_name: lastName.trim(), onboarding_completed_at: completeOnboarding ? '2030-01-02T00:00:00Z' : account.onboarding_completed_at, revision: account.revision + 1 };
+    send(account);
+   });
+  }
+  if (url.pathname === '/api/teacher-invitations/preview' && req.method === 'POST') {
+   return body().then(input => {
+    previewPosts++;
+    if (previewDrop) return req.socket.destroy();
+    const inv = invites.get(input.token);
+    if (!inv) return send({ state: 'unavailable', emailVerified: viewer.verified });
+    send({ state: inv.state, emailVerified: viewer.verified, emailMatches: viewer.verified && viewer.email === inv.email, acceptedByMe: inv.acceptedBy === viewer.email, maskedEmail: inv.email.replace(/^(.).*(@.*)$/, '$1***$2') });
+   });
+  }
+  if (url.pathname === '/api/teacher-invitations/accept' && req.method === 'POST') {
+   return body().then(input => {
+    acceptPosts++; acceptBodies.push(input);
+    const inv = invites.get(input.token);
+    if (acceptDrop === 'applied' && !acceptApplied && inv && inv.state === 'valid' && viewer.verified && viewer.email === inv.email) { acceptApplied = true; inv.state = 'used'; inv.acceptedBy = viewer.email; }
+    if (acceptDrop) return req.socket.destroy();
+    if (!inv) return send({ error: 'not found', reason: 'not_found' }, 404);
+    if (inv.state === 'used') return send({ error: 'used', reason: 'used' }, 409);
+    if (inv.state !== 'valid') return send({ error: 'gone', reason: 'gone' }, 410);
+    if (!viewer.verified || viewer.email !== inv.email) return send({ error: 'forbidden', reason: 'forbidden' }, 403);
+    inv.state = 'used'; inv.acceptedBy = viewer.email;
+    send({ organizationId: randomUUID() });
    });
   }
   res.setHeader('Content-Type', 'text/html');
@@ -160,7 +231,7 @@ createRoot(document.getElementById('root')).render(
  page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR_/.test(m.text())) errors.push(m.text()); });
  const cdp = await context.newCDPSession(page); await cdp.send('DOM.enable'); await cdp.send('CSS.enable');
  const open = async (query = '') => { await page.goto(origin + '/?' + query); await page.locator('#pa-sidebar').waitFor({ state: 'attached' }); };
- const step = async (name, fn) => { console.log('...', name); try { await fn(); results.push('PASS ' + name); } catch (error) { await page.screenshot({ path: path.join(out, 'failure-' + results.length + '.png') }).catch(() => {}); throw new Error(name + ': ' + error.message, { cause: error }); } };
+ const step = async (name, fn) => { if (process.env.PA_ONLY && !new RegExp(process.env.PA_ONLY, 'i').test(name)) return; console.log('...', name); try { await fn(); results.push('PASS ' + name); } catch (error) { await page.screenshot({ path: path.join(out, 'failure-' + results.length + '.png') }).catch(() => {}); throw new Error(name + ': ' + error.message, { cause: error }); } };
  const noOverflow = async label => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'horizontal overflow: ' + label);
  const prefGroup = name => page.getByRole('radiogroup', { name });
  const setLang = async code => { await open('view=settings'); await prefGroup(/^(Language|اللغة)$/).getByRole('radio').nth(code === 'ar' ? 1 : 0).click(); await page.waitForFunction(c => document.documentElement.lang === c, code); };
@@ -404,8 +475,8 @@ createRoot(document.getElementById('root')).render(
   assert.deepEqual(Object.keys(request).sort(), ['course', 'expiresInDays', 'subjects', 'systems', 'teacherEmail']);
   assert.equal(request.teacherEmail, 'new.teacher@example.test'); assert.equal(request.systems[0].examinationBoard, 'Cambridge');
   assert.deepEqual(Object.keys(request.course).sort(), ['gradeKey', 'subjectKey', 'title']);
-  const shown = await page.locator('[data-invitation-secret]').innerText(); assert.equal(shown, secrets.at(-1)); assert.match(shown, /^[A-Za-z0-9_-]{43}$/);
-  assert.ok(!JSON.stringify(posts).includes(shown), 'the secret was never sent by the browser');
+  const shown = await page.locator('[data-invitation-link]').innerText(); assert.match(shown, /^https:\/\/staging\.example\.test\/teacher-invitation#[A-Za-z0-9_-]{43}$/); assert.equal(shown.split('#')[1], secrets.at(-1));
+  assert.ok(!JSON.stringify(posts).includes(shown.split('#')[1]), 'the secret was never sent by the browser');
   await page.getByText('No email was sent').waitFor(); await page.getByText('not an owner yet').waitFor();
   assert.equal(await page.getByRole('link', { name: 'Inspect portal' }).count(), 1);
   assert.equal(portals.length, 1);
@@ -435,14 +506,14 @@ createRoot(document.getElementById('root')).render(
   const id = portals.find(p => p.invitations[0].teacherEmail === 'list.teacher@example.test').organizationId;
   await open('view=detail&id=' + id);
   await page.getByText('Owner pending').waitFor();
-  const text = await page.locator('main').innerText(); for (const expected of ['Not sent by email', 'IGCSE', 'Grade 10', 'Physics - Grade 10', 'Draft, no content yet', 'Portal created', 'Administrator']) assert.ok(text.includes(expected), expected);
-  assert.equal(await page.locator('[data-invitation-secret]').count(), 0, 'a stored invitation never displays a secret');
+  const text = await page.locator('main').innerText(); for (const expected of ['No email sent', 'Send invitation email', 'Copy invitation link', 'IGCSE', 'Grade 10', 'Physics - Grade 10', 'Draft, no content yet', 'Portal created', 'Administrator']) assert.ok(text.includes(expected), expected);
+  assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'a stored invitation never displays a link');
   await accessible('portal, light');
-  await page.getByRole('button', { name: 'Issue a new code' }).click(); await page.locator('#pa-re-days').selectOption('14');
-  await page.getByRole('button', { name: 'Issue new code' }).click(); await page.getByText('A new invitation code was issued.').waitFor();
-  assert.equal(await page.locator('[data-invitation-secret]').innerText(), secrets.at(-1));
-  await page.getByRole('button', { name: 'I have saved the code' }).click(); assert.equal(await page.locator('[data-invitation-secret]').count(), 0);
-  await page.getByText('New invitation code issued').waitFor();
+  await page.getByRole('button', { name: 'Replace invitation' }).click(); await page.locator('#pa-re-days').selectOption('14');
+  await page.getByRole('button', { name: 'Create replacement link' }).click(); await page.getByText('A new invitation link was created. The previous link, and any email that contained it, no longer works.').waitFor();
+  assert.equal((await page.locator('[data-invitation-link]').innerText()).split('#')[1], secrets.at(-1));
+  await page.getByRole('button', { name: 'I have saved the link' }).click(); assert.equal(await page.locator('[data-invitation-link]').count(), 0);
+  await page.getByText('New invitation link issued').first().waitFor();
   await page.getByRole('button', { name: 'Revoke invitation' }).click(); await page.getByText('Revoke this invitation?').waitFor();
   assert.equal(portals.find(p => p.organizationId === id).invitations[0].status, 'pending', 'nothing happens before confirmation');
   detailFailures = 1; await page.getByRole('button', { name: 'Yes, revoke' }).click();
@@ -459,7 +530,7 @@ createRoot(document.getElementById('root')).render(
   assert.equal(await page.getByText('The connection dropped while revoking').count(), 1);
   assert.equal(await page.getByText(/could not be revoked|try again later/i).count(), 0, 'a dropped connection is not reported as a failure');
   assert.equal(await page.getByRole('button', { name: 'Revoke invitation' }).isDisabled(), true, 'revoke is locked, so the administrator cannot retry blindly');
-  assert.equal(await page.getByRole('button', { name: 'Issue a new code' }).isDisabled(), true);
+  assert.equal(await page.getByRole('button', { name: 'Replace invitation' }).isDisabled(), true);
   await accessible('portal, unknown revoke');
   const sent = actionPosts; dropActions = null;
   await page.getByRole('button', { name: 'Refresh invitation status' }).click();
@@ -477,30 +548,30 @@ createRoot(document.getElementById('root')).render(
  });
  await step('reissue with a dropped connection that DID apply: the lost secret is explained and a deliberate replacement path issues a visible code', async () => {
   reset(); const portal = await newPortal('reissue.applied@example.test'); const original = portal.invitations[0].id; dropActions = 'applied';
-  await page.getByRole('button', { name: 'Issue a new code' }).click(); await page.getByRole('button', { name: 'Issue new code' }).click();
+  await page.getByRole('button', { name: 'Replace invitation' }).click(); await page.getByRole('button', { name: 'Create replacement link' }).click();
   await unknownBanner().waitFor();
-  assert.equal(await page.getByText('The connection dropped while issuing a new code').count(), 1);
-  assert.equal(await page.locator('[data-invitation-secret]').count(), 0, 'no secret exists to show');
-  assert.equal(await page.getByRole('button', { name: 'Issue a new code' }).isDisabled(), true);
-  assert.equal(await page.getByRole('button', { name: 'Issue a replacement code' }).count(), 0, 'no replacement is offered until the status is known');
+  assert.equal(await page.getByText('The connection dropped while creating a new link').count(), 1);
+  assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'no link exists to show');
+  assert.equal(await page.getByRole('button', { name: 'Replace invitation' }).isDisabled(), true);
+  assert.equal(await page.getByRole('button', { name: 'Create a replacement link' }).count(), 0, 'no replacement is offered until the status is known');
   const sent = actionPosts; dropActions = null;
   await page.getByRole('button', { name: 'Refresh invitation status' }).click();
-  await page.getByText('its secret never reached this page and cannot be shown again', { exact: false }).waitFor();
+  await page.getByText('it never reached this page and cannot be shown again', { exact: false }).waitFor();
   assert.equal(actionPosts, sent, 'refreshing sent no write'); assert.notEqual(portal.invitations[0].id, original, 'the server did issue a code');
   await accessible('portal, lost secret');
-  await page.getByRole('button', { name: 'Issue a replacement code' }).click();
-  await page.getByRole('button', { name: 'Issue new code' }).click(); await page.getByText('A new invitation code was issued.').waitFor();
-  assert.equal(await page.locator('[data-invitation-secret]').innerText(), secrets.at(-1));
+  await page.getByRole('button', { name: 'Create a replacement link' }).click();
+  await page.getByRole('button', { name: 'Create replacement link' }).click(); await page.getByText('A new invitation link was created. The previous link, and any email that contained it, no longer works.').waitFor();
+  assert.equal((await page.locator('[data-invitation-link]').innerText()).split('#')[1], secrets.at(-1));
   assert.equal(portal.invitations.length, 3, 'original, the lost code and the deliberate replacement');
   assert.equal(portal.invitations.filter(i => i.status === 'pending').length, 1, 'exactly one code works');
  });
  await step('reissue with a dropped connection that did NOT apply: nothing changed and the current code still works', async () => {
   reset(); const portal = await newPortal('reissue.lost@example.test'); dropActions = 'unapplied';
-  await page.getByRole('button', { name: 'Issue a new code' }).click(); await page.getByRole('button', { name: 'Issue new code' }).click();
+  await page.getByRole('button', { name: 'Replace invitation' }).click(); await page.getByRole('button', { name: 'Create replacement link' }).click();
   await unknownBanner().waitFor(); dropActions = null;
   await page.getByRole('button', { name: 'Refresh invitation status' }).click();
   await page.getByText('Confirmed: no new code was issued. The current code still works.').waitFor();
-  assert.equal(await page.getByRole('button', { name: 'Issue a replacement code' }).count(), 0); assert.equal(portal.invitations.length, 1);
+  assert.equal(await page.getByRole('button', { name: 'Create a replacement link' }).count(), 0); assert.equal(portal.invitations.length, 1);
  });
  await step('a failed status refresh keeps the controls locked and can be retried', async () => {
   reset(); await newPortal('refresh.fails@example.test'); dropActions = 'unapplied';
@@ -717,6 +788,272 @@ createRoot(document.getElementById('root')).render(
    }
   }
   await page.setViewportSize({ width: 1440, height: 900 }); await setTheme('light');
+ });
+
+
+ await step('portal page: Send and Copy share ONE link; only Replace rotates it; delivery status stays honest (not configured, accepted, refused, unconfirmed, dropped connection, reload)', async () => {
+  reset(); const portal = await newPortal('mail.teacher@example.test');
+  const alertText = () => page.getByRole('alert').first().innerText();
+  const sendButton = () => page.getByRole('button', { name: /^Send invitation email/ }), copyButton = page.getByRole('button', { name: 'Copy invitation link' });
+  const link0 = portal.invitations[0].link;
+  assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'not_sent'); await page.getByText('No email has been sent for this invitation.').waitFor();
+  assert.equal(await sendButton().isEnabled(), true); assert.equal(await copyButton.isEnabled(), true);
+  assert.equal(await page.locator('#pa-share-days').count(), 0, 'sending and copying take no lifetime: they never create an invitation');
+  await page.getByText('Only "Replace invitation" creates a new link', { exact: false }).waitFor();
+  await accessible('portal, share controls');
+  // 1. e-mail not configured: exact missing configuration, nothing changed, copying still possible
+  emailMode = 'unconfigured'; await sendButton().click();
+  await page.getByRole('alert').first().waitFor(); const missing = await alertText();
+  for (const name of ['RESEND_API_KEY', 'INVITATION_EMAIL_FROM']) assert.ok(missing.includes(name), name); assert.match(missing, /Nothing was changed/);
+  assert.equal(portal.invitations.length, 1, 'the invitation was not rotated'); assert.equal(mailed.length, 0);
+  assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'not_sent'); assert.equal(await copyButton.isEnabled(), true);
+  // 2. accepted by the provider: the request carries nothing but the action; the page never receives the link; nothing is rotated
+  emailMode = 'sent'; await sendButton().click();
+  await page.getByText('The email service accepted the invitation email.', { exact: false }).waitFor();
+  assert.deepEqual(lastAction, { action: 'send_email' });
+  assert.equal(mailed.length, 1); assert.equal(mailed[0].to, 'mail.teacher@example.test'); assert.equal(mailed[0].link, link0); assert.equal(portal.invitations.length, 1, 'sending did not replace the invitation');
+  assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'an e-mailed link is not shown to the administrator');
+  assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'sent'); await page.getByText('Accepted by email service').waitFor();
+  await page.getByText('This is not proof that it reached the teacher', { exact: false }).waitFor();
+  await page.getByRole('button', { name: 'Send invitation email again' }).waitFor();
+  await accessible('portal, email accepted'); await page.screenshot({ path: path.join(shots, '9-admin-email-accepted.png'), fullPage: true });
+  // 3. Send then Copy: the very same link, no rotation, the delivery status is untouched
+  await copyButton.click(); await page.getByText('The invitation link was copied. It is the same link as before', { exact: false }).waitFor();
+  assert.deepEqual(lastAction, { action: 'copy_link' });
+  assert.equal(await page.locator('[data-invitation-link]').innerText(), link0, 'the copied link equals the link that was e-mailed');
+  assert.equal(portal.invitations.length, 1); assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'sent', 'copying does not reset the delivery status');
+  await accessible('portal, link shown'); await page.screenshot({ path: path.join(shots, '9-admin-link-copied.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Copy link', exact: true }).click(); await page.getByText(/^(Copied|Copying was blocked\. Select the link and copy it manually\.)$/).first().waitFor();
+  await page.getByRole('button', { name: 'I have saved the link' }).click();
+  // 4. refused by the provider: same link, status says so
+  emailMode = 'failed'; await sendButton().click();
+  await page.getByText('The email service refused the message, so nothing was delivered.', { exact: false }).waitFor();
+  assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'failed'); await page.getByText('Email not delivered').waitFor();
+  // 5. no verdict: unconfirmed, never presented as sent, sent once, and Copy afterwards cannot invalidate the e-mail that may have arrived
+  emailMode = 'unconfirmed'; const before = mailed.length; await sendButton().click();
+  await page.getByText('did not confirm the result', { exact: false }).first().waitFor();
+  assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'sending'); await page.getByText('Unconfirmed', { exact: true }).waitFor();
+  assert.equal(mailed.length - before, 1, 'one attempt, no automatic retry'); assert.equal(mailed.at(-1).link, link0);
+  await copyButton.click(); await page.getByText('The invitation link was copied.', { exact: false }).waitFor();
+  assert.equal(await page.locator('[data-invitation-link]').innerText(), mailed.at(-1).link, 'Copy after a timed-out send gives the link inside the e-mail that may have been delivered');
+  assert.equal(portal.invitations.length, 1); assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'sending');
+  await page.getByRole('button', { name: 'I have saved the link' }).click();
+  await accessible('portal, email unconfirmed'); await page.screenshot({ path: path.join(shots, '9-admin-email-unconfirmed.png'), fullPage: true });
+  // 6. a reload never rotates anything: the link, the invitation and the unconfirmed status are all still the same
+  await page.reload(); await page.getByRole('button', { name: 'Copy invitation link' }).waitFor();
+  assert.equal(portal.invitations.length, 1); assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'sending');
+  await page.getByRole('button', { name: 'Copy invitation link' }).click(); await page.getByText('The invitation link was copied.', { exact: false }).waitFor();
+  assert.equal(await page.locator('[data-invitation-link]').innerText(), link0, 'the same link after a reload'); await page.getByRole('button', { name: 'I have saved the link' }).click();
+  // 7. a dropped connection while sending is an unknown outcome: locked, no blind retry, a read-only refresh explains what happened
+  emailMode = 'sent'; dropActions = 'applied'; const mailsBefore = mailed.length; await sendButton().click();
+  await unknownBanner().waitFor(); assert.equal(await page.getByText('The connection dropped while sending').count(), 1);
+  assert.equal(await sendButton().isDisabled(), true); assert.equal(await copyButton.isDisabled(), true);
+  const writes = actionPosts; dropActions = null;
+  await page.getByRole('button', { name: 'Refresh invitation status' }).click();
+  await page.getByText('An email attempt was recorded.', { exact: false }).waitFor();
+  assert.equal(actionPosts, writes, 'the refresh sent no write'); assert.equal(mailed.length - mailsBefore, 1); assert.equal(portal.invitations.length, 1, 'the link is unchanged');
+  assert.equal(await sendButton().isEnabled(), true);
+  // 8. Replace is the only rotation, and it says so before and after
+  await page.getByRole('button', { name: 'Replace invitation' }).click();
+  await page.getByText('The current link and any email already sent stop working immediately.', { exact: false }).waitFor();
+  await page.getByRole('button', { name: 'Create replacement link' }).click();
+  await page.getByText('The previous link, and any email that contained it, no longer works.', { exact: false }).waitFor();
+  assert.equal(portal.invitations.length, 2); const link1 = portal.invitations[0].link; assert.notEqual(link1, link0);
+  assert.equal(await page.locator('[data-invitation-link]').innerText(), link1);
+  assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'not_sent', 'the replacement starts with no delivery history');
+  await page.getByRole('button', { name: 'I have saved the link' }).click();
+  await page.getByRole('button', { name: 'Send invitation email', exact: true }).waitFor();
+  await copyButton.click(); await page.getByText('The invitation link was copied.', { exact: false }).waitFor();
+  assert.equal(await page.locator('[data-invitation-link]').innerText(), link1, 'Copy now returns the replacement, never the superseded link');
+ });
+ await step('layout: the sidebar stays put at desktop, tablet and phone widths, however far the page is scrolled and however it is captured', async () => {
+  reset(); const portal = await newPortal('layout.teacher@example.test');
+  // Make the page genuinely tall, as a real portal with many grades and activity entries is.
+  portal.activity = Array.from({ length: 40 }, (_, i) => ({ action: 'invitation.reissue', occurredAt: iso(i), actor: 'administrator' }));
+  const measure = () => page.evaluate(() => { const r = document.querySelector('.pa-sidebar-inner').getBoundingClientRect(); const c = getComputedStyle(document.querySelector('#pa-sidebar')); const root = document.querySelector('.pa-root').getBoundingClientRect();
+   return { top: Math.round(r.top), height: Math.round(r.height), left: Math.round(r.left), width: Math.round(r.width), vh: window.innerHeight, scrollY: Math.round(window.scrollY), pageHeight: document.documentElement.scrollHeight, visibility: c.visibility, position: c.position, rootHeight: Math.round(root.height) }; });
+  for (const [label, width, height] of [['desktop', 1440, 900], ['tablet', 820, 1024], ['phone', 390, 844]]) {
+   await page.setViewportSize({ width, height }); await open('view=detail&id=' + portal.organizationId); await page.getByText('Owner pending').waitFor();
+   const docked = width > 900;
+   const top = await measure(); assert.ok(top.pageHeight > top.vh * 1.5, label + ': the page is tall enough to scroll');
+   if (docked) {
+    assert.equal(top.top, 0, label + ': docked at the very top'); assert.equal(top.height, top.vh, label + ': exactly one viewport tall'); assert.equal(top.visibility, 'visible');
+    for (const y of [400, 1200, 99999]) { await page.evaluate(v => window.scrollTo(0, v), y); const m = await measure(); assert.ok(m.scrollY > 0, label + ': scrolled'); assert.equal(m.top, 0, label + ': still pinned to the top after scrolling to ' + m.scrollY); assert.equal(m.height, m.vh); }
+    // A full-page capture is taken while scrolled; the sidebar must still start at the top edge of the capture, not at the scroll offset.
+    await page.evaluate(() => window.scrollTo(0, 99999)); const shot = path.join(shots, 'layout-' + label + '-scrolled-fullpage.png'); await page.screenshot({ path: shot, fullPage: true });
+    const doc = await measure(); assert.equal(doc.rootHeight >= doc.pageHeight - 1, true, label + ': the page shell spans the whole document');
+    const column = await page.evaluate(() => { const aside = document.querySelector('#pa-sidebar'); const r = aside.parentElement.getBoundingClientRect(); const a = aside.getBoundingClientRect(); return { asideTop: Math.round(a.top + window.scrollY), asideBottom: Math.round(a.bottom + window.scrollY), colTop: Math.round(r.top + window.scrollY), colBottom: Math.round(r.bottom + window.scrollY) }; });
+    assert.equal(column.colTop, 0); assert.ok(await page.evaluate(() => { const a = document.querySelector('#pa-sidebar').getBoundingClientRect(); return a.height >= document.documentElement.scrollHeight - 1; }), label + ': the sidebar column spans the whole page, so a full-page capture shows it complete');
+    await page.evaluate(() => window.scrollTo(0, 0));
+   } else {
+    assert.equal(top.visibility, 'hidden', label + ': the drawer is closed and out of the tab order until opened'); assert.equal(top.position, 'fixed');
+    await page.getByRole('button', { name: 'Open navigation' }).click(); await page.waitForFunction(() => getComputedStyle(document.querySelector('#pa-sidebar')).visibility === 'visible');
+    await page.waitForTimeout(350); const open = await measure(); assert.equal(open.top, 0, label + ': the open drawer starts at the top edge'); assert.equal(open.height, open.vh); assert.equal(open.left, 0);
+    await page.evaluate(() => window.scrollTo(0, 600)); const scrolled = await measure(); assert.equal(scrolled.top, 0, label + ': the drawer stays pinned while the page scrolls'); assert.equal(scrolled.height, scrolled.vh);
+    await page.screenshot({ path: path.join(shots, 'layout-' + label + '-drawer.png') }); await page.keyboard.press('Escape'); await page.waitForTimeout(350); await page.evaluate(() => window.scrollTo(0, 0));
+   }
+   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, label + ': no horizontal overflow');
+   await page.screenshot({ path: path.join(shots, 'layout-' + label + '.png') });
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+ });
+ await step('portal page: an accepted invitation offers no way to send, copy or replace', async () => {
+  reset(); const accepted = fictionalPortal(sampleRequest('done.teacher@example.test'), 'accepted'); portals.unshift(accepted); await open('view=detail&id=' + accepted.organizationId);
+  await page.getByText('can no longer be changed', { exact: false }).waitFor();
+  for (const name of ['Send invitation email', 'Copy invitation link', 'Replace invitation']) assert.equal(await page.getByRole('button', { name }).count(), 0, name);
+ });
+
+ // ---- teacher-facing invitation page ----
+ const inviteReset = () => page.evaluate(() => { try { localStorage.removeItem('edulabs-teacher-invitation'); sessionStorage.removeItem('edulabs-teacher-invitation'); } catch {} });
+ let inviteLoads = 0;
+ const inviteOpen = async (auth, token, extra = '') => {
+  await inviteReset(); await page.goto(origin + '/?view=invite&auth=' + auth + extra + '&load=' + (++inviteLoads) + (token ? '#' + token : '')); await page.locator('[data-teacher-invitation]').waitFor();
+  await page.evaluate(() => { const original = window.fetch; window.__acceptCalls = 0; window.fetch = (url, init) => { if (String(url).includes('/api/teacher-invitations/accept')) window.__acceptCalls++; return original(url, init); }; });
+ };
+ const acceptCalls = () => page.evaluate(() => window.__acceptCalls);
+ const inviteState = state => page.locator('[data-invitation-state="' + state + '"]');
+ const inviteAccessible = async label => {
+  const problems = await auditStructure(); assert.deepEqual(problems, [], 'accessibility structure (' + label + ')');
+  const c = await scanContrast(); assert.ok(c.checked >= 4, 'contrast scan saw text (' + label + ')'); assert.deepEqual(c.failures, [], 'contrast (' + label + ')');
+ };
+ const storedInvitation = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('edulabs-teacher-invitation') || 'null')?.token ?? null; } catch { return null; } });
+ await step('teacher invitation: incomplete link, sign-in required and the secret leaves the address bar without being sent anywhere', async () => {
+  reset(); await inviteOpen('none', null);
+  await page.getByRole('heading', { name: 'This invitation link is incomplete' }).waitFor(); assert.equal(previewPosts, 0);
+  const t = newInvite(); await inviteOpen('none', t);
+  await page.getByRole('heading', { name: 'Sign in to accept your invitation' }).waitFor();
+  assert.equal(await page.evaluate(() => location.hash), '', 'the secret is removed from the address bar'); assert.equal(await storedInvitation(), t, 'kept briefly so sign-in cannot lose it');
+  assert.equal(previewPosts, 0, 'nothing is sent to the server before sign-in'); assert.equal(acceptPosts, 0);
+  const signIn = await page.getByRole('link', { name: 'Sign in' }).getAttribute('href'), signUp = await page.getByRole('link', { name: 'Create an account' }).getAttribute('href');
+  assert.ok(signIn.endsWith('/sign-in?next=%2Fteacher-invitation'), signIn); assert.ok(signUp.endsWith('/sign-up?next=%2Fteacher-invitation'), signUp);
+  assert.ok(!signIn.includes(t) && !signUp.includes(t), 'the redirect target carries no secret');
+  await inviteAccessible('invitation sign-in'); await page.screenshot({ path: path.join(shots, '10-invite-signin-light-desktop.png'), fullPage: true });
+ });
+ await step('teacher invitation: unverified e-mail waits for verification, then continues without pasting anything', async () => {
+  reset(); const t = newInvite(); viewer = { email: 'invited.teacher@example.test', verified: false };
+  await inviteOpen('unverified', t); await page.getByRole('heading', { name: 'Verify your email first' }).waitFor(); assert.equal(previewPosts, 0);
+  await inviteAccessible('invitation verify'); viewer.verified = true; await page.evaluate(() => { window.__auth.autoVerify = true; });
+  await page.getByRole('button', { name: 'I verified my email' }).click();
+  await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor(); assert.equal(await page.evaluate(() => window.__auth.calls.refresh), 1); assert.equal(acceptPosts, 0, 'verification alone never accepts');
+ });
+ await step('teacher invitation: a different signed-in e-mail is refused with only a masked hint and a way to switch', async () => {
+  reset(); const t = newInvite(); viewer = { email: 'someone.else@example.test', verified: true };
+  await inviteOpen('other', t); await inviteState('wrong-email').waitFor();
+  const text = await page.locator('main').innerText(); assert.match(text, /i\*\*\*@example\.test/); assert.ok(!text.includes('invited.teacher@example.test'), 'the full invited address is never shown');
+  assert.equal(await page.getByRole('button', { name: 'Accept invitation' }).count(), 0);
+  await inviteAccessible('invitation wrong email'); await page.screenshot({ path: path.join(shots, '10-invite-wrong-email-light-desktop.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Sign out and use another account' }).click(); await page.waitForFunction(() => window.__auth.calls.logout === 1);
+  assert.equal(await storedInvitation(), t, 'the invitation is kept for the right account'); assert.equal(acceptPosts, 0);
+ });
+ await step('teacher invitation: valid link needs an explicit single accept; success is shown and the token is discarded; replay is refused', async () => {
+  reset(); const t = newInvite(); await inviteOpen('ok', t);
+  await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor(); assert.equal(acceptPosts, 0, 'opening the link never accepts');
+  const text = await page.locator('main').innerText(); assert.match(text, /teaching space/); assert.doesNotMatch(text, /portal|ownership|organi[sz]ation/i); assert.match(text, /i\*\*\*@example\.test/);
+  await inviteAccessible('invitation valid'); await page.screenshot({ path: path.join(shots, '10-invite-valid-light-desktop.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Accept invitation' }).dblclick();
+  await page.getByRole('heading', { name: 'Your teaching space is ready' }).waitFor();
+  assert.equal(acceptPosts, 1, 'a double click sends one request'); assert.deepEqual(acceptBodies, [{ token: t }], 'only the token is sent: never an e-mail, user id or tenant');
+  assert.equal(await storedInvitation(), null, 'the token is discarded after acceptance'); assert.ok((await page.getByRole('link', { name: 'Open my teaching space' }).getAttribute('href')).endsWith('/teacher/courses'));
+  await inviteAccessible('invitation success'); await page.screenshot({ path: path.join(shots, '10-invite-success-light-desktop.png'), fullPage: true });
+  // the same link again: by the same teacher it is a calm confirmation, by anyone else it is "already used"
+  await inviteOpen('ok', t); await page.getByRole('heading', { name: 'You have already accepted this invitation' }).waitFor(); assert.equal(acceptPosts, 1);
+  viewer = { email: 'someone.else@example.test', verified: true }; await inviteOpen('other', t); await page.getByRole('heading', { name: 'This invitation was already used' }).waitFor(); assert.equal(acceptPosts, 1);
+ });
+ await step('teacher invitation: a new teacher with no name signs in, returns, saves a display name, explicitly accepts and reaches the teaching space', async () => {
+  reset(); const t = newInvite(); account = { ...account, first_name: '', last_name: '', onboarding_completed_at: null, revision: 1 };
+  // 1. signed out: sign-in is the existing flow and the invitation waits in this browser
+  await inviteOpen('none', t); await page.getByRole('heading', { name: 'Sign in to accept your invitation' }).waitFor(); assert.equal(await storedInvitation(), t);
+  // 2. back from the existing sign-in (a verified Firebase user): the page asks for the name BEFORE anything can be accepted
+  await page.goto(origin + '/?view=invite&auth=ok&load=' + (++inviteLoads)); await page.locator('[data-teacher-invitation]').waitFor();
+  await inviteState('name').waitFor(); await page.getByRole('heading', { name: 'What should we call you?' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Accept invitation' }).count(), 0, 'accepting is not offered until the name is saved'); assert.equal(acceptPosts, 0);
+  await inviteAccessible('invitation name step'); await page.screenshot({ path: path.join(shots, '10-invite-name-light-desktop.png'), fullPage: true });
+  // 3. an incomplete name is refused locally and nothing is saved
+  await page.getByLabel('First name').fill('Salma'); await page.getByRole('button', { name: 'Save and continue' }).click();
+  await page.getByText('Enter both your first and last name.').waitFor(); assert.equal(accountSaves.length, 0);
+  // 4. a failed save keeps the teacher on this step, says the invitation was not accepted, and the retry succeeds
+  accountFail = 1; await page.getByLabel('Last name').fill('Hassan'); await page.getByRole('button', { name: 'Save and continue' }).click();
+  await page.getByText('We could not save your name.', { exact: false }).waitFor(); assert.equal(acceptPosts, 0); assert.equal(account.first_name, '');
+  await page.getByRole('button', { name: 'Save and continue' }).click(); await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor();
+  assert.equal(accountSaves.length, 2, 'the invalid attempt never left the page; one failed save, one success'); assert.deepEqual(accountSaves.at(-1), { action: 'save', revision: 1, data: { firstName: 'Salma', lastName: 'Hassan', completeOnboarding: true } });
+  assert.equal(account.first_name, 'Salma'); assert.ok(account.onboarding_completed_at, 'the profile is marked complete'); assert.equal(acceptPosts, 0, 'saving the name never accepts the invitation');
+  await page.getByText('Accepting gives you your own teaching space on EduLabs, where you can set up your courses.').waitFor();
+  // 5. only an explicit click accepts, then the teaching space opens
+  await page.getByRole('button', { name: 'Accept invitation' }).click(); await page.getByRole('heading', { name: 'Your teaching space is ready' }).waitFor();
+  assert.equal(acceptPosts, 1); assert.deepEqual(acceptBodies, [{ token: t }]); assert.equal(await storedInvitation(), null);
+  assert.ok((await page.getByRole('link', { name: 'Open my teaching space' }).getAttribute('href')).endsWith('/teacher/courses'));
+ });
+ await step('teacher invitation: the name step starts from the sign-in provider name, works in Arabic (RTL) and on a phone without overflow', async () => {
+  reset(); const t = newInvite(); account = { ...account, first_name: '', last_name: '', onboarding_completed_at: null, revision: 1 };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => { if (location.search.includes('forcear=1')) localStorage.setItem('edulabs-lms-language', 'ar'); });
+  await inviteOpen('ok', t, '&dn=Mona%20Ali%20Hassan&forcear=1'); await inviteState('name').waitFor();
+  await page.getByRole('heading', { name: 'ماذا نناديك؟' }).waitFor(); await page.waitForFunction(() => document.documentElement.dir === 'rtl');
+  assert.equal(await page.locator('#ti-first-name').inputValue(), 'Mona'); assert.equal(await page.locator('#ti-last-name').inputValue(), 'Ali Hassan');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true, 'no horizontal overflow on a phone');
+  await inviteAccessible('invitation name step, Arabic, phone'); await page.screenshot({ path: path.join(shots, '10-invite-name-arabic-phone.png'), fullPage: true });
+  await page.getByRole('button', { name: 'احفظ وتابع' }).click(); await page.getByRole('button', { name: 'قبول الدعوة' }).waitFor();
+  assert.deepEqual(accountSaves.at(-1).data, { firstName: 'Mona', lastName: 'Ali Hassan', completeOnboarding: true });
+  await page.evaluate(() => localStorage.removeItem('edulabs-lms-language')); await page.setViewportSize({ width: 1440, height: 900 });
+ });
+ await step('teacher invitation: an existing account that already has a name skips the name step and goes straight to a single explicit accept', async () => {
+  reset(); const t = newInvite(); assert.equal(account.first_name, 'Invited');
+  await inviteOpen('ok', t); await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor();
+  assert.equal(await inviteState('name').count(), 0, 'no name prompt'); assert.equal(accountSaves.length, 0, 'an existing profile is never rewritten'); assert.ok(accountGets >= 1);
+  assert.equal(acceptPosts, 0); await page.getByRole('button', { name: 'Accept invitation' }).click(); await page.getByRole('heading', { name: 'Your teaching space is ready' }).waitFor();
+  assert.equal(acceptPosts, 1); assert.equal(accountSaves.length, 0);
+ });
+ await step('teacher invitation: a name step never appears for the wrong account, and a profile that cannot be read is reported without accepting', async () => {
+  reset(); const t = newInvite(); account = { ...account, first_name: '', last_name: '', onboarding_completed_at: null, revision: 1 }; viewer = { email: 'someone.else@example.test', verified: true };
+  await inviteOpen('other', t); await inviteState('wrong-email').waitFor(); assert.equal(await inviteState('name').count(), 0); assert.equal(accountSaves.length, 0);
+ });
+ await step('teacher invitation: expired, cancelled and unknown links explain themselves and discard the stored token', async () => {
+  for (const [state, title] of [['expired', 'This invitation has expired'], ['revoked', 'This invitation was cancelled']]) {
+   reset(); const t = newInvite(state); await inviteOpen('ok', t); await page.getByRole('heading', { name: title }).waitFor(); assert.equal(await storedInvitation(), null, state);
+   await inviteAccessible('invitation ' + state); await page.screenshot({ path: path.join(shots, '10-invite-' + state + '-light-desktop.png'), fullPage: true });
+   assert.equal(await page.getByRole('button', { name: 'Accept invitation' }).count(), 0);
+  }
+  reset(); await inviteOpen('ok', 'A'.repeat(43)); await page.getByRole('heading', { name: 'We could not find this invitation' }).waitFor(); assert.equal(await storedInvitation(), null);
+  await inviteOpen('ok', 'short'); await page.getByRole('heading', { name: 'This invitation link is incomplete' }).waitFor();
+ });
+ await step('teacher invitation: network failures are explained, never retried blindly, and an unknown accept is resolved by looking, not by resending', async () => {
+  reset(); let t = newInvite(); previewDrop = true; await inviteOpen('ok', t);
+  await page.getByRole('heading', { name: 'We could not reach EduLabs' }).waitFor(); assert.equal(acceptPosts, 0);
+  await inviteAccessible('invitation unreachable'); previewDrop = false; await page.getByRole('button', { name: 'Try again' }).click(); await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor();
+  // the accept request is applied by the server but its response is lost
+  reset(); t = newInvite(); await inviteOpen('ok', t); await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor(); acceptDrop = 'applied';
+  await page.getByRole('button', { name: 'Accept invitation' }).click(); await page.getByRole('heading', { name: 'We could not confirm the result' }).waitFor();
+  assert.equal(await acceptCalls(), 1, 'the page sent the accept once'); assert.equal(await page.getByRole('button', { name: 'Accept invitation' }).count(), 0, 'no resend button while the outcome is unknown');
+  await inviteAccessible('invitation unknown'); await page.screenshot({ path: path.join(shots, '10-invite-unknown-light-desktop.png'), fullPage: true });
+  acceptDrop = null; await page.getByRole('button', { name: 'Check status' }).click(); await page.getByRole('heading', { name: 'You have already accepted this invitation' }).waitFor();
+  assert.equal(await acceptCalls(), 1, 'the check is a read; the accept was never resent');
+  // the accept request never reached the server
+  reset(); t = newInvite(); await inviteOpen('ok', t); await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor(); acceptDrop = 'unapplied';
+  await page.getByRole('button', { name: 'Accept invitation' }).click(); await page.getByRole('heading', { name: 'We could not confirm the result' }).waitFor();
+  acceptDrop = null; await page.getByRole('button', { name: 'Check status' }).click(); await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor(); assert.equal(await acceptCalls(), 1, 'nothing was resent automatically');
+  await page.getByRole('button', { name: 'Accept invitation' }).click(); await page.getByRole('heading', { name: 'Your teaching space is ready' }).waitFor(); assert.equal(await acceptCalls(), 2, 'a deliberate second accept');
+  // the invitation is cancelled between preview and accept
+  reset(); t = newInvite(); await inviteOpen('ok', t); invites.get(t).state = 'revoked';
+  await page.getByRole('button', { name: 'Accept invitation' }).click(); await page.getByRole('heading', { name: 'This invitation was cancelled' }).waitFor(); assert.equal(acceptPosts, 1);
+ });
+ await step('teacher invitation: when the browser blocks storage the user is told and the link stays in the address bar', async () => {
+  reset(); const t = newInvite(); const blocked = await context.newPage();
+  await blocked.addInitScript(() => { for (const name of ['localStorage', 'sessionStorage']) Object.defineProperty(window, name, { get() { throw new DOMException('blocked', 'SecurityError'); } }); });
+  await blocked.goto(origin + '/?view=invite&auth=ok#' + t); await blocked.locator('[data-teacher-invitation]').waitFor();
+  await blocked.getByText('blocked saving your invitation', { exact: false }).waitFor(); assert.equal(await blocked.evaluate(() => location.hash), '#' + t); await blocked.close();
+ });
+ await step('teacher invitation: Arabic RTL, dark mode and a phone width, with the original fonts and no horizontal scroll', async () => {
+  reset(); const t = newInvite();
+  await setLang('ar'); await inviteOpen('ok', t); await page.getByRole('heading', { name: 'تمت دعوتك للتدريس على إديو لابس' }).waitFor(); await fontsReady();
+  assert.equal(await page.evaluate(() => document.documentElement.dir), 'rtl'); await noOverflow('invitation arabic'); await inviteAccessible('invitation arabic');
+  assert.match(await family('h1'), /^Caprasimo|Lalezar|Cairo/, 'a brand display face is used for the title'); await page.screenshot({ path: path.join(shots, '10-invite-valid-ar-light-desktop.png'), fullPage: true });
+  await setLang('en'); await setTheme('dark'); await inviteOpen('ok', t); await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor(); await fontsReady();
+  assert.equal(await isDark(), true); await inviteAccessible('invitation dark'); await page.screenshot({ path: path.join(shots, '10-invite-valid-dark-desktop.png'), fullPage: true });
+  assert.ok((await renderedFonts('.eds-wordmark')).some(font => /Caprasimo/.test(font)), 'the real wordmark font'); assert.equal(await page.locator('svg.eds-brand-mark').count(), 1, 'the real EduLabs mark');
+  await page.setViewportSize({ width: 390, height: 844 }); await inviteOpen('ok', t); await page.getByRole('heading', { name: 'You are invited to teach on EduLabs' }).waitFor(); await noOverflow('invitation phone dark'); await inviteAccessible('invitation phone dark');
+  await page.screenshot({ path: path.join(shots, '10-invite-valid-dark-mobile.png'), fullPage: true });
+  await setLang('ar'); await setTheme('light'); await inviteOpen('ok', t); await page.getByRole('heading', { name: 'تمت دعوتك للتدريس على إديو لابس' }).waitFor(); await noOverflow('invitation phone arabic'); await page.screenshot({ path: path.join(shots, '10-invite-valid-ar-light-mobile.png'), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 }); await setLang('en'); await setTheme('light');
  });
 
  await step('no uncaught errors, no external requests', async () => { assert.deepEqual(errors, []); assert.deepEqual(external, []); });

@@ -17,7 +17,7 @@ for(const name of names){const raw=fs.readFileSync('supabase/migrations/'+name),
 const lf=hash(Buffer.from(raw.toString('latin1').replace(/\r\n/g,'\n'),'latin1'));
 assert.ok(hash(raw)===pinned[name]||lf===pinned[name],name+' differs from the approved baseline');}
 const present=fs.readdirSync('supabase/migrations').filter(n=>n.endsWith('.sql')).sort();
-assert.deepEqual(present.filter(n=>!(n in pinned)),['20261024120000_platform_admin_teacher_provisioning.sql'],'exactly one new migration is allowed');
+assert.deepEqual(present.filter(n=>!(n in pinned)),['20261024120000_platform_admin_teacher_provisioning.sql','20261025100000_teacher_invitation_delivery.sql'],'exactly the two reviewed provisioning migrations are new');
 });
 test('foundation: academic data, existing server authorization, API adapters and contracts are byte-preserved',{skip:hasBaselineHistory?false:'requires Git history (not present in a git-archive checkout)'},()=>{const git=args=>cp.execFileSync('git',['diff',...args,'fa67875fdab88f0fc640804e2f96b6aa7c44b0c1','--','server','app/api','shared','supabase','infra'],{encoding:'utf8'}).trim().split(String.fromCharCode(10)).filter(Boolean);
 // Existing files may not be modified, deleted or renamed except the one listed below. Additions (Continue Learning handler, platform-admin milestone) have their own tests.
