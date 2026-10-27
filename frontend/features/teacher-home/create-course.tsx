@@ -6,12 +6,13 @@ import { L, useLanguage } from '@/frontend/components/language-provider';
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/frontend/components/ui/dialog';
 import { api } from '@/frontend/lib/api';
 import { courseSlug, type CreateTarget } from '@/shared/teacher-home';
-import { plainButton, primaryButton } from './parts';
+import { cn } from '@/shared/utils';
+import { inkButton, plainButton, primaryButton } from './parts';
 
 type Failure = 'th.create.need_title' | 'th.create.failed' | 'th.create.denied' | 'th.state.error_401';
 
 /** Creates a course through the existing teacher course endpoint. The server checks permission again; this only hides what it would refuse. */
-export function CreateCourse({ targets, className }: { targets: CreateTarget[]; className?: string }) {
+export function CreateCourse({ targets, className, ink = false }: { targets: CreateTarget[]; className?: string; ink?: boolean }) {
   const router = useRouter();
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -21,7 +22,7 @@ export function CreateCourse({ targets, className }: { targets: CreateTarget[]; 
   const [error, setError] = useState<Failure | null>(null);
   const done = useRef(false);
   const field = useId();
-  if (!targets.length) return <p data-state="create-unavailable" className="text-base text-slate-700"><L id="th.create.unavailable" /></p>;
+  if (!targets.length) return <p data-state="create-unavailable" className={cn('text-base text-slate-700', className)}><L id="th.create.unavailable" /></p>;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -43,7 +44,7 @@ export function CreateCourse({ targets, className }: { targets: CreateTarget[]; 
   }
 
   return <Dialog open={open} onOpenChange={value => { if (!busy) { setOpen(value); setError(null); } }}>
-    <DialogTrigger asChild><button type="button" data-create-course className={`${primaryButton} ${className ?? ''}`}><Plus aria-hidden className="h-5 w-5" /><L id="th.courses.create" /></button></DialogTrigger>
+    <DialogTrigger asChild><button type="button" data-create-course className={cn(ink ? inkButton : primaryButton, className)}><Plus aria-hidden className="h-5 w-5" /><L id="th.courses.create" /></button></DialogTrigger>
     <DialogContent aria-describedby={`${field}-intro`}>
       <DialogTitle className="font-display text-2xl"><L id="th.create.title" /></DialogTitle>
       <DialogDescription id={`${field}-intro`} className="text-base text-slate-700"><L id="th.create.intro" /></DialogDescription>

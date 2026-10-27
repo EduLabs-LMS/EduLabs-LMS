@@ -11,6 +11,7 @@ export const card = 'rounded-[24px] border-[2.5px] border-black bg-white p-5 sha
 export const button = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border-2 border-black px-4 py-2 text-base font-bold shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black disabled:opacity-60';
 export const primaryButton = cn(button, 'bg-primary text-black');
 export const plainButton = cn(button, 'bg-white text-black');
+export const inkButton = cn(button, 'bg-black text-white');
 export const linkClass = 'inline-flex min-h-[44px] items-center text-base font-bold underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black';
 
 /** Re-runs the server reads for the whole page. */
@@ -20,9 +21,9 @@ export function useRetry() {
   return { pending, retry: () => start(() => router.refresh()) };
 }
 
-export function Section({ id, title, children, className }: { id: string; title: React.ReactNode; children: React.ReactNode; className?: string }) {
+export function Section({ id, title, children, className, eyebrow = false }: { id: string; title: React.ReactNode; children: React.ReactNode; className?: string; eyebrow?: boolean }) {
   return <section aria-labelledby={id} data-section={id} className={cn(card, 'space-y-4', className)}>
-    <h2 id={id} className="font-display text-2xl leading-tight">{title}</h2>
+    <h2 id={id} className={eyebrow ? 'text-base font-bold uppercase tracking-wider' : 'font-display text-2xl leading-tight'}>{title}</h2>
     {children}
   </section>;
 }
@@ -46,7 +47,7 @@ export function SectionUnavailable({ messageId, action }: { messageId: 'th.hw.un
   </div>;
 }
 
-export function Empty({ id, children }: { id: 'th.next.empty' | 'th.updates.empty' | 'th.coming.empty' | 'th.courses.empty'; children?: React.ReactNode }) {
+export function Empty({ id, children }: { id: 'th.next.empty' | 'th.first.next' | 'th.updates.empty' | 'th.coming.empty' | 'th.courses.empty'; children?: React.ReactNode }) {
   return <div data-state="empty" className="space-y-3"><p className="text-base text-slate-800"><L id={id} /></p>{children}</div>;
 }
 
@@ -58,7 +59,13 @@ export function StatusBadge({ status }: { status: CourseStatus }) {
 export const sessionTime: Intl.DateTimeFormatOptions = { timeZone: 'Africa/Cairo', weekday: 'long', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' };
 
 export function CourseCards({ items, compact = false }: { items: { id: string; title: string; status: CourseStatus }[]; compact?: boolean }) {
-  return <ul className={compact ? "grid gap-3" : "grid gap-3 sm:grid-cols-2 xl:grid-cols-3"}>{items.map(c => <li key={c.id}>
+  if (compact) return <ul>{items.map(c => <li key={c.id} className="border-t-2 border-black/15 first:border-t-0">
+    <Link href={`/teacher/courses/${c.id}`} data-course={c.id} className="flex min-h-[48px] items-center justify-between gap-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
+      <span className="min-w-0 break-words text-base font-bold"><bdi dir="auto">{c.title}</bdi></span>
+      <StatusBadge status={c.status} />
+    </Link>
+  </li>)}</ul>;
+  return <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map(c => <li key={c.id}>
     <Link href={`/teacher/courses/${c.id}`} data-course={c.id} className="flex min-h-[88px] flex-col justify-between gap-3 rounded-2xl border-2 border-black bg-white p-4 shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black">
       <span className="break-words text-lg font-bold leading-snug"><bdi dir="auto">{c.title}</bdi></span>
       <StatusBadge status={c.status} />

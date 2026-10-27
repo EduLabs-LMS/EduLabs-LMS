@@ -131,14 +131,16 @@ createRoot(document.getElementById('root')).render(
  await step('Home with data, English desktop: five sections, real data, honest homework state, real tree mark, sidebar navigation', async () => {
   const { page, context } = await open(desktop, 'view=home&s=full');
   await page.locator('[data-teacher-home]').waitFor();
-  assert.deepEqual(await page.locator('[data-section]').evaluateAll(n => n.map(e => e.dataset.section)), sections);
+  assert.deepEqual((await page.locator('[data-section]').evaluateAll(n => n.map(e => e.dataset.section))).sort(), [...sections].sort());
+  const col = id => page.locator(`[data-section="${id}"]`).evaluate(e => e.getBoundingClientRect().left);
+  assert.ok(Math.abs(await col('th-next') - await col('th-coming')) < 2, 'next session and coming up share the day column'); assert.ok(Math.abs(await col('th-homework') - await col('th-updates')) < 2 && Math.abs(await col('th-updates') - await col('th-courses')) < 2, 'homework, updates and courses share the inbox column'); assert.ok(await col('th-homework') > await col('th-next'), 'inbox column beside the day column');
   const next = page.locator('[data-next-session]'); assert.match(await next.innerText(), /Synthetic Group Alpha/); assert.match(await next.innerText(), /Synthetic lesson 1/);
   assert.match(await page.locator('[data-section="th-coming"]').innerText(), /مجموعة الصف العاشر/);
   assert.equal(await page.locator('[data-section="th-coming"] [data-session]').count(), 3);
   const hw = page.locator('[data-section="th-homework"] [data-state="unavailable"]'); await hw.waitFor(); assert.match(await hw.innerText(), /not available yet/);
   assert.doesNotMatch(await page.locator('[data-section="th-homework"]').innerText(), /\b\d+\b/, 'no invented number in the homework card');
   const updates = await page.locator('[data-update]').allInnerTexts(); assert.equal(updates.length, 3); assert.match(updates[0], /Session change/); assert.match(updates[1], /Session change/); assert.doesNotMatch(updates[2], /Session change/);
-  assert.match(await page.locator('[data-section="th-courses"]').innerText(), /Create a course/);
+  assert.equal(await page.locator('header [data-create-course]').isVisible(), true, 'Create a course sits in the page header on a desktop'); assert.equal(await page.locator('[data-section="th-courses"] [data-create-course]').isVisible(), false);
   assert.equal(await page.locator('[data-course]').count(), 6);
   assert.ok(await page.locator('header svg').first().isVisible(), 'the real tree mark is shown');
   const nav = page.locator('[data-teacher-nav] a'); assert.deepEqual(await nav.allInnerTexts(), ['Home', 'Courses', 'Students', 'Groups & Classes', 'Homework', 'Exams', 'Reports', 'Settings']);
@@ -154,7 +156,7 @@ createRoot(document.getElementById('root')).render(
   const { page, context } = await open(phone, 'view=home&s=full');
   await page.locator('[data-teacher-home]').waitFor();
   const boxes = await page.locator('[data-section]').evaluateAll(n => n.map(e => ({ id: e.dataset.section, top: e.getBoundingClientRect().top + scrollY, left: e.getBoundingClientRect().left, right: e.getBoundingClientRect().right })));
-  assert.deepEqual(boxes.map(b => b.id), sections); for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i].top > boxes[i - 1].top, 'stacked in order ' + boxes[i].id);
+  assert.deepEqual([...boxes].sort((a, b) => a.top - b.top).map(b => b.id), sections); boxes.sort((a, b) => a.top - b.top); for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i].top > boxes[i - 1].top, 'stacked in order ' + boxes[i].id);
   assert.ok(boxes.every(b => b.left >= 0 && b.right <= 390 + 1), 'every card fits the screen');
   assert.ok(await overflow(page), 'no horizontal scroll at 390px');
   const small = await page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const s = parseFloat(getComputedStyle(n.parentElement).fontSize); if (s < 16) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
@@ -231,10 +233,11 @@ createRoot(document.getElementById('root')).render(
   for (const [lang, viewport, tag] of [['en', desktop, 'en-1440'], ['en', phone, 'en-390'], ['ar', phone, 'ar-390']]) {
    const { page, context } = await open(viewport, `view=home&s=first&lang=${lang}`);
    await page.locator('[data-first-visit]').waitFor();
-   assert.equal(await page.locator('[data-section]').count(), 0, 'no dashboard sections yet');
+   assert.deepEqual((await page.locator('[data-section]').evaluateAll(n => n.map(e => e.dataset.section))).sort(), ['th-homework', 'th-next', 'th-updates'], 'only the three quiet cards, no courses or coming-up lists'); assert.equal(await page.locator('[data-course]').count(), 0);
    assert.equal(await page.getByRole('button', { name: /Create a course|أنشئ دورة/ }).count(), 1);
    assert.doesNotMatch(await page.locator('[data-first-visit]').innerText(), /\d/, 'no numbers');
-   assert.equal(await page.locator('[data-first-visit] svg').count() >= 1, true, 'the real tree mark');
+   assert.match(await page.locator('[data-first-visit]').innerText(), /Welcome to your teaching space|أهلًا بك في مساحة التدريس/); assert.equal(await page.locator('[data-first-visit] a[href="/support"]').count(), 1);
+   const how = page.getByRole('button', { name: /How does this work|كيف يعمل هذا/ }); assert.equal(await how.getAttribute('aria-expanded'), 'false'); await how.click(); assert.equal(await how.getAttribute('aria-expanded'), 'true'); await page.locator('#th-first-how').waitFor();
    assert.ok(await overflow(page));
    await page.screenshot({ path: path.join(shots, `first-visit-${tag}.png`), fullPage: true });
    await context.close();
@@ -305,7 +308,7 @@ createRoot(document.getElementById('root')).render(
   await page.locator('[data-teacher-home]').waitFor();
   const seen = new Set(); for (let i = 0; i < 40; i++) { await page.keyboard.press('Tab'); seen.add(await page.evaluate(() => { const e = document.activeElement; return e && e !== document.body ? (e.getAttribute('data-nav') || e.getAttribute('data-course') || e.tagName + ':' + (e.textContent || '').trim().slice(0, 20)) : ''; })); }
   assert.ok(seen.size > 15, 'focus moves through the page');
-  await page.locator('[data-section="th-courses"] [data-create-course]').click(); await page.getByRole('dialog').waitFor(); await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
+  await page.locator('header [data-create-course]').click(); await page.getByRole('dialog').waitFor(); await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
   await context.close();
  });
  await browser.close(); server.close();

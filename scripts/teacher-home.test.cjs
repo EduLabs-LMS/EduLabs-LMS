@@ -126,12 +126,16 @@ test('wording: no tenant, program or studio vocabulary reaches a teacher on thes
   .replace(/organization_id|slug|courseSlug|Slug/g, '');
  assert.doesNotMatch(shown.replace(/\b(className|class)=("[^"]*"|\{[^}]*\})/g, ''), /Organization|Tenant|Website Studio|>\s*Program|Module/);
 });
-test('layout contract: phone order is next session, homework, updates, coming up, courses; every section exists exactly once', () => {
+test('layout contract: desktop has a day column and an inbox column; phone order is next session, homework, updates, coming up, courses', () => {
  const view = read('frontend/features/teacher-home/home-view.tsx');
- const order = [...view.matchAll(/^\s+<(NextSession|Homework|Updates|ComingUp|Courses)\b/gm)].map(m => m[1]);
- assert.deepEqual(order, ['NextSession', 'Homework', 'Updates', 'ComingUp', 'Courses']);
- assert.match(view, /<CreateCourse targets=\{targets\} className="w-full" \/>\s*<\/Section>/, '"Create a course" sits at the bottom of the courses card');
+ const home = view.slice(view.indexOf('export function TeacherHomeView'));
+ assert.deepEqual([...home.matchAll(/^\s+<(NextSession|Homework|Updates|ComingUp|Courses)\b/gm)].map(m => m[1]), ['NextSession', 'ComingUp', 'Homework', 'Updates', 'Courses'], 'desktop columns: day (next session, coming up), inbox (homework, updates, courses)');
+ const phone = [...home.matchAll(/<(NextSession|Homework|Updates|ComingUp|Courses)\b[^>]*?\border-(\d) lg:order-none/g)].sort((x, y) => x[2] - y[2]).map(m => m[1]);
+ assert.deepEqual(phone, ['NextSession', 'Homework', 'Updates', 'ComingUp', 'Courses']);
+ assert.match(view, /<CreateCourse targets=\{targets\} ink className="[^"]*lg:hidden" \/>\s*<\/Section>/, '"Create a course" sits at the bottom of the courses card on a phone');
+ assert.match(home, /<CreateCourse targets=\{data\.createTargets\} ink className="max-lg:hidden" \/>/, 'and in the page header on a desktop');
  assert.match(view, /data\.firstVisit\) return <FirstVisit/);
+ assert.doesNotMatch(view, /EduLabsMark/, 'the mark belongs to the shell, not to the page');
 });
 test('no new endpoint, migration or permission change was needed: only existing services are called', () => {
  const server = read('server/services/teacher-home.ts');
