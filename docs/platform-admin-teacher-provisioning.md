@@ -1,8 +1,7 @@
 # Platform Admin: Teacher Provisioning V1
 
 Status: implemented locally on branch `claude/admin-provisioning-v1` (base `d3451e5`; release candidate `0f9b889`
-plus the uncommitted invitation-link onboarding described below). **The two migrations are authored but NOT applied to any
-database.** No provider (Firebase, Supabase, Resend, Cloudflare) was contacted. Local verification used a disposable
+plus the uncommitted invitation-link onboarding described below). **Migrations 32 and 33 are applied to the DEV Supabase project only; they are NOT applied to staging or production.** No real provider (Firebase, Brevo, Cloudflare) was contacted by the automated checks. Local verification used a disposable
 loopback PostgreSQL and a fictional-HTTP browser harness only.
 
 ## What an administrator can do
@@ -112,18 +111,18 @@ EduLabs sign-in (no separate invitation login, nothing to paste), and explicitly
 
 ### E-mail delivery and what "sent" means
 
-Provider: Resend, already used for support mail (`resend` package). Configuration (server only; none of these are `NEXT_PUBLIC_`):
+Provider: Brevo (transactional e-mail API), the same provider, key and sender as the branded auth e-mail. The support-mail route keeps Resend. Configuration (server only; none of these are `NEXT_PUBLIC_`):
 
 | Variable | Purpose |
 |---|---|
-| `RESEND_API_KEY` | Resend API key (shared with support mail if that is configured) |
-| `INVITATION_EMAIL_FROM` | Verified sender, `Name <address@domain>` or a bare address |
+| `BREVO_API_KEY` | Brevo API key (the same key as the branded auth e-mail) |
+| `AUTH_EMAIL_FROM` | Verified sender, `Name <address@domain>` or a bare address (the same sender as the auth e-mail) |
 | `APP_ORIGIN` | Canonical public origin used in links |
 | `INVITATION_LINK_KEY` | Secret server key (at least 32 characters, never `NEXT_PUBLIC_`) from which link secrets are derived. Without it nothing is created, rotated or sent (`link_key_not_configured`). Changing it makes every pending link un-copyable: replace those invitations |
 
 Order of operations for **Send invitation email**: check origin, link key and mailer configuration (no change if missing) -> read the
 active invitation's salt and re-derive its link (nothing is rotated) -> record `sending` and receive the attempt number (if this
-fails nothing is sent) -> call the provider once with idempotency key `teacher-invitation-<invitationId>-<attempt>` -> record the
+fails nothing is sent) -> call the provider once (Brevo has no idempotency key, so a send is never repeated automatically; the attempt number is recorded locally) -> record the
 verdict. Sending again is a deliberate administrator action that re-sends the same link as a new numbered attempt (at most 5 per
 invitation; an attempt with no verdict can be repeated only after 60 seconds). Delivery states shown to the administrator:
 
@@ -148,8 +147,8 @@ If the provider verdict cannot be saved the administrator is told the real verdi
 
 - `APP_ORIGIN` (exact public HTTPS origin used in links)
 - `INVITATION_LINK_KEY` (secret, 32+ characters)
-- `RESEND_API_KEY` (only for e-mail)
-- `INVITATION_EMAIL_FROM` (verified sender, only for e-mail)
+- `BREVO_API_KEY` (only for e-mail)
+- `AUTH_EMAIL_FROM` (verified sender, only for e-mail)
 
 ### Migration 33
 
@@ -166,13 +165,13 @@ rollback). It stores no secret: the salt is not secret on its own.
   existing account dialog collects the teacher's own name when their account profile has none; a dedicated teacher onboarding
   screen (display name, language, time zone, Home introduction) is not part of this foundation (`/onboarding/organization` is
   intentionally a 404 scaffold).
-- **E-mail delivery needs configuration**: `RESEND_API_KEY`, `INVITATION_EMAIL_FROM` (a verified sender) and a canonical
+- **E-mail delivery needs configuration**: `BREVO_API_KEY`, `AUTH_EMAIL_FROM` (a verified sender) and a canonical
   `APP_ORIGIN` are required on the server. Until they exist the admin page says exactly which is missing and nothing is
   rotated or sent; **Copy invitation link** still works.
 - **Migration 33** (`20261025100000_teacher_invitation_delivery.sql`) is required for delivery status and for the teacher page's
-  status check. It is additive and unapplied; until it is applied the preview endpoint answers "unavailable".
+  status check. It is additive and applied to the DEV Supabase project only; where it is not applied the preview endpoint answers "unavailable".
 - Arabic-only names produce neutral generated slugs (`education-system`, `subject`, ...).
-- Migration not applied; requires owner approval and a pre-apply review of staging data.
+- Migrations are not applied to staging or production; applying them requires owner approval and a pre-apply review of staging data.
 - Real Firebase/Supabase end-to-end (JWT claims shape, `email_verified`) is unverified.
 
 ## Design system (review-corrections round)

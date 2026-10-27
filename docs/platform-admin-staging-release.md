@@ -1,6 +1,6 @@
 # Platform Admin V1: staging release plan
 
-Status: release candidate prepared; nothing has been applied, deployed or approved on staging.
+Status: release candidate prepared; nothing has been applied, deployed or approved on staging (migrations 32 and 33 exist on the DEV Supabase project only).
 Everything below is a plan for the owner to review. The staging manager, Supabase, Firebase and
 Cloudflare were not touched while preparing it.
 
@@ -20,7 +20,7 @@ refuses if any delivery attempt or link salt is recorded. Tested on disposable P
 migration 32 exactly, and re-applying 33 reproduces the first application exactly. It also removes nothing else.
 
 Server configuration: `APP_ORIGIN` (canonical HTTPS origin) and **`INVITATION_LINK_KEY`** (secret, 32+ characters; without it no
-link is created, copied or sent) are needed for every invitation; `RESEND_API_KEY` and `INVITATION_EMAIL_FROM` only for e-mail.
+link is created, copied or sent) are needed for every invitation; `BREVO_API_KEY` and `AUTH_EMAIL_FROM` (the same values as the branded auth e-mail in staging `web.env`) only for e-mail. Migrations 32 and 33 are applied to the DEV Supabase project only, not to staging or production.
 Nothing has been set on any server. Migration 33 changes (still additive, no existing object changed): columns `delivery_status`,
 `delivery_attempted_at`, `delivery_provider_ref`, `delivery_failure`, `delivery_attempts`, `link_salt` and constraint
 `teacher_invitations_delivery_shape`; functions `platform_record_invitation_delivery`, `platform_invitation_delivery`,

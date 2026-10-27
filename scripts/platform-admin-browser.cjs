@@ -804,7 +804,7 @@ createRoot(document.getElementById('root')).render(
   // 1. e-mail not configured: exact missing configuration, nothing changed, copying still possible
   emailMode = 'unconfigured'; await sendButton().click();
   await page.getByRole('alert').first().waitFor(); const missing = await alertText();
-  for (const name of ['RESEND_API_KEY', 'INVITATION_EMAIL_FROM']) assert.ok(missing.includes(name), name); assert.match(missing, /Nothing was changed/);
+  for (const name of ['BREVO_API_KEY', 'AUTH_EMAIL_FROM']) assert.ok(missing.includes(name), name); assert.match(missing, /Nothing was changed/);
   assert.equal(portal.invitations.length, 1, 'the invitation was not rotated'); assert.equal(mailed.length, 0);
   assert.equal(await page.locator('[data-delivery]').getAttribute('data-delivery'), 'not_sent'); assert.equal(await copyButton.isEnabled(), true);
   // 2. accepted by the provider: the request carries nothing but the action; the page never receives the link; nothing is rotated

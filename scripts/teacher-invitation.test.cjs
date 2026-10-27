@@ -29,10 +29,10 @@ test('link: the secret lives in the URL fragment of the configured origin and no
 
 const publicWebsite = load('shared/public-website.ts', { zod: require('zod') });
 function delivery(env, transport, timeoutMs) {
- const mod = load('server/services/invitation-delivery.ts', { 'server-only': {}, resend: { Resend: class { constructor() { throw Error('the real provider must not be reached in tests'); } } }, '@/shared/public-website': publicWebsite });
+ const mod = load('server/services/invitation-delivery.ts', { 'server-only': {}, '@/shared/public-website': publicWebsite });
  return { ...mod, mailer: mod.createInvitationMailer(env, transport, timeoutMs) };
 }
-const goodEnv = { RESEND_API_KEY: 're_test_key', INVITATION_EMAIL_FROM: 'EduLabs <invitations@mail.example.test>' };
+const goodEnv = { BREVO_API_KEY: 'brevo_test_key', AUTH_EMAIL_FROM: 'EduLabs <invitations@mail.example.test>' };
 const message = (extra = {}) => ({ to: 'teacher@example.test', link: `${origin}/teacher-invitation#${token()}`, expiresAt: '2030-01-09T00:00:00Z', idempotencyKey: uuid(7), ...extra });
 
 test('origin: only an exact configured HTTPS origin is trusted; there is no request-derived fallback', () => {
@@ -41,28 +41,54 @@ test('origin: only an exact configured HTTPS origin is trusted; there is no requ
  for (const bad of [undefined, '', 'staging.example.test', 'http://staging.example.test', origin + '/', origin + '/path', 'https://user:pw@staging.example.test', 'javascript:alert(1)']) assert.equal(d.canonicalAppOrigin({ APP_ORIGIN: bad }), null, String(bad));
  assert.equal(d.canonicalAppOrigin({ APP_ORIGIN: 'http://localhost:3000', NODE_ENV: 'development' }), 'http://localhost:3000');
  assert.equal(d.canonicalAppOrigin({ APP_ORIGIN: 'http://localhost:3000', NODE_ENV: 'production' }), null);
- assert.doesNotMatch(code('server/services/invitation-delivery.ts') + code('server/services/platform-provisioning.ts'), /headers|x-forwarded|request\.url|\bhost\b/i, 'no request-derived origin');
+ assert.doesNotMatch(code('server/services/invitation-delivery.ts') + code('server/services/platform-provisioning.ts'), /request\.headers|headers\(\)|x-forwarded|request\.url|\bhost\b/i, 'no request-derived origin');
 });
 test('mailer: missing key or sender means not configured, and nothing is sent', async () => {
- for (const env of [{}, { RESEND_API_KEY: 'k' }, { INVITATION_EMAIL_FROM: goodEnv.INVITATION_EMAIL_FROM }, { ...goodEnv, INVITATION_EMAIL_FROM: 'not an address' }, { ...goodEnv, RESEND_API_KEY: '  ' }]) {
+ for (const env of [{}, { BREVO_API_KEY: 'k' }, { AUTH_EMAIL_FROM: goodEnv.AUTH_EMAIL_FROM }, { ...goodEnv, AUTH_EMAIL_FROM: 'not an address' }, { ...goodEnv, BREVO_API_KEY: '  ' }]) {
   let called = false; const d = delivery(env, async () => { called = true; return { data: { id: 'x' } }; });
   assert.equal(d.mailer.configured(), false); assert.deepEqual(JSON.parse(JSON.stringify(await d.mailer.send(message()))), { outcome: 'rejected' }); assert.equal(called, false);
  }
  assert.equal(delivery(goodEnv, async () => ({})).mailer.configured(), true);
- assert.equal(delivery({ ...goodEnv, INVITATION_EMAIL_FROM: 'invitations@mail.example.test' }, async () => ({})).mailer.configured(), true);
+ assert.equal(delivery({ ...goodEnv, AUTH_EMAIL_FROM: 'invitations@mail.example.test' }, async () => ({})).mailer.configured(), true);
 });
 test('mailer: outcomes are classified honestly (sent, rejected, unconfirmed) and never retried', async () => {
  const sentPayloads = [];
  const ok = delivery(goodEnv, async (payload, key) => { sentPayloads.push({ payload, key }); return { data: { id: 'msg_123' }, error: null }; });
  const out = await ok.mailer.send(message({ idempotencyKey: uuid(9) }));
  assert.deepEqual(JSON.parse(JSON.stringify(out)), { outcome: 'sent', providerRef: 'msg_123' });
- assert.equal(sentPayloads.length, 1); assert.equal(sentPayloads[0].key, 'teacher-invitation-' + uuid(9)); assert.equal(sentPayloads[0].payload.to, 'teacher@example.test'); assert.equal(sentPayloads[0].payload.from, goodEnv.INVITATION_EMAIL_FROM);
+ assert.equal(sentPayloads.length, 1); assert.equal(sentPayloads[0].key, 'teacher-invitation-' + uuid(9)); assert.equal(sentPayloads[0].payload.to, 'teacher@example.test'); assert.equal(sentPayloads[0].payload.from, goodEnv.AUTH_EMAIL_FROM);
  assert.deepEqual(JSON.parse(JSON.stringify(await delivery(goodEnv, async () => ({ data: { id: 'bad id with spaces' } })).mailer.send(message()))), { outcome: 'sent', providerRef: null });
  for (const statusCode of [400, 401, 403, 422, 429]) assert.equal((await delivery(goodEnv, async () => ({ error: { statusCode } })).mailer.send(message())).outcome, 'rejected', String(statusCode));
  for (const statusCode of [500, 502, 503, null, undefined]) assert.equal((await delivery(goodEnv, async () => ({ error: { statusCode } })).mailer.send(message())).outcome, 'unconfirmed', String(statusCode));
  let attempts = 0;
  assert.equal((await delivery(goodEnv, async () => { attempts++; throw Error('socket hang up'); }).mailer.send(message())).outcome, 'unconfirmed'); assert.equal(attempts, 1, 'a thrown call is not retried');
  assert.equal((await delivery(goodEnv, () => new Promise(() => {}), 20).mailer.send(message())).outcome, 'unconfirmed', 'no verdict inside the deadline');
+});
+test('mailer: the Brevo transport posts one request with the key only in the header and maps statuses honestly', async () => {
+ const calls = [];
+ const brevo = (respond, env = goodEnv) => {
+  calls.length = 0;
+  const fakeFetch = async (url, init) => { calls.push({ url, init }); return respond(); };
+  const mod = load('server/services/invitation-delivery.ts', { 'server-only': {}, '@/shared/public-website': publicWebsite }, { fetch: fakeFetch, AbortSignal });
+  return mod.createInvitationMailer(env);
+ };
+ const reply = (status, body) => () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+ const out = await brevo(reply(201, { messageId: '<abc@x>' })).send(message());
+ assert.deepEqual(JSON.parse(JSON.stringify(out)), { outcome: 'sent', providerRef: null }, 'an id that is not a plain token is not stored');
+ assert.equal(calls.length, 1); assert.equal(calls[0].url, 'https://api.brevo.com/v3/smtp/email'); assert.equal(calls[0].init.method, 'POST');
+ assert.equal(calls[0].init.redirect, 'error'); assert.equal(calls[0].init.headers['api-key'], goodEnv.BREVO_API_KEY);
+ assert.ok(!String(calls[0].init.body).includes(goodEnv.BREVO_API_KEY), 'the key is never in the body');
+ const sent = JSON.parse(calls[0].init.body);
+ assert.deepEqual(sent.sender, { name: 'EduLabs', email: 'invitations@mail.example.test' }); assert.deepEqual(sent.to, [{ email: 'teacher@example.test' }]);
+ assert.equal(typeof sent.htmlContent, 'string'); assert.equal(typeof sent.textContent, 'string'); assert.deepEqual(sent.tags, ['edulabs-teacher-invitation']);
+ await brevo(reply(201, { messageId: 'abc123' }), { ...goodEnv, AUTH_EMAIL_FROM: 'invitations@mail.example.test' }).send(message());
+ assert.deepEqual(JSON.parse(calls[0].init.body).sender, { name: 'EduLabs', email: 'invitations@mail.example.test' }, 'a bare address gets the default name');
+ await brevo(reply(201, { messageId: 'abc123' }), { ...goodEnv, AUTH_EMAIL_FROM: 'EduLabs <a@b.test>' }).send(message());
+ assert.deepEqual(JSON.parse(calls[0].init.body).sender, { name: 'EduLabs', email: 'a@b.test' });
+ assert.deepEqual(JSON.parse(JSON.stringify(await brevo(reply(201, { messageId: 'abc123' })).send(message()))), { outcome: 'sent', providerRef: 'abc123' });
+ for (const status of [400, 401, 403, 429]) { assert.equal((await brevo(reply(status, {})).send(message())).outcome, 'rejected', String(status)); assert.equal(calls.length, 1, 'one request per send'); }
+ for (const status of [500, 502, 503]) { assert.equal((await brevo(reply(status, {})).send(message())).outcome, 'unconfirmed', String(status)); assert.equal(calls.length, 1, 'one request per send'); }
+ assert.equal((await brevo(() => { throw Error('network down'); }).send(message())).outcome, 'unconfirmed'); assert.equal(calls.length, 1, 'a thrown fetch is not retried');
 });
 test('mailer: the message carries the link only in the body, escapes it, and never leaves the secret in a subject', () => {
  const d = delivery(goodEnv); const secret = token(); const link = `${origin}/teacher-invitation#${secret}`;
@@ -106,7 +132,7 @@ function harness({ configured = true, originValue = origin, keyValue = linkKey, 
  const mod = load('server/services/platform-provisioning.ts', { 'server-only': {}, 'node:crypto': crypto, '@/server/services/invitation-delivery': { productionInvitationDeps: () => deps, deriveInvitationSecret: delivery.deriveInvitationSecret }, '@/shared/invitation-link': linkLib, '@/shared/contracts/platform-provisioning': contract });
  return { ...mod, client, calls, mailed, db, keyBox, svc: mod.platformProvisioningService(client, deps), names: () => calls.map(c => c.name) };
 }
-function require_delivery() { return load('server/services/invitation-delivery.ts', { 'server-only': {}, 'node:crypto': crypto, resend: { Resend: class {} }, '@/shared/public-website': publicWebsite }); }
+function require_delivery() { return load('server/services/invitation-delivery.ts', { 'server-only': {}, 'node:crypto': crypto, '@/shared/public-website': publicWebsite }); }
 const provisionInput = () => contract.provisionTeacherRequest.parse({ teacherEmail: 'a@example.test', expiresInDays: 7, systems: [{ label: 'S', grades: [{ key: 'g', label: 'G' }] }], subjects: [{ key: 's', label: 'Sub' }], course: { title: 'C', gradeKey: 'g', subjectKey: 's' } });
 
 test('service: a missing origin, link key or mailer stops before any database change and names the reason', async () => {
@@ -368,6 +394,6 @@ test('copy: the teacher-facing page exists in English and Arabic, says "teaching
  assert.equal(messages.en['ti.valid.text'], 'Accepting gives you your own teaching space on EduLabs, where you can set up your courses. Accept only if you expected this invitation.');
  assert.doesNotMatch(Object.entries(messages.en).filter(([k]) => k.startsWith('ti.')).map(([, v]) => v).join(' '), /you become the owner/i);
  assert.match(messages.en['pa.err.link_key_not_configured'], /INVITATION_LINK_KEY/); assert.match(messages.en['pa.portal.share_hint'], /Only .Replace invitation. creates a new link/);
- assert.match(messages.en['pa.err.email_not_configured'], /RESEND_API_KEY/); assert.match(messages.en['pa.err.email_not_configured'], /INVITATION_EMAIL_FROM/); assert.match(messages.en['pa.err.origin_not_configured'], /APP_ORIGIN/);
+ assert.match(messages.en['pa.err.email_not_configured'], /BREVO_API_KEY/); assert.match(messages.en['pa.err.email_not_configured'], /AUTH_EMAIL_FROM/); assert.doesNotMatch(messages.en['pa.err.email_not_configured'], /RESEND/); assert.match(messages.en['pa.err.origin_not_configured'], /APP_ORIGIN/);
  assert.match(messages.en['pa.delivery.sent_note'], /not proof/i, 'sent is never presented as delivered to the inbox');
 });

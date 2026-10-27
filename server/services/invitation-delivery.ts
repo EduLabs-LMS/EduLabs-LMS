@@ -1,6 +1,5 @@
 import 'server-only';
 import { createHmac } from 'node:crypto';
-import { Resend } from 'resend';
 import { publicPlatformOrigin } from '@/shared/public-website';
 
 /** The trusted origin comes only from configuration, never from a request header. */
@@ -54,16 +53,37 @@ export function invitationEmailContent(message: Pick<InvitationMessage, 'link' |
 
 type Transport = (payload: { from: string; to: string; subject: string; html: string; text: string }, idempotencyKey: string) => Promise<{ data?: { id?: string } | null; error?: { statusCode?: number | null } | null }>;
 
-/** Resend is the provider already used by the application (support mail). A missing key or sender means "not configured": nothing is sent or claimed. */
+function brevoParty(from: string): { name: string; email: string } {
+ const parsed = /^(?:([^<>\r\n]+?)\s*)?<([^\s<>@]+@[^\s<>@]+)>$/.exec(from);
+ return parsed ? { name: parsed[1]?.trim() || 'EduLabs', email: parsed[2].toLowerCase() } : { name: 'EduLabs', email: from.toLowerCase() };
+}
+function brevoTransport(apiKey: string): Transport {
+ return async (payload) => {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+   method: 'POST',
+   headers: { 'api-key': apiKey, accept: 'application/json', 'content-type': 'application/json' },
+   body: JSON.stringify({ sender: brevoParty(payload.from), to: [{ email: payload.to }], subject: payload.subject, htmlContent: payload.html, textContent: payload.text, tags: ['edulabs-teacher-invitation'] }),
+   cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) return { error: { statusCode: response.status } };
+  const body = await response.json().catch(() => null) as { messageId?: unknown } | null;
+  return { data: { id: typeof body?.messageId === 'string' ? body.messageId : undefined } };
+ };
+}
+
+/**
+ * Brevo, with the same key and sender as the branded auth e-mail (BREVO_API_KEY, AUTH_EMAIL_FROM). A missing key or sender means
+ * "not configured": nothing is sent or claimed. Brevo has no idempotency key, so a send is never repeated automatically.
+ */
 export function createInvitationMailer(env: Record<string, string | undefined> = process.env, transport?: Transport, timeoutMs = 15000): InvitationMailer {
- const apiKey = env.RESEND_API_KEY?.trim(), from = env.INVITATION_EMAIL_FROM?.trim();
+ const apiKey = env.BREVO_API_KEY?.trim(), from = env.AUTH_EMAIL_FROM?.trim();
  const configured = () => Boolean(apiKey && from && sender.test(from));
  return {
   configured,
   async send(message) {
    if (!configured()) return { outcome: 'rejected' };
    const { subject, text, html } = invitationEmailContent(message);
-   const send: Transport = transport ?? ((payload, key) => new Resend(apiKey).emails.send(payload, { idempotencyKey: key }));
+   const send: Transport = transport ?? brevoTransport(apiKey!);
    try {
     const verdict = await Promise.race([
      send({ from: from!, to: message.to, subject, html, text }, `teacher-invitation-${message.idempotencyKey}`),

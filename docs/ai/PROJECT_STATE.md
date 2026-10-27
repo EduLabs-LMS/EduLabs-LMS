@@ -9,9 +9,9 @@
 - Teacher Provisioning V1 (Platform Admin) and Teacher Invitation Delivery are implemented on
   branch claude/teacher-invitation-delivery (pending review; not merged, not deployed). Implemented:
   invitation acceptance page (/teacher-invitation, with a display-name step), admin Send/Copy/Replace/Revoke,
-  e-mail delivery through Resend with honest delivery status. Migrations 20261024120000 and
-  20261025100000 (migration 33) are authored but NOT applied to any database. Nothing was live-tested
-  with real Firebase, Supabase or Resend; verification used a disposable local PostgreSQL and a
+  e-mail delivery through Brevo (BREVO_API_KEY + AUTH_EMAIL_FROM, as the branded auth e-mail) with honest delivery status. Migrations 20261024120000 and
+  20261025100000 (migration 33) are applied to the DEV Supabase project only (not staging, not production). Nothing was live-tested
+  with real Firebase, Supabase or Brevo; verification used a disposable local PostgreSQL and a
   fictional-HTTP browser harness. Not built: workspace reset, a dedicated teacher onboarding screen.
   See docs/platform-admin-teacher-provisioning.md.
 - Owner authorization: issue #20 comment 6383545623 and the explicit chat instruction.
@@ -23,7 +23,7 @@
   are in RETIRED_TEACHER_UI.json. Shared views retain student behavior.
 - Old teacher administration is intentionally unavailable on this branch. APIs and
   contextual authorization remain. It is NOT a deployable teacher-pilot release.
-- Baseline had 31 local migration files; Teacher Provisioning V1 adds a 32nd (unapplied). No connected database was queried or changed
+- Baseline had 31 local migration files; Teacher Provisioning V1 adds a 32nd (applied to the DEV Supabase project only). No connected database was queried or changed
   in this preparation. The prior audit counted 31 development migrations; the ledger
   records six historical version mappings. Do not replay or repair history.
 - main, staging/integration, other worktrees and PR #19 are outside this change.

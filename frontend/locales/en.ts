@@ -800,7 +800,7 @@ export const en = {
   "pa.portal.unknown_send": "The connection dropped while sending. An email may have been sent. The link has not changed. Do not retry yet: refresh the invitation status first.",
   "pa.portal.outcome_send_changed": "The invitation was replaced in the meantime, so the earlier link no longer works. Check the email delivery status below.",
   "pa.portal.outcome_send_none": "Confirmed: no email attempt was recorded and the link has not changed.",
-  "pa.err.email_not_configured": "Email delivery is not configured on this server (RESEND_API_KEY and INVITATION_EMAIL_FROM are required). Nothing was changed. You can still copy the invitation link.",
+  "pa.err.email_not_configured": "Email delivery is not configured on this server (BREVO_API_KEY and AUTH_EMAIL_FROM are required). Nothing was changed. You can still copy the invitation link.",
   "pa.err.origin_not_configured": "The application address (APP_ORIGIN) is not configured on this server, so invitation links cannot be created. Nothing was changed.",
   "ti.page_title": "Teacher invitation",
   "ti.checking.title": "Checking your invitation",

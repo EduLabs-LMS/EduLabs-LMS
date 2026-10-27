@@ -800,7 +800,7 @@ export const ar: Record<keyof typeof en, string> = {
   "pa.portal.unknown_send": "انقطع الاتصال أثناء الإرسال. ربما أُرسل بريد. لم يتغير الرابط. لا تعد المحاولة الآن: حدّث حالة الدعوة أولًا.",
   "pa.portal.outcome_send_changed": "استُبدلت الدعوة في هذه الأثناء، لذا لم يعد الرابط السابق يعمل. تحقق من حالة تسليم البريد أدناه.",
   "pa.portal.outcome_send_none": "تأكيد: لم تُسجَّل أي محاولة إرسال ولم يتغير الرابط.",
-  "pa.err.email_not_configured": "خدمة البريد غير مهيأة على هذا الخادم (يلزم RESEND_API_KEY و INVITATION_EMAIL_FROM). لم يتغير شيء. لا يزال بإمكانك نسخ رابط الدعوة.",
+  "pa.err.email_not_configured": "خدمة البريد غير مهيأة على هذا الخادم (يلزم BREVO_API_KEY و AUTH_EMAIL_FROM). لم يتغير شيء. لا يزال بإمكانك نسخ رابط الدعوة.",
   "pa.err.origin_not_configured": "عنوان التطبيق (APP_ORIGIN) غير مهيأ على هذا الخادم، لذا لا يمكن إنشاء روابط الدعوة. لم يتغير شيء.",
   "ti.page_title": "دعوة معلم",
   "ti.checking.title": "جارٍ التحقق من دعوتك",
