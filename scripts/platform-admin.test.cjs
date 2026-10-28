@@ -332,8 +332,10 @@ test('wiring: every platform-admin page repeats the guard; routes and middleware
  for (const page of ['app/platform-admin/layout.tsx', 'app/platform-admin/page.tsx', 'app/platform-admin/teachers/page.tsx', 'app/platform-admin/teachers/new/page.tsx', 'app/platform-admin/teachers/[portalId]/page.tsx', 'app/platform-admin/settings/page.tsx']) assert.match(read(page), /requirePlatformAdmin\(\)/, page);
  assert.match(read('app/api/platform-admin/portals/route.ts'), /platformPortalsHTTP as GET, platformPortalsHTTP as POST/);
  assert.match(read('app/api/platform-admin/portals/[portalId]/route.ts'), /platformPortalRoute as GET, platformPortalRoute as POST/);
+ assert.match(read('app/api/platform-admin/portals/[portalId]/demo/route.ts'), /platformDemoRoute as GET, platformDemoRoute as POST/);
  assert.match(read('app/api/teacher-invitations/accept/route.ts'), /acceptTeacherInvitationHTTP as POST/);
  const middleware = read('middleware.ts');
+ assert.match(middleware, /portals\\\/\[0-9a-f-\]\{36\}\(\?:\\\/demo\)\?\$\/\.test\(path\)/, 'the demo path is allowlisted next to the portal path with the same uuid pattern (behaviour: scripts/demo-spaces.test.cjs)');
  assert.match(middleware, /path === '\/platform-admin' \|\| path\.startsWith\('\/platform-admin\/'\)/);
  assert.match(middleware, /path === '\/api\/platform-admin\/portals'/); assert.match(middleware, /path === '\/api\/teacher-invitations\/accept'/);
  assert.ok(middleware.indexOf('/api/platform-admin/portals') < middleware.indexOf('This legacy workflow is unavailable'), 'allowlisted before the Firebase catch-all');

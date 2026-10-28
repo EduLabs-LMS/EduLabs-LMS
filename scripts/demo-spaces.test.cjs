@@ -233,3 +233,18 @@ test('admin UI: demo controls block double clicks, lock after an unknown outcome
  assert.doesNotMatch(form, /toRequest\([^)]*demo/, 'the provisioning request never carries demo');
  assert.match(form, /demoState === 'unknown'[\s\S]*pa\.demo\.partial_unknown/);
 });
+
+// ---------------------------------------------------------------- the real middleware (Firebase staging)
+test('middleware: with Firebase staging on, the demo route is reachable for exactly /api/platform-admin/portals/<uuid>/demo and nothing near it', () => {
+ class NextResponse { constructor(body, options = {}) { this.status = options.status ?? 200; this.kind = options.kind ?? 'response'; } static next() { return new NextResponse('', { kind: 'next' }); } static json(body, options) { return new NextResponse('', { ...options, kind: 'json' }); } static redirect() { return new NextResponse('', { status: 307, kind: 'redirect' }); } }
+ const middleware = load('middleware.ts', {
+  '@/shared/public-website': load('shared/public-website.ts', { zod: require('zod') }), '@/shared/website-routes': load('shared/website-routes.ts'),
+  '@clerk/nextjs/server': { clerkMiddleware: () => () => assert.fail('the legacy handler must not run in Firebase staging'), createRouteMatcher: () => () => false },
+  '@/shared/auth-config': { isFirebaseStaging: () => true }, 'next/server': { NextResponse },
+ }).default;
+ const run = path => middleware({ nextUrl: new URL('https://platform.example' + path), url: 'https://platform.example' + path }, {});
+ const id = '1234abcd-0000-4000-8000-00000000000f', base = '/api/platform-admin/portals/';
+ for (const ok of [base + id + '/demo', base + id, '/api/platform-admin/portals']) assert.equal(run(ok).kind, 'next', ok + ' passes through');
+ const refused = [base + id + '/demo/', base + id + '/demo/extra', base + id + '/other', base + id + '/demo2', base + id + '//demo', base + 'not-a-uuid/demo', base + id.slice(1) + '/demo', base + id + 'a/demo', base + '/demo', base + id + '/Demo', base + id.toUpperCase() + '/demo', '/api/platform-admin/demo', base + id + '/demo.json'];
+ for (const path of refused) { const r = run(path); assert.equal(r.kind, 'json', path + ' stays behind the catch-all'); assert.equal(r.status, 503, path); }
+});

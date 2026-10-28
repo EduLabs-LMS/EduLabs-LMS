@@ -131,9 +131,23 @@ createRoot(document.getElementById('root')).render(
   } }] });
  // The same files the application imports, in the same order, followed by the real font faces and variables.
  const css = ['frontend/design-system/tokens.css', 'frontend/design-system/components.css', 'frontend/styles/platform-admin.css'].map(f => fs.readFileSync(f, 'utf8')).join('\n') + '\n' + fontFaces.join('\n') + '\n' + fontVars.join('\n');
+ // The REAL middleware.ts (Firebase staging on) gates every /api request below, so a route the middleware does not allow is as unreachable here as on staging.
+ process.env.NEXT_PUBLIC_AUTH_BACKEND = 'firebase-staging'; // read by shared/auth-config at request time
+ const middlewareRefusals = [];
+ const realMiddleware = (() => {
+  const bundled = esbuild.buildSync({ entryPoints: ['middleware.ts'], bundle: true, platform: 'node', format: 'cjs', write: false, logLevel: 'silent', external: ['@clerk/nextjs/server', 'next/server'], alias: { '@': process.cwd() } }).outputFiles[0].text;
+  class NextResponse { constructor(kind, status) { this.kind = kind; this.status = status; this.headers = new Map(); } static next() { return new NextResponse('next', 200); } static json(_, o) { return new NextResponse('json', o.status); } static redirect() { return new NextResponse('redirect', 307); } }
+  const module_ = { exports: {} };
+  new Function('module', 'exports', 'require', bundled)(module_, module_.exports, name => name === 'next/server' ? { NextResponse } : { clerkMiddleware: () => () => { throw new Error('the legacy handler must not run'); }, createRouteMatcher: () => () => false });
+  return module_.exports.default;
+ })();
  const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const send = (value, status = 200) => { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(value)); };
+  if (url.pathname.startsWith('/api/')) {
+   const gate = realMiddleware({ nextUrl: url, url: url.href }, {});
+   if (gate.kind !== 'next') { middlewareRefusals.push(url.pathname); return send({ error: 'This legacy workflow is unavailable in Firebase staging.' }, gate.status); }
+  }
   if (url.pathname === '/app.js') { res.setHeader('Content-Type', 'application/javascript'); return res.end(fs.readFileSync(path.join(out, 'app.js'))); }
   if (url.pathname === '/style.css') { res.setHeader('Content-Type', 'text/css'); return res.end(css); }
   if (url.pathname.startsWith('/_next/static/media/')) {
@@ -1193,6 +1207,13 @@ createRoot(document.getElementById('root')).render(
   await page.screenshot({ path: path.join(shots, 'demo-section-desktop-ar.png'), fullPage: true });
   await setLang('en'); await setTheme('dark'); await openDemoPortal(p.organizationId); await accessible('demo section, dark'); await page.screenshot({ path: path.join(shots, 'demo-section-desktop-en-dark.png'), fullPage: true });
   await setTheme('light'); await page.setViewportSize({ width: 1440, height: 900 });
+ });
+ await step('the real middleware (Firebase staging) let every API call of this suite through, and still refuses a demo-like path that is not allow-listed', async () => {
+  assert.deepEqual(middlewareRefusals, [], 'no request of the suite was blocked by middleware.ts');
+  const p = demoPortal('accepted'); await openDemoPortal(p.organizationId);
+  const probe = await page.evaluate(async id => { const r = await fetch('/api/platform-admin/portals/' + id + '/other'); return { status: r.status, body: await r.json() }; }, p.organizationId);
+  assert.equal(probe.status, 503); assert.match(probe.body.error, /legacy workflow is unavailable/);
+  assert.deepEqual(middlewareRefusals, ['/api/platform-admin/portals/' + p.organizationId + '/other']); middlewareRefusals.length = 0;
  });
  await step('no uncaught errors, no external requests', async () => { assert.deepEqual(errors, []); assert.deepEqual(external, []); });
  await browser.close(); server.close();
