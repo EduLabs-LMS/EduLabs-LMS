@@ -1115,6 +1115,17 @@ createRoot(document.getElementById('root')).render(
   await page.getByRole('button', { name: 'Try again to mark as demo' }).click(); await page.getByText('This teaching space is now a demo space.').waitFor();
   assert.deepEqual(demoPosts.map(p => p.action), ['mark', 'mark']); assert.equal(demos.get(portals[0].organizationId).demo, true);
  });
+ await step('demo retry button: disabled while the mark request runs, and a double click sends exactly one request', async () => {
+  await createWithDemo({ tick: true, behaviors: ['outage', 'slow'] });
+  const retry = page.getByRole('button', { name: 'Try again to mark as demo' }); await retry.waitFor();
+  assert.equal(await retry.isDisabled(), false, 'enabled before it is used');
+  await retry.dblclick();
+  await page.getByRole('button', { name: 'Try again to mark as demo' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Try again to mark as demo' }).isDisabled(), true, 'disabled while the request runs');
+  await page.getByText('This teaching space is now a demo space.').waitFor();
+  assert.deepEqual(demoPosts.map(p => p.action), ['mark', 'mark'], 'one initial request plus exactly one retry');
+  assert.equal(demos.get(portals[0].organizationId).demo, true);
+ });
  await step('demo mark with a dropped connection: unknown, no retry button, points to the portal page', async () => {
   await createWithDemo({ tick: true, behaviors: ['sticky-drop'] });
   await page.getByText('We could not confirm whether demo was set').waitFor();

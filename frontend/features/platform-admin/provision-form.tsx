@@ -46,6 +46,7 @@ export function ProvisionForm() {
  const [demo, setDemo] = useState(false);
  const [demoState, setDemoState] = useState<'none' | 'working' | 'on' | { failed: MessageKey } | 'unknown'>('none');
  const demoBusy = useRef(false);
+ const [demoRunning, setDemoRunning] = useState(false);
  const formRef = useRef<HTMLFormElement>(null);
  const headingRef = useRef<HTMLHeadingElement>(null);
  // Only the step the administrator has tried to leave shows errors; the rest of the draft stays quiet.
@@ -113,9 +114,10 @@ export function ProvisionForm() {
  /** Runs once after provisioning succeeded. A definite refusal can be retried; an unknown outcome cannot (the portal page shows the truth). */
  async function markDemo(organizationId: string) {
   if (demoBusy.current) return;
-  demoBusy.current = true; setDemoState('working');
+  demoBusy.current = true; setDemoRunning(true);
+  if (typeof demoState !== 'object') setDemoState('working'); // a retry keeps its banner so the button can show it is busy
   const out = await api<DemoMarkResult>(`/api/platform-admin/portals/${organizationId}/demo`, { method: 'POST', body: { action: 'mark' } });
-  demoBusy.current = false;
+  demoBusy.current = false; setDemoRunning(false);
   if (out.ok && out.data.demo === true) setDemoState('on');
   else if (out.ok) setDemoState({ failed: 'pa.err.unavailable' });
   else if (out.reason === 'network') setDemoState('unknown');
@@ -154,7 +156,7 @@ export function ProvisionForm() {
     {demoState === 'unknown' ? <Banner tone="warn" role="alert"><span><strong>{t('pa.demo.partial_title')}</strong><br />{t('pa.demo.partial_unknown')}</span></Banner> : null}
     {typeof demoState === 'object' ? <Banner tone="warn" role="alert">
      <span><strong>{t('pa.demo.partial_title')}</strong><br />{t('pa.demo.partial_body')}<br />{t(demoState.failed)}</span>
-     <Button size="sm" onClick={() => void markDemo(result.organizationId)} disabled={demoBusy.current}>{t('pa.demo.partial_retry')}</Button>
+     <Button size="sm" onClick={() => void markDemo(result.organizationId)} disabled={demoRunning}>{t('pa.demo.partial_retry')}</Button>
     </Banner> : null}
    </div> : null}
    <div className="eds-actions">
