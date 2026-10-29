@@ -16,6 +16,8 @@ const activityKey: Record<string, MessageKey> = {
 /** A write whose response never arrived: what we knew before it, so a refresh can tell what really happened. */
 type Unknown = { action: 'reissue' | 'revoke' | 'send_email'; baselineId: string | undefined; baselineStatus: InvitationStatus | undefined; baselineAttempts: number };
 
+/** Only the two values the contract defines get a badge; an unknown status shows none rather than a guess. */
+const courseStatusLabel: Record<string, MessageKey | undefined> = Object.assign(Object.create(null) as Record<string, MessageKey | undefined>, { draft: 'pa.portal.course_draft', published: 'pa.portal.course_published' });
 const deliveryTone: Record<DeliveryStatus, 'neutral' | 'pending' | 'ok' | 'off'> = { not_sent: 'neutral', sending: 'pending', sent: 'ok', failed: 'off' };
 const deliveryLabel: Record<DeliveryStatus, MessageKey> = { not_sent: 'pa.delivery.not_sent', sending: 'pa.delivery.sending', sent: 'pa.delivery.sent', failed: 'pa.delivery.failed' };
 const deliveryNote: Record<DeliveryStatus, MessageKey> = { not_sent: 'pa.delivery.not_sent_note', sending: 'pa.delivery.sending_note', sent: 'pa.delivery.sent_note', failed: 'pa.delivery.failed_note' };
@@ -146,8 +148,8 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
     <Card labelledBy="pa-p-courses">
      <CardHead id="pa-p-courses" title={t('pa.portal.courses')} />
      <CardBody divided>
-      {detail.courses.map((c) => <div key={c.id}><span className="eds-strong">{c.title}</span>
-       <span className="eds-meta eds-block">{[c.educationSystem, c.gradeLevel, c.subject].filter(Boolean).join(' · ')} · {t('pa.portal.course_empty')}</span></div>)}
+      {detail.courses.map((c) => <div key={c.id} data-course={c.id}><span className="eds-strong">{c.title}</span>{courseStatusLabel[c.status] ? <> <Badge tone={c.status === 'published' ? 'ok' : 'neutral'} data-course-status={c.status}>{t(courseStatusLabel[c.status]!)}</Badge></> : null}
+       <span className="eds-meta eds-block">{[c.educationSystem, c.gradeLevel, c.subject].filter(Boolean).join(' · ')}</span></div>)}
      </CardBody>
     </Card>
    </div>

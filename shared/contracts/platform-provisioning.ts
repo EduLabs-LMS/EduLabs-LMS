@@ -66,12 +66,14 @@ export type PortalOverview = { items: PortalSummary[]; hasMore: boolean };
 /** sent = accepted by the e-mail provider (not proof of inbox delivery); sending = an attempt whose outcome was never recorded (unconfirmed). */
 export type DeliveryStatus = 'not_sent' | 'sending' | 'sent' | 'failed';
 export type InvitationDelivery = { status: DeliveryStatus; attemptedAt: string | null; failure: 'rejected' | null; attempts: number };
+/** What platform_portal_detail returns for a course. The page shows a badge for these two only; any other value shows none. */
+export type CourseStatus = 'draft' | 'published';
 export type PortalDetail = {
  organizationId: string; status: string; createdAt: string; hasOwner: boolean;
  invitations: { id: string; teacherEmail: string; createdAt: string; expiresAt: string; acceptedAt: string | null; revokedAt: string | null; revokeReason: 'revoked' | 'superseded' | null; status: InvitationStatus; delivery: InvitationDelivery }[];
  educationSystems: { id: string; name: string; examinationBoard: string | null; gradeLevels: { id: string; name: string }[] }[];
  subjects: { id: string; name: string }[];
- courses: { id: string; title: string; status: string; subject: string | null; gradeLevel: string | null; educationSystem: string | null }[];
+ courses: { id: string; title: string; status: CourseStatus; subject: string | null; gradeLevel: string | null; educationSystem: string | null }[];
  activity: { action: string; occurredAt: string; actor: 'administrator' | 'teacher' }[];
 };
 /** The link is built on the server from the configured canonical origin; its secret exists only in this response. */

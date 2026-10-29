@@ -466,7 +466,7 @@ test('view: the portal page reports owner state, honest delivery and the audit t
   activity: [{ action: 'portal.provision', occurredAt: '2030-01-02T00:00:00Z', actor: 'administrator' }] };
  const html = render(React.createElement(PortalView, { initial: detail, portalId: uuid(1) }));
  assert.match(html, /Owner pending/); assert.match(html, /No email sent/); assert.match(html, /Send invitation email/); assert.match(html, /Copy invitation link/); assert.match(html, /Revoke invitation/); assert.match(html, /Replace invitation/); assert.match(html, /Portal created/); assert.match(html, /Administrator/);
- assert.match(html, /Draft, no content yet/); assert.doesNotMatch(html, /data-invitation-link/, 'a link is never rendered from stored data');
+ assert.match(html, /data-course-status="draft"[^>]*>Draft</); assert.doesNotMatch(html, /no content yet/); assert.doesNotMatch(html, /data-invitation-link/, 'a link is never rendered from stored data');
  const accepted = render(React.createElement(PortalView, { initial: { ...detail, hasOwner: true, invitations: [{ ...detail.invitations[0], status: 'accepted', acceptedAt: '2030-01-03T00:00:00Z' }] }, portalId: uuid(1) }));
  assert.match(accepted, /owns this portal/); assert.doesNotMatch(accepted, /Revoke invitation|Replace invitation|Send invitation email|Copy invitation link/); assert.match(accepted, /can no longer be changed/);
 });

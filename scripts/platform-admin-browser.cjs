@@ -549,7 +549,7 @@ createRoot(document.getElementById('root')).render(
   const id = portals.find(p => p.invitations[0].teacherEmail === 'list.teacher@example.test').organizationId;
   await open('view=detail&id=' + id);
   await page.getByText('Owner pending').waitFor();
-  const text = await page.locator('main').innerText(); for (const expected of ['No email sent', 'Send invitation email', 'Copy invitation link', 'IGCSE', 'Grade 10', 'Physics - Grade 10', 'Draft, no content yet', 'Portal created', 'Administrator']) assert.ok(text.includes(expected), expected);
+  const text = await page.locator('main').innerText(); for (const expected of ['No email sent', 'Send invitation email', 'Copy invitation link', 'IGCSE', 'Grade 10', 'Physics - Grade 10', 'Draft', 'Portal created', 'Administrator']) assert.ok(text.includes(expected), expected);
   assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'a stored invitation never displays a link');
   await accessible('portal, light');
   await page.getByRole('button', { name: 'Replace invitation' }).click(); await page.locator('#pa-re-days').selectOption('14');
@@ -667,6 +667,24 @@ createRoot(document.getElementById('root')).render(
   portals.unshift(fictionalPortal(sampleRequest('phone.teacher@example.test')));
   await open('view=list'); await page.getByText('phone.teacher@example.test').waitFor(); await noOverflow('list 390');
   await open('view=detail&id=' + portals[0].organizationId); await page.getByText('Owner pending').waitFor(); await noOverflow('detail 390');
+  await page.setViewportSize({ width: 1440, height: 900 });
+ });
+ await step('portal courses show the real status per course, English and Arabic, 390 and 1440, and an unknown status shows no badge', async () => {
+  reset();
+  const p = fictionalPortal(sampleRequest('status.teacher@example.test')); const base = p.courses[0];
+  p.courses = [{ ...base, id: randomUUID(), title: 'Published Physics', status: 'published' }, { ...base, id: randomUUID(), title: 'Draft Chemistry', status: 'draft' }, { ...base, id: randomUUID(), title: 'Mystery Biology', status: 'archived' }];
+  portals.unshift(p);
+  const row = title => page.locator('[data-course]').filter({ hasText: title });
+  const check = async (lang, width, labels) => {
+   await page.setViewportSize({ width, height: 900 }); await setLang(lang); await open('view=detail&id=' + p.organizationId); await row('Published Physics').waitFor();
+   const states = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-course]')].map(r => [r.querySelector('.eds-strong').textContent, [...r.querySelectorAll('[data-course-status]')].map(b => b.getAttribute('data-course-status') + ':' + b.textContent.trim())])));
+   assert.deepEqual(states, { 'Published Physics': ['published:' + labels.published], 'Draft Chemistry': ['draft:' + labels.draft], 'Mystery Biology': [] }, `${lang} ${width}`);
+   const text = await page.locator('[data-course]').allInnerTexts(); assert.ok(text.every(t => !/no content yet|بلا محتوى/.test(t)), 'no claim about content');
+   assert.ok(await row('Draft Chemistry').getByText('IGCSE · Grade 10 · Physics').count() > 0 || await row('Draft Chemistry').getByText(/IGCSE/).count() > 0, 'subject, grade and system line stays');
+   await noOverflow(`course status ${lang} ${width}`);
+  };
+  for (const width of [1440, 390]) { await check('en', width, { published: 'Published', draft: 'Draft' }); await check('ar', width, { published: 'منشورة', draft: 'مسودة' }); }
+  await setLang('en');
   await page.setViewportSize({ width: 1440, height: 900 });
  });
  await step('desktop: the tallest filled step keeps Back and Next inside a normal 1440x900 window', async () => {
