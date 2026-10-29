@@ -25,8 +25,9 @@ test('migration: the reviewed demo-spaces SQL is byte-identical to the approved 
  assert.equal(hash(raw) === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c' || lf === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c', true);
  assert.match(read('.gitattributes'), /supabase\/migrations\/20261027120000_demo_spaces\.sql -text/);
  const names = fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
- assert.equal(names[names.length - 2], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration; only the clear-robust follow-up comes after it');
- assert.equal(names[names.length - 1], '20261029120000_demo_clear_robust.sql');
+ assert.equal(names[names.length - 3], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration; only the two follow-ups come after it');
+ assert.equal(names[names.length - 2], '20261029120000_demo_clear_robust.sql');
+ assert.equal(names[names.length - 1], '20261030120000_demo_students.sql');
 });
 test('migration: demo_clear_core is replaced (not edited in 34), keeps its signature and grants, and removes what a teacher added inside the Groups and courses', () => {
  const sql = read('supabase/migrations/20261029120000_demo_clear_robust.sql'), code = sql.replace(/--.*$/gm, '');
@@ -41,6 +42,26 @@ test('migration: demo_clear_core is replaced (not edited in 34), keeps its signa
  assert.match(code, /'removedRows',n_tracked\+n_added/);
  assert.match(read('.gitattributes'), /20261029120000_demo_clear_robust\.sql -text/);
  assert.ok(fs.existsSync('supabase/tests/demo-clear-robust.sql'));
+});
+test('migration: demo students (seed 2) are recorded, count as demo in the guards, and Clear still refuses real enrollments', () => {
+ const sql = read('supabase/migrations/20261030120000_demo_students.sql'), code = sql.replace(/--.*$/gm, '');
+ for (const fn of ['space_has_real_students(p_org uuid)', 'platform_set_demo_space', 'demo_fill_core', 'demo_clear_core', 'platform_demo_status']) assert.ok(code.includes('function private.' + fn.split('(')[0]) || code.includes(fn), fn + ' is (re)defined');
+ assert.match(code, /revoke all on function private\.space_has_real_students\(uuid\) from public,anon,authenticated;/);
+ const guard = /function private\.space_has_real_students[\s\S]*?\$\$;/.exec(code)[0];
+ assert.match(guard, /not exists\s*\(select 1 from private\.demo_seed_rows d[\s\S]*table_name='enrollments'/, 'only enrollments NOT recorded as demo seed rows count');
+ assert.equal(code.split('private.space_has_real_students(').length - 1 >= 4, true, 'mark, fill and clear use the helper');
+ assert.match(code, /'enrolled students'/, 'Clear and Fill name the blocker');
+ assert.match(code, /array_append\(blockers_,'enrolled students'::text\)/, 'the blocker pattern is unchanged');
+ assert.match(code, /'latestSeedVersion',\s*2/);
+ assert.match(code, /seed_version=2/);
+ const tables = /demo_seed_rows_table_name_check\s+check \(table_name in\s*\(([^)]*)\)\)/.exec(code)[1].match(/'([a-z_]+)'/g).map(x => x.slice(1, -1));
+ for (const t of ['profiles', 'enrollments', 'group_memberships', 'courses', 'group_sessions']) assert.ok(tables.includes(t), t + ' may be recorded');
+ const doc = read('docs/ai/DEMO_DATA.md');
+ for (const t of tables) assert.ok(doc.includes('`' + t + '`'), t + ' is documented');
+ assert.doesNotMatch(code, /(insert into|update|delete from)\s+(auth\.users|private\.external_identities|public\.organization_memberships)/i, 'a demo student gets no authentication account, identity or membership');
+ assert.doesNotMatch(code, /@/, 'no e-mail address anywhere in the seed');
+ assert.match(read('.gitattributes'), /20261030120000_demo_students\.sql -text/);
+ assert.ok(fs.existsSync('supabase/tests/demo-students.sql'));
 });
 test('migration: platform administrators only, every call audited, nothing runs by itself', () => {
  const sql = read(MIGRATION);
@@ -82,11 +103,11 @@ function service(rpc) {
  return { calls, svc: mod.platformDemoService({ rpc: async (name, args) => { calls.push([name, args]); return rpc(name, args); } }), mod };
 }
 test('service: each operation calls exactly one platform function with only the space id (and the on/off flag); no actor, user or role is sent', async () => {
- const { calls, svc } = service(async name => ({ data: name === 'platform_demo_status' ? { demo: true, filled: true, seedVersion: 1, filledAt: '2030-01-01T00:00:00Z', latestSeedVersion: 1 } : name === 'platform_set_demo_space' ? { demo: true } : name === 'platform_demo_fill' ? { seedVersion: 1, courses: 2, lessons: 5, groups: 2, sessions: 5 } : { removedRows: 20 }, error: null }));
- assert.deepEqual(plain(await svc.status(uuid(1))), { demo: true, filled: true, seedVersion: 1, filledAt: '2030-01-01T00:00:00Z', latestSeedVersion: 1 });
+ const { calls, svc } = service(async name => ({ data: name === 'platform_demo_status' ? { demo: true, filled: true, seedVersion: 2, filledAt: '2030-01-01T00:00:00Z', latestSeedVersion: 2 } : name === 'platform_set_demo_space' ? { demo: true } : name === 'platform_demo_fill' ? { seedVersion: 2, courses: 2, lessons: 5, groups: 2, sessions: 9, students: 28 } : { removedRows: 108 }, error: null }));
+ assert.deepEqual(plain(await svc.status(uuid(1))), { demo: true, filled: true, seedVersion: 2, filledAt: '2030-01-01T00:00:00Z', latestSeedVersion: 2 });
  assert.deepEqual(plain(await svc.setDemo(uuid(1), true)), { organizationId: uuid(1), demo: true });
- assert.deepEqual(plain(await svc.fill(uuid(1))), { seedVersion: 1, courses: 2, lessons: 5, groups: 2, sessions: 5 });
- assert.deepEqual(plain(await svc.clear(uuid(1))), { removedRows: 20 });
+ assert.deepEqual(plain(await svc.fill(uuid(1))), { seedVersion: 2, courses: 2, lessons: 5, groups: 2, sessions: 9, students: 28 });
+ assert.deepEqual(plain(await svc.clear(uuid(1))), { removedRows: 108 });
  assert.deepEqual(calls.map(c => c[0]), ['platform_demo_status', 'platform_set_demo_space', 'platform_demo_fill', 'platform_demo_clear']);
  assert.deepEqual(calls.map(c => Object.keys(c[1]).sort().join()), ['p_org', 'p_on,p_org', 'p_org', 'p_org']);
 });
@@ -113,7 +134,7 @@ test('service: a malformed or missing reply is unavailable, never success', asyn
   const { svc } = service(async () => ({ data, error: null }));
   await assert.rejects(svc.status(uuid(1)), e => e.status === 503 && e.reason === 'unavailable');
  }
- for (const [op, data] of [['fill', {}], ['fill', { seedVersion: 1, courses: -1, lessons: 1, groups: 1, sessions: 1 }], ['fill', { seedVersion: '1', courses: 1, lessons: 1, groups: 1, sessions: 1 }], ['clear', {}], ['clear', { removedRows: 'many' }], ['setDemo', {}], ['setDemo', { demo: false }]]) {
+ for (const [op, data] of [['fill', {}], ['fill', { seedVersion: 2, courses: -1, lessons: 1, groups: 1, sessions: 1, students: 1 }], ['fill', { seedVersion: '2', courses: 1, lessons: 1, groups: 1, sessions: 1, students: 1 }], ['fill', { seedVersion: 2, courses: 1, lessons: 1, groups: 1, sessions: 1 }], ['clear', {}], ['clear', { removedRows: 'many' }], ['setDemo', {}], ['setDemo', { demo: false }]]) {
   const { svc } = service(async () => ({ data, error: null }));
   await assert.rejects(op === 'setDemo' ? svc.setDemo(uuid(1), true) : svc[op](uuid(1)), e => e.status === 503, op + JSON.stringify(data));
  }
@@ -136,10 +157,10 @@ function http({ status = 'ok', origin = true, svc = {} } = {}) {
   '@/server/integrations/supabase': { getSupabaseServerClient: async () => ({}) }, '@/shared/auth-config': { isFirebaseStaging: () => true },
  });
  const service = {
-  status: async id => { calls.push(['status', id]); return { demo: false, filled: false, seedVersion: null, filledAt: null, latestSeedVersion: 1 }; },
+  status: async id => { calls.push(['status', id]); return { demo: false, filled: false, seedVersion: null, filledAt: null, latestSeedVersion: 2 }; },
   setDemo: async (id, on) => { calls.push(['setDemo', id, on]); return { organizationId: id, demo: on }; },
-  fill: async id => { calls.push(['fill', id]); return { seedVersion: 1, courses: 2, lessons: 5, groups: 2, sessions: 5 }; },
-  clear: async id => { calls.push(['clear', id]); return { removedRows: 20 }; }, ...svc,
+  fill: async id => { calls.push(['fill', id]); return { seedVersion: 2, courses: 2, lessons: 5, groups: 2, sessions: 9, students: 28 }; },
+  clear: async id => { calls.push(['clear', id]); return { removedRows: 108 }; }, ...svc,
  };
  const mod = load('server/http/platform-admin-demo.ts', { 'server-only': {}, 'next/server': { NextRequest: class {} }, '@/shared/contracts/platform-demo': contract, '@/server/http/platform-admin-portals': portals, '@/server/services/platform-demo': { platformDemoService: () => service } });
  return { mod, calls };
@@ -232,7 +253,7 @@ test('locales: every demo string exists in English and Arabic with the same plac
  }
  const teacher = ['demo.space_label'];
  for (const k of teacher) assert.doesNotMatch(messages.en[k] + messages.ar[k], /organi[sz]ation|tenant|slug|program|stage|module|website studio|منظمة|مؤسسة|برنامج|مرحلة|وحدة/i, k);
- for (const k of ['pa.demo.filled']) for (const v of ['courses', 'lessons', 'groups', 'sessions']) assert.match(messages.en[k], new RegExp('\\{' + v + '\\}'));
+ for (const k of ['pa.demo.filled']) for (const v of ['courses', 'lessons', 'groups', 'sessions', 'students']) assert.match(messages.en[k], new RegExp('\\{' + v + '\\}'));
 });
 test('admin UI: demo controls block double clicks, lock after an unknown outcome and never retry it automatically', () => {
  const ui = read('frontend/features/platform-admin/demo-section.tsx');

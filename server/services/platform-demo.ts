@@ -49,9 +49,9 @@ export function platformDemoService(client: Client) {
    const { data, error } = await client.rpc('platform_demo_fill', { p_org: organizationId });
    if (error) throw demoError(error);
    const row = data as Record<string, unknown> | null;
-   const [seedVersion, courses, lessons, groups, sessions] = ['seedVersion', 'courses', 'lessons', 'groups', 'sessions'].map((k) => count(row?.[k]));
-   if (seedVersion === null || courses === null || lessons === null || groups === null || sessions === null) throw unavailable();
-   return { seedVersion, courses, lessons, groups, sessions };
+   const [seedVersion, courses, lessons, groups, sessions, students] = ['seedVersion', 'courses', 'lessons', 'groups', 'sessions', 'students'].map((k) => count(row?.[k]));
+   if (seedVersion === null || courses === null || lessons === null || groups === null || sessions === null || students === null) throw unavailable();
+   return { seedVersion, courses, lessons, groups, sessions, students };
   },
   async clear(organizationId: string): Promise<DemoClearResult> {
    const { data, error } = await client.rpc('platform_demo_clear', { p_org: organizationId });

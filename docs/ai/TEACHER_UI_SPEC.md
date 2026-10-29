@@ -44,7 +44,7 @@ as a functioning teacher pilot. Student pages retain the approved pre-redesign V
   `POST /api/study-groups` commands `view`, `attendance`, `finalize` and `reopen`; no new endpoint, migration or permission. Phone: rows, not
   boxed cards; Save draft and Finalize fixed at the bottom; 48px targets. Tour targets are marked with `data-tour` (help, status-bar, mark-all,
   student-rows, save-actions). Reading a Session's list makes the database take the dated list of students (an existing behaviour of `view`).
-  Demo data: a demo space has no students in its Groups, so there is nothing to mark and no seed change; Clear already removes attendance rows.
+  Demo data: from demo seed version 2 a demo space has 14 fake students per Group and four past Sessions (a finalized and a draft one per Group), so attendance can be tried; Clear removes them.
 
 ## Helper (decided, not built)
 A spotlight tour: the page is dimmed, the explained part stays bright, the page scrolls to it, and a small box beside it shows a

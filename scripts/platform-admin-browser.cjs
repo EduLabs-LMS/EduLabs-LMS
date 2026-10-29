@@ -186,9 +186,9 @@ createRoot(document.getElementById('root')).render(
      if (input.action === 'fill') {
       if (d.filled) return [409, { error: 'filled', reason: 'demo_filled' }];
       if (portal.invitations[0].status !== 'accepted') return [409, { error: 'not accepted', reason: 'not_accepted' }];
-      demos.set(id, { demo: true, filled: true, seedVersion: 1, filledAt: '2030-01-02T03:04:00Z' }); return [200, { seedVersion: 1, courses: 2, lessons: 5, groups: 2, sessions: 5 }];
+      demos.set(id, { demo: true, filled: true, seedVersion: 2, filledAt: '2030-01-02T03:04:00Z' }); return [200, { seedVersion: 2, courses: 2, lessons: 5, groups: 2, sessions: 9, students: 28 }];
      }
-     demos.set(id, { demo: true, filled: false, seedVersion: null, filledAt: null }); return [200, { removedRows: 20 }];
+     demos.set(id, { demo: true, filled: false, seedVersion: null, filledAt: null }); return [200, { removedRows: 108 }];
     };
     if (behavior === 'drop') return req.socket.destroy();
     if (behavior === 'drop-applied') { apply(); demoBehaviors.unshift('sticky-drop'); return req.socket.destroy(); }
@@ -1178,7 +1178,7 @@ createRoot(document.getElementById('root')).render(
   await demoCard().getByText('This space is now a demo space.').waitFor(); await demoCard().getByText('Demo, empty').first().waitFor();
   await openDemoPortal(accepted.organizationId); demoBehaviors = ['slow'];
   await demoCard().getByRole('button', { name: 'Fill with demo data' }).dblclick();
-  await demoCard().getByText('Demo data added: 2 courses, 5 lessons, 2 Groups, 5 sessions.').waitFor();
+  await demoCard().getByText('Demo data added: 2 courses, 5 lessons, 2 Groups, 9 sessions, 28 demo students.').waitFor();
   assert.equal(demoPosts.filter(p => p.action === 'fill').length, 1, 'a double click sends one fill');
   await demoCard().getByText('Demo, filled').first().waitFor(); await demoCard().getByText('2030-01-02 03:04 UTC').waitFor();
   assert.equal(await demoCard().getByRole('button', { name: 'Fill with demo data' }).isDisabled(), true); assert.equal(await demoCard().getByRole('button', { name: 'Turn demo off' }).isDisabled(), true);
@@ -1188,7 +1188,7 @@ createRoot(document.getElementById('root')).render(
   assert.equal(demoPosts.filter(p => p.action === 'clear').length, 0, 'the confirmation sent nothing');
   await demoCard().getByRole('button', { name: 'Cancel' }).click(); assert.equal(await demoCard().getByRole('group').count(), 0);
   await demoCard().getByRole('button', { name: 'Clear demo data' }).click(); await demoCard().getByRole('button', { name: 'Yes, clear demo data' }).click();
-  await demoCard().getByText('Demo data cleared (20 rows removed).').waitFor(); await demoCard().getByText('Demo, empty').first().waitFor();
+  await demoCard().getByText('Demo data cleared (108 rows removed).').waitFor(); await demoCard().getByText('Demo, empty').first().waitFor();
   assert.equal(await demoCard().getByRole('button', { name: 'Turn demo off' }).isEnabled(), true); await demoCard().getByRole('button', { name: 'Turn demo off' }).click();
   await demoCard().getByText('Demo is off for this space.').waitFor(); await demoCard().getByText('Not a demo').first().waitFor();
   assert.deepEqual(demoPosts.map(p => Object.keys(p).join()), Array(demoPosts.length).fill('action'), 'only a verb is ever sent');

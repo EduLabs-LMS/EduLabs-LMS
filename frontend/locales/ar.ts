@@ -957,7 +957,7 @@ export const ar: Record<keyof typeof en, string> = {
   "pa.demo.clear_yes": "نعم، امسح البيانات التجريبية",
   "pa.demo.marked": "أصبحت هذه المساحة تجريبية.",
   "pa.demo.unmarked": "تم إيقاف الوضع التجريبي لهذه المساحة.",
-  "pa.demo.filled": "أُضيفت بيانات تجريبية: {courses} دورات، {lessons} دروس، {groups} مجموعات، {sessions} حصص.",
+  "pa.demo.filled": "أُضيفت بيانات تجريبية: {courses} دورات، {lessons} دروس، {groups} مجموعات، {sessions} حصص، {students} طلاب تجريبيين.",
   "pa.demo.cleared": "تم مسح البيانات التجريبية (حُذف {count} سجل).",
   "pa.demo.unknown_title": "لم يصل رد",
   "pa.demo.unknown_body": "قد يكون التغيير قد طُبّق وقد لا يكون. تحقق من الحالة قبل أي إجراء آخر؛ لا يُعاد أي شيء تلقائيًا.",

@@ -67,8 +67,8 @@ insert into public.group_schedules(group_id,weekday,local_time,duration_minutes)
 select set_config('dcr.b_before',pg_temp.leftover(pg_temp.key('org_b')),true);
 
 -- 1. Fill space A.
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))->>'sessions')::int=5,'fill creates the five sessions');
-select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_a'))='2/3/5/1/2/5/0/2/'||(select count(*) from private.demo_seed_rows where organization_id=pg_temp.key('org_a')),'fill state is what the seed table says');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))->>'sessions')::int=9,'fill creates the nine sessions (five upcoming, four past)');
+select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_a'))='2/3/5/1/2/9/0/2/'||(select count(*) from private.demo_seed_rows where organization_id=pg_temp.key('org_a')),'fill state is what the seed table says');
 
 -- 2. The teacher adds things the registry does not know: a Session and a weekly time on a demo Group, a second offering with its own Group,
 --    Session and staff, and a chapter with a lesson and a block inside a demo course.
@@ -99,7 +99,7 @@ rollback to savepoint blocker;
 insert into dcr_results values('clear refuses content it does not remove, and removes nothing first');
 
 -- 4. Space C: filled, then a student is enrolled. Clear refuses and leaves everything in place.
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_c'),(select id from dcr_users where label='admin'))->>'sessions')::int=5,'space C is filled');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_c'),(select id from dcr_users where label='admin'))->>'sessions')::int=9,'space C is filled');
 insert into public.enrollments(offering_id,user_id,status) select o.id,u.id,'active' from public.course_offerings o join public.courses c on c.id=o.course_id cross join dcr_users u
  where c.organization_id=pg_temp.key('org_c') and u.label='student';
 select set_config('dcr.c_before',pg_temp.leftover(pg_temp.key('org_c')),true);
@@ -109,7 +109,7 @@ select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_c'))=current_setting('dcr.c_
 -- 5. Clear space A. Recorded: 3+1 chapters, 5+1 lessons, 2 courses = 12. Added or recorded under the Groups and offerings: 7 sessions, 1 weekly time,
 --    3 staff rows, 3 Groups, 2 offerings = 16. Total 28, and nothing is left.
 select set_config('dcr.a_result',private.demo_clear_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))::text,true);
-select pg_temp.ok((current_setting('dcr.a_result')::jsonb->>'removedRows')::int=28,'removedRows counts every removed row, added ones included');
+select pg_temp.ok((current_setting('dcr.a_result')::jsonb->>'removedRows')::int=116,'removedRows counts every removed row, added ones included');
 select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_a'))='0/0/0/0/0/0/0/0/0','clear leaves nothing for the space (courses, chapters, lessons, offerings, Groups, Sessions, weekly times, staff, registry)');
 select pg_temp.ok(not exists(select 1 from public.group_sessions where group_id in (pg_temp.key('a_group'),pg_temp.key('a_group2')))
  and not exists(select 1 from public.study_groups where id in (pg_temp.key('a_group'),pg_temp.key('a_group2')))
@@ -120,7 +120,7 @@ select pg_temp.ok(not exists(select 1 from public.group_sessions where group_id 
 select pg_temp.ok(pg_temp.events(pg_temp.key('org_a'))=0,'no notification event of the space remains');
 select pg_temp.ok(not exists(select 1 from private.group_audit where group_id in (pg_temp.key('a_group'),pg_temp.key('a_group2'))),'no Group audit row remains');
 select pg_temp.ok(exists(select 1 from private.demo_spaces where organization_id=pg_temp.key('org_a') and seed_version is null and filled_at is null),'the space is still demo, now empty');
-select pg_temp.ok((select (detail->>'removedRows')::int=28 and detail ? 'removedByTable' and detail ? 'removedSupportRows' from private.platform_audit where organization_id=pg_temp.key('org_a') and action='demo.clear'),'the audit row carries the honest counts');
+select pg_temp.ok((select (detail->>'removedRows')::int=116 and detail ? 'removedByTable' and detail ? 'removedSupportRows' from private.platform_audit where organization_id=pg_temp.key('org_a') and action='demo.clear'),'the audit row carries the honest counts');
 
 -- 6. Spaces that are not A are untouched; clear is not available for a space that is not demo.
 select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_b'))=current_setting('dcr.b_before') and exists(select 1 from public.group_sessions where group_id=pg_temp.key('b_group'))
@@ -130,8 +130,8 @@ select pg_temp.denied(format('select private.demo_clear_core(%L,%L)',pg_temp.key
 select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_b'))=current_setting('dcr.b_before'),'the refused ordinary space is unchanged');
 
 -- 7. After a clear the space can be filled again (the same course slugs are free) and cleared again with the original count.
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))->>'sessions')::int=5,'a cleared space can be filled again');
-select pg_temp.ok((private.demo_clear_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))->>'removedRows')::int=20,'a plain clear still removes exactly the 20 recorded rows');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))->>'sessions')::int=9,'a cleared space can be filled again');
+select pg_temp.ok((private.demo_clear_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))->>'removedRows')::int=108,'a plain clear still removes exactly the 108 recorded rows');
 
 -- 8. The function is not callable by API roles.
 select pg_temp.ok((select bool_and(not has_function_privilege(r,'private.demo_clear_core(uuid,uuid)','execute')) from unnest(array['anon','authenticated']) r),'API roles cannot call demo_clear_core');

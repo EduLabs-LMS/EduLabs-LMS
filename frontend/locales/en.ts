@@ -957,7 +957,7 @@ export const en = {
   "pa.demo.clear_yes": "Yes, clear demo data",
   "pa.demo.marked": "This space is now a demo space.",
   "pa.demo.unmarked": "Demo is off for this space.",
-  "pa.demo.filled": "Demo data added: {courses} courses, {lessons} lessons, {groups} Groups, {sessions} sessions.",
+  "pa.demo.filled": "Demo data added: {courses} courses, {lessons} lessons, {groups} Groups, {sessions} sessions, {students} demo students.",
   "pa.demo.cleared": "Demo data cleared ({count} rows removed).",
   "pa.demo.unknown_title": "No reply received",
   "pa.demo.unknown_body": "The change may or may not have been applied. Check the status before doing anything else; nothing is retried automatically.",

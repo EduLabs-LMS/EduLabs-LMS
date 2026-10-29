@@ -19,3 +19,4 @@ supabase/migrations/20261024120000_platform_admin_teacher_provisioning.sql -text
 supabase/migrations/20261025100000_teacher_invitation_delivery.sql -text
 supabase/migrations/20261027120000_demo_spaces.sql -text
 supabase/migrations/20261029120000_demo_clear_robust.sql -text
+supabase/migrations/20261030120000_demo_students.sql -text
