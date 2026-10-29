@@ -977,4 +977,8 @@ export const en = {
   "pa.activity.demo_fill": "Demo data added",
   "pa.activity.demo_clear": "Demo data cleared",
   "demo.space_label": "Demo space",
+  "th.nav.soon": "Coming soon",
+  "th.profile.settings": "Settings",
+  "th.profile.photo": "Your profile photo",
+  "th.profile.no_name": "Name not set",
 } as const;

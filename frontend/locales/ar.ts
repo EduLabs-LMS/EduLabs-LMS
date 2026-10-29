@@ -977,4 +977,8 @@ export const ar: Record<keyof typeof en, string> = {
   "pa.activity.demo_fill": "أُضيفت بيانات تجريبية",
   "pa.activity.demo_clear": "مُسحت البيانات التجريبية",
   "demo.space_label": "مساحة تجريبية",
+  "th.nav.soon": "قريباً",
+  "th.profile.settings": "الإعدادات",
+  "th.profile.photo": "صورة ملفك الشخصي",
+  "th.profile.no_name": "الاسم غير محدد",
 };

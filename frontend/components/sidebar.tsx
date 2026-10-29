@@ -23,6 +23,7 @@ import {
 import EduLabsMark from '@/frontend/components/edulabs-mark';
 import { showTeacherNav } from '@/shared/teacher-home';
 import { TeacherNav } from '@/frontend/features/teacher-home/teacher-nav';
+import { TeacherProfile } from '@/frontend/features/teacher-home/teacher-profile';
 import { NotificationBell } from '@/frontend/features/notifications/notifications-view';
 import { cn } from '@/shared/utils';
 
@@ -265,8 +266,8 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		{teacherMode && <div data-teacher-support className="px-3 pb-3"><a href="/support" onClick={() => onNavigate?.()} aria-current={isSupportActive ? 'page' : undefined} className={cn('relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15px] font-medium rounded-2xl border-2 border-transparent transition-all duration-200 ease-out', isSupportActive ? 'bg-primary text-black border-black font-semibold shadow-hard-sm' : 'text-slate-700 hover:text-black hover:bg-slate-100')}><HelpCircle aria-hidden className={cn('w-[22px] h-[22px] shrink-0', isSupportActive ? 'text-black' : 'text-slate-500')} /><span><L id="navigation.support" /></span></a></div>}
 		</div>
 
-		{/* 3. BOTTOM FOOTER WITH USER PROFILE & LOGOUT */}
-		<div className="p-3 border-t-[2.5px] border-black bg-slate-50 shrink-0 space-y-2">
+		{/* 3. BOTTOM FOOTER WITH USER PROFILE & LOGOUT. Teachers get their account and the Settings cog instead (sign-out lives in Settings, My account). */}
+		{teacherMode ? <div data-teacher-footer className="p-3 border-t-[2.5px] border-black bg-slate-50 shrink-0"><TeacherProfile onNavigate={onNavigate} /></div> : <div className="p-3 border-t-[2.5px] border-black bg-slate-50 shrink-0 space-y-2">
 		<div className="flex items-center gap-3 p-2 rounded-2xl bg-white border-2 border-black shadow-hard-sm">
 		{/* z-[99999] and pointer-events-auto fixes Clerk popover touch lock inside Radix Sheet */}
 		<UserButton
@@ -311,7 +312,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		<LogOut className="w-4 h-4 shrink-0 text-slate-500" />
 		<span><L id="navigation.sign_out"/></span>
 		</button>
-		</div>
+		</div>}
 		</aside>
 	);
 };

@@ -88,25 +88,30 @@ test('create targets and course names: owners, admins and teachers may create; n
  for (const title of ['Physics 10', '  Chemistry & Lab!! ', 'فيزياء الصف العاشر', 'Café Élève', '---', 'x'.repeat(300)]) { const slug = home.courseSlug(title, () => 'AbC123-zzz'); assert.match(slug, rule, title); assert.ok(slug.length <= 100); }
  assert.match(home.courseSlug('فيزياء', () => 'abc123'), /^course-abc123$/);
 });
-test('navigation: eight destinations in order, for active staff of the Firebase build only', () => {
- assert.deepEqual([...home.teacherNav.map(n => n.key)], ['home', 'courses', 'students', 'groups', 'homework', 'exams', 'reports', 'settings']);
+test('navigation: exactly six destinations in order, for active staff of the Firebase build only', () => {
+ assert.deepEqual([...home.teacherNav.map(n => n.key)], ['home', 'students', 'groups', 'homework', 'exams', 'reports']);
  assert.equal(home.showTeacherNav(true, [uuid(50)]), true);
  assert.equal(home.showTeacherNav(true, []), false, 'a student has no staff organizations');
  assert.equal(home.showTeacherNav(true, undefined), false); assert.equal(home.showTeacherNav(true, null), false);
  assert.equal(home.showTeacherNav(false, [uuid(50)]), false, 'the Clerk fallback keeps its own navigation');
  const active = path => [...home.teacherNav.filter(n => n.match(path)).map(n => n.key)];
- assert.deepEqual(active('/home'), ['home']); assert.deepEqual(active('/'), ['home']); assert.deepEqual(active('/teacher/courses/abc'), ['courses']);
- assert.deepEqual(active('/settings'), ['settings']); assert.deepEqual(active('/groups'), ['groups']); assert.deepEqual(active('/self-learning'), []);
+ assert.deepEqual(active('/home'), ['home']); assert.deepEqual(active('/'), ['home']); assert.deepEqual(active('/teacher/groups'), ['groups']); assert.deepEqual(active('/teacher/groups/abc'), ['groups']);
+ assert.deepEqual(active('/teacher/courses/abc'), [], 'Courses is not a main menu item any more'); assert.deepEqual(active('/teacher/settings/courses'), []); assert.deepEqual(active('/self-learning'), []);
  const sidebar = read('frontend/components/sidebar.tsx');
  assert.match(sidebar, /showTeacherNav\(isFirebaseStaging\(\), navigation\?\.staffOrganizationIds\)/); assert.match(sidebar, /teacherMode \? <TeacherNav/);
- assert.match(sidebar, /NotificationBell/, 'the single notification entry stays in the shared shell');
- assert.equal((read('frontend/features/teacher-home/teacher-nav.tsx').match(/NotificationBell/g) ?? []).length, 0, 'no second notification entry');
+ assert.match(sidebar, /teacherMode \? <div data-teacher-footer[^>]*><TeacherProfile/, 'the teacher footer is the profile with the Settings cog');
+ assert.equal((read('frontend/features/teacher-home/teacher-nav.tsx').match(/NotificationBell/g) ?? []).length, 0, 'no notification entry in the teacher menu');
  for (const n of home.teacherNav) assert.ok(messages.en['th.nav.' + n.key] && messages.ar['th.nav.' + n.key], n.key);
+ assert.ok(messages.en['th.nav.soon'] && messages.ar['th.nav.soon']);
 });
-test('navigation: destinations without a new screen reach the existing neutral scaffold or existing page', () => {
+test('navigation: destinations without a new screen reach the existing neutral scaffold or existing page; a missing screen is a disabled Coming soon item, never a link', () => {
  const byKey = Object.fromEntries(home.teacherNav.map(n => [n.key, n.href]));
- for (const key of ['students', 'homework', 'reports']) { const route = 'app/(dashboard)/(routes)' + byKey[key] + '/page.tsx'; assert.match(read(route), /TeacherFoundationPage/, key); }
- assert.equal(byKey.home, '/home'); assert.equal(byKey.courses, '/teacher/courses'); assert.equal(byKey.settings, '/settings');
+ for (const key of ['students', 'homework']) { const route = 'app/(dashboard)/(routes)' + byKey[key] + '/page.tsx'; assert.match(read(route), /TeacherFoundationPage/, key); }
+ assert.equal(byKey.home, '/home'); assert.equal(byKey.groups, '/teacher/groups'); assert.equal(byKey.exams, '/exams');
+ assert.equal(byKey.reports, null, 'Reports has no screen yet'); assert.deepEqual([...home.teacherNav.filter(n => n.href === null).map(n => n.key)], ['reports']);
+ const nav = read('frontend/features/teacher-home/teacher-nav.tsx');
+ assert.match(nav, /item\.href === null\) return <span[^>]*aria-disabled="true"[^>]*data-soon/); assert.match(nav, /<L id="th\.nav\.soon" \/>/);
+ assert.doesNotMatch(read('middleware.ts') + read('shared/website-routes.ts'), /teacher\/analytics/, 'no legacy path is allow-listed for the disabled item');
 });
 test('locales: every teacher Home string exists in English and Arabic with the same placeholders, and the keys stay in sync', () => {
  assert.deepEqual(Object.keys(messages.en).sort(), Object.keys(messages.ar).sort());
@@ -122,7 +127,7 @@ test('locales: every teacher Home string exists in English and Arabic with the s
 test('wording: no tenant, program or studio vocabulary reaches a teacher on these screens, in either language', () => {
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
  for (const k of Object.keys(messages.en).filter(k => k.startsWith('th.'))) { assert.doesNotMatch(messages.en[k], forbidden, k); assert.doesNotMatch(messages.ar[k], forbidden, k); }
- const shown = ['home-view', 'courses-view', 'parts', 'create-course', 'teacher-nav'].map(f => read('frontend/features/teacher-home/' + f + '.tsx')).join('\n')
+ const shown = ['home-view', 'courses-view', 'parts', 'create-course', 'teacher-nav', 'teacher-profile'].map(f => read('frontend/features/teacher-home/' + f + '.tsx')).join('\n')
   .replace(/organization_id|slug|courseSlug|Slug/g, '');
  assert.doesNotMatch(shown.replace(/\b(className|class)=("[^"]*"|\{[^}]*\})/g, ''), /Organization|Tenant|Website Studio|>\s*Program|Module/);
 });
@@ -161,7 +166,7 @@ test('render: the Courses page states and the section errors render accessible, 
 test('sidebar: Support stays reachable for staff through the existing /support route, in both languages', () => {
  const sidebar = read('frontend/components/sidebar.tsx');
  assert.match(sidebar, /teacherMode && <div data-teacher-support[\s\S]*?href="\/support"[\s\S]*?<L id="navigation\.support" \/>/);
- assert.equal(home.teacherNav.length, 8, 'eight teacher links');
+ assert.equal(home.teacherNav.length, 6, 'six teacher links');
  assert.ok(messages.en['navigation.support'] && messages.ar['navigation.support'], 'Support label exists in en and ar');
- assert.equal(home.teacherNav.some(n => n.href === '/support'), false, 'Support is the footer entry, not one of the eight');
+ assert.equal(home.teacherNav.some(n => n.href === '/support'), false, 'Support is the footer entry, not one of the six');
 });

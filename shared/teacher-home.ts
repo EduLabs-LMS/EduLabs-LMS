@@ -122,17 +122,15 @@ export function courseSlug(title: string, random: () => string): string {
   return base ? `${base}-${suffix}` : `course-${suffix}`;
 }
 
-export type TeacherNavItem = { key: 'home' | 'courses' | 'students' | 'groups' | 'homework' | 'exams' | 'reports' | 'settings'; href: string; match: (path: string) => boolean };
-/** Destinations without a new screen go to the existing neutral scaffold or the existing page; nothing here is faked. */
+export type TeacherNavItem = { key: 'home' | 'students' | 'groups' | 'homework' | 'exams' | 'reports'; /** null = the screen does not exist yet: shown as a disabled "Coming soon" item, never a link. */ href: string | null; match: (path: string) => boolean };
+/** The main teacher menu. Courses and Settings live under /teacher/settings (the cog beside the profile). Destinations without a new screen go to the existing neutral scaffold or the existing page; nothing here is faked. */
 export const teacherNav: readonly TeacherNavItem[] = [
   { key: 'home', href: '/home', match: p => p === '/' || p === '/home' },
-  { key: 'courses', href: '/teacher/courses', match: p => p.startsWith('/teacher/courses') || p === '/teacher/create' },
   { key: 'students', href: '/admin/users', match: p => p.startsWith('/admin/users') },
-  { key: 'groups', href: '/groups', match: p => p.startsWith('/group') || p === '/sessions-groups' || p === '/sessions' },
+  { key: 'groups', href: '/teacher/groups', match: p => p === '/teacher/groups' || p.startsWith('/teacher/groups/') },
   { key: 'homework', href: '/admin/submissions', match: p => p.startsWith('/admin/submissions') },
   { key: 'exams', href: '/exams', match: p => p.startsWith('/exams') },
-  { key: 'reports', href: '/teacher/analytics', match: p => p.startsWith('/teacher/analytics') },
-  { key: 'settings', href: '/settings', match: p => p === '/settings' || p.startsWith('/settings/') || p === '/personalization' },
+  { key: 'reports', href: null, match: () => false },
 ];
 
 /** Teacher navigation is for active staff of the Firebase/Supabase build only; students and the Clerk fallback keep their own navigation. */

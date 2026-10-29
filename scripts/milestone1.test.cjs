@@ -8,12 +8,13 @@ test('Firebase sidebar labels contextual students/staff and places its only bell
    'next/link':link,'next/navigation':{usePathname:()=>'/home'},'@/shared/auth-config':{isFirebaseStaging:()=>true},
    '@/frontend/components/providers/application-auth-provider':{useWebsiteNavigation:()=>({staffOrganizationIds:staff?['org']:[]})},
    '@/frontend/components/providers/v2-identity':{useUser:()=>({user:{fullName:'Fictional Student'}}),useClerk:()=>({signOut:()=>{}}),UserButton:()=>React.createElement('button',null,'Account')},
-   '@/shared/teacher-home':{showTeacherNav:(firebase,ids)=>firebase&&Boolean(ids&&ids.length)},'@/frontend/features/teacher-home/teacher-nav':{TeacherNav:()=>React.createElement('nav',{'data-teacher-nav':true},'Teacher navigation')},'@/frontend/lib/api':{api:{}},'@/frontend/components/edulabs-mark':()=>null,'@/shared/utils':{cn:(...x)=>x.filter(Boolean).join(' ')},
+   '@/shared/teacher-home':{showTeacherNav:(firebase,ids)=>firebase&&Boolean(ids&&ids.length)},'@/frontend/features/teacher-home/teacher-profile':{TeacherProfile:()=>require('react').createElement('div',{'data-teacher-profile':true})},'@/frontend/features/teacher-home/teacher-nav':{TeacherNav:()=>React.createElement('nav',{'data-teacher-nav':true},'Teacher navigation')},'@/frontend/lib/api':{api:{}},'@/frontend/components/edulabs-mark':()=>null,'@/shared/utils':{cn:(...x)=>x.filter(Boolean).join(' ')},
    '@/frontend/features/notifications/notifications-view':{NotificationBell:()=>React.createElement('button',null,'Notification preview')},
   }).default;
   const html=renderToStaticMarkup(React.createElement(Sidebar));
-  assert.match(html,staff?/>STAFF</:/>STUDENT</);assert.doesNotMatch(html,/LEARNER|>Logout</);
-  assert.equal((html.match(/Notification preview/g)||[]).length,1);assert.ok(html.indexOf('Notification preview')>html.indexOf('Fictional Student'));assert.match(html,/Sign out/);
+  assert.doesNotMatch(html,/LEARNER|>Logout</);
+  if(staff){assert.match(html,/data-teacher-profile/,'staff get their account and the Settings cog at the bottom');assert.doesNotMatch(html,/>STAFF<|Notification preview|Sign out/,'the teacher menu footer is the account and the cog only');}
+  else{assert.match(html,/>STUDENT</);assert.equal((html.match(/Notification preview/g)||[]).length,1);assert.ok(html.indexOf('Notification preview')>html.indexOf('Fictional Student'));assert.match(html,/Sign out/);assert.doesNotMatch(html,/data-teacher-profile/);}
   assert.equal(html.includes('data-teacher-nav'),staff,'staff get the teacher navigation, students do not');assert.equal(html.includes('Admin &amp; Teacher'),false,'the old mixed staff section is replaced');
   assert.equal(html.includes('data-teacher-support'),staff,'only the teacher navigation gets the footer Support entry');assert.equal((html.match(/href="\/support"/g)||[]).length,1,'Support is reachable exactly once for staff and for students');assert.match(html,/>Support</);
   if(!staff)for(const link of ['/home','/exams','/settings'])assert.match(html,new RegExp('href="'+link+'"'),'student navigation keeps '+link);
