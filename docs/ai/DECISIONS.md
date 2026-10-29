@@ -32,3 +32,11 @@
   the demo seed in the same change: new seed module, bump the seed version, add its tables to the demo_seed_rows allowed list in
   a new migration, and update docs/ai/DEMO_DATA.md. scripts/demo-spaces.test.cjs enforces that the SQL, the service constant and
   the document agree.
+
+- Helper (owner decision): the teacher Helper is a spotlight tour (dimmed page, bright target, small box with Back/Next/Skip, Escape
+  closes; bottom box on phone; mirrored in Arabic). It runs automatically on a new teacher's first sign-in, starting on Home, and
+  every teacher page has a quiet "?" button in its header that starts that page's tour. Settings > My account gets "Show the
+  walkthrough again". Tour steps are written per page after the final screens exist, in English and Arabic, and each points at a real
+  element (new screens mark their tour targets). Open, not decided: where the "seen" flag is stored; preferred per teacher in the
+  database, which needs a migration and owner approval before any migration is written or applied. Stored Helper data must extend the
+  demo seed or be excluded with a reason. Details: V1.md and TEACHER_UI_SPEC.md.

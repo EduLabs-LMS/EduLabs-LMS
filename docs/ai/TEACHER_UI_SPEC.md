@@ -8,7 +8,9 @@ as a functioning teacher pilot. Student pages retain the approved pre-redesign V
 
 ## Built so far (owner-approved designs, Firebase staging only; other modes keep the neutral scaffold)
 - **Home** (`/home` for staff): next Session, homework (honest "not available yet"), important updates, coming up, one small
-  "Courses" link. First visit shows one optional "create your first course" step.
+  "Courses" link. First visit shows one optional "create your first course" step. There was no tour; the owner has now decided on one (below, "Helper
+  (decided, not built)"), which runs automatically on the first sign-in starting here, so that earlier "no tour" position no longer applies
+  to the first Home visit.
 - **Menu** (sidebar and phone drawer, active staff only), exactly six items from the one array `teacherNav` in
   `shared/teacher-home.ts`: Home, Students, Groups & Classes, Homework, Exams, Reports. Courses and Settings are not menu items.
   **Coming soon rule:** an item whose screen does not exist yet has `href: null` and renders as a disabled item
@@ -30,6 +32,18 @@ as a functioning teacher pilot. Student pages retain the approved pre-redesign V
   **Archive Group** (course instructor only, asks first). Not built, by decision: Create a Group, Edit Group, Take attendance and the
   per-session screen (Create/Edit need a weekly-times editor and offering choice; attendance is its own task), reschedule/restore and
   student add/remove/transfer. Teacher words only: Course, Chapter, Lesson, Group, Session, Students.
+
+## Helper (decided, not built)
+A spotlight tour: the page is dimmed, the explained part stays bright, the page scrolls to it, and a small box beside it shows a
+title, one or two plain lines, "Step N of M", Back and Next (Done on the last step). Skip is visible on every step; Escape closes it.
+On phone the box sits at the bottom of the screen and never covers the highlighted part. In Arabic the layout mirrors and Back/Next
+swap sides. It runs automatically the first time a new teacher signs in, starting on Home (the menu, the main parts of Home, the "?"
+button). Every teacher page has a quiet outlined "?" button in its header (top right of the title row on desktop; beside the menu
+button in the header bar on phone) that starts the tour for that page only. Settings > My account gets "Show the walkthrough again"
+(design pending). Tour steps are written per page after the final screens exist, in English and Arabic, in teacher words only. Each
+step points at a real element, so **every new screen marks its tour targets**. Open: where the "seen" flag is stored (preferred per
+teacher in the database; that needs a migration and owner approval first). Stored Helper data must extend the demo seed or be excluded
+with a reason. See V1.md.
 
 ## Screens to rebuild incrementally, after owner approval
 1. Teacher course list/dashboard and navigation.
