@@ -51,10 +51,11 @@ export function attendanceSummary(s: GroupSession, now: number): AttendanceSumma
 }
 
 /** The most recent finished, non-cancelled session has no saved attendance. Derived from the same sessions read the card already makes. */
-export function lastAttendanceUnsaved(rows: readonly GroupSession[], now: number) {
+export function lastUnsavedSession(rows: readonly GroupSession[], now: number): GroupSession | null {
   const done = rows.filter(s => !s.cancelled && Date.parse(s.ends_at) <= now).sort((a, b) => Date.parse(b.ends_at) - Date.parse(a.ends_at));
-  return done.length > 0 && done[0].attendance_state !== 'finalized';
+  return done.length > 0 && done[0].attendance_state !== 'finalized' ? done[0] : null;
 }
+export const lastAttendanceUnsaved = (rows: readonly GroupSession[], now: number) => lastUnsavedSession(rows, now) !== null;
 
 export const nextOf = (rows: readonly GroupSession[], now: number) => nextSession([...rows], now);
 

@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { card, inkButton, linkClass, plainButton, primaryButton, sessionTime } from '@/frontend/features/teacher-home/parts';
 import { cairoWallTime, sessionDefinition, sessionState, type GroupPage, type GroupRow, type GroupSession, type StudyGroup } from '@/shared/contracts/groups';
+import { attendanceHref, canTakeAttendance } from '@/shared/teacher-attendance';
 import { RECENT_PAST, attendanceSummary, currentMembers, partitionSessions, type WeeklyTime } from '@/shared/teacher-groups';
 import { GroupCallError, groupCall, isAbort } from './api';
 import { GroupError, Loading, ModeLabel, WeeklyTimes, stateTone } from './parts';
@@ -164,6 +165,7 @@ function SessionItem({ s, now, group, canCancel, onChanged }: { s: GroupSession;
       <span className={`inline-flex min-h-[28px] items-center rounded-full border-2 border-black px-3 text-base font-bold ${stateTone[state]}`}><L id={`tg.state.${state}`} /></span>
     </div>
     {att !== 'none' && <p data-attendance={att} className="text-base text-slate-700"><L id={`tg.att.${att}`} /></p>}
+    {canTakeAttendance(s, now) && <Link href={attendanceHref(group.id, s.id)} data-attendance-link className={linkClass}><L id="ta.open" /></Link>}
     {canCancel && state === 'upcoming' && <CancelSession s={s} group={group} onDone={onChanged} />}
   </li>;
 }

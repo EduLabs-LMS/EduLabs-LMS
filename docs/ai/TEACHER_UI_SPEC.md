@@ -29,9 +29,22 @@ as a functioning teacher pilot. Student pages retain the approved pre-redesign V
   attendance, a yellow "not saved" line) and one Group with Sessions (upcoming, earlier, "See older sessions"), Students and Details tabs
   and a side panel on desktop. Everything is read through the existing `POST /api/study-groups`; the database decides what is visible.
   Buttons that exist: **Add a Session** (one-off, Cairo date and time), **Cancel session** (upcoming only, asks first),
-  **Archive Group** (course instructor only, asks first). Not built, by decision: Create a Group, Edit Group, Take attendance and the
-  per-session screen (Create/Edit need a weekly-times editor and offering choice; attendance is its own task), reschedule/restore and
+  **Archive Group** (course instructor only, asks first). Not built, by decision: Create a Group and Edit Group
+  (they need a weekly-times editor and offering choice), reschedule/restore and
   student add/remove/transfer. Teacher words only: Course, Chapter, Lesson, Group, Session, Students.
+
+- **Take attendance** (`/teacher/groups/<groupId>/attendance/<sessionId>`, branch `claude/teacher-attendance`, awaiting owner approval): opened from
+  "Attendance" on a started Session row, or from the Group card's "Attendance ... not saved" line. Title "Attendance · Session N" (N is left out
+  when the Session list is too long to count), subtitle with Cairo date, time and place, a quiet outlined "?" in the title row (it does nothing yet,
+  and says so; the walkthrough is not built, and the phone header-bar placement belongs to the shared header and comes with the Helper). Status bar
+  Not saved yet / Finalized / Reopened (draft / finalized / reopened) with Present, Absent and Not marked counts. One row per student with Present and
+  Absent only (attended / absent / not marked; no late or excused); Mark everyone present; Save draft (sends only what changed, at most 100 marks a
+  call, re-reading the Session version after each); Finalize attendance (asks first, warns about unmarked students, instructor only); a finalized
+  list is locked and shows Reopen (instructor only, asks for a reason). Reopened behaves as a draft. Everything uses the existing
+  `POST /api/study-groups` commands `view`, `attendance`, `finalize` and `reopen`; no new endpoint, migration or permission. Phone: rows, not
+  boxed cards; Save draft and Finalize fixed at the bottom; 48px targets. Tour targets are marked with `data-tour` (help, status-bar, mark-all,
+  student-rows, save-actions). Reading a Session's list makes the database take the dated list of students (an existing behaviour of `view`).
+  Demo data: a demo space has no students in its Groups, so there is nothing to mark and no seed change; Clear already removes attendance rows.
 
 ## Helper (decided, not built)
 A spotlight tour: the page is dimmed, the explained part stays bright, the page scrolls to it, and a small box beside it shows a

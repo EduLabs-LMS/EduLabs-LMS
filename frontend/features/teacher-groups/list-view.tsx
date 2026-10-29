@@ -5,7 +5,8 @@ import { AlertTriangle, Search } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { card, linkClass, plainButton, sessionTime } from '@/frontend/features/teacher-home/parts';
 import type { GroupPage, GroupRow, GroupSession, StudyGroup } from '@/shared/contracts/groups';
-import { LIST_PAGES, PAGE_SIZE, filterGroups, groupCounts, lastAttendanceUnsaved, managed, nextOf, studentsCount, type GroupFilter, type WeeklyTime } from '@/shared/teacher-groups';
+import { attendanceHref } from '@/shared/teacher-attendance';
+import { LIST_PAGES, PAGE_SIZE, filterGroups, groupCounts, lastUnsavedSession, managed, nextOf, studentsCount, type GroupFilter, type WeeklyTime } from '@/shared/teacher-groups';
 import { GroupCallError, groupCall, isAbort, limited } from './api';
 import { GroupError, Loading, ModeLabel, WeeklyTimes } from './parts';
 
@@ -86,7 +87,7 @@ function GroupCard({ group }: { group: StudyGroup }) {
   }, [group.id, group.capacity, revision]);
 
   const next = facts.state === 'ready' ? nextOf(facts.sessions, facts.serverNow) : null;
-  const unsaved = facts.state === 'ready' && lastAttendanceUnsaved(facts.sessions, facts.serverNow);
+  const unsaved = facts.state === 'ready' ? lastUnsavedSession(facts.sessions, facts.serverNow) : null;
   return <article data-group-card={group.id} className={`${card} flex h-full flex-col gap-3`}>
     <div className="min-w-0">
       <h2 className="font-display text-2xl leading-tight"><Link href={`/teacher/groups/${group.id}`} className="inline-flex min-h-[44px] items-center underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black">{group.name}</Link></h2>
@@ -100,7 +101,7 @@ function GroupCard({ group }: { group: StudyGroup }) {
       <div><dt className="font-bold"><L id="tg.card.weekly" /></dt><dd><WeeklyTimes items={facts.schedules} /></dd></div>
       <div><dt className="font-bold"><L id="tg.tab.students" /></dt><dd data-students-count><Students value={facts.students} /></dd></div>
     </dl>}
-    {unsaved && <p data-attendance-unsaved className="flex gap-2 rounded-xl border-2 border-black bg-amber-100 p-3 text-base"><AlertTriangle aria-hidden className="mt-0.5 h-5 w-5 shrink-0" /><L id="tg.card.unsaved" /></p>}
+    {unsaved && <Link href={attendanceHref(group.id, unsaved.id)} data-attendance-unsaved className="flex min-h-[48px] gap-2 rounded-xl border-2 border-black bg-amber-100 p-3 text-base font-bold underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black"><AlertTriangle aria-hidden className="mt-0.5 h-5 w-5 shrink-0" /><L id="tg.card.unsaved" /></Link>}
     <Link href={`/teacher/groups/${group.id}`} className={`${linkClass} mt-auto`}><L id="tg.card.open" /></Link>
   </article>;
 }

@@ -130,17 +130,17 @@ test('middleware: with Firebase staging on, exactly the Settings and Group pages
  }).default;
  const run = path => middleware({ nextUrl: new URL('https://platform.example' + path), url: 'https://platform.example' + path }, {});
  const id = '1234abcd-0000-4000-8000-00000000000f';
- for (const ok of [...settings.teacherSettingsPaths, '/teacher/groups', '/teacher/groups/' + id]) assert.equal(run(ok).kind, 'next', ok + ' passes through');
+ for (const ok of [...settings.teacherSettingsPaths, '/teacher/groups', '/teacher/groups/' + id, '/teacher/groups/' + id + '/attendance/' + id]) assert.equal(run(ok).kind, 'next', ok + ' passes through');
  const refusedPages = ['/teacher/settings/', '/teacher/settings/account/', '/teacher/settings/other', '/teacher/settings/account/extra', '/teacher/settings//account', '/teacher/settings/Account', '/teacher/settings/courses.json', '/teacher/groups/', '/teacher/groups/not-a-uuid', '/teacher/groups/' + id + '/', '/teacher/groups/' + id + '/sessions', '/teacher/groups/' + id.toUpperCase(), '/teacher/groups/' + id.slice(1), '/teacher/groups//' + id, '/teacher/analytics', '/teacher/settings/notifications/preferences'];
  for (const path of refusedPages) { const r = run(path); assert.equal(r.kind, 'redirect:/unavailable', path + ' is not reachable'); }
  for (const path of ['/api/teacher/settings', '/api/teacher/groups', '/api/teacher/groups/' + id, '/api/settings/teacher', '/api/groups']) { const r = run(path); assert.equal(r.kind, 'json', path); assert.equal(r.status, 503, path); }
  assert.equal(run('/api/study-groups').kind, 'next', 'the one existing Groups endpoint is the only API these screens use');
 });
-test('middleware: the allowed page list in the source is exactly the Settings array plus the two Group pages', () => {
+test('middleware: the allowed page list in the source is exactly the Settings array plus the two Group pages and the attendance page', () => {
  const source = read('middleware.ts');
  const literal = [...source.matchAll(/path === '(\/teacher\/settings[^']*)'/g)].map(m => m[1]);
  assert.deepEqual(literal.sort(), [...settings.teacherSettingsPaths].sort());
- assert.match(source, /path === '\/teacher\/groups' \|\| \/\^\\\/teacher\\\/groups\\\/\[0-9a-f-\]\{36\}\$\/\.test\(path\)/);
+ assert.match(source, /path === '\/teacher\/groups' \|\| \/\^\\\/teacher\\\/groups\\\/\[0-9a-f-\]\{36\}\(\\\/attendance\\\/\[0-9a-f-\]\{36\}\)\?\$\/\.test\(path\)/);
  assert.doesNotMatch(source + read('shared/website-routes.ts'), /teacher\/analytics/);
 });
 
