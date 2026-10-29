@@ -34,6 +34,9 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (path === '/api/platform-admin/portals' || /^\/api\/platform-admin\/portals\/[0-9a-f-]{36}(?:\/demo)?$/.test(path) || path === '/api/teacher-invitations/accept' || path === '/api/teacher-invitations/preview') return NextResponse.next();
   // The invitation page: its link carries the secret in the URL fragment (never sent to a server); keep it out of caches, indexes and referrers.
   if (path === '/teacher-invitation') {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');response.headers.set('X-Robots-Tag','noindex, nofollow');return response;}
+  // Teacher Settings and Groups & Classes: EXACT pages only, nothing underneath them (scripts/teacher-settings-groups.test.cjs runs this function and keeps the list in step with shared/teacher-settings.ts).
+  if (path === '/teacher/settings' || path === '/teacher/settings/account' || path === '/teacher/settings/courses' || path === '/teacher/settings/language' || path === '/teacher/settings/notifications') return NextResponse.next();
+  if (path === '/teacher/groups' || /^\/teacher\/groups\/[0-9a-f-]{36}$/.test(path)) return NextResponse.next();
   if (path === '/api/personalization') return NextResponse.next();
   if (path === '/api/student-academics') return NextResponse.next();
   if (path === '/api/learning-overview') return NextResponse.next();

@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Settings, User } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
@@ -11,7 +12,7 @@ export function TeacherProfile({ onNavigate }: { onNavigate?: () => void }) {
   const name = user?.fullName?.trim();
   return <div data-teacher-profile className="flex items-center gap-3 rounded-2xl border-2 border-black bg-white p-2 shadow-hard-sm">
     <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-black bg-primary/30">
-      {user?.imageUrl ? <img alt="" src={user.imageUrl} width={44} height={44} className="h-full w-full object-cover" /> : <User className="h-5 w-5" />}
+      {user?.imageUrl ? <Image alt="" unoptimized src={user.imageUrl} width={44} height={44} className="h-full w-full object-cover" /> : <User className="h-5 w-5" />}
     </span>
     <span className="flex min-w-0 flex-1 flex-col">
       <span className="truncate text-sm font-bold leading-tight text-slate-900" data-profile-name><bdi dir="auto">{name || <L id="th.profile.no_name" />}</bdi></span>

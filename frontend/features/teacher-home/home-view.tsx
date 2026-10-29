@@ -5,9 +5,9 @@ import { CalendarClock, MapPin, Video } from 'lucide-react';
 import { L, LocalDate } from '@/frontend/components/language-provider';
 import { eventLabels } from '@/shared/contracts/communications';
 import { cn } from '@/shared/utils';
-import { COURSE_LIMIT, type HomeSession, type TeacherHomeLoad } from '@/shared/teacher-home';
+import type { HomeSession, TeacherHomeLoad } from '@/shared/teacher-home';
 import { CreateCourse } from './create-course';
-import { CourseCards, Empty, Section, SectionError, SectionUnavailable, inkButton, linkClass, plainButton, sessionTime, useRetry } from './parts';
+import { Empty, Section, SectionError, SectionUnavailable, inkButton, linkClass, plainButton, sessionTime, useRetry } from './parts';
 
 type HomeData = TeacherHomeLoad;
 type Retry = ReturnType<typeof useRetry>;
@@ -42,8 +42,8 @@ function NextSession({ data, retry, slot, hero = true }: { data: HomeData['sessi
         <p className="flex items-center gap-2 text-base">{next.mode === 'online' ? <Video aria-hidden className="h-5 w-5 shrink-0" /> : <MapPin aria-hidden className="h-5 w-5 shrink-0" />}
           {next.mode === 'online' ? <L id="th.next.online" /> : <><L id="th.next.center" />{next.location && <> · <bdi dir="auto">{next.location}</bdi></>}</>}</p>
         <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
-          <Link href="/groups" className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.open" /></Link>
-          <Link href="/groups" className={cn(plainButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.all" /></Link>
+          <Link href={`/teacher/groups/${next.groupId}`} className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.open" /></Link>
+          <Link href="/teacher/groups" className={cn(plainButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.all" /></Link>
         </div>
         {data.data.partial && <p className="text-base text-slate-800"><L id="th.next.partial" /></p>}
       </div>}
@@ -82,16 +82,12 @@ function ComingUp({ data, retry, slot }: { data: HomeData['sessions']; retry: Re
   </Section>;
 }
 
-function Courses({ data, targets, retry, slot }: { data: HomeData['courses']; targets: HomeData['createTargets']; retry: Retry; slot?: string }) {
-  return <Section id="th-courses" title={<L id="th.courses.title" />} className={cn('shadow-none', slot)}>
-    {data.state === 'error' ? <SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} />
-      : data.state === 'unavailable' ? null
-      : !data.data.items.length ? <Empty id="th.courses.empty" />
-      : <CourseCards compact items={data.data.items.slice(0, 6)} />}
-    {data.state === 'ready' && data.data.items.length > 0 && <Link href="/teacher/courses" className={linkClass}><L id="th.courses.all" /></Link>}
-    {data.state === 'ready' && data.data.truncated && <p className="text-base text-slate-700"><L id="th.courses.truncated" values={{ count: COURSE_LIMIT }} /></p>}
+/** A returning teacher's Home has no Courses card: the list lives in Settings, Courses. One small link, and Create a course on a phone. */
+function CoursesLink({ targets, slot }: { targets: HomeData['createTargets']; slot?: string }) {
+  return <div data-home-courses-link className={cn('flex flex-wrap items-center gap-3', slot)}>
+    <Link href="/teacher/settings/courses" className={linkClass}><L id="th.courses.title" /></Link>
     <CreateCourse targets={targets} ink className="w-full min-h-[48px] lg:hidden" />
-  </Section>;
+  </div>;
 }
 
 /** Shown only when the server confirmed that every teaching space of this teacher is a demo space. */
@@ -154,7 +150,7 @@ export function TeacherHomeView({ data }: { data: HomeData }) {
       <div className="contents lg:flex lg:flex-col lg:gap-5">
         <Homework slot="order-2 lg:order-none" />
         <Updates data={data.updates} retry={retry} slot="order-3 lg:order-none" />
-        <Courses data={data.courses} targets={data.createTargets} retry={retry} slot="order-5 lg:order-none" />
+        <CoursesLink targets={data.createTargets} slot="order-5 lg:order-none" />
       </div>
     </div>
   </div>;

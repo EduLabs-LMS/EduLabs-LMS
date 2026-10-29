@@ -7,10 +7,10 @@ import { CourseCards, Empty, SectionError, card, useRetry } from './parts';
 /** Full-page course list: ready, empty, error with retry. Loading is the route's loading.tsx. */
 export function TeacherCoursesView({ courses, targets }: { courses: TeacherHomeData['courses']; targets: CreateTarget[] }) {
   const retry = useRetry();
-  return <div data-teacher-courses className="mx-auto w-full max-w-6xl space-y-5">
-    <header className="flex flex-wrap items-center justify-between gap-4 rounded-[24px] border-[2.5px] border-black bg-primary p-4 shadow-hard sm:p-5">
-      <div className="min-w-0"><h1 className="font-display text-3xl leading-tight"><L id="th.courses.page_title" /></h1><p className="text-base text-black"><L id="th.courses.page_intro" /></p></div>
-      <CreateCourse targets={targets} />
+  return <div data-teacher-courses className="w-full space-y-5">
+    <header className="flex flex-wrap items-end justify-between gap-4">
+      <div className="min-w-0"><h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="th.courses.page_title" /></h1><p className="text-base text-slate-700"><L id="ts.courses.intro" /></p></div>
+      <CreateCourse targets={targets} ink className="max-md:w-full max-md:min-h-[52px]" />
     </header>
     <section className={`${card} space-y-4`}>
       {courses.state === 'error' ? <SectionError status={courses.status} onRetry={retry.retry} pending={retry.pending} />
@@ -19,6 +19,7 @@ export function TeacherCoursesView({ courses, targets }: { courses: TeacherHomeD
         : <CourseCards items={courses.data.items} />}
       {courses.state === 'ready' && courses.data.truncated && <p className="text-base text-slate-700"><L id="th.courses.truncated" values={{ count: COURSE_LIMIT }} /></p>}
     </section>
+    <p className="text-sm text-slate-700"><L id="ts.courses.note" /></p>
   </div>;
 }
 

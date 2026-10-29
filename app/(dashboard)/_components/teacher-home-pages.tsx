@@ -5,7 +5,7 @@ import { TeacherHomeView } from '@/frontend/features/teacher-home/home-view';
 import { TeacherCoursesView } from '@/frontend/features/teacher-home/courses-view';
 
 /** Authorization stays with the server reads and RLS; the staff check here only avoids rendering a teacher page for a student. */
-async function staffContext() {
+export async function staffContext() {
   const context = await getWebsiteContext();
   if (!context) redirect('/sign-in');
   const active = context.memberships.some(m => m.status === 'active');
