@@ -41,13 +41,13 @@ begin
  select coalesce(array_agg(l.id),'{}') into lessons_ from public.lessons l join public.course_modules m on m.id=l.module_id where m.course_id=any(courses_);
 
  -- Content this function does not remove. Refuse with a clear message instead of failing on a foreign key.
- if exists(select 1 from public.homework_assignments where course_id=any(courses_) or offering_id=any(offerings_)) then blockers_ := blockers_||'homework'; end if;
- if exists(select 1 from public.assessments where course_id=any(courses_)) or exists(select 1 from public.offering_assessments where offering_id=any(offerings_)) then blockers_ := blockers_||'exams'; end if;
- if exists(select 1 from public.media_assets where offering_id=any(offerings_)) or exists(select 1 from private.lesson_upload_scopes where course_id=any(courses_)) then blockers_ := blockers_||'media'; end if;
- if exists(select 1 from public.lesson_segments where lesson_id=any(lessons_)) then blockers_ := blockers_||'lesson segments'; end if;
- if exists(select 1 from public.website_catalog_entries where course_id=any(courses_)) or exists(select 1 from private.website_publication_courses where course_id=any(courses_)) then blockers_ := blockers_||'website courses'; end if;
+ if exists(select 1 from public.homework_assignments where course_id=any(courses_) or offering_id=any(offerings_)) then blockers_ := array_append(blockers_,'homework'::text); end if;
+ if exists(select 1 from public.assessments where course_id=any(courses_)) or exists(select 1 from public.offering_assessments where offering_id=any(offerings_)) then blockers_ := array_append(blockers_,'exams'::text); end if;
+ if exists(select 1 from public.media_assets where offering_id=any(offerings_)) or exists(select 1 from private.lesson_upload_scopes where course_id=any(courses_)) then blockers_ := array_append(blockers_,'media'::text); end if;
+ if exists(select 1 from public.lesson_segments where lesson_id=any(lessons_)) then blockers_ := array_append(blockers_,'lesson segments'::text); end if;
+ if exists(select 1 from public.website_catalog_entries where course_id=any(courses_)) or exists(select 1 from private.website_publication_courses where course_id=any(courses_)) then blockers_ := array_append(blockers_,'website courses'::text); end if;
  if exists(select 1 from private.student_access_links where offering_id=any(offerings_)) or exists(select 1 from public.enrollment_requests where offering_id=any(offerings_))
-   or exists(select 1 from private.student_admin_audit where offering_id=any(offerings_)) then blockers_ := blockers_||'student access'; end if;
+   or exists(select 1 from private.student_admin_audit where offering_id=any(offerings_)) then blockers_ := array_append(blockers_,'student access'::text); end if;
  if cardinality(blockers_)>0 then
   raise exception 'This demo space holds content that Clear does not remove: %. Remove it first.',array_to_string(blockers_,', ') using errcode='PT409'; end if;
 
