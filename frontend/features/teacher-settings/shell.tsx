@@ -19,7 +19,7 @@ export function TeacherSettingsShell({ children }: { children: React.ReactNode }
   return <div data-teacher-settings className="min-h-screen bg-slate-50 text-black md:flex">
     <nav aria-label={t('ts.nav.label')} data-settings-sidebar className="hidden min-h-screen shrink-0 flex-col gap-1.5 border-e-2 border-black bg-white p-4 md:flex md:w-72">
       <Link href="/home" data-settings-back className="inline-flex min-h-[44px] w-fit items-center gap-1.5 rounded-xl px-2 text-base font-bold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /><L id="ts.back_to_app" /></Link>
-      <span className="px-2 py-3 font-display text-3xl leading-tight"><L id="ts.title" /></span>
+      <h1 className="px-2 py-3 font-display text-3xl leading-tight"><L id="ts.title" /></h1>
       {teacherSettingsSections.map(s => {
         const Icon = sectionIcons[s.key], active = pathname === s.href;
         return <Link key={s.key} href={s.href} data-settings-section={s.key} aria-current={active ? 'page' : undefined}
@@ -31,7 +31,7 @@ export function TeacherSettingsShell({ children }: { children: React.ReactNode }
     <div className="min-w-0 flex-1">
       <header className="sticky top-0 z-10 flex items-center gap-2 border-b-2 border-black bg-white px-4 py-2.5 md:hidden">
         <Link href={section ? teacherSettingsRoot : '/home'} data-settings-phone-back aria-label={section ? t('ts.back_to_settings') : t('ts.back')} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-black bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"><ArrowLeft aria-hidden className="h-6 w-6 rtl:rotate-180" /></Link>
-        <span className="font-display text-2xl leading-tight">{section ? <L id={`ts.${section.key}.title`} /> : <L id="ts.title" />}</span>
+        <h1 className="font-display text-2xl leading-tight">{section ? <L id={`ts.${section.key}.title`} /> : <L id="ts.title" />}</h1>
       </header>
       <main className="px-4 py-5 md:px-14 md:py-10"><div className="w-full max-w-[880px] space-y-6">{children}</div></main>
     </div>

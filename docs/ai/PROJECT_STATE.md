@@ -32,3 +32,15 @@
 Read docs/teacher-ui-clean-foundation-review.md for actual tests and limitations.
 Historical reports describing teacher editors/builds are not claims those screens
 remain available here. Real provider/email/push acceptance has not run for this tree.
+
+## Update 2026-10-29: teacher Settings and Groups & Classes
+- Branch chain (local until the owner approves a push): claude/demo-spaces -> claude/teacher-settings-groups. Staging runs
+  manager v1.6.0 with migrations 32, 33 and 34 approved (owner statement; see docs/platform-admin-staging-release.md).
+- Built on top of the foundation: teacher Home, the six-item menu with the profile footer and Settings cog, the Settings area
+  (My account, Courses, Language and appearance, Notifications) and Groups & Classes (list and one Group). Details and the
+  buttons that exist or were left out: TEACHER_UI_SPEC.md.
+- No migration, endpoint family or permission change. The demo space needs no seed change (nothing new is stored). Middleware
+  allows the new pages by exact path only; lookalikes and legacy paths such as /teacher/analytics still get the catch-all.
+- Verified with synthetic/loopback data and the real middleware only (scripts/teacher-settings-groups.test.cjs and
+  scripts/teacher-settings-groups-browser.cjs); not real Firebase/Supabase acceptance. Not deployed.
+

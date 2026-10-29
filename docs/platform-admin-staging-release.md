@@ -1,8 +1,11 @@
 # Platform Admin V1: staging release plan
 
-Status: release candidate prepared; nothing has been applied, deployed or approved on staging (migrations 32 and 33 exist on the DEV Supabase project only).
-Everything below is a plan for the owner to review. The staging manager, Supabase, Firebase and
-Cloudflare were not touched while preparing it.
+Status (corrected 2026-10-29): the staging manager is **v1.6.0**, and migrations **32, 33 and 34** are **approved on staging**
+(32 = platform admin teacher provisioning, 33 = teacher invitation delivery, 34 = `20261027120000_demo_spaces.sql`, the demo spaces).
+The owner states they are approved on staging; this repository only records that statement and cannot verify or perform it. Earlier text in this file (for example "nothing has been applied", "migrations 32 and 33 exist on the DEV Supabase
+project only", "manager v1.4.0" and "proposed manager v1.5") described the plan before that happened and is kept below as history.
+Nothing in the teacher Settings / Groups & Classes change (branch `claude/teacher-settings-groups`) adds a migration, an endpoint
+family or a permission change, so it needs no new schema approval.
 
 ## Addendum: invitation link onboarding (second migration, not yet committed)
 
@@ -89,7 +92,7 @@ other staff flows never reference the new objects. No page links to `/platform-a
 - Once real portals or invitations exist there is deliberately no automatic rollback: use the
   restore point and a reviewed forward fix.
 
-## Staging manager v1.4.0: what it enforces today
+## History: staging manager v1.4.0 (superseded by v1.6.0, which is what staging runs now)
 
 Source: the installed executable is byte-identical (SHA-256 `0c908c9f5d17d4c65972e0c1a320974a241b617cf0ea4b109e78792081d18724`)
 to the reviewed `edulabs-staging` in the v1.4 package.
@@ -108,7 +111,7 @@ to the reviewed `edulabs-staging` in the v1.4 package.
   with no network. That Linux run was not performed locally (no Docker daemon); the same checks pass
   here on Windows and on a clean `git archive` of the release commit.
 
-## Proposed manager v1.5 (not implemented, not installed)
+## History: the v1.5 proposal (superseded: v1.6.0 is installed and approves migrations 32, 33 and 34)
 
 A deliberately narrow revision, delivered like v1.4 (package with `upgrade.sh --check`, offline tests):
 

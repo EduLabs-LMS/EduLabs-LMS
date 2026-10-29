@@ -67,3 +67,12 @@ Demo spaces: scripts/demo-spaces.test.cjs (part of npm test) covers the service,
 bounded strict body, no user/role/recipient injection), the pinned migration, locale parity, the Home label rule, and fails when
 the latest demo seed version in the SQL, the service constant and docs/ai/DEMO_DATA.md disagree. A feature that stores teacher data
 without extending the demo seed (see DEMO_DATA.md) must update those three places in the same change.
+
+Teacher Settings and Groups & Classes: scripts/teacher-settings-groups.test.cjs (part of npm test: section array, exact-path
+middleware run through the REAL middleware.ts, pure Groups model, endpoint/command allow-list, EN/AR parity, wording) and
+scripts/teacher-settings-groups-browser.cjs (Chromium; every page and API request goes through the real middleware; fictional
+/api/study-groups; filled and cleared demo states, errors with retry, EN/AR, 390/1440, light/dark, 44px targets, keyboard).
+scripts/teacher-home-browser.cjs covers Home, the six-item menu and the profile footer. If .next is older than the sources, set
+LMS_FRESH_CSS to a Tailwind compile of app/globals.css (`npx tailwindcss -i app/globals.css -o <file>`) so new classes are present.
+These use synthetic data and are not provider acceptance.
+

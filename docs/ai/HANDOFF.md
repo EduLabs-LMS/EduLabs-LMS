@@ -19,3 +19,11 @@ commit; approve teacher UI scope; rebuild screens incrementally; controlled real
 Firebase/Supabase acceptance, email delivery and deployment validation separately.
 Teacher management is intentionally unavailable until replaced. Student synthetic
 acceptance is not real-provider acceptance; no customer data was used.
+
+## Update 2026-10-29
+Teacher Home, menu, Settings and Groups & Classes are built (see TEACHER_UI_SPEC.md, "Built so far") on branch
+claude/teacher-settings-groups, after claude/demo-spaces. Owner approval is still needed for any push beyond that branch, merge, PR,
+deploy, migration or provider change. Next candidates, each needing its own approval: Create/Edit Group, Take attendance and the
+per-session screen, Reports (replacing its "Coming soon" item), Students, Homework and Exams screens. Do not resurrect retired
+components; do not add legacy paths to the middleware allow-list.
+

@@ -89,7 +89,7 @@ function GroupCard({ group }: { group: StudyGroup }) {
   const unsaved = facts.state === 'ready' && lastAttendanceUnsaved(facts.sessions, facts.serverNow);
   return <article data-group-card={group.id} className={`${card} flex h-full flex-col gap-3`}>
     <div className="min-w-0">
-      <h2 className="font-display text-2xl leading-tight"><Link href={`/teacher/groups/${group.id}`} className="underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black">{group.name}</Link></h2>
+      <h2 className="font-display text-2xl leading-tight"><Link href={`/teacher/groups/${group.id}`} className="inline-flex min-h-[44px] items-center underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black">{group.name}</Link></h2>
       <p className="text-base text-slate-700">{group.offering_name}</p>
     </div>
     <p className="text-base font-bold"><ModeLabel mode={group.mode} /></p>

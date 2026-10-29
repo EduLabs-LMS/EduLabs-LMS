@@ -9,7 +9,8 @@ fs.mkdirSync(shots, { recursive: true });
 for (const f of fs.readdirSync(shots)) if (f.endsWith('.png')) fs.unlinkSync(path.join(shots, f));
 const cssDir = path.resolve('.next/static/css'), mediaDir = path.resolve('.next/static/media');
 if (!fs.existsSync(cssDir)) throw Error('Run the Firebase-mode `npm run build` first: the real CSS and fonts are needed');
-const css = fs.readdirSync(cssDir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(path.join(cssDir, f), 'utf8')).join('\n');
+// LMS_FRESH_CSS (optional): a Tailwind compile of app/globals.css with the repository config, appended when .next is older than the sources.
+const css = fs.readdirSync(cssDir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(path.join(cssDir, f), 'utf8')).concat(process.env.LMS_FRESH_CSS ? [fs.readFileSync(process.env.LMS_FRESH_CSS, 'utf8')] : []).join('\n');
 const fontVars = (css.match(/\.__variable_[a-z0-9]+\{[^}]*\}/g) || []).map(v => v.match(/^\.([^{]+)\{/)[1]).join(' ');
 
 const entry = `
@@ -70,8 +71,9 @@ createRoot(document.getElementById('root')).render(
  const stubs = {
   'next/navigation': 'window.__refreshes = window.__refreshes || 0; window.__pushes = window.__pushes || []; export const usePathname = () => window.__pathname; export const useRouter = () => ({ push(p) { window.__pushes.push(p); }, replace() {}, refresh() { window.__refreshes++; } });',
   'next/link': 'import React from "react"; export default function Link({ href, children, onClick, ...rest }) { return React.createElement("a", { ...rest, href, onClick: e => { e.preventDefault(); (window.__clicks = window.__clicks || []).push(href); onClick && onClick(e); } }, children); }',
+  'next/image': 'import React from "react"; export default function Image({ unoptimized, fill, priority, ...p }) { return React.createElement("img", p); }',
   '@/shared/auth-config': 'export const isFirebaseStaging = () => true;',
-  '@/frontend/components/providers/application-auth-provider': 'const staff = new URLSearchParams(location.search).get("staff") !== "0"; export const useWebsiteNavigation = () => ({ viewer: { id: "v" }, organizations: [], staffOrganizationIds: staff ? ["00000000-0000-4000-8000-000000000050"] : [] }); export const WebsiteNavigationProvider = ({ children }) => children;',
+  '@/frontend/components/providers/application-auth-provider': 'const staff = new URLSearchParams(location.search).get("staff") !== "0"; export const useApplicationAuth = () => ({ user: { fullName: "Synthetic Teacher", email: "synthetic.teacher@example.test", imageUrl: null } }); export const useWebsiteNavigation = () => ({ viewer: { id: "v" }, organizations: [], staffOrganizationIds: staff ? ["00000000-0000-4000-8000-000000000050"] : [] }); export const WebsiteNavigationProvider = ({ children }) => children;',
   '@/frontend/components/providers/v2-identity': 'import React from "react"; export const useUser = () => ({ user: { fullName: "Synthetic Teacher" } }); export const useClerk = () => ({ signOut() {} }); export const UserButton = () => React.createElement("span", { className: "h-9 w-9 rounded-full border-2 border-black" });',
  };
  const resolveAlias = p => { for (const c of [p + '.tsx', p + '.ts', path.join(p, 'index.tsx'), path.join(p, 'index.ts')]) if (fs.existsSync(c) && fs.statSync(c).isFile()) return c; return p; };
@@ -116,7 +118,7 @@ createRoot(document.getElementById('root')).render(
   const context = await browser.newContext({ viewport, locale: /lang=ar/.test(query) ? 'ar' : 'en' });
   const page = await context.newPage();
   await page.addInitScript(l => { try { localStorage.setItem('edulabs-lms-language', l); } catch {} }, /lang=ar/.test(query) ? 'ar' : 'en');
-  page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
+  page.on('pageerror', e => { errors.push(e.message); console.error('PAGEERROR', e.message.slice(0, 300)); }); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
   await page.route('**/*', r => { if (r.request().url().startsWith(origin)) return r.continue(); external.push(r.request().url()); return r.abort(); });
   await page.goto(origin + '/?' + query);
   await page.locator('[data-lms-shell]').waitFor();
@@ -126,26 +128,31 @@ createRoot(document.getElementById('root')).render(
  const text = page => page.locator('main').innerText();
  const step = async (name, fn) => { try { await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
  const phone = { width: 390, height: 844 }, desktop = { width: 1440, height: 900 };
- const sections = ['th-next', 'th-homework', 'th-updates', 'th-coming', 'th-courses'];
+ const sections = ['th-next', 'th-homework', 'th-updates', 'th-coming'];
+ const menuItems = ['Home', 'Students', 'Groups & Classes', 'Homework', 'Exams'];
 
- await step('Home with data, English desktop: five sections, real data, honest homework state, real tree mark, sidebar navigation', async () => {
+ await step('Home with data, English desktop: four sections, real data, honest homework state, real tree mark, six-item menu', async () => {
   const { page, context } = await open(desktop, 'view=home&s=full');
   await page.locator('[data-teacher-home]').waitFor();
   assert.deepEqual((await page.locator('[data-section]').evaluateAll(n => n.map(e => e.dataset.section))).sort(), [...sections].sort());
   const col = id => page.locator(`[data-section="${id}"]`).evaluate(e => e.getBoundingClientRect().left);
-  assert.ok(Math.abs(await col('th-next') - await col('th-coming')) < 2, 'next session and coming up share the day column'); assert.ok(Math.abs(await col('th-homework') - await col('th-updates')) < 2 && Math.abs(await col('th-updates') - await col('th-courses')) < 2, 'homework, updates and courses share the inbox column'); assert.ok(await col('th-homework') > await col('th-next'), 'inbox column beside the day column');
+  assert.ok(Math.abs(await col('th-next') - await col('th-coming')) < 2, 'next session and coming up share the day column'); assert.ok(Math.abs(await col('th-homework') - await col('th-updates')) < 2, 'homework and updates share the inbox column'); assert.ok(await col('th-homework') > await col('th-next'), 'inbox column beside the day column');
   const next = page.locator('[data-next-session]'); assert.match(await next.innerText(), /Synthetic Group Alpha/); assert.match(await next.innerText(), /Synthetic lesson 1/);
   assert.match(await page.locator('[data-section="th-coming"]').innerText(), /مجموعة الصف العاشر/);
   assert.equal(await page.locator('[data-section="th-coming"] [data-session]').count(), 3);
   const hw = page.locator('[data-section="th-homework"] [data-state="unavailable"]'); await hw.waitFor(); assert.match(await hw.innerText(), /not available yet/);
   assert.doesNotMatch(await page.locator('[data-section="th-homework"]').innerText(), /\b\d+\b/, 'no invented number in the homework card');
   const updates = await page.locator('[data-update]').allInnerTexts(); assert.equal(updates.length, 3); assert.match(updates[0], /Session change/); assert.match(updates[1], /Session change/); assert.doesNotMatch(updates[2], /Session change/);
-  assert.equal(await page.locator('header [data-create-course]').isVisible(), true, 'Create a course sits in the page header on a desktop'); assert.equal(await page.locator('[data-section="th-courses"] [data-create-course]').isVisible(), false);
-  assert.equal(await page.locator('[data-course]').count(), 6);
+  assert.equal(await page.locator('header [data-create-course]').isVisible(), true, 'Create a course sits in the page header on a desktop');
+  assert.equal(await page.locator('[data-course]').count(), 0, 'a returning teacher\'s Home has no Courses card'); assert.equal(await page.locator('[data-section="th-courses"]').count(), 0);
+  const link = page.locator('[data-home-courses-link] a'); assert.equal(await link.count(), 1); assert.equal(await link.getAttribute('href'), '/teacher/settings/courses'); assert.equal(await page.locator('[data-home-courses-link] [data-create-course]').isVisible(), false, 'Create is in the header on a desktop');
   assert.ok(await page.locator('header svg').first().isVisible(), 'the real tree mark is shown');
-  const nav = page.locator('[data-teacher-nav] a'); assert.deepEqual(await nav.allInnerTexts(), ['Home', 'Courses', 'Students', 'Groups & Classes', 'Homework', 'Exams', 'Reports', 'Settings']);
+  const nav = page.locator('[data-teacher-nav] a'); assert.deepEqual(await nav.allInnerTexts(), menuItems);
+  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'students', 'groups', 'homework', 'exams', 'reports'], 'six items in the agreed order; Courses and Settings are not in the menu');
+  const soon = page.locator('[data-teacher-nav] [data-nav="reports"]'); assert.equal(await soon.evaluate(e => e.tagName), 'SPAN', 'Reports has no screen yet: not a link'); assert.equal(await soon.getAttribute('aria-disabled'), 'true'); assert.match(await soon.innerText(), /Reports\s+Coming soon/);
   assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Home');
-  assert.equal(await page.locator('[aria-label="Notifications"], button[aria-label*="otification"]').count(), 1, 'a single notification entry');
+  const footer = page.locator('[data-teacher-footer]'); assert.equal(await footer.locator('[data-profile-name]').innerText(), 'Synthetic Teacher'); assert.equal(await footer.locator('[data-profile-email]').innerText(), 'synthetic.teacher@example.test');
+  const cog = footer.getByRole('link', { name: 'Settings' }); assert.equal(await cog.count(), 1); assert.equal(await cog.getAttribute('href'), '/teacher/settings'); const cb = await cog.boundingBox(); assert.ok(cb.width >= 44 && cb.height >= 44, 'the cog is a 44px target');
   assert.ok(await overflow(page));
   await page.screenshot({ path: path.join(shots, 'home-en-1440.png'), fullPage: true });
   const visible = await page.evaluate(() => [...document.querySelectorAll('main h1, main h2')].map(h => h.textContent));
@@ -163,23 +170,25 @@ createRoot(document.getElementById('root')).render(
   assert.deepEqual(small, [], 'body text is at least 16px on a phone');
   const tiny = await page.evaluate(() => [...document.querySelectorAll('main a, main button, main input, main select')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.height < 43.5 || r.width < 43.5); }).map(e => (e.textContent || e.tagName).trim().slice(0, 30) + ':' + Math.round(e.getBoundingClientRect().height)));
   assert.deepEqual(tiny, [], 'touch targets are at least 44px');
-  const create = page.locator('[data-section="th-courses"] [data-create-course]'); const last = await page.locator('[data-section="th-courses"] > *').last().evaluate(e => e.hasAttribute('data-create-course')); assert.ok(last, '"Create a course" is the last thing in the courses card');
+  const last = await page.locator('[data-home-courses-link] > *').last().evaluate(e => e.hasAttribute('data-create-course')); assert.ok(last, '"Create a course" is the last thing on a phone Home, under the small Courses link');
   await page.screenshot({ path: path.join(shots, 'home-en-390.png'), fullPage: true });
   await context.close();
  });
- await step('Mobile menu: one menu button opens the drawer with the teacher navigation and the single notification entry', async () => {
+ await step('Mobile menu: one menu button opens the drawer with the six-item teacher navigation, the profile and the Settings cog', async () => {
   const { page, context } = await open(phone, 'view=home&s=full');
   await page.locator('[data-teacher-home]').waitFor();
   assert.equal(await page.locator('[data-teacher-nav]:visible').count(), 0, 'closed drawer shows no navigation');
   const menu = page.getByRole('button', { name: /navigation menu/i }); assert.equal(await menu.count(), 1);
   await menu.click(); await page.locator('[role="dialog"] [data-teacher-nav]').waitFor();
-  assert.deepEqual(await page.locator('[role="dialog"] [data-teacher-nav] a').allInnerTexts(), ['Home', 'Courses', 'Students', 'Groups & Classes', 'Homework', 'Exams', 'Reports', 'Settings']);
-  assert.equal(await page.locator('[role="dialog"] button[aria-label*="otification"]').count(), 1);
-  const rows = await page.locator('[role="dialog"] [data-teacher-nav] a').evaluateAll(n => n.map(e => e.getBoundingClientRect().height)); assert.ok(rows.every(h => h >= 44));
-  const sup = page.locator('[role="dialog"] [data-teacher-support] a[href="/support"]'); await sup.waitFor(); assert.equal((await sup.innerText()).trim(), 'Support'); assert.ok((await sup.evaluate(e => e.getBoundingClientRect().height)) >= 44, 'Support is a full-size touch target'); assert.equal(await page.locator('[role="dialog"] [data-teacher-nav] a[href="/support"]').count(), 0, 'Support is not one of the eight');
+  assert.deepEqual(await page.locator('[role="dialog"] [data-teacher-nav] a').allInnerTexts(), menuItems);
+  assert.match(await page.locator('[role="dialog"] [data-teacher-nav] [data-nav="reports"]').innerText(), /Coming soon/);
+  const rows = await page.locator('[role="dialog"] [data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.getBoundingClientRect().height)); assert.ok(rows.every(h => h >= 44));
+  const cog = page.locator('[role="dialog"] [data-teacher-footer]').getByRole('link', { name: 'Settings' }); assert.equal(await cog.getAttribute('href'), '/teacher/settings'); const cb = await cog.boundingBox(); assert.ok(cb.width >= 44 && cb.height >= 44, 'the cog is a 44px target');
+  assert.equal(await page.locator('[role="dialog"] [data-teacher-footer] [data-profile-email]').innerText(), 'synthetic.teacher@example.test');
+  const sup = page.locator('[role="dialog"] [data-teacher-support] a[href="/support"]'); await sup.waitFor(); assert.equal((await sup.innerText()).trim(), 'Support'); assert.ok((await sup.evaluate(e => e.getBoundingClientRect().height)) >= 44, 'Support is a full-size touch target'); assert.equal(await page.locator('[role="dialog"] [data-teacher-nav] a[href="/support"]').count(), 0, 'Support is not one of the six');
   await page.screenshot({ path: path.join(shots, 'menu-en-390.png') });
-  await page.locator('[role="dialog"] [data-teacher-nav] a[data-nav="courses"]').click(); await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
-  assert.deepEqual(await page.evaluate(() => window.__clicks), ['/teacher/courses']);
+  await page.locator('[role="dialog"] [data-teacher-nav] a[data-nav="groups"]').click(); await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
+  assert.deepEqual(await page.evaluate(() => window.__clicks), ['/teacher/groups']);
   await context.close();
  });
  await step('Navigation is for active staff only: a student sees the student navigation and no teacher links', async () => {
@@ -228,7 +237,7 @@ createRoot(document.getElementById('root')).render(
   assert.equal(await page.locator('[data-section="th-next"] [data-state="empty"]').count(), 1);
   assert.equal(await page.locator('[data-section="th-updates"] [data-state="empty"]').count(), 1);
   assert.equal(await page.locator('[data-section="th-coming"] [data-state="empty"]').count(), 1);
-  assert.equal(await page.locator('[data-course]').count(), 2); assert.equal(await page.locator('[data-first-visit]').count(), 0);
+  assert.equal(await page.locator('[data-course]').count(), 0, 'no Courses card on a returning Home'); assert.equal(await page.locator('[data-home-courses-link]').count(), 1); assert.equal(await page.locator('[data-first-visit]').count(), 0);
   await page.screenshot({ path: path.join(shots, 'home-quiet-1440.png'), fullPage: true });
   await context.close();
  });
@@ -250,7 +259,7 @@ createRoot(document.getElementById('root')).render(
   const { page, context } = await open(desktop, 'view=home&s=errors');
   await page.locator('[data-teacher-home]').waitFor();
   assert.equal(await page.locator('[data-state="empty"]').count(), 0, 'nothing is presented as empty');
-  assert.equal(await page.locator('[data-section="th-next"] [role="alert"]').count(), 1); assert.equal(await page.locator('[data-section="th-coming"] [role="alert"]').count(), 1); assert.equal(await page.locator('[data-section="th-courses"] [role="alert"]').count(), 1);
+  assert.equal(await page.locator('[data-section="th-next"] [role="alert"]').count(), 1); assert.equal(await page.locator('[data-section="th-coming"] [role="alert"]').count(), 1);
   assert.match(await page.locator('[data-section="th-updates"]').innerText(), /sign-in has ended/); assert.equal(await page.locator('[data-section="th-updates"] a[href="/sign-in"]').count(), 1);
   assert.equal(await page.locator('[data-first-visit]').count(), 0, 'unknown data is not a first visit');
   await page.screenshot({ path: path.join(shots, 'home-errors-1440.png'), fullPage: true });
@@ -259,8 +268,7 @@ createRoot(document.getElementById('root')).render(
   await page.waitForFunction(b => (window.__refreshes || 0) > b, before);
   await context.close();
   const f = await open(desktop, 'view=home&s=forbidden'); await f.page.locator('[data-teacher-home]').waitFor();
-  assert.match(await f.page.locator('[data-section="th-courses"]').innerText(), /do not have permission/); assert.equal(await f.page.locator('[data-section="th-courses"] [role="alert"] button').count(), 0);
-  assert.match(await f.page.locator('[data-section="th-updates"]').innerText(), /do not have permission/);
+  assert.match(await f.page.locator('[data-section="th-updates"]').innerText(), /do not have permission/); assert.equal(await f.page.locator('[data-section="th-updates"] [role="alert"] button').count(), 0);
   assert.equal(await f.page.locator('[data-section="th-next"] [data-next-session]').count(), 1, 'one failed section does not hide the others');
   await f.context.close();
  });
@@ -268,7 +276,7 @@ createRoot(document.getElementById('root')).render(
   for (const [s, tag] of [['full', 'full'], ['empty', 'empty'], ['errors', 'error'], ['many', 'many']]) {
    const { page, context } = await open(desktop, `view=courses&s=${s}`);
    await page.locator('[data-teacher-courses]').waitFor();
-   if (s === 'full') { const t = await text(page); assert.match(t, /Draft/); assert.match(t, /Published/); assert.match(t, /Archived/); assert.equal(await page.locator('[data-course]').count(), 7); assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Courses'); }
+   if (s === 'full') { const t = await text(page); assert.match(t, /Draft/); assert.match(t, /Published/); assert.match(t, /Archived/); assert.equal(await page.locator('[data-course]').count(), 7); assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').count(), 0, 'Courses is no menu item: nothing in the menu is current'); }
    if (s === 'empty') assert.equal(await page.locator('[data-state="empty"]').count(), 1);
    if (s === 'errors') { assert.equal(await page.locator('[role="alert"]').count(), 1); assert.equal(await page.locator('[data-state="empty"]').count(), 0); await page.getByRole('button', { name: 'Try again' }).click(); await page.waitForFunction(() => window.__refreshes > 0); }
    if (s === 'many') { assert.equal(await page.locator('[data-course]').count(), 100); assert.match(await text(page), /first 100 courses/); }
@@ -300,7 +308,7 @@ createRoot(document.getElementById('root')).render(
   assert.deepEqual(await page.evaluate(() => window.__pushes), ['/teacher/courses/00000000-0000-4000-8000-0000000000aa']);
   await context.close();
   const two = await open(phone, 'view=home&s=empty&spaces=2'); await two.page.locator('[data-teacher-home]').waitFor();
-  await two.page.locator('[data-section="th-courses"] [data-create-course]').click(); await two.page.getByLabel('Teaching space').waitFor();
+  await two.page.locator('[data-home-courses-link] [data-create-course]').click(); await two.page.getByLabel('Teaching space').waitFor();
   assert.equal(await two.page.getByLabel('Teaching space').locator('option').count(), 2);
   await two.page.screenshot({ path: path.join(shots, 'create-dialog-en-390.png') }); await two.context.close();
   const ar = await open(phone, 'view=courses&s=empty&lang=ar'); await ar.page.locator('[data-teacher-courses]').waitFor(); await ar.page.locator('header [data-create-course]').click(); await ar.page.getByRole('dialog').waitFor();
@@ -326,7 +334,7 @@ createRoot(document.getElementById('root')).render(
   const { page, context } = await open(desktop, 'view=home&s=full');
   await page.locator('[data-teacher-home]').waitFor();
   const seen = new Set(); for (let i = 0; i < 40; i++) { await page.keyboard.press('Tab'); seen.add(await page.evaluate(() => { const e = document.activeElement; return e && e !== document.body ? (e.getAttribute('data-nav') || e.getAttribute('data-course') || e.tagName + ':' + (e.textContent || '').trim().slice(0, 20)) : ''; })); }
-  assert.ok(seen.size > 15, 'focus moves through the page');
+  assert.ok(seen.size > 10, 'focus moves through the page (' + seen.size + ' stops)');
   await page.locator('header [data-create-course]').click(); await page.getByRole('dialog').waitFor(); await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
   await context.close();
  });

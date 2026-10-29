@@ -256,7 +256,7 @@ function StudentsPanel({ group }: { group: StudyGroup }) {
   const students = currentMembers(data.rows);
   if (!students.length && !data.hasMore) return <div data-state="empty"><p className="text-base text-slate-800"><L id="tg.students.empty" /></p></div>;
   return <div data-group-students className="space-y-3">
-    <p className="text-base font-bold" data-students-total>{group.capacity ? <L id="tg.card.students_of" values={{ count: students.length, capacity: group.capacity }} /> : <L id="tg.card.students" values={{ count: students.length }} />}{data.hasMore && '+'}</p>
+    <p className="text-base font-bold" data-students-total>{data.hasMore ? <L id="tg.card.students_more" values={{ count: students.length }} /> : group.capacity ? <L id="tg.card.students_of" values={{ count: students.length, capacity: group.capacity }} /> : <L id="tg.card.students" values={{ count: students.length }} />}</p>
     <ul className="divide-y-2 divide-black/15">{students.map(r => <li key={r.id ?? r.user_id} className="min-h-[44px] py-3 text-base break-words">{r.display_name}</li>)}</ul>
     {data.hasMore && <button type="button" data-more-students className={plainButton} disabled={data.more === 'loading'} onClick={() => void more()}>{data.more === 'loading' && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="tg.students.more" /></button>}
     {data.more instanceof GroupCallError && <GroupError kind={data.more.kind} onRetry={() => void more()} />}
