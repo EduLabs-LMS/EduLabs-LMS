@@ -1,5 +1,7 @@
 # Handoff state — not yet approved for Claude implementation
 
+V1 definition and checklist: [V1.md](V1.md). Integration branch: claude/teacher-v1.
+
 Branch: claude/admin-provisioning-v1. Base HEAD: d3451e52c13a64f28d865ace8c9bd32059b4e696
 (the committed clean foundation; the former codex/teacher-ui-clean-foundation text at
 fa67875 was stale). Teacher Provisioning V1 (platform admin) is in the working

@@ -1,6 +1,6 @@
 # EduLabs development entry point
 
-Read all six onboarding documents before implementation:
+Read all six onboarding documents before implementation, and `docs/ai/V1.md` (what V1 means and its checklist):
 
 - `docs/ai/PROJECT_STATE.md`
 - `docs/ai/ARCHITECTURE.md`
@@ -8,6 +8,7 @@ Read all six onboarding documents before implementation:
 - `docs/ai/TEACHER_UI_SPEC.md`
 - `docs/ai/TESTING.md`
 - `docs/ai/HANDOFF.md`
+- `docs/ai/V1.md` (V1 definition and checklist)
 
 This foundation starts at fa67875fdab88f0fc640804e2f96b6aa7c44b0c1. The friend's
 teacher redesign was deliberately NOT integrated. Existing teacher screens were

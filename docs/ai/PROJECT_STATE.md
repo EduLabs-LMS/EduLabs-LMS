@@ -1,5 +1,7 @@
 # Current development state — 2026-10-24 (Africa/Cairo)
 
+V1 definition and checklist: [V1.md](V1.md). Integration branch: claude/teacher-v1.
+
 - Repository: EduLabs-LMS/EduLabs-LMS.
 - Branch: claude/admin-provisioning-v1 (worktree .local/worktrees/admin-provisioning-v1).
 - Base HEAD: d3451e52c13a64f28d865ace8c9bd32059b4e696 (the committed clean teacher-UI
