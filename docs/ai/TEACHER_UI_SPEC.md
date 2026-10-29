@@ -45,6 +45,21 @@ step points at a real element, so **every new screen marks its tour targets**. O
 teacher in the database; that needs a migration and owner approval first). Stored Helper data must extend the demo seed or be excluded
 with a reason. See V1.md.
 
+### Helper animation (owner decision): soft, never harsh
+- The dim fades in over about 250 ms, in a soft dark green (not black).
+- The spotlight glides between targets over about 350 ms, ease-out, with a rounded cut-out and a thin green outline.
+- The page scrolls smoothly to the target before the step box appears.
+- The step box fades in with an 8 px slide up over about 200 ms. On a step change the text cross-fades and the box does not jump.
+  Progress dots fill softly. The first-run welcome card fades in.
+- Never: confetti, bounce, sparkle, looping or pulsing animation, a sudden brightness change, or auto-advancing a step.
+- `prefers-reduced-motion`: plain fades only, no movement.
+- RTL mirrors the slide directions.
+- Animate with transform and opacity only.
+
+## Calm phone rule (owner decision)
+Phone screens follow the calm style of the phone One Group design: list rows instead of boxed cards, one main action, generous
+spacing, and touch targets of 48 px or more. This applies to every teacher screen built from now on.
+
 ## Screens to rebuild incrementally, after owner approval
 1. Teacher course list/dashboard and navigation.
 2. Course/module/lesson/part authoring, ordering, media, draft/publication and preview.

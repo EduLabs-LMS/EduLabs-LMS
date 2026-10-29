@@ -40,3 +40,11 @@
   element (new screens mark their tour targets). Open, not decided: where the "seen" flag is stored; preferred per teacher in the
   database, which needs a migration and owner approval before any migration is written or applied. Stored Helper data must extend the
   demo seed or be excluded with a reason. Details: V1.md and TEACHER_UI_SPEC.md.
+- Helper animation (owner decision): soft, never harsh. Dim fades in over ~250 ms in a soft dark green (not black); the spotlight glides
+  between targets over ~350 ms ease-out with a rounded cut-out and a thin green outline; the page scrolls smoothly to the target before
+  the step box appears; the box fades in with an 8 px slide up over ~200 ms and on a step change the text cross-fades without the box
+  jumping; progress dots fill softly; the first-run welcome card fades in. No confetti, bounce, sparkle, looping or pulsing animation,
+  no sudden brightness change, never auto-advance. prefers-reduced-motion: plain fades only, no movement. RTL mirrors slide
+  directions. Transform and opacity only. Details: TEACHER_UI_SPEC.md.
+- Calm phone rule (owner decision): phone screens follow the calm style of the phone One Group design: list rows instead of boxed
+  cards, one main action, generous spacing, 48 px+ touch targets. Details: TEACHER_UI_SPEC.md.
