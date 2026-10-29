@@ -76,3 +76,5 @@ scripts/teacher-home-browser.cjs covers Home, the six-item menu and the profile 
 LMS_FRESH_CSS to a Tailwind compile of app/globals.css (`npx tailwindcss -i app/globals.css -o <file>`) so new classes are present.
 These use synthetic data and are not provider acceptance.
 
+
+Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; registered in scripts/exam-sql-local.cjs, so `npm run test:exam-sql:postgres` runs it on a disposable PostgreSQL only; it has NOT been run against any database yet).

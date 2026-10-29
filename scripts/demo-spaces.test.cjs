@@ -25,7 +25,22 @@ test('migration: the reviewed demo-spaces SQL is byte-identical to the approved 
  assert.equal(hash(raw) === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c' || lf === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c', true);
  assert.match(read('.gitattributes'), /supabase\/migrations\/20261027120000_demo_spaces\.sql -text/);
  const names = fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
- assert.equal(names[names.length - 1], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration');
+ assert.equal(names[names.length - 2], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration; only the clear-robust follow-up comes after it');
+ assert.equal(names[names.length - 1], '20261029120000_demo_clear_robust.sql');
+});
+test('migration: demo_clear_core is replaced (not edited in 34), keeps its signature and grants, and removes what a teacher added inside the Groups and courses', () => {
+ const sql = read('supabase/migrations/20261029120000_demo_clear_robust.sql'), code = sql.replace(/--.*$/gm, '');
+ assert.match(code, /create or replace function private\.demo_clear_core\(p_org uuid,p_actor uuid\) returns jsonb/);
+ assert.match(code, /revoke all on function private\.demo_clear_core\(uuid,uuid\) from public,anon,authenticated;/);
+ assert.doesNotMatch(code, /create (table|function (?!or replace))|alter table|drop /i, 'no new objects, no schema change');
+ for (const t of ['group_sessions', 'group_schedules', 'group_memberships', 'group_staff', 'study_groups', 'session_attendance', 'notification_events', 'notifications', 'notification_deliveries', 'group_notification_state', 'group_audit', 'course_stage_assignments', 'course_stage_versions', 'course_offerings']) assert.match(code, new RegExp('delete from (public|private)\\.' + t + '\\b'), t + ' is cleared');
+ assert.match(code, /delete from public\.courses where id=any\(courses_\)/, 'chapters, lessons and blocks go with the recorded courses (ON DELETE CASCADE)');
+ assert.match(code, /enrolled students cannot be cleared/, 'still refuses a space with students');
+ for (const blocker of ['homework', 'exams', 'media', 'lesson segments', 'website courses', 'student access']) assert.ok(code.includes("'" + blocker + "'"), blocker + ' is a named refusal');
+ assert.doesNotMatch(code, /(name|title|slug)\s+(like|ilike|=)/i, 'nothing is matched by name or content');
+ assert.match(code, /'removedRows',n_tracked\+n_added/);
+ assert.match(read('.gitattributes'), /20261029120000_demo_clear_robust\.sql -text/);
+ assert.ok(fs.existsSync('supabase/tests/demo-clear-robust.sql'));
 });
 test('migration: platform administrators only, every call audited, nothing runs by itself', () => {
  const sql = read(MIGRATION);
