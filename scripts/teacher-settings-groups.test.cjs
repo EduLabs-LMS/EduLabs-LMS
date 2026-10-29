@@ -59,6 +59,67 @@ test('settings: notifications only links to the existing preferences screen; acc
  assert.match(a, /openUserProfile/); assert.doesNotMatch(a, /fetch\(|api\.(post|put|patch|delete)|\/api\//, 'no new account endpoint');
 });
 
+// ------------------------------------------------------------------ Groups & Classes
+const contracts = load('shared/contracts/groups.ts');
+const model = load('shared/teacher-groups.ts', { '@/shared/contracts/groups': contracts });
+const T = s => Date.parse(s);
+const sess = (id, start, end, extra = {}) => ({ id, group_id: 'g', title: id, starts_at: start, ends_at: end, cancelled: false, version: 1, attendance_state: 'draft', mode: 'online', location: '', join_url: '', instructions: '', state: 'upcoming', ...extra });
+const NOW = T('2026-10-29T12:00:00Z');
+test('groups: Active/Archived counts, filter and search come from the rows alone', () => {
+ const rows = [{ name: 'Algebra A', offering_name: 'Maths', status: 'active', staff: true }, { name: 'Algebra B', offering_name: 'Maths', status: 'archived', staff: true }, { name: 'Physics', offering_name: 'Science', status: 'active', staff: true }, { name: 'Other', offering_name: 'X', status: 'active', staff: false }];
+ assert.deepEqual({ ...model.groupCounts(model.managed(rows)) }, { active: 2, archived: 1 });
+ assert.equal(model.managed(rows).length, 3, 'only Groups the database says the teacher manages');
+ assert.deepEqual(model.filterGroups(model.managed(rows), 'active', '').map(g => g.name), ['Algebra A', 'Physics']);
+ assert.deepEqual(model.filterGroups(model.managed(rows), 'active', ' science ').map(g => g.name), ['Physics']);
+ assert.deepEqual(model.filterGroups(model.managed(rows), 'archived', 'algebra').map(g => g.name), ['Algebra B']);
+});
+test('groups: students are current members only, and a partial read says so', () => {
+ const rows = [{ user_id: 'a', display_name: 'A', ends_at: null }, { user_id: 'b', display_name: 'B', ends_at: '2026-01-01T00:00:00Z' }, { user_id: 'c', display_name: 'C' }];
+ assert.deepEqual({ ...model.studentsCount(rows, false, 10) }, { count: 2, more: false, capacity: 10 });
+ assert.equal(model.studentsCount(rows, true, null).more, true);
+});
+test('groups: sessions split into upcoming and earlier; a session in progress stays upcoming; cancelled ones are placed by their start', () => {
+ const rows = [sess('past', '2026-10-27T10:00:00Z', '2026-10-27T11:00:00Z'), sess('live', '2026-10-29T11:30:00Z', '2026-10-29T12:30:00Z'), sess('soon', '2026-10-30T10:00:00Z', '2026-10-30T11:00:00Z'),
+  sess('cancelled-future', '2026-11-02T10:00:00Z', '2026-11-02T11:00:00Z', { cancelled: true }), sess('cancelled-past', '2026-10-20T10:00:00Z', '2026-10-20T11:00:00Z', { cancelled: true })];
+ const { upcoming, earlier } = model.partitionSessions(rows, NOW);
+ assert.deepEqual(upcoming.map(s => s.id), ['live', 'soon', 'cancelled-future']);
+ assert.deepEqual(earlier.map(s => s.id), ['past', 'cancelled-past']);
+});
+test('groups: attendance summary and the "not saved" flag follow the saved state, never a guess', () => {
+ const done = sess('d', '2026-10-27T10:00:00Z', '2026-10-27T11:00:00Z');
+ assert.equal(model.attendanceSummary(done, NOW), 'unsaved');
+ assert.equal(model.attendanceSummary({ ...done, attendance_state: 'finalized' }, NOW), 'saved');
+ assert.equal(model.attendanceSummary({ ...done, attendance_state: 'reopened' }, NOW), 'reopened');
+ assert.equal(model.attendanceSummary(sess('f', '2026-10-30T10:00:00Z', '2026-10-30T11:00:00Z'), NOW), 'opens');
+ assert.equal(model.attendanceSummary({ ...done, cancelled: true }, NOW), 'none');
+ assert.equal(model.lastAttendanceUnsaved([done], NOW), true);
+ assert.equal(model.lastAttendanceUnsaved([{ ...done, attendance_state: 'finalized' }], NOW), false);
+ assert.equal(model.lastAttendanceUnsaved([done, { ...sess('older', '2026-10-20T10:00:00Z', '2026-10-20T11:00:00Z'), attendance_state: 'draft' }, { ...done, id: 'x', cancelled: true, starts_at: '2026-10-28T10:00:00Z', ends_at: '2026-10-28T11:00:00Z' }], NOW), true, 'the most recent finished session decides; cancelled ones are ignored');
+ assert.equal(model.lastAttendanceUnsaved([], NOW), false, 'a Group with no finished session raises no flag');
+});
+test('groups: a failed call is never shown as empty, and a lost reply is an unknown outcome', () => {
+ assert.deepEqual([401, 403, 409, 400, 413, 500, null].map(model.failureKind), ['signin', 'denied', 'changed', 'invalid', 'invalid', 'unavailable', 'unavailable']);
+});
+test('groups: the screens use the one existing endpoint and only commands that already exist', () => {
+ const files = ['api.ts', 'list-view.tsx', 'group-view.tsx', 'parts.tsx'].map(f => read('frontend/features/teacher-groups/' + f)).join('\n');
+ assert.deepEqual([...new Set([...files.matchAll(/['"`](\/api\/[^'"`]*)['"`]/g)].map(m => m[1]))], ['/api/study-groups']);
+ const commands = [...new Set([...files.matchAll(/groupCall(?:<[^>]*>)?\('([a-z-]+)'/g)].map(m => m[1]))].sort();
+ assert.deepEqual(commands, ['archive', 'one-off', 'session', 'view']);
+ for (const out of ['attendance', 'finalize', 'reopen', 'transfer', "'create'", "'edit'", "'add'", "'remove'"]) assert.ok(!files.includes(`groupCall('${out.replace(/'/g, '')}'`), out + ' is not called');
+ assert.match(files, /operation: 'cancel'/); assert.doesNotMatch(files, /operation: '(reschedule|restore)'/);
+});
+test('groups: changes ask first, send the version they read, and Archive is for the instructor only', () => {
+ const view = read('frontend/features/teacher-groups/group-view.tsx');
+ assert.match(view, /groupCall\('archive', group\.id, \{\}, group\.version\)/); assert.match(view, /groupCall\('one-off', group\.id, parsed\.data, group\.version\)/); assert.match(view, /sessionVersion: s\.version/);
+ assert.match(view, /group\.instructor && <ArchiveGroup/); assert.match(view, /active && group\.staff/); assert.match(view, /canCancel && state === 'upcoming'/);
+ assert.match(view, /setConfirm\(true\)/, 'cancel and archive both ask first'); assert.match(view, /cairoWallTime/);
+});
+test('groups: pages are staff-only, validate the id, and the list route sits next to the menu entry', () => {
+ const list = read('app/(dashboard)/(routes)/teacher/groups/page.tsx'), one = read('app/(dashboard)/(routes)/teacher/groups/[groupId]/page.tsx');
+ assert.match(list, /await staffContext\(\);\s*return <TeacherGroupsList/); assert.match(one, /notFound\(\)/); assert.match(one, /await staffContext\(\);\s*return <TeacherGroupView/);
+ assert.match(read('shared/teacher-home.ts'), /href: '\/teacher\/groups'/);
+});
+
 // ------------------------------------------------------------------ real middleware
 test('middleware: with Firebase staging on, exactly the Settings and Group pages pass; lookalikes, legacy paths and APIs stay behind the catch-all', () => {
  class NextResponse { constructor(kind, status) { this.kind = kind; this.status = status; } static next() { return new NextResponse('next', 200); } static json(_, o) { return new NextResponse('json', o.status); } static redirect(u) { return new NextResponse('redirect:' + u.pathname, 307); } }
