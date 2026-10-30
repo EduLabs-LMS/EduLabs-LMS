@@ -48,3 +48,5 @@
   directions. Transform and opacity only. Details: TEACHER_UI_SPEC.md.
 - Calm phone rule (owner decision): phone screens follow the calm style of the phone One Group design: list rows instead of boxed
   cards, one main action, generous spacing, 48 px+ touch targets. Details: TEACHER_UI_SPEC.md.
+- Take attendance is flat and saves every tap (owner decision): no Save draft, no status bar, no boxed cards; one fixed Finish attendance button; the finished view is the same screen read-only with Edit attendance (reason of 3+ characters). Saves run as a queue through the existing `attendance` command.
+- Home shows no courses (owner decision): no "Your courses" block and no "Create a course" header button; courses live in Settings > Courses. The first-visit card for a teacher with no course stays. The Next session card gets Take attendance once the session has started, and finished Sessions with unsaved attendance (max 3) lead Coming up with a yellow Finish button. The Mobile-Home-Today board is not approved and not built.

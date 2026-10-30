@@ -5,7 +5,8 @@ import { CalendarClock, MapPin, Video } from 'lucide-react';
 import { L, LocalDate } from '@/frontend/components/language-provider';
 import { eventLabels } from '@/shared/contracts/communications';
 import { cn } from '@/shared/utils';
-import type { HomeSession, TeacherHomeLoad } from '@/shared/teacher-home';
+import type { HomeSession, HomeUnsaved, TeacherHomeLoad } from '@/shared/teacher-home';
+import { attendanceHref } from '@/shared/teacher-attendance';
 import { CreateCourse } from './create-course';
 import { Empty, Section, SectionError, SectionUnavailable, inkButton, linkClass, plainButton, sessionTime, useRetry } from './parts';
 
@@ -31,11 +32,12 @@ function SessionRow({ s }: { s: HomeSession }) {
 /** `hero` is the highlighted card on Home; the first visit shows the same read as a quiet card. */
 function NextSession({ data, retry, slot, hero = true }: { data: HomeData['sessions']; retry: Retry; slot?: string; hero?: boolean }) {
   const next = data.state === 'ready' ? data.data.next : null;
-  return <Section id="th-next" eyebrow={hero} title={<L id="th.next.title" />} className={cn(hero && 'bg-primary/30', slot)}>
+  const now = Boolean(next?.happening);
+  return <Section id="th-next" eyebrow={hero} title={<L id={now ? 'th.next.now' : 'th.next.title'} />} className={cn(hero && 'bg-primary/30', slot)}>
     {data.state === 'error' ? <SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} />
       : data.state === 'unavailable' ? null
       : !next ? <Empty id={hero ? 'th.next.empty' : 'th.first.next'} />
-      : <div className="space-y-3" data-next-session={next.id}>
+      : <div className="space-y-3" data-tour="next-session" data-next-session={next.id} data-happening-now={now ? 'true' : undefined}>
         <p className="flex items-start gap-2 break-words font-display text-3xl leading-tight lg:text-4xl"><CalendarClock aria-hidden className="mt-1.5 h-6 w-6 shrink-0" /><span><LocalDate value={next.startsAt} options={sessionTime} /></span></p>
         <p className="break-words text-xl font-bold"><bdi dir="auto">{next.groupName}</bdi></p>
         <p className="break-words text-base"><bdi dir="auto">{next.title}</bdi></p>
@@ -43,6 +45,7 @@ function NextSession({ data, retry, slot, hero = true }: { data: HomeData['sessi
           {next.mode === 'online' ? <L id="th.next.online" /> : <><L id="th.next.center" />{next.location && <> · <bdi dir="auto">{next.location}</bdi></>}</>}</p>
         <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
           <Link href={`/teacher/groups/${next.groupId}`} className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.open" /></Link>
+          {now && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={cn(plainButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.attendance" /></Link>}
           <Link href="/teacher/groups" className={cn(plainButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.all" /></Link>
         </div>
         {data.data.partial && <p className="text-base text-slate-800"><L id="th.next.partial" /></p>}
@@ -73,21 +76,33 @@ function Updates({ data, retry, slot }: { data: HomeData['updates']; retry: Retr
   </Section>;
 }
 
-function ComingUp({ data, retry, slot }: { data: HomeData['sessions']; retry: Retry; slot?: string }) {
+/** A finished session still waiting for attendance: date, Group, the plain reason and one yellow "Finish" button that opens its attendance. */
+function UnsavedRow({ s }: { s: HomeUnsaved }) {
+  return <li className="flex items-center gap-3 border-t-2 border-black/15 py-3 first:border-t-0" data-unsaved-session={s.id}>
+    <span aria-hidden className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-black bg-amber-100 font-bold leading-tight text-black">
+      <span className="text-base"><LocalDate value={s.startsAt} options={{ ...zone, month: 'short' }} /></span>
+      <span className="text-xl"><LocalDate value={s.startsAt} options={{ ...zone, day: 'numeric' }} /></span>
+    </span>
+    <span className="flex min-w-0 flex-1 flex-col">
+      <span className="break-words text-base font-bold"><bdi dir="auto">{s.groupName}</bdi></span>
+      <span className="text-base text-slate-700"><LocalDate value={s.startsAt} options={{ ...zone, weekday: 'long', hour: 'numeric', minute: '2-digit' }} /></span>
+      <span className="text-base font-bold text-slate-800"><L id="th.coming.unsaved" /></span>
+    </span>
+    <Link href={attendanceHref(s.groupId, s.id)} data-unsaved-finish className="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-2xl border-2 border-black bg-amber-300 px-4 text-base font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"><L id="th.coming.finish" /></Link>
+  </li>;
+}
+
+function ComingUp({ data, unsaved, retry, slot }: { data: HomeData['sessions']; unsaved: HomeData['unsaved']; retry: Retry; slot?: string }) {
+  const rows = unsaved.state === 'ready' ? unsaved.data : [];
   return <Section id="th-coming" title={<L id="th.coming.title" />} className={slot}>
     {data.state === 'error' ? <SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} />
       : data.state === 'unavailable' ? null
-      : !data.data.comingUp.length ? <Empty id="th.coming.empty" />
-      : <ul>{data.data.comingUp.map(s => <SessionRow key={s.id} s={s} />)}</ul>}
+      : <>
+        {unsaved.state === 'error' && <SectionError status={unsaved.status} onRetry={retry.retry} pending={retry.pending} />}
+        {rows.length > 0 && <ul data-tour="unsaved-attendance" data-unsaved-list>{rows.map(u => <UnsavedRow key={u.id} s={u} />)}</ul>}
+        {!data.data.comingUp.length ? <Empty id="th.coming.empty" /> : <ul>{data.data.comingUp.map(x => <SessionRow key={x.id} s={x} />)}</ul>}
+      </>}
   </Section>;
-}
-
-/** A returning teacher's Home has no Courses card: the list lives in Settings, Courses. One small link, and Create a course on a phone. */
-function CoursesLink({ targets, slot }: { targets: HomeData['createTargets']; slot?: string }) {
-  return <div data-home-courses-link className={cn('flex flex-wrap items-center gap-3', slot)}>
-    <Link href="/teacher/settings/courses" className={linkClass}><L id="th.courses.title" /></Link>
-    <CreateCourse targets={targets} ink className="w-full min-h-[48px] lg:hidden" />
-  </div>;
 }
 
 /** Shown only when the server confirmed that every teaching space of this teacher is a demo space. */
@@ -128,7 +143,7 @@ function FirstVisit({ data }: { data: HomeData }) {
 
 /**
  * Two columns on a desktop (your day | your inbox), one column on a phone. The column wrappers dissolve on a phone
- * (`contents`), so `order` sets the phone sequence: next session, homework, updates, coming up, courses.
+ * (`contents`), so `order` sets the phone sequence: next session, homework, updates, coming up. Courses are not on Home: they live in Settings, Courses.
  */
 export function TeacherHomeView({ data }: { data: HomeData }) {
   const retry = useRetry();
@@ -140,17 +155,15 @@ export function TeacherHomeView({ data }: { data: HomeData }) {
         <h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="th.home.title" /></h1>
         <p className="hidden text-base text-slate-700 lg:block"><L id="th.home.intro" /></p>
       </div>
-      <CreateCourse targets={data.createTargets} ink className="max-lg:hidden" />
     </header>
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start lg:gap-7">
       <div className="contents lg:flex lg:flex-col lg:gap-5">
         <NextSession data={data.sessions} retry={retry} slot="order-1 lg:order-none" />
-        <ComingUp data={data.sessions} retry={retry} slot="order-4 lg:order-none" />
+        <ComingUp data={data.sessions} unsaved={data.unsaved} retry={retry} slot="order-4 lg:order-none" />
       </div>
       <div className="contents lg:flex lg:flex-col lg:gap-5">
         <Homework slot="order-2 lg:order-none" />
         <Updates data={data.updates} retry={retry} slot="order-3 lg:order-none" />
-        <CoursesLink targets={data.createTargets} slot="order-5 lg:order-none" />
       </div>
     </div>
   </div>;

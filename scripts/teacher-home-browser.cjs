@@ -40,6 +40,12 @@ const scenarios = {
  full: { courses: ok(courses), groups: groupsFull, upcoming: upcomingFull, notifications: notesFull },
  quiet: { courses: ok(courses.slice(0, 2)), groups: ok({ rows: [group(1, 'Synthetic Group Alpha')], page: 0 }), upcoming: ok({ rows: [], page: 0 }), notifications: ok({ rows: [], page: 0, unread: 0 }) },
  first: { courses: ok([]), groups: ok({ rows: [], page: 0, hasMore: false }), upcoming: ok({ rows: [], page: 0 }), notifications: ok({ rows: [], page: 0, unread: 0 }) },
+ attention: { courses: ok(courses), groups: ok({ rows: [group(1, 'Synthetic Group Alpha'), group(2, 'مجموعة الصف العاشر'), group(3, 'Synthetic Group Gamma'), group(4, 'Synthetic Group Delta')], page: 0, hasMore: false }),
+  upcoming: ok({ rows: [session(1, 1, 'Synthetic Group Alpha', -20), session(2, 2, 'مجموعة الصف العاشر', 1500), session(3, 1, 'Synthetic Group Alpha', 3000)], page: 0 }), notifications: notesFull,
+  unsaved: ok([{ groupId: uuid(1), rows: [session(11, 1, 'Synthetic Group Alpha', -1500), session(12, 1, 'Synthetic Group Alpha', -9000, { attendance_state: 'finalized' })] }, { groupId: uuid(2), rows: [session(13, 2, 'مجموعة الصف العاشر', -600, { attendance_state: 'reopened' })] },
+   { groupId: uuid(3), rows: [session(14, 3, 'Synthetic Group Gamma', -4000)] }, { groupId: uuid(4), rows: [session(15, 4, 'Synthetic Group Delta', -20000)] }]) },
+ plain: { courses: ok(courses), groups: groupsFull, upcoming: upcomingFull, notifications: notesFull, unsaved: ok([]) },
+ unsavederror: { courses: ok(courses), groups: groupsFull, upcoming: upcomingFull, notifications: notesFull, unsaved: bad(503) },
  errors: { courses: bad(503), groups: bad(503), upcoming: bad(503), notifications: bad(401) },
  forbidden: { courses: bad(403), groups: groupsFull, upcoming: upcomingFull, notifications: bad(403) },
  empty: { courses: ok([]), groups: groupsFull, upcoming: ok({ rows: [], page: 0 }), notifications: ok({ rows: [], page: 0, unread: 0 }) },
@@ -143,10 +149,10 @@ createRoot(document.getElementById('root')).render(
   const hw = page.locator('[data-section="th-homework"] [data-state="unavailable"]'); await hw.waitFor(); assert.match(await hw.innerText(), /not available yet/);
   assert.doesNotMatch(await page.locator('[data-section="th-homework"]').innerText(), /\b\d+\b/, 'no invented number in the homework card');
   const updates = await page.locator('[data-update]').allInnerTexts(); assert.equal(updates.length, 3); assert.match(updates[0], /Session change/); assert.match(updates[1], /Session change/); assert.doesNotMatch(updates[2], /Session change/);
-  assert.equal(await page.locator('header [data-create-course]').isVisible(), true, 'Create a course sits in the page header on a desktop');
+  assert.equal(await page.locator('[data-create-course]').count(), 0, 'no "Create a course" button on a returning teacher\'s Home, in the header or anywhere');
   assert.equal(await page.locator('[data-course]').count(), 0, 'a returning teacher\'s Home has no Courses card'); assert.equal(await page.locator('[data-section="th-courses"]').count(), 0);
-  const link = page.locator('[data-home-courses-link] a'); assert.equal(await link.count(), 1); assert.equal(await link.getAttribute('href'), '/teacher/settings/courses'); assert.equal(await page.locator('[data-home-courses-link] [data-create-course]').isVisible(), false, 'Create is in the header on a desktop');
-  assert.ok(await page.locator('header svg').first().isVisible(), 'the real tree mark is shown');
+  assert.equal(await page.locator('[data-home-courses-link]').count(), 0, 'no Courses link or block on Home');
+  assert.ok(await page.locator('aside svg').first().isVisible(), 'the real tree mark is shown');
   const nav = page.locator('[data-teacher-nav] a'); assert.deepEqual(await nav.allInnerTexts(), menuItems);
   assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'students', 'groups', 'homework', 'exams', 'reports'], 'six items in the agreed order; Courses and Settings are not in the menu');
   const soon = page.locator('[data-teacher-nav] [data-nav="reports"]'); assert.equal(await soon.evaluate(e => e.tagName), 'SPAN', 'Reports has no screen yet: not a link'); assert.equal(await soon.getAttribute('aria-disabled'), 'true'); assert.match(await soon.innerText(), /Reports\s+Coming soon/);
@@ -170,7 +176,7 @@ createRoot(document.getElementById('root')).render(
   assert.deepEqual(small, [], 'body text is at least 16px on a phone');
   const tiny = await page.evaluate(() => [...document.querySelectorAll('main a, main button, main input, main select')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.height < 43.5 || r.width < 43.5); }).map(e => (e.textContent || e.tagName).trim().slice(0, 30) + ':' + Math.round(e.getBoundingClientRect().height)));
   assert.deepEqual(tiny, [], 'touch targets are at least 44px');
-  const last = await page.locator('[data-home-courses-link] > *').last().evaluate(e => e.hasAttribute('data-create-course')); assert.ok(last, '"Create a course" is the last thing on a phone Home, under the small Courses link');
+  assert.equal(await page.locator('[data-create-course], [data-home-courses-link]').count(), 0, 'nothing about courses on a phone Home'); assert.equal(boxes.at(-1).id, 'th-coming', 'Coming up is the last section');
   await page.screenshot({ path: path.join(shots, 'home-en-390.png'), fullPage: true });
   await context.close();
  });
@@ -204,7 +210,7 @@ createRoot(document.getElementById('root')).render(
    const { page, context } = await open(viewport, 'view=home&s=full&lang=ar');
    await page.locator('[data-teacher-home]').waitFor();
    assert.equal(await page.locator('html').getAttribute('dir'), 'rtl');
-   const body = await text(page); assert.match(body, /الحصة القادمة/); assert.match(body, /واجبات تنتظر التصحيح/); assert.match(body, /تحديثات مهمة/); assert.match(body, /قريبًا/); assert.match(body, /الدورات/); assert.match(body, /أنشئ دورة/);
+   const body = await text(page); assert.match(body, /الحصة القادمة/); assert.match(body, /واجبات تنتظر التصحيح/); assert.match(body, /تحديثات مهمة/); assert.match(body, /قريبًا/); assert.doesNotMatch(body, /أنشئ دورة/, 'no Create a course on a returning Home in Arabic either');
    assert.ok(await overflow(page));
    if (viewport === desktop) { assert.match(await page.locator('[data-teacher-support]').first().innerText(), /الدعم/); }
    else { await page.getByRole('button', { name: /قائمة|navigation menu/i }).click(); await page.locator('[role="dialog"] [data-teacher-support]').waitFor(); assert.match(await page.locator('[role="dialog"] [data-teacher-support]').innerText(), /الدعم/); await page.keyboard.press('Escape'); }
@@ -237,7 +243,7 @@ createRoot(document.getElementById('root')).render(
   assert.equal(await page.locator('[data-section="th-next"] [data-state="empty"]').count(), 1);
   assert.equal(await page.locator('[data-section="th-updates"] [data-state="empty"]').count(), 1);
   assert.equal(await page.locator('[data-section="th-coming"] [data-state="empty"]').count(), 1);
-  assert.equal(await page.locator('[data-course]').count(), 0, 'no Courses card on a returning Home'); assert.equal(await page.locator('[data-home-courses-link]').count(), 1); assert.equal(await page.locator('[data-first-visit]').count(), 0);
+  assert.equal(await page.locator('[data-course]').count(), 0, 'no Courses card on a returning Home'); assert.equal(await page.locator('[data-home-courses-link]').count(), 0); assert.equal(await page.locator('[data-first-visit]').count(), 0);
   await page.screenshot({ path: path.join(shots, 'home-quiet-1440.png'), fullPage: true });
   await context.close();
  });
@@ -307,8 +313,8 @@ createRoot(document.getElementById('root')).render(
   assert.deepEqual(Object.keys(body).sort(), ['organization_id', 'slug', 'title']); assert.equal(body.title, 'Synthetic Physics 11'); assert.match(body.slug, /^synthetic-physics-11-[a-z0-9]{1,6}$/); assert.equal(body.organization_id, '00000000-0000-4000-8000-000000000050');
   assert.deepEqual(await page.evaluate(() => window.__pushes), ['/teacher/courses/00000000-0000-4000-8000-0000000000aa']);
   await context.close();
-  const two = await open(phone, 'view=home&s=empty&spaces=2'); await two.page.locator('[data-teacher-home]').waitFor();
-  await two.page.locator('[data-home-courses-link] [data-create-course]').click(); await two.page.getByLabel('Teaching space').waitFor();
+  const two = await open(phone, 'view=courses&s=empty&spaces=2'); await two.page.locator('[data-teacher-courses]').waitFor();
+  await two.page.locator('header [data-create-course]').click(); await two.page.getByLabel('Teaching space').waitFor();
   assert.equal(await two.page.getByLabel('Teaching space').locator('option').count(), 2);
   await two.page.screenshot({ path: path.join(shots, 'create-dialog-en-390.png') }); await two.context.close();
   const ar = await open(phone, 'view=courses&s=empty&lang=ar'); await ar.page.locator('[data-teacher-courses]').waitFor(); await ar.page.locator('header [data-create-course]').click(); await ar.page.getByRole('dialog').waitFor();
@@ -335,8 +341,49 @@ createRoot(document.getElementById('root')).render(
   await page.locator('[data-teacher-home]').waitFor();
   const seen = new Set(); for (let i = 0; i < 40; i++) { await page.keyboard.press('Tab'); seen.add(await page.evaluate(() => { const e = document.activeElement; return e && e !== document.body ? (e.getAttribute('data-nav') || e.getAttribute('data-course') || e.tagName + ':' + (e.textContent || '').trim().slice(0, 20)) : ''; })); }
   assert.ok(seen.size > 10, 'focus moves through the page (' + seen.size + ' stops)');
-  await page.locator('header [data-create-course]').click(); await page.getByRole('dialog').waitFor(); await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'detached' });
   await context.close();
+  const first = await open(desktop, 'view=home&s=first'); await first.page.locator('[data-first-visit]').waitFor();
+  await first.page.locator('[data-first-visit] [data-create-course]').click(); await first.page.getByRole('dialog').waitFor(); await first.page.keyboard.press('Escape'); await first.page.getByRole('dialog').waitFor({ state: 'detached' });
+  await first.context.close();
+ });
+
+ await step('Attendance on Home: HAPPENING NOW with Take attendance, "attendance not saved" rows with Finish (max 3, newest first), nothing changes otherwise', async () => {
+  const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0'); const href = (g, n) => `/teacher/groups/${uuid(g)}/attendance/${uuid(200 + n)}`;
+  const lumOf = c => { const m = c.match(/\d+(\.\d+)?/g).map(Number).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; };
+  for (const [vp, tag] of [[desktop, 'en-1440'], [phone, 'en-390']]) {
+   const { page, context } = await open(vp, 'view=home&s=attention'); await page.locator('[data-teacher-home]').waitFor();
+   const next = page.locator('[data-section="th-next"]'); assert.match(await next.locator('h2').innerText(), /happening now/i); assert.doesNotMatch(await next.locator('h2').innerText(), /next session/i);
+   const open1 = next.getByRole('link', { name: 'Open this Group' }), take = next.locator('[data-take-attendance]');
+   assert.equal(await take.innerText(), 'Take attendance'); assert.equal(await take.getAttribute('href'), href(1, 1)); assert.equal(await open1.getAttribute('href'), '/teacher/groups/' + uuid(1));
+   const ob = await open1.boundingBox(), tb = await take.boundingBox();
+   if (vp === desktop) assert.ok(Math.abs(ob.y - tb.y) < 6 && tb.x > ob.x, 'beside Open this Group on a desktop'); else assert.ok(tb.y >= ob.y + ob.height - 1 && tb.width > 300, 'below Open this Group, full width, on a phone');
+   assert.ok(tb.height >= 43.5, 'a real button size'); assert.equal(await open1.evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(0, 0, 0)', 'Open this Group stays the dark button');
+   assert.ok(lumOf(await take.evaluate(e => getComputedStyle(e).backgroundColor)) > 0.85, 'Take attendance is the light outlined button');
+   for (const t of ['next-session', 'take-attendance', 'unsaved-attendance']) assert.equal(await page.locator(`[data-tour="${t}"]`).count(), 1, t);
+   const rows = page.locator('[data-unsaved-session]'); assert.equal(await rows.count(), 3, 'at most three');
+   assert.deepEqual(await rows.evaluateAll(n => n.map(e => e.dataset.unsavedSession)), [uuid(213), uuid(211), uuid(214)], 'newest first: one row per Group, the latest finished Session, finalized ones left out');
+   for (let i = 0; i < 3; i++) { const row = rows.nth(i), finish = row.locator('[data-unsaved-finish]'); assert.match(await row.innerText(), /attendance not saved/); assert.equal(await finish.innerText(), 'Finish'); const fb = await finish.boundingBox(); assert.ok(fb.height >= 47.5 && fb.width >= 47.5, 'Finish is 48px+'); assert.equal(await finish.evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(252, 211, 77)', 'yellow'); }
+   assert.equal(await rows.nth(0).locator('[data-unsaved-finish]').getAttribute('href'), href(2, 13)); assert.equal(await rows.nth(1).locator('[data-unsaved-finish]').getAttribute('href'), href(1, 11)); assert.match(await rows.nth(0).innerText(), /مجموعة الصف العاشر/);
+   const topUnsaved = (await page.locator('[data-unsaved-list]').boundingBox()).y, firstUpcoming = (await page.locator('[data-section="th-coming"] [data-session]').first().boundingBox()).y; assert.ok(topUnsaved < firstUpcoming, 'at the top of Coming up');
+   assert.equal(await page.locator('[data-section="th-coming"] [data-session]').count(), 2, 'the upcoming sessions follow'); assert.equal(await page.locator('[data-section]').count(), 4, 'no new section');
+   assert.ok(await overflow(page));
+   const small = await page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const s = parseFloat(getComputedStyle(n.parentElement).fontSize); if (s < 16) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
+   assert.deepEqual(small, [], 'text at least 16px');
+   await page.screenshot({ path: path.join(shots, `home-attention-${tag}.png`), fullPage: true }); await context.close();
+  }
+  const ar = await open(desktop, 'view=home&s=attention&lang=ar'); await ar.page.locator('[data-teacher-home]').waitFor();
+  assert.match(await ar.page.locator('[data-section="th-next"] h2').innerText(), /تجري الآن/); assert.equal(await ar.page.locator('[data-take-attendance]').innerText(), 'تسجيل الحضور'); assert.match(await ar.page.locator('[data-unsaved-session]').first().innerText(), /لم يُحفظ الحضور/); assert.equal(await ar.page.locator('[data-unsaved-finish]').first().innerText(), 'إنهاء');
+  const aob = await ar.page.locator('[data-section="th-next"]').getByRole('link').first().boundingBox(), atb = await ar.page.locator('[data-take-attendance]').boundingBox(); assert.ok(atb.x < aob.x, 'mirrored: Take attendance sits to the left of Open this Group in RTL');
+  assert.ok(await overflow(ar.page)); await ar.page.screenshot({ path: path.join(shots, 'home-attention-ar-1440.png'), fullPage: true }); await ar.context.close();
+  for (const sc of ['full', 'plain']) {
+   const { page, context } = await open(desktop, 'view=home&s=' + sc); await page.locator('[data-teacher-home]').waitFor();
+   assert.match(await page.locator('[data-section="th-next"] h2').innerText(), /next session/i); assert.equal(await page.locator('[data-take-attendance]').count(), 0, 'no Take attendance before the session starts');
+   assert.equal(await page.locator('[data-unsaved-list]').count(), 0); assert.equal(await page.locator('[data-section="th-coming"] [role="alert"]').count(), 0); assert.equal(await page.locator('[data-section="th-coming"] [data-session]').count(), 3); await context.close();
+  }
+  const bad = await open(desktop, 'view=home&s=unsavederror'); await bad.page.locator('[data-teacher-home]').waitFor();
+  assert.equal(await bad.page.locator('[data-section="th-coming"] [role="alert"]').count(), 1); assert.equal(await bad.page.locator('[data-section="th-coming"] [data-session]').count(), 3); assert.equal(await bad.page.locator('[data-section="th-next"] [data-next-session]').count(), 1); await bad.context.close();
+  const dark = await open(desktop, 'view=home&s=attention&theme=dark'); await dark.page.locator('[data-teacher-home]').waitFor(); await dark.page.waitForFunction(() => document.documentElement.classList.contains('dark'));
+  await dark.page.screenshot({ path: path.join(shots, 'home-attention-dark-1440.png'), fullPage: true }); await dark.context.close();
  });
  await browser.close(); server.close();
  assert.deepEqual(errors, [], 'no uncaught or console errors');

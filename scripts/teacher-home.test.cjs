@@ -131,16 +131,17 @@ test('wording: no tenant, program or studio vocabulary reaches a teacher on thes
   .replace(/organization_id|slug|courseSlug|Slug/g, '');
  assert.doesNotMatch(shown.replace(/\b(className|class)=("[^"]*"|\{[^}]*\})/g, ''), /Organization|Tenant|Website Studio|>\s*Program|Module/);
 });
-test('layout contract: desktop has a day column and an inbox column; phone order is next session, homework, updates, coming up, then one small Courses link', () => {
+test('layout contract: desktop has a day column and an inbox column; phone order is next session, homework, updates, coming up; no courses on Home', () => {
  const view = read('frontend/features/teacher-home/home-view.tsx');
  const home = view.slice(view.indexOf('export function TeacherHomeView'));
- assert.deepEqual([...home.matchAll(/^\s+<(NextSession|Homework|Updates|ComingUp|CoursesLink)\b/gm)].map(m => m[1]), ['NextSession', 'ComingUp', 'Homework', 'Updates', 'CoursesLink'], 'desktop columns: day (next session, coming up), inbox (homework, updates, a small Courses link)');
+ assert.deepEqual([...home.matchAll(/^\s+<(NextSession|Homework|Updates|ComingUp|CoursesLink)\b/gm)].map(m => m[1]), ['NextSession', 'ComingUp', 'Homework', 'Updates'], 'desktop columns: day (next session, coming up), inbox (homework, updates)');
  const phone = [...home.matchAll(/<(NextSession|Homework|Updates|ComingUp|CoursesLink)\b[^>]*?\border-(\d) lg:order-none/g)].sort((x, y) => x[2] - y[2]).map(m => m[1]);
- assert.deepEqual(phone, ['NextSession', 'Homework', 'Updates', 'ComingUp', 'CoursesLink']);
+ assert.deepEqual(phone, ['NextSession', 'Homework', 'Updates', 'ComingUp']);
  assert.doesNotMatch(view, /function Courses\(|<Courses|CourseCards/, 'a returning teacher has no big Courses card on Home');
- assert.match(view, /<Link href="\/teacher\/settings\/courses"[^>]*><L id="th\.courses\.title" \/><\/Link>\s*<CreateCourse targets=\{targets\} ink className="[^"]*lg:hidden" \/>/, 'one small Courses link, with Create a course on a phone');
+ assert.doesNotMatch(view, /CoursesLink|data-home-courses-link|th\.courses\.title/, 'Home has no courses block and no Courses link');
  assert.match(view, /href=\{`\/teacher\/groups\/\$\{next\.groupId\}`\}/, 'Open this Group opens the teacher Group page'); assert.match(view, /<Link href="\/teacher\/groups"/);
- assert.match(home, /<CreateCourse targets=\{data\.createTargets\} ink className="max-lg:hidden" \/>/, 'and in the page header on a desktop');
+ assert.doesNotMatch(home, /CreateCourse/, 'no Create a course button in the Home header');
+ assert.match(view, /<CreateCourse targets=\{data\.createTargets\} ink className="min-h-\[48px\]" \/>/, 'the first-visit card keeps its Create a course step');
  assert.match(view, /data\.firstVisit\) return <FirstVisit/);
  assert.doesNotMatch(view, /EduLabsMark/, 'the mark belongs to the shell, not to the page');
 });
@@ -171,4 +172,58 @@ test('sidebar: Support stays reachable for staff through the existing /support r
  assert.equal(home.teacherNav.length, 6, 'six teacher links');
  assert.ok(messages.en['navigation.support'] && messages.ar['navigation.support'], 'Support label exists in en and ar');
  assert.equal(home.teacherNav.some(n => n.href === '/support'), false, 'Support is the footer entry, not one of the six');
+});
+
+// ------------------------------------------------------------------ attendance on Home
+test('happening now: only a started, not cancelled next session can take attendance; an upcoming one changes nothing', () => {
+ const before = build({ upcoming: ok({ rows: [session(1, 1, 30)], page: 0 }) }).sessions.data.next;
+ assert.equal(before.happening, false, 'before it starts nothing changes');
+ const started = build({ upcoming: ok({ rows: [session(1, 1, -10)], page: 0 }) }).sessions.data.next;
+ assert.equal(started.happening, true); assert.equal(started.id, uuid(201));
+ const edge = build({ upcoming: ok({ rows: [session(1, 1, 0)], page: 0 }) }).sessions.data.next;
+ assert.equal(edge.happening, true, 'now >= starts_at');
+ assert.equal(build({ upcoming: ok({ rows: [session(1, 1, -10, { cancelled: true })], page: 0 }) }).sessions.data.next, null, 'a cancelled session is never next, so never happening now');
+ assert.equal(build().sessions.data.comingUp.every(s => s.happening === false), true);
+});
+const plain = v => JSON.parse(JSON.stringify(v));
+const past = (n, groupN, endedMinAgo, state = 'draft', extra = {}) => session(n, groupN, -endedMinAgo - 60, { attendance_state: state, ...extra });
+test('unsaved attendance: the latest finished session of a Group the teacher manages, unless finalized; newest first; at most three', () => {
+ const rows = (g, list) => ({ groupId: uuid(g), rows: list });
+ const out = build({ unsaved: ok([rows(1, [past(10, 1, 3000), past(11, 1, 600)]), rows(2, [past(12, 2, 120, 'finalized')]), rows(3, [past(13, 3, 90)])]),
+  groups: ok({ rows: [group(1), group(2), group(3), group(4)], page: 0, hasMore: false }) }).unsaved;
+ assert.equal(out.state, 'ready');
+ assert.deepEqual(out.data.map(u => u.id), [uuid(211), uuid(213)].sort((a, b) => b === uuid(213) ? 1 : -1), 'only the latest finished session per Group; a finalized one is not listed');
+ assert.deepEqual(Object.keys(out.data[0]).sort(), ['endsAt', 'groupId', 'groupName', 'id', 'startsAt', 'title']);
+ assert.equal(out.data[0].groupName, 'Synthetic Group 3', 'newest first (ended 90 minutes ago, before the other one ended 600 ago)');
+ const many = build({ unsaved: ok([1, 2, 3, 4].map(g => rows(g, [past(20 + g, g, 100 * g)]))), groups: ok({ rows: [group(1), group(2), group(3), group(4)], page: 0, hasMore: false }) }).unsaved;
+ assert.equal(many.data.length, home.UNSAVED_LIMIT); assert.equal(home.UNSAVED_LIMIT, 3);
+ assert.deepEqual(many.data.map(u => u.groupId), [uuid(1), uuid(2), uuid(3)], 'the three most recent');
+ const reopened = build({ unsaved: ok([rows(1, [past(30, 1, 60, 'reopened')])]) }).unsaved;
+ assert.equal(reopened.data.length, 1, 'a reopened list is not finalized');
+ const cancelledOnly = build({ unsaved: ok([rows(1, [past(31, 1, 60, 'draft', { cancelled: true })])]) }).unsaved;
+ assert.deepEqual(plain(cancelledOnly.data), [], 'a cancelled session has no attendance');
+ const other = build({ unsaved: ok([rows(9, [past(32, 9, 60)])]) }).unsaved;
+ assert.deepEqual(plain(other.data), [], 'a Group the teacher does not manage is never listed');
+ const empty = build({ unsaved: ok([]) }).unsaved;
+ assert.deepEqual(plain(empty), { state: 'ready', data: [] }, 'none: Home looks as today');
+});
+test('unsaved attendance: a failed read is an error, never "all clear"; without the read it is unavailable', () => {
+ assert.deepEqual(plain(build({ unsaved: bad(503) }).unsaved), { state: 'error', status: 503 });
+ assert.deepEqual(plain(build({ unsaved: undefined }).unsaved), { state: 'unavailable' });
+ assert.equal(build({ groups: bad(500), unsaved: ok([]) }).unsaved.state, 'error');
+ assert.equal(build({ unsaved: bad(503) }).sessions.state, 'ready', 'the rest of Home is unaffected');
+});
+test('Home view: Take attendance and the unsaved rows, with their tour targets and 48px buttons', () => {
+ const view = read('frontend/features/teacher-home/home-view.tsx');
+ assert.match(view, /\{now && <Link href=\{attendanceHref\(next\.groupId, next\.id\)\} data-tour="take-attendance"/);
+ assert.match(view, /const now = Boolean\(next\?\.happening\)/); assert.match(view, /id=\{now \? 'th\.next\.now' : 'th\.next\.title'\}/);
+ assert.match(view, /data-tour="next-session"/); assert.match(view, /data-tour="unsaved-attendance"/);
+ assert.match(view, /<Link href=\{attendanceHref\(s\.groupId, s\.id\)\} data-unsaved-finish className="[^"]*min-h-\[48px\][^"]*bg-amber-300/);
+ assert.match(view, /<ul data-tour="unsaved-attendance"[^>]*>\{rows\.map/, 'at the top of Coming up, before the upcoming sessions');
+ assert.ok(view.indexOf('data-unsaved-list') < view.indexOf('data.data.comingUp.map'));
+ for (const k of ['th.next.now', 'th.next.attendance', 'th.coming.unsaved', 'th.coming.finish']) { assert.ok(messages.en[k] && messages.ar[k], k); assert.match(messages.ar[k], /[؀-ۿ]/); }
+ assert.equal(messages.en['th.next.attendance'], 'Take attendance'); assert.equal(messages.en['th.coming.finish'], 'Finish');
+ const server = read('server/services/teacher-home.ts');
+ assert.match(server, /service\.view<GroupSession>\(groupId, 'sessions'\)/, 'the existing per-Group sessions read, like a Group card');
+ assert.match(server, /UNSAVED_GROUP_LIMIT/);
 });

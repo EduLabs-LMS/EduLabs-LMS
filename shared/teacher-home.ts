@@ -1,5 +1,7 @@
 import type { GroupPage, GroupSession, StudyGroup } from '@/shared/contracts/groups';
 import type { NotificationEvent, NotificationPage } from '@/shared/contracts/communications';
+import { lastUnsavedSession } from '@/shared/teacher-groups';
+import { canTakeAttendance } from '@/shared/teacher-attendance';
 
 /** Pure mapping for the teacher Home and Courses pages. Every section carries its own state, so a failed read is never shown as an empty one. */
 export type Settled<T> = { ok: true; value: T } | { ok: false; status: number | null };
@@ -7,13 +9,19 @@ export type Section<T> = { state: 'ready'; data: T } | { state: 'error'; status:
 
 export type CourseStatus = 'draft' | 'published' | 'archived';
 export type HomeCourse = { id: string; title: string; status: CourseStatus };
-export type HomeSession = { id: string; groupId: string; groupName: string; title: string; startsAt: string; endsAt: string; mode: 'online' | 'center'; location: string };
+export type HomeSession = { id: string; groupId: string; groupName: string; title: string; startsAt: string; endsAt: string; mode: 'online' | 'center'; location: string;
+  /** The session has started and is not cancelled (judged on the server clock when Home was read), so attendance can be taken. */ happening: boolean };
+/** A finished session whose attendance was not finalized: the same rule as the "attendance not saved" line on a Group card. */
+export type HomeUnsaved = { id: string; groupId: string; groupName: string; title: string; startsAt: string; endsAt: string };
 export type HomeUpdate = { id: string; event: NotificationEvent; createdAt: string; link: string | null; sessionChange: boolean };
 export type CreateTarget = { id: string; name: string };
 
 export const COURSE_LIMIT = 100;
 export const UPDATE_LIMIT = 5;
 export const COMING_UP_LIMIT = 5;
+/** At most this many "attendance not saved" rows on Home; the Groups they come from are read at most UNSAVED_GROUP_LIMIT at a time. */
+export const UNSAVED_LIMIT = 3;
+export const UNSAVED_GROUP_LIMIT = 10;
 const sessionEvents: readonly NotificationEvent[] = ['session_details', 'session_starting'];
 const courseStatuses: readonly string[] = ['draft', 'published', 'archived'];
 
@@ -24,6 +32,8 @@ export type RawInputs = {
   groups: Settled<GroupPage<StudyGroup>>;
   upcoming: Settled<GroupPage<GroupSession & { group_name?: string }>>;
   notifications: Settled<NotificationPage>;
+  /** Each Group the teacher manages with its first page of sessions (upcoming first, then the latest finished ones). */
+  unsaved?: Settled<{ groupId: string; rows: GroupSession[] }[]>;
   now: number;
 };
 
@@ -31,6 +41,8 @@ export type TeacherHomeData = {
   courses: Section<{ items: HomeCourse[]; truncated: boolean }>;
   groups: Section<{ count: number; partial: boolean }>;
   sessions: Section<{ next: HomeSession | null; comingUp: HomeSession[]; partial: boolean }>;
+  /** Finished sessions still waiting for attendance, newest first, at most UNSAVED_LIMIT. */
+  unsaved: Section<HomeUnsaved[]>;
   /** Pending counts per Group in the existing summary are the viewer's own unsubmitted homework, not submissions awaiting correction, so this section is never filled from them. */
   homework: Section<never>;
   updates: Section<{ items: HomeUpdate[]; unread: number }>;
@@ -60,8 +72,20 @@ export function mapSessions(upcoming: RawInputs['upcoming'], staffIds: Map<strin
   const mine = upcoming.value.rows
     .filter(s => staffIds.has(s.group_id) && !s.cancelled && Date.parse(s.ends_at) > now)
     .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at) || a.id.localeCompare(b.id))
-    .map((s): HomeSession => ({ id: s.id, groupId: s.group_id, groupName: staffIds.get(s.group_id) ?? s.group_name ?? '', title: s.title, startsAt: s.starts_at, endsAt: s.ends_at, mode: s.mode, location: s.location }));
+    .map((s): HomeSession => ({ id: s.id, groupId: s.group_id, groupName: staffIds.get(s.group_id) ?? s.group_name ?? '', title: s.title, startsAt: s.starts_at, endsAt: s.ends_at, mode: s.mode, location: s.location, happening: canTakeAttendance(s, now) }));
   return { state: 'ready', data: { next: mine[0] ?? null, comingUp: mine.slice(1, 1 + COMING_UP_LIMIT), partial: groups.data.partial || Boolean(upcoming.value.hasMore) } };
+}
+
+export function mapUnsaved(raw: RawInputs['unsaved'], staffIds: Map<string, string>, groups: TeacherHomeData['groups'], now: number): TeacherHomeData['unsaved'] {
+  if (groups.state !== 'ready') return groups.state === 'error' ? { state: 'error', status: groups.status } : { state: 'unavailable' };
+  if (!raw) return { state: 'unavailable' };
+  if (!raw.ok) return fail(raw);
+  const items = raw.value.flatMap(({ groupId, rows }): HomeUnsaved[] => {
+    const name = staffIds.get(groupId);
+    const s = name === undefined ? null : lastUnsavedSession(rows.filter(r => r.group_id === groupId), now);
+    return s ? [{ id: s.id, groupId, groupName: name ?? '', title: s.title, startsAt: s.starts_at, endsAt: s.ends_at }] : [];
+  }).sort((a, b) => Date.parse(b.endsAt) - Date.parse(a.endsAt) || a.id.localeCompare(b.id));
+  return { state: 'ready', data: items.slice(0, UNSAVED_LIMIT) };
 }
 
 export function mapUpdates(raw: Settled<NotificationPage>): TeacherHomeData['updates'] {
@@ -85,6 +109,7 @@ export function buildTeacherHome(input: RawInputs): TeacherHomeData {
   return {
     courses, groups,
     sessions: mapSessions(input.upcoming, staffIds, groups, input.now),
+    unsaved: mapUnsaved(input.unsaved, staffIds, groups, input.now),
     homework: { state: 'unavailable' },
     updates: mapUpdates(input.notifications),
     firstVisit,

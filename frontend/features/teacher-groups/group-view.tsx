@@ -159,13 +159,15 @@ function SessionsPanel({ group, now, onChanged }: { group: StudyGroup; now: numb
 
 function SessionItem({ s, now, group, canCancel, onChanged }: { s: GroupSession; now: number; group: StudyGroup; canCancel: boolean; onChanged: () => void }) {
   const state = sessionState(s, now), att = attendanceSummary(s, now);
+  const opens = canTakeAttendance(s, now), { t } = useLanguage();
   return <li data-session={s.id} data-state={state} className="space-y-2 rounded-2xl border-2 border-black bg-white p-4">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div className="min-w-0"><p className="text-base font-bold break-words">{s.title}</p><p className="text-base text-slate-700"><LocalDate value={s.starts_at} options={sessionTime} /></p></div>
+      {opens
+        ? <Link href={attendanceHref(group.id, s.id)} data-attendance-link aria-label={`${s.title}. ${t('ta.open')}`} className="min-h-[48px] min-w-0 flex-1 underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black"><p className="text-base font-bold break-words">{s.title}</p><p className="text-base text-slate-700"><LocalDate value={s.starts_at} options={sessionTime} /></p></Link>
+        : <div className="min-w-0"><p className="text-base font-bold break-words">{s.title}</p><p className="text-base text-slate-700"><LocalDate value={s.starts_at} options={sessionTime} /></p></div>}
       <span className={`inline-flex min-h-[28px] items-center rounded-full border-2 border-black px-3 text-base font-bold ${stateTone[state]}`}><L id={`tg.state.${state}`} /></span>
     </div>
     {att !== 'none' && <p data-attendance={att} className="text-base text-slate-700"><L id={`tg.att.${att}`} /></p>}
-    {canTakeAttendance(s, now) && <Link href={attendanceHref(group.id, s.id)} data-attendance-link className={linkClass}><L id="ta.open" /></Link>}
     {canCancel && state === 'upcoming' && <CancelSession s={s} group={group} onDone={onChanged} />}
   </li>;
 }

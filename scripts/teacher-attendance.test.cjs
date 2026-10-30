@@ -92,7 +92,11 @@ test('attendance: the page needs both ids to be UUIDs and repeats the staff chec
  assert.match(page, /isFirebaseStaging\(\)\) return <TeacherFoundationPage/);
 });
 test('attendance: the Group page and the "not saved" flag link to it', () => {
- assert.match(read('frontend/features/teacher-groups/group-view.tsx'), /canTakeAttendance\(s, now\) && <Link href=\{attendanceHref\(group\.id, s\.id\)\}/);
+ const groupView = read('frontend/features/teacher-groups/group-view.tsx');
+ assert.match(groupView, /const opens = canTakeAttendance\(s, now\)/);
+ assert.match(groupView, /\? <Link href=\{attendanceHref\(group\.id, s\.id\)\} data-attendance-link/, 'a started, not cancelled Session row is itself the link');
+ assert.doesNotMatch(groupView, /canTakeAttendance\(s, now\) && <Link/, 'no separate Attendance link under the row any more');
+ assert.match(groupView, /\{canCancel && state === 'upcoming' && <CancelSession/, 'cancel stays on upcoming Sessions only');
  assert.match(read('frontend/features/teacher-groups/list-view.tsx'), /<Link href=\{attendanceHref\(group\.id, unsaved\.id\)\} data-attendance-unsaved/);
 });
 test('attendance: the tour targets exist (not the tour itself)', () => {
@@ -101,8 +105,10 @@ test('attendance: the tour targets exist (not the tour itself)', () => {
  assert.doesNotMatch(all, /driver\.js|intro\.js|shepherd|spotlight/i, 'the tour is not built here');
 });
 test('attendance: the controls are at least 48px tall', () => {
- for (const m of view.matchAll(/data-(?:save-draft|finalize|reopen|mark-all|mark-button)[^>]*className=\{`([^`]*)`\}/g)) assert.match(m[1], /min-h-\[48px\]|\$\{bigButton\}/);
- assert.match(view, /const bigButton = 'min-h-\[48px\]/);
+ for (const m of view.matchAll(/data-(?:finalize|reopen|mark-button|confirm-[a-z-]+|save-retry)[^>]*className=\{`([^`]*)`\}/g)) assert.match(m[1], /\$\{bigButton\}|\$\{pill\}/);
+ assert.match(view, /const bigButton = 'min-h-\[48px\]/); assert.match(view, /const pill = 'inline-flex min-h-\[48px\]/);
+ assert.match(view, /data-mark-all[\s\S]*?className=\{cn\(linkClass, 'min-h-\[48px\]'\)\}/);
+ assert.match(view, /data-save-retry[\s\S]*?className=\{cn\(linkClass, 'min-h-\[48px\]'\)\}/);
 });
 
 // ------------------------------------------------------------------ wording and locales
@@ -116,11 +122,40 @@ test('locales: every ta.* and helper.* string exists in English and Arabic with 
   assert.equal(holes(messages.en[k]), holes(messages.ar[k]), k);
   assert.match(messages.ar[k], /[؀-ۿ]/, 'Arabic text is Arabic: ' + k);
  }
- for (const k of ['ta.present', 'ta.absent', 'ta.mark_all', 'ta.save', 'ta.finalize', 'ta.reopen']) assert.ok(messages.en[k], k);
- assert.equal(messages.en['ta.state.draft'], 'Not saved yet'); assert.equal(messages.en['ta.state.finalized'], 'Finalized'); assert.equal(messages.en['ta.state.reopened'], 'Reopened');
- assert.equal(messages.en['ta.mark_all'], 'Mark everyone present'); assert.equal(messages.en['ta.save'], 'Save draft'); assert.equal(messages.en['ta.finalize'], 'Finalize attendance');
+ const want = { 'ta.present': 'Present', 'ta.absent': 'Absent', 'ta.not_marked': 'Not marked', 'ta.all_present': 'All present', 'ta.finish': 'Finish attendance', 'ta.edit': 'Edit attendance',
+  'ta.saved_as_you_tap': 'Saved as you tap', 'ta.edit_needs_reason': 'Editing asks for a short reason', 'ta.finished': 'Finished', 'ta.count.present': '{count} present', 'ta.count.absent': '{count} absent',
+  'ta.count.not_marked': '{count} not marked', 'ta.title': 'Session {number} · {title}', 'ta.save_failed': "Couldn't save." };
+ for (const [k, v] of Object.entries(want)) assert.equal(messages.en[k], v, k);
+ for (const k of ['ta.save', 'ta.saved', 'ta.mark_all', 'ta.finalize', 'ta.reopen', 'ta.state.draft', 'ta.unsaved_changes', 'ta.sheet.label']) assert.ok(!(k in messages.en) && !(k in messages.ar), 'retired string ' + k);
 });
 test('wording: no tenant, program or studio vocabulary reaches a teacher on the attendance screen, in either language', () => {
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|\boffering|\brosters?\b|\benrol|\bmembership|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
  for (const k of Object.keys(messages.en).filter(k => k.startsWith('ta.') || k.startsWith('helper.'))) { assert.doesNotMatch(messages.en[k], forbidden, k); assert.doesNotMatch(messages.ar[k], forbidden, k); }
+});
+
+// ------------------------------------------------------------------ flat screen, saved as you tap
+test('autosave: no Save draft; every tap goes through one queue that always uses the latest Session version and never drops a mark', () => {
+ assert.doesNotMatch(view, /data-save-draft|ta\.save'|'ta\.saved'|Save draft/, 'there is no Save draft button');
+ assert.match(view, /function mark\(next: Marks\) \{[\s\S]*?marksRef\.current = next;[\s\S]*?void drain\(\);/, 'a tap updates the screen at once and starts the queue');
+ assert.match(view, /if \(running\.current\) return;/, 'only one save runs at a time; taps made meanwhile are picked up by the same loop');
+ assert.match(view, /for \(;;\) \{\s*const part = changedMarks\(savedRef\.current, marksRef\.current\)\.slice\(0, MARKS_PER_SAVE\);\s*if \(part\.length === 0\) break;/);
+ assert.match(view, /sessionVersion: session\.version/); assert.match(view, /sessionRef\.current = head\.session/, 'the version is re-read after every save');
+ assert.match(view, /savedRef\.current = \{ \.\.\.savedRef\.current, \.\.\.Object\.fromEntries\(part\.map/, 'only what the database accepted counts as saved');
+ assert.match(view, /catch \(e\) \{\s*failed = true;[\s\S]*?setSaving\('error'\)/, 'a failed save keeps the marks on screen and says so');
+ assert.match(view, /async function retry\(\) \{[\s\S]*?await refreshSession\(\)[\s\S]*?void drain\(\)/, 'retry first takes the current version');
+ assert.match(view, /const finishBlocked = Boolean\(busy\) \|\| pending \|\| saving === 'saving' \|\| saveFailed/, 'Finish waits for every save');
+ assert.match(view, /data-finalize disabled=\{finishBlocked\}/);
+ assert.match(view, /addEventListener\('beforeunload'/, 'leaving with an unsaved mark asks first');
+ for (const k of ['ta.saved_as_you_tap', 'ta.saving', 'ta.saved_now', 'ta.save_failed', 'ta.save_retry']) assert.ok(view.includes('"' + k + '"') || view.includes("'" + k + "'"), k);
+});
+test('finished view: the same screen, read-only; Edit attendance keeps the reason rule and stays instructor-only', () => {
+ assert.match(view, /<StudentRow [^>]*editable=\{editable\}/, 'the same rows; only the controls change');
+ assert.match(view, /const editable = Boolean\(value\) && !locked && !cancelled/);
+ assert.match(view, /mark === 'not_marked'\s*\? <p data-mark-text[^>]*><L id="ta\.not_marked" \/>/, '"Not marked" is plain text');
+ assert.match(view, /\{locked && <><span data-finished>/, 'counts line starts with Finished');
+ assert.match(view, /!confirming && locked && instructor && <button type="button" data-reopen/);
+ assert.match(view, /groupCall\('reopen', groupId, \{ sessionId, sessionVersion: session\.version, reason: reason\.trim\(\) \}\)/);
+ assert.match(view, /if \(kind === 'reopen' && !reasonValid\(reason\)\)/);
+ assert.match(view, /data-confirm-finalize[\s\S]*?data-unmarked-warning/, 'Finish asks first and warns about unmarked students');
+ assert.doesNotMatch(view, /bg-amber|border-\[2\.5px\]|shadow-hard|rounded-\[24px\]/, 'no boxed cards and no yellow status bar');
 });

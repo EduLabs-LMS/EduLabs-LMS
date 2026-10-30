@@ -6,7 +6,7 @@ import { spaceIsDemo } from '@/server/services/demo-space';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import type { GroupPage, GroupSession, StudyGroup } from '@/shared/contracts/groups';
 import type { NotificationPage } from '@/shared/contracts/communications';
-import { DEMO_CHECK_LIMIT, buildTeacherHome, createTargets, mapCourses, showDemoLabel, teachingSpaceIds, type RawCourse, type Settled, type TeacherHomeLoad } from '@/shared/teacher-home';
+import { DEMO_CHECK_LIMIT, UNSAVED_GROUP_LIMIT, buildTeacherHome, mapGroups, createTargets, mapCourses, showDemoLabel, teachingSpaceIds, type RawCourse, type Settled, type TeacherHomeLoad } from '@/shared/teacher-home';
 
 /** Reads run independently; one failing read marks only its own section as failed. Uses the existing services, which stay authoritative. */
 export async function settle<T>(read: () => PromiseLike<T>): Promise<Settled<T>> {
@@ -25,10 +25,19 @@ export async function teacherCourses(context: WebsiteContext): Promise<Settled<R
 export async function loadTeacherHome(context: WebsiteContext, now = Date.now()): Promise<TeacherHomeLoad> {
   const groups = settle(async () => (await groupService()).overview() as Promise<GroupPage<StudyGroup>>);
   const upcoming = settle(async () => (await groupService()).view<GroupSession & { group_name?: string }>(null, 'upcoming'));
+  // The rule "attendance not saved" is read per Group from its own sessions, exactly like a Group card does (the existing `view`, no new endpoint).
+  const unsaved = groups.then(g => settle(async () => {
+    if (!g.ok) return [];
+    const service = await groupService();
+    const all: string[] = [];
+    mapGroups(g).staffIds.forEach((_name, id) => all.push(id));
+    const ids = all.slice(0, UNSAVED_GROUP_LIMIT);
+    return Promise.all(ids.map(async groupId => ({ groupId, rows: (await service.view<GroupSession>(groupId, 'sessions')).rows })));
+  }));
   const notifications = settle(async () => (await (await communicationService())('notifications', 'list', { page: 0, filter: 'unread' })) as unknown as NotificationPage);
-  const [courses, g, u, n] = await Promise.all([teacherCourses(context), groups, upcoming, notifications]);
+  const [courses, g, u, n, a] = await Promise.all([teacherCourses(context), groups, upcoming, notifications, unsaved]);
   const targets = createTargets(context.organizations, context.memberships);
-  return { ...buildTeacherHome({ courses, groups: g, upcoming: u, notifications: n, now }), createTargets: targets, demo: await demoLabel(teachingSpaceIds(targets, courses)) };
+  return { ...buildTeacherHome({ courses, groups: g, upcoming: u, notifications: n, unsaved: a, now }), createTargets: targets, demo: await demoLabel(teachingSpaceIds(targets, courses)) };
 }
 
 /** A failed check shows no label and no error: the label only ever says something the database confirmed. */
