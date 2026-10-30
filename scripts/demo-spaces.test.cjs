@@ -25,9 +25,10 @@ test('migration: the reviewed demo-spaces SQL is byte-identical to the approved 
  assert.equal(hash(raw) === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c' || lf === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c', true);
  assert.match(read('.gitattributes'), /supabase\/migrations\/20261027120000_demo_spaces\.sql -text/);
  const names = fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
- assert.equal(names[names.length - 3], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration; only the two follow-ups come after it');
- assert.equal(names[names.length - 2], '20261029120000_demo_clear_robust.sql');
- assert.equal(names[names.length - 1], '20261030120000_demo_students.sql');
+ assert.equal(names[names.length - 4], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration; only the three follow-ups come after it');
+ assert.equal(names[names.length - 3], '20261029120000_demo_clear_robust.sql');
+ assert.equal(names[names.length - 2], '20261030120000_demo_students.sql');
+ assert.equal(names[names.length - 1], '20261031120000_demo_notifications.sql');
 });
 test('migration: demo_clear_core is replaced (not edited in 34), keeps its signature and grants, and removes what a teacher added inside the Groups and courses', () => {
  const sql = read('supabase/migrations/20261029120000_demo_clear_robust.sql'), code = sql.replace(/--.*$/gm, '');
@@ -62,6 +63,21 @@ test('migration: demo students (seed 2) are recorded, count as demo in the guard
  assert.doesNotMatch(code, /@/, 'no e-mail address anywhere in the seed');
  assert.match(read('.gitattributes'), /20261030120000_demo_students\.sql -text/);
  assert.ok(fs.existsSync('supabase/tests/demo-students.sql'));
+});
+test('migration: demo notifications (seed 3) are keyed demo:<org>:, never queued for push, and Clear is not replaced', () => {
+ const sql = read('supabase/migrations/20261031120000_demo_notifications.sql'), code = sql.replace(/--.*$/gm, '');
+ for (const fn of ['demo_fill_core(p_org uuid,p_actor uuid) returns jsonb', 'platform_demo_status(p_org uuid) returns jsonb']) assert.ok(code.includes('create or replace function private.' + fn), fn + ' is replaced with the same signature');
+ assert.doesNotMatch(code, /function private\.demo_clear_core|alter table|drop |create (table|function (?!or replace))/i, 'Clear is not replaced and nothing else changes');
+ assert.match(code, /'latestSeedVersion',\s*3/);
+ assert.match(code, /seed_version=3/);
+ assert.match(code, /event_key,event_type,organization_id,resource_id\)\s*values\('demo:'\|\|p_org::text\|\|':notification:'/, 'every event key starts with demo:<org id>:');
+ assert.doesNotMatch(code, /emit_notification|notification_deliveries|push_subscriptions/, 'inserted directly: nothing is queued for push');
+ assert.doesNotMatch(code, /'session_details'|'session_starting'/, 'session events are never current for staff, so none is seeded');
+ const clear = read('supabase/migrations/20261029120000_demo_clear_robust.sql') + read('supabase/migrations/20261030120000_demo_students.sql');
+ assert.match(clear, /event_key like 'demo:'\|\|p_org::text\|\|':%'/, 'the Clear that already exists removes that prefix');
+ assert.doesNotMatch(code, /@/, 'no e-mail address anywhere in the seed');
+ assert.match(read('.gitattributes'), /20261031120000_demo_notifications\.sql -text/);
+ assert.ok(fs.existsSync('supabase/tests/demo-notifications.sql'));
 });
 test('migration: platform administrators only, every call audited, nothing runs by itself', () => {
  const sql = read(MIGRATION);

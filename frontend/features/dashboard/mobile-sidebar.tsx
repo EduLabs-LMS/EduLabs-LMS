@@ -1,12 +1,15 @@
 'use client';
 
-import { L, Localized, useLanguage } from '@/frontend/components/language-provider';
+import { Localized, useLanguage } from '@/frontend/components/language-provider';
 import { useState } from 'react';
 import { Menu } from 'lucide-react';
 
 import { Sheet, SheetContent, SheetTrigger } from '@/frontend/components/ui/sheet';
 import Sidebar from '@/frontend/components/sidebar';
-import EduLabsMark from '@/frontend/components/edulabs-mark';
+import { BrandLogo } from '@/frontend/components/brand-logo';
+import { useWebsiteNavigation } from '@/frontend/components/providers/application-auth-provider';
+import { isFirebaseStaging } from '@/shared/auth-config';
+import { showTeacherNav, teacherHomeHref } from '@/shared/teacher-home';
 
 interface MobileSidebarProps {
 	initialRole?: string | null;
@@ -14,20 +17,14 @@ interface MobileSidebarProps {
 
 export const MobileSidebar = ({ initialRole }: MobileSidebarProps) => {
 	const { direction } = useLanguage();
+	const navigation = useWebsiteNavigation();
+	const teacherMode = showTeacherNav(isFirebaseStaging(), navigation?.staffOrganizationIds);
  const [open, setOpen] = useState(false);
 
 	return (
 		<div className="md:hidden sticky top-0 z-40 bg-white text-black px-4 py-3 border-b-[2.5px] border-black flex items-center justify-between">
 		{/* Mobile Branding Logo */}
-		<div className="flex items-center gap-2.5">
-		<EduLabsMark className="h-9 w-9 shrink-0" />
-		<div className="flex flex-col">
-		<span className="text-2xl font-normal text-black leading-none" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-		EduLabs
-		</span>
-		<span className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600"><L id="navigation.learning_platform"/></span>
-		</div>
-		</div>
+		<BrandLogo size="phone" href={teacherMode ? teacherHomeHref : undefined} />
 
 		{/* Sheet Trigger & Drawer Content */}
 		<div className="flex items-center gap-3">

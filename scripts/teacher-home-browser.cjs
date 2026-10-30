@@ -76,6 +76,7 @@ createRoot(document.getElementById('root')).render(
 (async () => {
  const stubs = {
   'next/navigation': 'window.__refreshes = window.__refreshes || 0; window.__pushes = window.__pushes || []; export const usePathname = () => window.__pathname; export const useRouter = () => ({ push(p) { window.__pushes.push(p); }, replace() {}, refresh() { window.__refreshes++; } });',
+  '@/frontend/components/providers/use-loading-router': 'export const useLoadingRouter = () => ({ push(p) { window.__pushes.push(p); }, replace() {}, refresh() { window.__refreshes++; } });',
   'next/link': 'import React from "react"; export default function Link({ href, children, onClick, ...rest }) { return React.createElement("a", { ...rest, href, onClick: e => { e.preventDefault(); (window.__clicks = window.__clicks || []).push(href); onClick && onClick(e); } }, children); }',
   'next/image': 'import React from "react"; export default function Image({ unoptimized, fill, priority, ...p }) { return React.createElement("img", p); }',
   '@/shared/auth-config': 'export const isFirebaseStaging = () => true;',
@@ -134,20 +135,20 @@ createRoot(document.getElementById('root')).render(
  const text = page => page.locator('main').innerText();
  const step = async (name, fn) => { try { await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
  const phone = { width: 390, height: 844 }, desktop = { width: 1440, height: 900 };
- const sections = ['th-next', 'th-homework', 'th-updates', 'th-coming'];
+ const sections = ['th-next', 'th-updates', 'th-coming'];
  const menuItems = ['Home', 'Students', 'Groups & Classes', 'Homework', 'Exams'];
 
- await step('Home with data, English desktop: four sections, real data, honest homework state, real tree mark, six-item menu', async () => {
+ await step('Home with data, English desktop: three sections (no Homework card), real data, real tree mark, six-item menu', async () => {
   const { page, context } = await open(desktop, 'view=home&s=full');
   await page.locator('[data-teacher-home]').waitFor();
   assert.deepEqual((await page.locator('[data-section]').evaluateAll(n => n.map(e => e.dataset.section))).sort(), [...sections].sort());
   const col = id => page.locator(`[data-section="${id}"]`).evaluate(e => e.getBoundingClientRect().left);
-  assert.ok(Math.abs(await col('th-next') - await col('th-coming')) < 2, 'next session and coming up share the day column'); assert.ok(Math.abs(await col('th-homework') - await col('th-updates')) < 2, 'homework and updates share the inbox column'); assert.ok(await col('th-homework') > await col('th-next'), 'inbox column beside the day column');
+  assert.ok(Math.abs(await col('th-next') - await col('th-coming')) < 2, 'next session and coming up share the day column'); assert.ok(await col('th-updates') > await col('th-next'), 'the inbox column (updates) sits beside the day column');
   const next = page.locator('[data-next-session]'); assert.match(await next.innerText(), /Synthetic Group Alpha/); assert.match(await next.innerText(), /Synthetic lesson 1/);
   assert.match(await page.locator('[data-section="th-coming"]').innerText(), /مجموعة الصف العاشر/);
   assert.equal(await page.locator('[data-section="th-coming"] [data-session]').count(), 3);
-  const hw = page.locator('[data-section="th-homework"] [data-state="unavailable"]'); await hw.waitFor(); assert.match(await hw.innerText(), /not available yet/);
-  assert.doesNotMatch(await page.locator('[data-section="th-homework"]').innerText(), /\b\d+\b/, 'no invented number in the homework card');
+  assert.equal(await page.locator('[data-section="th-homework"]').count(), 0, 'no Homework card until the Homework screen exists'); assert.equal(await page.locator('main a[href="/admin/submissions"]').count(), 0, 'and no link to the old submissions page');
+  assert.equal(await page.locator('[data-section="th-next"] a').count(), 1, 'the Next session card has only Open this Group before the session starts (no All sessions)'); assert.equal(await page.getByRole('link', { name: 'All sessions' }).count(), 0);
   const updates = await page.locator('[data-update]').allInnerTexts(); assert.equal(updates.length, 3); assert.match(updates[0], /Session change/); assert.match(updates[1], /Session change/); assert.doesNotMatch(updates[2], /Session change/);
   assert.equal(await page.locator('[data-create-course]').count(), 0, 'no "Create a course" button on a returning teacher\'s Home, in the header or anywhere');
   assert.equal(await page.locator('[data-course]').count(), 0, 'a returning teacher\'s Home has no Courses card'); assert.equal(await page.locator('[data-section="th-courses"]').count(), 0);
@@ -210,7 +211,7 @@ createRoot(document.getElementById('root')).render(
    const { page, context } = await open(viewport, 'view=home&s=full&lang=ar');
    await page.locator('[data-teacher-home]').waitFor();
    assert.equal(await page.locator('html').getAttribute('dir'), 'rtl');
-   const body = await text(page); assert.match(body, /الحصة القادمة/); assert.match(body, /واجبات تنتظر التصحيح/); assert.match(body, /تحديثات مهمة/); assert.match(body, /قريبًا/); assert.doesNotMatch(body, /أنشئ دورة/, 'no Create a course on a returning Home in Arabic either');
+   const body = await text(page); assert.match(body, /الحصة القادمة/); assert.doesNotMatch(body, /واجبات تنتظر التصحيح/, 'no Homework card yet'); assert.match(body, /تحديثات مهمة/); assert.match(body, /قريبًا/); assert.doesNotMatch(body, /أنشئ دورة/, 'no Create a course on a returning Home in Arabic either');
    assert.ok(await overflow(page));
    if (viewport === desktop) { assert.match(await page.locator('[data-teacher-support]').first().innerText(), /الدعم/); }
    else { await page.getByRole('button', { name: /قائمة|navigation menu/i }).click(); await page.locator('[role="dialog"] [data-teacher-support]').waitFor(); assert.match(await page.locator('[role="dialog"] [data-teacher-support]').innerText(), /الدعم/); await page.keyboard.press('Escape'); }
@@ -251,7 +252,7 @@ createRoot(document.getElementById('root')).render(
   for (const [lang, viewport, tag] of [['en', desktop, 'en-1440'], ['en', phone, 'en-390'], ['ar', phone, 'ar-390']]) {
    const { page, context } = await open(viewport, `view=home&s=first&lang=${lang}`);
    await page.locator('[data-first-visit]').waitFor();
-   assert.deepEqual((await page.locator('[data-section]').evaluateAll(n => n.map(e => e.dataset.section))).sort(), ['th-homework', 'th-next', 'th-updates'], 'only the three quiet cards, no courses or coming-up lists'); assert.equal(await page.locator('[data-course]').count(), 0);
+   assert.deepEqual((await page.locator('[data-section]').evaluateAll(n => n.map(e => e.dataset.section))).sort(), ['th-next', 'th-updates'], 'only the two quiet cards, no courses or coming-up lists'); assert.equal(await page.locator('[data-course]').count(), 0);
    assert.equal(await page.getByRole('button', { name: /Create a course|أنشئ دورة/ }).count(), 1);
    assert.doesNotMatch(await page.locator('[data-first-visit]').innerText(), /\d/, 'no numbers');
    assert.match(await page.locator('[data-first-visit]').innerText(), /Welcome to your teaching space|أهلًا بك في مساحة التدريس/); assert.equal(await page.locator('[data-first-visit] a[href="/support"]').count(), 1);
@@ -365,7 +366,7 @@ createRoot(document.getElementById('root')).render(
    for (let i = 0; i < 3; i++) { const row = rows.nth(i), finish = row.locator('[data-unsaved-finish]'); assert.match(await row.innerText(), /attendance not saved/); assert.equal(await finish.innerText(), 'Finish'); const fb = await finish.boundingBox(); assert.ok(fb.height >= 47.5 && fb.width >= 47.5, 'Finish is 48px+'); assert.equal(await finish.evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(252, 211, 77)', 'yellow'); }
    assert.equal(await rows.nth(0).locator('[data-unsaved-finish]').getAttribute('href'), href(2, 13)); assert.equal(await rows.nth(1).locator('[data-unsaved-finish]').getAttribute('href'), href(1, 11)); assert.match(await rows.nth(0).innerText(), /مجموعة الصف العاشر/);
    const topUnsaved = (await page.locator('[data-unsaved-list]').boundingBox()).y, firstUpcoming = (await page.locator('[data-section="th-coming"] [data-session]').first().boundingBox()).y; assert.ok(topUnsaved < firstUpcoming, 'at the top of Coming up');
-   assert.equal(await page.locator('[data-section="th-coming"] [data-session]').count(), 2, 'the upcoming sessions follow'); assert.equal(await page.locator('[data-section]').count(), 4, 'no new section');
+   assert.equal(await page.locator('[data-section="th-coming"] [data-session]').count(), 2, 'the upcoming sessions follow'); assert.equal(await page.locator('[data-section]').count(), 3, 'no new section (next, updates, coming up)');
    assert.ok(await overflow(page));
    const small = await page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const s = parseFloat(getComputedStyle(n.parentElement).fontSize); if (s < 16) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
    assert.deepEqual(small, [], 'text at least 16px');
@@ -384,6 +385,28 @@ createRoot(document.getElementById('root')).render(
   assert.equal(await bad.page.locator('[data-section="th-coming"] [role="alert"]').count(), 1); assert.equal(await bad.page.locator('[data-section="th-coming"] [data-session]').count(), 3); assert.equal(await bad.page.locator('[data-section="th-next"] [data-next-session]').count(), 1); await bad.context.close();
   const dark = await open(desktop, 'view=home&s=attention&theme=dark'); await dark.page.locator('[data-teacher-home]').waitFor(); await dark.page.waitForFunction(() => document.documentElement.classList.contains('dark'));
   await dark.page.screenshot({ path: path.join(shots, 'home-attention-dark-1440.png'), fullPage: true }); await dark.context.close();
+ });
+
+ await step('Logo: one link to Home in the brand font, 44px+, focus ring, aria-label; the phone header logo is the same link', async () => {
+  for (const [vp, tag] of [[desktop, 'en-1440'], [phone, 'en-390']]) {
+   const { page, context } = await open(vp, 'view=home&s=full'); await page.locator('[data-teacher-home]').waitFor();
+   const logos = page.locator('[data-brand-logo]'); const n = await logos.count(); assert.ok(n >= 1, 'a logo link exists');
+   for (let i = 0; i < n; i++) {
+    const logo = logos.nth(i); if (!(await logo.isVisible())) continue;
+    assert.equal(await logo.getAttribute('href'), '/home', 'goes to the teacher Home, the same href as the Home menu item');
+    assert.equal(await logo.getAttribute('aria-label'), 'EduLabs, learning platform. Go to Home');
+    assert.equal(await logo.locator('a').count(), 0, 'one link, not several'); assert.match(await logo.innerText(), /EduLabs[\s\S]*Learning Platform/i, 'mark, wordmark and the learning-platform line are all inside the link');
+    assert.equal(await logo.locator('svg').count() >= 1, true, 'the mark is inside the link');
+    const box = await logo.boundingBox(); assert.ok(box.height >= 43.5 && box.width >= 43.5, '44px+ target: ' + JSON.stringify(box));
+    const word = logo.getByText('EduLabs', { exact: true }); const fam = await word.evaluate(e => getComputedStyle(e).fontFamily), h1 = await page.locator('h1').first().evaluate(e => getComputedStyle(e).fontFamily);
+    assert.equal(fam, h1, 'the wordmark uses the brand display font like the page title'); assert.doesNotMatch(fam, /Times/i, 'no hard-coded Times New Roman');
+    await logo.focus(); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab');
+    const ring = await logo.evaluate(e => { const c = getComputedStyle(e); return { style: c.outlineStyle, width: parseFloat(c.outlineWidth) }; });
+    assert.ok(ring.style !== 'none' && ring.width >= 2, 'a visible focus ring: ' + JSON.stringify(ring));
+    await logo.click(); assert.equal(await page.evaluate(() => (window.__clicks || []).at(-1)), '/home', 'clicking it follows the Home href');
+   }
+   assert.ok(await overflow(page)); await page.screenshot({ path: path.join(shots, `logo-${tag}.png`) }); await context.close();
+  }
  });
  await browser.close(); server.close();
  assert.deepEqual(errors, [], 'no uncaught or console errors');

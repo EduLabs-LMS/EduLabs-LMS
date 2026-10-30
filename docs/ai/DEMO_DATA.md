@@ -36,10 +36,28 @@ highest version in this table is the **latest seed version**.
 | Groups and Sessions | `groups` | 1 | 2 Groups (one at a centre, one online) with the teacher as staff, 5 upcoming Sessions (1 cancelled) |
 | Students | `students` | 2 | 28 fake students, 14 per Group: a profile ("Demo Student 1" to "Demo Student 28"), an active enrollment (source `demo`) and an open Group membership each |
 | Attendance | `attendance` | 2 | 4 past Sessions, 2 per Group: one finalized (about a quarter of the students absent, every student marked) and one still a draft (8 of 14 marked, 6 not yet). Their attendance rows are removed with the Session |
+| Home Updates and Notifications | `notifications` | 3 | 5 notifications for the space's teacher, one per event type that can reach a teacher (see below) |
 
 Tables the seed may write (the `table_name` check of `private.demo_seed_rows`): `courses`, `course_modules`, `lessons`,
 `course_offerings`, `study_groups`, `group_staff`, `group_sessions`, and from seed version 2 (migration
 `20261030120000_demo_students.sql`) `profiles`, `enrollments`, `group_memberships`.
+
+## Demo notifications (seed version 3)
+
+- Migration `20261031120000_demo_notifications.sql` (draft, not applied anywhere) replaces `demo_fill_core` and `platform_demo_status` only.
+  `demo_clear_core` is unchanged: it already removes every notification event whose key starts with `demo:<org id>:`, with its
+  notifications and deliveries. No table or allowed-table list changes, because notifications are removed by that key prefix, not
+  recorded in `demo_seed_rows`.
+- Five notifications, all for the space's teacher, keyed `demo:<org id>:notification:1` to `:5`: `account_approved` (newest),
+  `lesson_published` (points at the first demo lesson), `support_reply` (first demo Group), `exam_released` and
+  `homework_released` (second demo Group) Four are unread (Home's "Important updates" lists unread ones); the oldest is read.
+- They are inserted directly, never through `private.emit_notification`, so no push delivery is ever queued for them.
+- Not seeded: `session_details` and `session_starting` (Online session details, Your online session starts soon). They are only
+  "current" for a student who is a member of the Group, never for staff, so a teacher could never see them. There is no event type for a
+  cancelled Session, a schedule change or a teaching-space update; adding one needs a notification-system change (a new event type).
+- None of the five has a link for a teacher, so the Notifications page shows "resource currently unavailable" under them. That is the
+  existing page behaviour for an event without a link.
+- A space filled at seed version 1 or 2 is not upgraded in place. To get the notifications: Clear, then Fill again.
 
 ## Demo students (seed version 2)
 

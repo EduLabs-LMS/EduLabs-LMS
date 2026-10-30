@@ -8,7 +8,7 @@ import { cn } from '@/shared/utils';
 import type { HomeSession, HomeUnsaved, TeacherHomeLoad } from '@/shared/teacher-home';
 import { attendanceHref } from '@/shared/teacher-attendance';
 import { CreateCourse } from './create-course';
-import { Empty, Section, SectionError, SectionUnavailable, inkButton, linkClass, plainButton, sessionTime, useRetry } from './parts';
+import { Empty, Section, SectionError, inkButton, linkClass, plainButton, sessionTime, useRetry } from './parts';
 
 type HomeData = TeacherHomeLoad;
 type Retry = ReturnType<typeof useRetry>;
@@ -46,18 +46,12 @@ function NextSession({ data, retry, slot, hero = true }: { data: HomeData['sessi
         <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
           <Link href={`/teacher/groups/${next.groupId}`} className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.open" /></Link>
           {now && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={cn(plainButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.attendance" /></Link>}
-          <Link href="/teacher/groups" className={cn(plainButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.all" /></Link>
         </div>
         {data.data.partial && <p className="text-base text-slate-800"><L id="th.next.partial" /></p>}
       </div>}
   </Section>;
 }
 
-function Homework({ slot }: { slot?: string }) {
-  return <Section id="th-homework" title={<L id="th.hw.title" />} className={slot}>
-    <SectionUnavailable messageId="th.hw.unavailable" action={<Link href="/admin/submissions" className={linkClass}><L id="th.hw.open" /></Link>} />
-  </Section>;
-}
 
 function Updates({ data, retry, slot }: { data: HomeData['updates']; retry: Retry; slot?: string }) {
   return <Section id="th-updates" title={<L id="th.updates.title" />} className={slot}>
@@ -132,9 +126,8 @@ function FirstVisit({ data }: { data: HomeData }) {
         <button type="button" aria-expanded={how} aria-controls="th-first-how" onClick={() => setHow(v => !v)} className={cn(plainButton, 'min-h-[48px]')}><L id="th.first.how" /></button>
       </div>
     </section>
-    <div className="grid gap-5 md:grid-cols-3">
+    <div className="grid gap-5 md:grid-cols-2">
       <NextSession data={data.sessions} retry={retry} hero={false} />
-      <Homework />
       <Updates data={data.updates} retry={retry} />
     </div>
     <p className="text-base text-slate-700"><L id="th.first.help" /> <Link href="/support" className="font-bold underline underline-offset-4"><L id="th.first.help_link" /></Link>. <L id="th.first.help_end" /></p>
@@ -143,7 +136,7 @@ function FirstVisit({ data }: { data: HomeData }) {
 
 /**
  * Two columns on a desktop (your day | your inbox), one column on a phone. The column wrappers dissolve on a phone
- * (`contents`), so `order` sets the phone sequence: next session, homework, updates, coming up. Courses are not on Home: they live in Settings, Courses.
+ * (`contents`), so `order` sets the phone sequence: next session, updates, coming up. Homework to correct returns here with the Homework build. Courses are not on Home: they live in Settings, Courses.
  */
 export function TeacherHomeView({ data }: { data: HomeData }) {
   const retry = useRetry();
@@ -159,11 +152,10 @@ export function TeacherHomeView({ data }: { data: HomeData }) {
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start lg:gap-7">
       <div className="contents lg:flex lg:flex-col lg:gap-5">
         <NextSession data={data.sessions} retry={retry} slot="order-1 lg:order-none" />
-        <ComingUp data={data.sessions} unsaved={data.unsaved} retry={retry} slot="order-4 lg:order-none" />
+        <ComingUp data={data.sessions} unsaved={data.unsaved} retry={retry} slot="order-3 lg:order-none" />
       </div>
       <div className="contents lg:flex lg:flex-col lg:gap-5">
-        <Homework slot="order-2 lg:order-none" />
-        <Updates data={data.updates} retry={retry} slot="order-3 lg:order-none" />
+        <Updates data={data.updates} retry={retry} slot="order-2 lg:order-none" />
       </div>
     </div>
   </div>;

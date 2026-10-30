@@ -5,7 +5,7 @@ import { z } from 'zod';
  * The seed version below must equal the latest `latestSeedVersion` in supabase/migrations and the newest row of
  * docs/ai/DEMO_DATA.md (scripts/demo-spaces.test.cjs fails when the three disagree).
  */
-export const latestDemoSeedVersion = 2;
+export const latestDemoSeedVersion = 3;
 
 /** The only body an administrator can send: a verb. The organization comes from the path; no user, role or recipient is ever accepted. */
 export const demoAction = z.object({ action: z.enum(['mark', 'unmark', 'fill', 'clear']) }).strict();

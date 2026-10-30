@@ -20,8 +20,8 @@ import {
 	Settings,
 } from 'lucide-react';
 
-import EduLabsMark from '@/frontend/components/edulabs-mark';
-import { showTeacherNav } from '@/shared/teacher-home';
+import { BrandLogo } from '@/frontend/components/brand-logo';
+import { showTeacherNav, teacherHomeHref } from '@/shared/teacher-home';
 import { TeacherNav } from '@/frontend/features/teacher-home/teacher-nav';
 import { TeacherProfile } from '@/frontend/features/teacher-home/teacher-profile';
 import { NotificationBell } from '@/frontend/features/notifications/notifications-view';
@@ -90,13 +90,7 @@ const Sidebar = ({ className, initialRole, onNavigate }: SidebarProps) => {
 		<div className="flex flex-col flex-1 min-h-0">
 		{/* 1. TOP BRANDING HEADER */}
 		<div className="p-4 border-b-[2.5px] border-black flex items-center gap-3 bg-white text-black shrink-0">
-		<EduLabsMark className="h-10 w-10 shrink-0" />
-		<div className="flex flex-col min-w-0">
-		<span className="text-2xl font-normal leading-none text-black truncate" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-		EduLabs
-		</span>
-		<span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-600"><L id="navigation.learning_platform"/></span>
-		</div>
+		<BrandLogo href={teacherMode ? teacherHomeHref : undefined} onNavigate={onNavigate} />
 		</div>
 
 		{/* 2. TACTILE NAVIGATION LINKS */}

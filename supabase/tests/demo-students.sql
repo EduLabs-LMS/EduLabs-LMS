@@ -1,6 +1,6 @@
 -- Disposable local PostgreSQL only (same convention as demo-clear-robust.sql). Everything rolls back; synthetic users only. Never run this
 -- against a connected database except inside a transaction that is rolled back.
--- Covers migration 20261030120000_demo_students.sql: seed version 2 (14 fake students per demo Group, a finalized and a draft past Session per
+-- Covers migration 20261030120000_demo_students.sql (run with every later migration applied, so the fill reports seed version 3): seed version 2 (14 fake students per demo Group, a finalized and a draft past Session per
 -- Group), the guards that count only NON-demo enrollments, Clear removing the demo students and refusing a real one, Clear then Fill for a space
 -- filled at seed version 1, and that a fake student has no identity and no way to sign in.
 begin;
@@ -83,15 +83,15 @@ select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_a'),true)->>'d
 select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_e'),true)->>'demo')::boolean,'space E is marked');
 select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_f'),true)->>'demo')::boolean,'space F is marked');
 select pg_temp.denied(format('select public.platform_set_demo_space(%L,true)',pg_temp.id('org_d')),'PT409','a space with a real student cannot become a demo space');
-select pg_temp.ok((public.platform_demo_status(pg_temp.id('org_a'))->>'latestSeedVersion')::int=2,'the status reports seed version 2 as the latest');
+select pg_temp.ok((public.platform_demo_status(pg_temp.id('org_a'))->>'latestSeedVersion')::int=3,'the status reports the latest seed version (3)');
 reset role;
 select pg_temp.ok(not exists(select 1 from private.demo_spaces where organization_id=pg_temp.id('org_d')),'the refused space is not marked');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_d'))=current_setting('dst.d_before'),'the refused space is unchanged');
 
 -- 2. Fill space A: seed version 2.
 select set_config('dst.a_fill',private.demo_fill_core(pg_temp.id('org_a'),(select id from dst_users where label='admin'))::text,true);
-select pg_temp.ok(current_setting('dst.a_fill')::jsonb=jsonb_build_object('seedVersion',2,'courses',2,'lessons',5,'groups',2,'sessions',9,'students',28),'fill reports seed version 2: 2 courses, 5 lessons, 2 Groups, 9 sessions, 28 students');
-select pg_temp.ok((select seed_version=2 from private.demo_spaces where organization_id=pg_temp.id('org_a')),'the space stores seed version 2');
+select pg_temp.ok(current_setting('dst.a_fill')::jsonb=jsonb_build_object('seedVersion',3,'courses',2,'lessons',5,'groups',2,'sessions',9,'students',28),'fill reports seed version 3 (the version 2 data plus notifications): 2 courses, 5 lessons, 2 Groups, 9 sessions, 28 students');
+select pg_temp.ok((select seed_version=3 from private.demo_spaces where organization_id=pg_temp.id('org_a')),'the space stores the current seed version (3)');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_a'))='2/3/5/1/2/9/0/2/28/28/56/108','fill state: 28 enrollments, 28 memberships, 56 attendance rows, 108 recorded rows');
 select pg_temp.ok((select count(*) from private.demo_seed_rows where organization_id=pg_temp.id('org_a') and table_name='profiles')=28
  and (select count(*) from private.demo_seed_rows where organization_id=pg_temp.id('org_a') and table_name='enrollments')=28
@@ -193,7 +193,7 @@ delete from private.demo_seed_rows where organization_id=pg_temp.id('org_f') and
 update private.demo_spaces set seed_version=1 where organization_id=pg_temp.id('org_f');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_f'))='2/3/5/1/2/5/0/2/0/0/0/20','space F now looks like a seed version 1 space: 20 recorded rows, no students, 5 upcoming Sessions');
 select pg_temp.ok((private.demo_clear_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'))->>'removedRows')::int=20,'Clear works for a space filled at seed version 1');
-select pg_temp.ok((private.demo_fill_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'))->>'seedVersion')::int=2,'Fill then gives it seed version 2');
+select pg_temp.ok((private.demo_fill_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'))->>'seedVersion')::int=3,'Fill then gives it the current seed version (3)');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_f'))='2/3/5/1/2/9/0/2/28/28/56/108','and the full version 2 data');
 
 -- 10. Nothing here is callable by API roles.

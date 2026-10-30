@@ -160,3 +160,17 @@ test('wording: no tenant, program or studio vocabulary reaches a teacher on thes
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|\boffering|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
  for (const k of Object.keys(messages.en).filter(k => k.startsWith('ts.') || k.startsWith('tg.'))) { assert.doesNotMatch(messages.en[k], forbidden, k); assert.doesNotMatch(messages.ar[k], forbidden, k); }
 });
+test('middleware: the Notifications page that Home and Settings > Notifications link to passes in Firebase staging, with its one API, and nothing underneath it', () => {
+ class NextResponse { constructor(kind, status) { this.kind = kind; this.status = status; } static next() { return new NextResponse('next', 200); } static json(_, o) { return new NextResponse('json', o.status); } static redirect(u) { return new NextResponse('redirect:' + u.pathname, 307); } }
+ const middleware = load('middleware.ts', {
+  '@/shared/public-website': load('shared/public-website.ts', { zod: require('zod') }), '@/shared/website-routes': load('shared/website-routes.ts'),
+  '@clerk/nextjs/server': { clerkMiddleware: () => () => assert.fail('the legacy handler must not run in Firebase staging'), createRouteMatcher: () => () => false },
+  '@/shared/auth-config': { isFirebaseStaging: () => true }, 'next/server': { NextResponse },
+ }).default;
+ const run = path => middleware({ nextUrl: new URL('https://platform.example' + path), url: 'https://platform.example' + path }, {});
+ assert.equal(run('/notifications').kind, 'next');
+ assert.equal(run('/api/communications').kind, 'next', 'the list/read/preferences API');
+ for (const path of ['/notifications/', '/notifications/x', '/notification']) assert.equal(run(path).kind, 'redirect:/unavailable', path);
+ for (const file of ['frontend/features/teacher-home/home-view.tsx', 'frontend/features/teacher-settings/notifications-section.tsx']) assert.match(read(file), /href="\/notifications"/, file + ' links to it');
+ assert.match(read('app/(dashboard)/(routes)/notifications/page.tsx'), /isFirebaseStaging\(\)[\s\S]*getApplicationViewer\(\)[\s\S]*NotificationsView/, 'the page needs a signed-in viewer, nothing else (a teacher is a viewer)');
+});

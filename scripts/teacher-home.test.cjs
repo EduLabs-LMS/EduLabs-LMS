@@ -42,9 +42,11 @@ test('sessions: coming up is capped and flags a partial view when more Groups or
  const out = build({ upcoming: ok({ rows: many, page: 0, hasMore: true }), groups: ok({ rows: [group(1)], page: 0, hasMore: true }) });
  assert.equal(out.sessions.data.comingUp.length, home.COMING_UP_LIMIT); assert.equal(out.sessions.data.partial, true);
 });
-test('homework to correct is never filled from the per-Group summary (that count is the viewer\'s own unsubmitted homework)', () => {
- assert.deepEqual(JSON.parse(JSON.stringify(build().homework)), { state: 'unavailable' });
- assert.deepEqual(JSON.parse(JSON.stringify(build({ groups: bad(503) }).homework)), { state: 'unavailable' });
+test('there is no Homework to correct card or data on Home until the Homework screen is built, and nothing is filled from the per-Group summary', () => {
+ assert.equal('homework' in build(), false, 'no homework section in the Home data');
+ assert.doesNotMatch(read('frontend/features/teacher-home/home-view.tsx') + read('frontend/features/teacher-home/parts.tsx'), /<Homework|function Homework|th-homework|th\.hw\.|\/admin\/submissions|SectionUnavailable/, 'no card, no link to /admin/submissions');
+ assert.doesNotMatch(read('frontend/locales/en.ts') + read('frontend/locales/ar.ts'), /"th\.hw\.|"th\.next\.all"/, 'its wording is removed too');
+ assert.match(read('docs/ai/V1.md'), /Homework card returns on Home with the Homework build/);
  assert.doesNotMatch(read('server/services/teacher-home.ts') + read('shared/teacher-home.ts').replace(/\/\*\*[^]*?\*\//g, ''), /group_summary|'summary'|pendingHomework/);
 });
 test('updates: unread only, session changes first, then newest; links must be same-site paths', () => {
@@ -131,15 +133,15 @@ test('wording: no tenant, program or studio vocabulary reaches a teacher on thes
   .replace(/organization_id|slug|courseSlug|Slug/g, '');
  assert.doesNotMatch(shown.replace(/\b(className|class)=("[^"]*"|\{[^}]*\})/g, ''), /Organization|Tenant|Website Studio|>\s*Program|Module/);
 });
-test('layout contract: desktop has a day column and an inbox column; phone order is next session, homework, updates, coming up; no courses on Home', () => {
+test('layout contract: desktop has a day column and an inbox column; phone order is next session, updates, coming up; no courses and no homework card on Home', () => {
  const view = read('frontend/features/teacher-home/home-view.tsx');
  const home = view.slice(view.indexOf('export function TeacherHomeView'));
- assert.deepEqual([...home.matchAll(/^\s+<(NextSession|Homework|Updates|ComingUp|CoursesLink)\b/gm)].map(m => m[1]), ['NextSession', 'ComingUp', 'Homework', 'Updates'], 'desktop columns: day (next session, coming up), inbox (homework, updates)');
+ assert.deepEqual([...home.matchAll(/^\s+<(NextSession|Homework|Updates|ComingUp|CoursesLink)\b/gm)].map(m => m[1]), ['NextSession', 'ComingUp', 'Updates'], 'desktop columns: day (next session, coming up), inbox (updates)');
  const phone = [...home.matchAll(/<(NextSession|Homework|Updates|ComingUp|CoursesLink)\b[^>]*?\border-(\d) lg:order-none/g)].sort((x, y) => x[2] - y[2]).map(m => m[1]);
- assert.deepEqual(phone, ['NextSession', 'Homework', 'Updates', 'ComingUp']);
+ assert.deepEqual(phone, ['NextSession', 'Updates', 'ComingUp']);
  assert.doesNotMatch(view, /function Courses\(|<Courses|CourseCards/, 'a returning teacher has no big Courses card on Home');
  assert.doesNotMatch(view, /CoursesLink|data-home-courses-link|th\.courses\.title/, 'Home has no courses block and no Courses link');
- assert.match(view, /href=\{`\/teacher\/groups\/\$\{next\.groupId\}`\}/, 'Open this Group opens the teacher Group page'); assert.match(view, /<Link href="\/teacher\/groups"/);
+ assert.match(view, /href=\{`\/teacher\/groups\/\$\{next\.groupId\}`\}/, 'Open this Group opens the teacher Group page'); assert.doesNotMatch(view, /<Link href="\/teacher\/groups"/, 'no All sessions button on the Next session card');
  assert.doesNotMatch(home, /CreateCourse/, 'no Create a course button in the Home header');
  assert.match(view, /<CreateCourse targets=\{data\.createTargets\} ink className="min-h-\[48px\]" \/>/, 'the first-visit card keeps its Create a course step');
  assert.match(view, /data\.firstVisit\) return <FirstVisit/);
@@ -226,4 +228,13 @@ test('Home view: Take attendance and the unsaved rows, with their tour targets a
  const server = read('server/services/teacher-home.ts');
  assert.match(server, /service\.view<GroupSession>\(groupId, 'sessions'\)/, 'the existing per-Group sessions read, like a Group card');
  assert.match(server, /UNSAVED_GROUP_LIMIT/);
+});
+test('logo: one BrandLogo in the brand font is used by the sidebar (desktop and the phone menu) and the phone header; the teacher logo is one link to the teacher Home', () => {
+ const logo = read('frontend/components/brand-logo.tsx'), sidebar = read('frontend/components/sidebar.tsx'), mobile = read('frontend/features/dashboard/mobile-sidebar.tsx');
+ assert.match(logo, /font-display/); assert.doesNotMatch(logo + sidebar + mobile, /Times New Roman/);
+ assert.match(logo, /aria-label=\{t\('navigation\.logo_home'\)\}/); assert.match(logo, /min-h-\[44px\]/); assert.match(logo, /focus-visible:outline-2/);
+ assert.equal((logo.match(/<Link\b/g) || []).length, 1, 'mark, wordmark and line sit inside ONE link');
+ for (const file of [sidebar, mobile]) assert.match(file, /<BrandLogo[^>]*href=\{teacherMode \? teacherHomeHref : undefined\}/, 'a link for staff only');
+ assert.equal(home.teacherHomeHref, '/home'); assert.equal(home.teacherNav.find(n => n.key === 'home').href, home.teacherHomeHref, 'the logo and the Home menu item share one href');
+ for (const id of ['en', 'ar']) assert.match(read(`frontend/locales/${id}.ts`), /"navigation\.logo_home":/);
 });

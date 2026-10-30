@@ -22,6 +22,7 @@ test('mobile header has one menu entry and delegates account notifications to th
  for(const firebase of [true,false]){
   const {MobileSidebar}=load('frontend/features/dashboard/mobile-sidebar.tsx',{
    '@/shared/auth-config':{isFirebaseStaging:()=>firebase},
+   '@/frontend/components/providers/application-auth-provider':{useWebsiteNavigation:()=>({staffOrganizationIds:[]})},'@/shared/teacher-home':{showTeacherNav:()=>false,teacherHomeHref:'/home'},'@/frontend/components/brand-logo':{BrandLogo:({href})=>require('react').createElement(href?'a':'div',{'data-brand-logo':true,href},'EduLabs')},
    '@/frontend/features/notifications/notifications-view':{NotificationBell:()=>React.createElement('a',{href:'/notifications'},'Notifications')},
    '@/frontend/components/ui/sheet':{Sheet:shell,SheetContent:shell,SheetTrigger:({children,...props})=>React.createElement('button',props,children)},
    '@/frontend/components/sidebar':()=>React.createElement('div',null,firebase?'Account Notifications':'Account'),'@/frontend/components/edulabs-mark':()=>null,'lucide-react':{Menu:()=>null},

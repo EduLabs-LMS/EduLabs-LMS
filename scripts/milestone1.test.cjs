@@ -8,7 +8,7 @@ test('Firebase sidebar labels contextual students/staff and places its only bell
    'next/link':link,'next/navigation':{usePathname:()=>'/home'},'@/shared/auth-config':{isFirebaseStaging:()=>true},
    '@/frontend/components/providers/application-auth-provider':{useWebsiteNavigation:()=>({staffOrganizationIds:staff?['org']:[]})},
    '@/frontend/components/providers/v2-identity':{useUser:()=>({user:{fullName:'Fictional Student'}}),useClerk:()=>({signOut:()=>{}}),UserButton:()=>React.createElement('button',null,'Account')},
-   '@/shared/teacher-home':{showTeacherNav:(firebase,ids)=>firebase&&Boolean(ids&&ids.length)},'@/frontend/features/teacher-home/teacher-profile':{TeacherProfile:()=>require('react').createElement('div',{'data-teacher-profile':true})},'@/frontend/features/teacher-home/teacher-nav':{TeacherNav:()=>React.createElement('nav',{'data-teacher-nav':true},'Teacher navigation')},'@/frontend/lib/api':{api:{}},'@/frontend/components/edulabs-mark':()=>null,'@/shared/utils':{cn:(...x)=>x.filter(Boolean).join(' ')},
+   '@/shared/teacher-home':{showTeacherNav:(firebase,ids)=>firebase&&Boolean(ids&&ids.length),teacherHomeHref:'/home'},'@/frontend/components/brand-logo':{BrandLogo:({href})=>require('react').createElement(href?'a':'div',{'data-brand-logo':true,href},'EduLabs')},'@/frontend/features/teacher-home/teacher-profile':{TeacherProfile:()=>require('react').createElement('div',{'data-teacher-profile':true})},'@/frontend/features/teacher-home/teacher-nav':{TeacherNav:()=>React.createElement('nav',{'data-teacher-nav':true},'Teacher navigation')},'@/frontend/lib/api':{api:{}},'@/frontend/components/edulabs-mark':()=>null,'@/shared/utils':{cn:(...x)=>x.filter(Boolean).join(' ')},
    '@/frontend/features/notifications/notifications-view':{NotificationBell:()=>React.createElement('button',null,'Notification preview')},
   }).default;
   const html=renderToStaticMarkup(React.createElement(Sidebar));
@@ -18,7 +18,8 @@ test('Firebase sidebar labels contextual students/staff and places its only bell
   assert.equal(html.includes('data-teacher-nav'),staff,'staff get the teacher navigation, students do not');assert.equal(html.includes('Admin &amp; Teacher'),false,'the old mixed staff section is replaced');
   assert.equal(html.includes('data-teacher-support'),staff,'only the teacher navigation gets the footer Support entry');assert.equal((html.match(/href="\/support"/g)||[]).length,1,'Support is reachable exactly once for staff and for students');assert.match(html,/>Support</);
   if(!staff)for(const link of ['/home','/exams','/settings'])assert.match(html,new RegExp('href="'+link+'"'),'student navigation keeps '+link);
-  assert.match(html,/font-family:&#x27;Times New Roman&#x27;, Times, serif/);
+  assert.doesNotMatch(html,/Times New Roman/,'the logo wordmark is in the brand font (BrandLogo), not hard-coded');
+  if(staff)assert.match(html,/<a[^>]*data-brand-logo[^>]*href="\/home"|<a[^>]*href="\/home"[^>]*data-brand-logo/,'staff: the whole logo is one link to the teacher Home');else assert.match(html,/<div[^>]*data-brand-logo/,'students: the logo is not a link');
  }
 });
 test('shared tree mark defaults to its existing black offset shadow and retains explicit opt-out',()=>{

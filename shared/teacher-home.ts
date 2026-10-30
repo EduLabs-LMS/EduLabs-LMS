@@ -43,8 +43,6 @@ export type TeacherHomeData = {
   sessions: Section<{ next: HomeSession | null; comingUp: HomeSession[]; partial: boolean }>;
   /** Finished sessions still waiting for attendance, newest first, at most UNSAVED_LIMIT. */
   unsaved: Section<HomeUnsaved[]>;
-  /** Pending counts per Group in the existing summary are the viewer's own unsubmitted homework, not submissions awaiting correction, so this section is never filled from them. */
-  homework: Section<never>;
   updates: Section<{ items: HomeUpdate[]; unread: number }>;
   firstVisit: boolean;
 };
@@ -110,7 +108,6 @@ export function buildTeacherHome(input: RawInputs): TeacherHomeData {
     courses, groups,
     sessions: mapSessions(input.upcoming, staffIds, groups, input.now),
     unsaved: mapUnsaved(input.unsaved, staffIds, groups, input.now),
-    homework: { state: 'unavailable' },
     updates: mapUpdates(input.notifications),
     firstVisit,
   };
@@ -148,9 +145,11 @@ export function courseSlug(title: string, random: () => string): string {
 }
 
 export type TeacherNavItem = { key: 'home' | 'students' | 'groups' | 'homework' | 'exams' | 'reports'; /** null = the screen does not exist yet: shown as a disabled "Coming soon" item, never a link. */ href: string | null; match: (path: string) => boolean };
+/** Where the whole logo and the Home menu item go. */
+export const teacherHomeHref = '/home';
 /** The main teacher menu. Courses and Settings live under /teacher/settings (the cog beside the profile). Destinations without a new screen go to the existing neutral scaffold or the existing page; nothing here is faked. */
 export const teacherNav: readonly TeacherNavItem[] = [
-  { key: 'home', href: '/home', match: p => p === '/' || p === '/home' },
+  { key: 'home', href: teacherHomeHref, match: p => p === '/' || p === '/home' },
   { key: 'students', href: '/admin/users', match: p => p.startsWith('/admin/users') },
   { key: 'groups', href: '/teacher/groups', match: p => p === '/teacher/groups' || p.startsWith('/teacher/groups/') },
   { key: 'homework', href: '/admin/submissions', match: p => p.startsWith('/admin/submissions') },

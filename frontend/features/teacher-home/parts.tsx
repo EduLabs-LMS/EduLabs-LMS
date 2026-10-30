@@ -41,12 +41,6 @@ export function SectionError({ status, onRetry, pending }: { status: number | nu
   </div>;
 }
 
-export function SectionUnavailable({ messageId, action }: { messageId: 'th.hw.unavailable'; action?: React.ReactNode }) {
-  return <div role="status" data-state="unavailable" className="space-y-3 rounded-2xl border-2 border-dashed border-black bg-slate-50 p-4">
-    <p className="text-base text-slate-800"><L id={messageId} /></p>{action}
-  </div>;
-}
-
 export function Empty({ id, children }: { id: 'th.next.empty' | 'th.first.next' | 'th.updates.empty' | 'th.coming.empty' | 'th.courses.empty'; children?: React.ReactNode }) {
   return <div data-state="empty" className="space-y-3"><p className="text-base text-slate-800"><L id={id} /></p>{children}</div>;
 }
