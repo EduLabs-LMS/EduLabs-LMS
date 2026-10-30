@@ -88,7 +88,7 @@ const LoadingOverlay = ({
 								<span className="opacity-[0.14]">{letter}</span>
 								<span
 									className={cn(
-										'absolute inset-0 transition-all duration-500 ease-[cubic-bezier(.3,1.6,.5,1)]',
+										'absolute inset-0 transition-all duration-500 ease-[cubic-bezier(.3,1.6,.5,1)] motion-reduce:transition-none',
 										on
 											? 'translate-y-0 rotate-0 scale-100 opacity-100'
 											: 'translate-y-[45%] -rotate-[8deg] scale-[.4] opacity-0'

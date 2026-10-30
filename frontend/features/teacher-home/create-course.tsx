@@ -1,5 +1,5 @@
 'use client';
-import { useRouter } from 'next/navigation';
+import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
 import { useId, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
@@ -13,7 +13,7 @@ type Failure = 'th.create.need_title' | 'th.create.failed' | 'th.create.denied' 
 
 /** Creates a course through the existing teacher course endpoint. The server checks permission again; this only hides what it would refuse. */
 export function CreateCourse({ targets, className, ink = false }: { targets: CreateTarget[]; className?: string; ink?: boolean }) {
-  const router = useRouter();
+  const router = useLoadingRouter();
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');

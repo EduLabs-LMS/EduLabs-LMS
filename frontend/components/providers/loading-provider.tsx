@@ -32,6 +32,8 @@ interface LoadingContextValue {
 	stopLoading: () => void;
 	/** Used by app/loading.tsx so the page-level fallback uses this same overlay. */
 	setRouteLoading: (active: boolean) => void;
+	/** For router.push / router.replace, which the link-click listener cannot see. Use useLoadingRouter. */
+	startNavigation: (href: string) => void;
 }
 
 const LoadingContext = createContext<LoadingContextValue | null>(null);
@@ -69,6 +71,21 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 		setActive((prev) => ({ ...prev, route: isActive }));
 	}, []);
 
+	const startNavigation = useCallback((href: string) => {
+		let target: URL;
+		try {
+			target = new URL(href, window.location.href);
+		} catch {
+			return;
+		}
+		if (target.origin !== window.location.origin) return;
+		const targetKey = target.pathname + target.search;
+		if (targetKey === window.location.pathname + window.location.search) return;
+		navTarget.current = targetKey;
+		setMessage(DEFAULT_MESSAGE);
+		setActive((prev) => ({ ...prev, nav: true }));
+	}, []);
+
 	// The navigation finished: the URL changed.
 	useEffect(() => {
 		setActive((prev) => (prev.nav ? { ...prev, nav: false } : prev));
@@ -77,6 +94,7 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 	// Detect link navigations.
 	// We wait until Next.js has finished handling the click (it calls preventDefault() when it takes over
 	// a navigation) before showing anything, so the overlay can never get in the way of the click itself.
+	// A link whose own handler cancels the click and never navigates carries data-loading-ignore.
 	useEffect(() => {
 		const handleClick = (event: MouseEvent) => {
 			const anchor = (event.target as Element | null)?.closest?.('a');
@@ -85,6 +103,7 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 			const href = anchor.getAttribute('href');
 			if (
 				!href ||
+				anchor.hasAttribute('data-loading-ignore') ||
 				href.startsWith('#') ||
 				/^(mailto:|tel:|javascript:)/i.test(href) ||
 				(anchor.target && anchor.target !== '_self') ||
@@ -183,8 +202,8 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 	);
 
 	const value = useMemo(
-		() => ({ isLoading, message, startLoading, stopLoading, setRouteLoading }),
-		[isLoading, message, startLoading, stopLoading, setRouteLoading]
+		() => ({ isLoading, message, startLoading, stopLoading, setRouteLoading, startNavigation }),
+		[isLoading, message, startLoading, stopLoading, setRouteLoading, startNavigation]
 	);
 
 	return (
