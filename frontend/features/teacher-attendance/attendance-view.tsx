@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
@@ -55,6 +56,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
   const [reason, setReason] = useState('');
   const [reasonProblem, setReasonProblem] = useState(false);
   const [revision, setRevision] = useState(0);
+  usePageLoadingSignal(sheet.state === 'loading' || detail.state === 'loading');
   const [detailRevision, setDetailRevision] = useState(0);
   const alive = useRef(true);
   const marksRef = useRef<Marks>({});

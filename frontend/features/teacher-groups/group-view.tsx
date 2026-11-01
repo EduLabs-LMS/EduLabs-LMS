@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { card, inkButton, linkClass, plainButton, primaryButton, sessionTime } from '@/frontend/features/teacher-home/parts';
@@ -25,6 +26,10 @@ export function TeacherGroupView({ groupId }: { groupId: string }) {
   const [skew, setSkew] = useState(0);
   const [adding, setAdding] = useState(false);
   const tabId = useId();
+  // The first view is the Group and its Sessions list; panels opened later do not bring the screen back.
+  const firstView = useRef(true);
+  usePageLoadingSignal(!detail && !error);
+  useEffect(() => { if (detail) firstView.current = false; }, [detail]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -68,7 +73,7 @@ export function TeacherGroupView({ groupId }: { groupId: string }) {
             className={`${plainButton} ${tab === key ? '!bg-black !text-white' : ''}`}><L id={`tg.tab.${key}`} /></button>)}
         </div>
         <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} className={`${card} space-y-4`}>
-          {tab === 'sessions' && <SessionsPanel key={sessionsRevision} group={group} now={now} onChanged={reload} />}
+          {tab === 'sessions' && <SessionsPanel key={sessionsRevision} group={group} now={now} onChanged={reload} track={firstView.current} />}
           {tab === 'students' && <StudentsPanel group={group} />}
           {tab === 'details' && <Details group={group} schedules={schedules} />}
         </div>
@@ -108,8 +113,10 @@ function Details({ group, schedules }: { group: StudyGroup; schedules: WeeklyTim
 type Rows<T> = { state: 'loading' } | { state: 'error'; error: GroupCallError } | { state: 'ready'; rows: T[]; hasMore: boolean; page: number; catchingUp: boolean; more: 'idle' | 'loading' | GroupCallError };
 
 /** Reads a paged list from the Group, appending further pages on request. Each panel has its own loading, error and retry. */
-function usePaged<T extends { id?: string; user_id?: string }>(groupId: string, section: 'sessions' | 'members') {
+function usePaged<T extends { id?: string; user_id?: string }>(groupId: string, section: 'sessions' | 'members', track = false) {
   const [data, setData] = useState<Rows<T>>({ state: 'loading' });
+  const [tracked] = useState(track);
+  usePageLoadingSignal(tracked && data.state === 'loading');
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
@@ -131,8 +138,8 @@ function usePaged<T extends { id?: string; user_id?: string }>(groupId: string, 
   return { data, retry: () => setRevision(v => v + 1), more };
 }
 
-function SessionsPanel({ group, now, onChanged }: { group: StudyGroup; now: number; onChanged: () => void }) {
-  const { data, retry, more } = usePaged<GroupSession>(group.id, 'sessions');
+function SessionsPanel({ group, now, onChanged, track }: { group: StudyGroup; now: number; onChanged: () => void; track: boolean }) {
+  const { data, retry, more } = usePaged<GroupSession>(group.id, 'sessions', track);
   const [older, setOlder] = useState(false);
   const parts = useMemo(() => data.state === 'ready' ? partitionSessions(data.rows, now) : null, [data, now]);
   if (data.state === 'loading') return <Loading label="tg.loading_sessions" className="h-32" />;

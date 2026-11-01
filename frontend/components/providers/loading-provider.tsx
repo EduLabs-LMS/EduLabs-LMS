@@ -22,16 +22,22 @@ const SHOW_DELAY_MS = 120;
 const FINISH_MS = 650;
 /** Only a safety net: never leave the overlay up forever if a navigation is cancelled. */
 const NAV_SAFETY_MS = 20000;
+/** A source may release and another register right after it (a fallback unmounting while its page mounts): not a finish. */
+const RELEASE_GRACE_MS = 60;
 
-type Sources = { manual: boolean; nav: boolean; route: boolean };
+type Sources = { manual: boolean; nav: boolean; held: number };
 
 interface LoadingContextValue {
 	isLoading: boolean;
 	message: string;
 	startLoading: (customMessage?: string) => void;
 	stopLoading: () => void;
-	/** Used by app/loading.tsx so the page-level fallback uses this same overlay. */
-	setRouteLoading: (active: boolean) => void;
+	/**
+	 * Registers one more reason to keep the overlay up and returns the function that releases it (safe to call twice).
+	 * Every source counts separately, so the overlay only finishes once all of them have released.
+	 * `capMs` releases it by itself so a page can never keep the overlay up forever.
+	 */
+	acquireLoading: (capMs?: number) => () => void;
 	/** For router.push / router.replace, which the link-click listener cannot see. Use useLoadingRouter. */
 	startNavigation: (href: string) => void;
 }
@@ -42,20 +48,13 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 
-	const [active, setActive] = useState<Sources>({ manual: false, nav: false, route: false });
+	const [active, setActive] = useState<Sources>({ manual: false, nav: false, held: 0 });
 	const [message, setMessage] = useState(DEFAULT_MESSAGE);
 	const [overlay, setOverlay] = useState({ visible: false, done: false });
 
 	const navTarget = useRef<string | null>(null);
-	const showTimer = useRef<number | null>(null);
-	const hideTimer = useRef<number | null>(null);
-	const visibleRef = useRef(false);
 
-	const isLoading = active.manual || active.nav || active.route;
-
-	useEffect(() => {
-		visibleRef.current = overlay.visible;
-	}, [overlay.visible]);
+	const isLoading = active.manual || active.nav || active.held > 0;
 
 	const startLoading = useCallback((customMessage = 'Saving changes...') => {
 		setMessage(customMessage);
@@ -66,9 +65,19 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 		setActive((prev) => ({ ...prev, manual: false }));
 	}, []);
 
-	const setRouteLoading = useCallback((isActive: boolean) => {
-		if (isActive) setMessage(DEFAULT_MESSAGE);
-		setActive((prev) => ({ ...prev, route: isActive }));
+	const acquireLoading = useCallback((capMs?: number) => {
+		let released = false;
+		let cap: number | null = null;
+		const release = () => {
+			if (released) return;
+			released = true;
+			if (cap !== null) window.clearTimeout(cap);
+			setActive((prev) => ({ ...prev, held: Math.max(0, prev.held - 1) }));
+		};
+		setMessage(DEFAULT_MESSAGE);
+		setActive((prev) => ({ ...prev, held: prev.held + 1 }));
+		if (capMs) cap = window.setTimeout(release, capMs);
+		return release;
 	}, []);
 
 	const startNavigation = useCallback((href: string) => {
@@ -162,48 +171,29 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 		};
 	}, [active.nav]);
 
-	// Overlay lifecycle: short delay before showing, then a quick "finish" before hiding.
+	// Overlay lifecycle, one way only: hidden -> shown -> finishing -> hidden. Work that starts while it is finishing
+	// does not rewind it; it begins a new cycle once the overlay is gone.
 	useEffect(() => {
 		if (isLoading) {
-			if (hideTimer.current !== null) {
-				window.clearTimeout(hideTimer.current);
-				hideTimer.current = null;
-			}
-			if (visibleRef.current) {
-				setOverlay({ visible: true, done: false });
-			} else if (showTimer.current === null) {
-				showTimer.current = window.setTimeout(() => {
-					showTimer.current = null;
-					setOverlay({ visible: true, done: false });
-				}, SHOW_DELAY_MS);
-			}
-			return;
+			if (overlay.visible) return;
+			const show = window.setTimeout(() => setOverlay({ visible: true, done: false }), SHOW_DELAY_MS);
+			return () => window.clearTimeout(show);
 		}
+		if (overlay.visible && !overlay.done) {
+			const finish = window.setTimeout(() => setOverlay({ visible: true, done: true }), RELEASE_GRACE_MS);
+			return () => window.clearTimeout(finish);
+		}
+	}, [isLoading, overlay]);
 
-		if (showTimer.current !== null) {
-			window.clearTimeout(showTimer.current);
-			showTimer.current = null;
-		}
-		if (visibleRef.current && hideTimer.current === null) {
-			setOverlay({ visible: true, done: true });
-			hideTimer.current = window.setTimeout(() => {
-				hideTimer.current = null;
-				setOverlay({ visible: false, done: false });
-			}, FINISH_MS);
-		}
-	}, [isLoading]);
-
-	useEffect(
-		() => () => {
-			if (showTimer.current !== null) window.clearTimeout(showTimer.current);
-			if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
-		},
-		[]
-	);
+	useEffect(() => {
+		if (!overlay.done) return;
+		const hide = window.setTimeout(() => setOverlay({ visible: false, done: false }), FINISH_MS);
+		return () => window.clearTimeout(hide);
+	}, [overlay.done]);
 
 	const value = useMemo(
-		() => ({ isLoading, message, startLoading, stopLoading, setRouteLoading, startNavigation }),
-		[isLoading, message, startLoading, stopLoading, setRouteLoading, startNavigation]
+		() => ({ isLoading, message, startLoading, stopLoading, acquireLoading, startNavigation }),
+		[isLoading, message, startLoading, stopLoading, acquireLoading, startNavigation]
 	);
 
 	return (

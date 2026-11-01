@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Search } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { card, linkClass, plainButton, sessionTime } from '@/frontend/features/teacher-home/parts';
@@ -30,6 +31,10 @@ export function TeacherGroupsList() {
   const [filter, setFilter] = useState<GroupFilter>('active');
   const [query, setQuery] = useState('');
   const [revision, setRevision] = useState(0);
+  // The first view is the list and its cards' facts; cards that appear later (filter, search) do not bring the screen back.
+  const firstView = useRef(true);
+  usePageLoadingSignal(overview.state === 'loading');
+  useEffect(() => { if (overview.state === 'ready') firstView.current = false; }, [overview.state]);
   useEffect(() => {
     const controller = new AbortController();
     setOverview({ state: 'loading' });
@@ -60,7 +65,7 @@ export function TeacherGroupsList() {
       {overview.truncated && <p data-truncated className="text-base text-slate-700"><L id="tg.truncated" values={{ count: LIST_PAGES * PAGE_SIZE }} /></p>}
       {shown.length === 0
         ? <div data-state="empty" className={`${card}`}><p className="text-base text-slate-800"><L id={query.trim() ? 'tg.empty.search' : filter === 'active' ? 'tg.empty.active' : 'tg.empty.archived'} /></p></div>
-        : <ul className="grid gap-4 lg:grid-cols-2" data-group-list>{shown.map(g => <li key={g.id}><GroupCard group={g} /></li>)}</ul>}
+        : <ul className="grid gap-4 lg:grid-cols-2" data-group-list>{shown.map(g => <li key={g.id}><GroupCard group={g} track={firstView.current} /></li>)}</ul>}
     </>}
   </div>;
 }
@@ -69,8 +74,10 @@ type Facts = { state: 'loading' } | { state: 'error'; error: GroupCallError }
   | { state: 'ready'; schedules: WeeklyTime[]; sessions: GroupSession[]; serverNow: number; students: ReturnType<typeof studentsCount> };
 
 /** One Group's card. Its details come from three reads that only run for the cards on screen, a few at a time; a failure here only affects this card. */
-function GroupCard({ group }: { group: StudyGroup }) {
+function GroupCard({ group, track }: { group: StudyGroup; track: boolean }) {
   const [facts, setFacts] = useState<Facts>({ state: 'loading' });
+  const [tracked] = useState(track);
+  usePageLoadingSignal(tracked && facts.state === 'loading');
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
