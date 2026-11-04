@@ -25,11 +25,12 @@ test('migration: the reviewed demo-spaces SQL is byte-identical to the approved 
  assert.equal(hash(raw) === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c' || lf === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c', true);
  assert.match(read('.gitattributes'), /supabase\/migrations\/20261027120000_demo_spaces\.sql -text/);
  const names = fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
- assert.equal(names[names.length - 5], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration; only the four follow-ups come after it');
- assert.equal(names[names.length - 4], '20261029120000_demo_clear_robust.sql');
- assert.equal(names[names.length - 3], '20261030120000_demo_students.sql');
- assert.equal(names[names.length - 2], '20261031120000_demo_notifications.sql');
- assert.equal(names[names.length - 1], '20261104120000_demo_students_screen.sql');
+ assert.equal(names[names.length - 6], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration; only the five follow-ups come after it');
+ assert.equal(names[names.length - 5], '20261029120000_demo_clear_robust.sql');
+ assert.equal(names[names.length - 4], '20261030120000_demo_students.sql');
+ assert.equal(names[names.length - 3], '20261031120000_demo_notifications.sql');
+ assert.equal(names[names.length - 2], '20261104120000_demo_students_screen.sql');
+ assert.equal(names[names.length - 1], '20261105120000_group_summary_performance.sql');
 });
 test('migration: demo_clear_core is replaced (not edited in 34), keeps its signature and grants, and removes what a teacher added inside the Groups and courses', () => {
  const sql = read('supabase/migrations/20261029120000_demo_clear_robust.sql'), code = sql.replace(/--.*$/gm, '');
