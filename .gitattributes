@@ -21,3 +21,4 @@ supabase/migrations/20261027120000_demo_spaces.sql -text
 supabase/migrations/20261029120000_demo_clear_robust.sql -text
 supabase/migrations/20261030120000_demo_students.sql -text
 supabase/migrations/20261031120000_demo_notifications.sql -text
+supabase/migrations/20261104120000_demo_students_screen.sql -text
