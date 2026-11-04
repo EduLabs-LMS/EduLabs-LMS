@@ -6,6 +6,7 @@ import { spaceIsDemo } from '@/server/services/demo-space';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import type { GroupPage, GroupSession, StudyGroup } from '@/shared/contracts/groups';
 import type { NotificationPage } from '@/shared/contracts/communications';
+import { groupCourseChoices } from '@/shared/teacher-groups';
 import { DEMO_CHECK_LIMIT, UNSAVED_GROUP_LIMIT, buildTeacherHome, mapGroups, createTargets, mapCourses, showDemoLabel, teachingSpaceIds, type RawCourse, type Settled, type TeacherHomeLoad } from '@/shared/teacher-home';
 
 /** Reads run independently; one failing read marks only its own section as failed. Uses the existing services, which stay authoritative. */
@@ -47,6 +48,14 @@ async function demoLabel(spaceIds: string[]): Promise<boolean> {
     const client = await getSupabaseServerClient();
     return showDemoLabel(spaceIds, await Promise.all(spaceIds.map(id => spaceIsDemo(client, id))));
   } catch { return false; }
+}
+
+/** The courses a new Group can belong to, for the Create a Group page. */
+export async function loadGroupCourses(context: WebsiteContext, now = Date.now()) {
+  return settle(async () => {
+    const courses = await context.repository.courses();
+    return groupCourseChoices(courses, await context.repository.offerings(courses.map(c => c.id)), context, now);
+  });
 }
 
 export async function loadTeacherCourses(context: WebsiteContext) {

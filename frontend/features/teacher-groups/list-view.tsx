@@ -4,7 +4,7 @@ import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-l
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Search } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
-import { card, linkClass, plainButton, sessionTime } from '@/frontend/features/teacher-home/parts';
+import { card, linkClass, plainButton, primaryButton, sessionTime } from '@/frontend/features/teacher-home/parts';
 import type { GroupPage, GroupRow, GroupSession, StudyGroup } from '@/shared/contracts/groups';
 import { attendanceHref } from '@/shared/teacher-attendance';
 import { LIST_PAGES, PAGE_SIZE, filterGroups, groupCounts, lastUnsavedSession, managed, nextOf, studentsCount, type GroupFilter, type WeeklyTime } from '@/shared/teacher-groups';
@@ -47,7 +47,8 @@ export function TeacherGroupsList() {
   const shown = useMemo(() => filterGroups(rows, filter, query), [rows, filter, query]);
 
   return <div data-teacher-groups className="w-full space-y-5">
-    <header className="min-w-0"><h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="tg.title" /></h1><p className="text-base text-slate-700"><L id="tg.intro" /></p></header>
+    <header className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="tg.title" /></h1><p className="text-base text-slate-700"><L id="tg.intro" /></p></div>
+      <Link href="/teacher/groups/new" data-create-group data-tour="create-group" className={`${primaryButton} !min-h-[48px]`}><L id="tg.create.button" /></Link></header>
     {overview.state === 'loading' && <Loading label="tg.loading" className="h-40" />}
     {overview.state === 'error' && <GroupError kind={overview.error.kind} onRetry={retry} />}
     {overview.state === 'ready' && <>
@@ -64,7 +65,8 @@ export function TeacherGroupsList() {
       </div>
       {overview.truncated && <p data-truncated className="text-base text-slate-700"><L id="tg.truncated" values={{ count: LIST_PAGES * PAGE_SIZE }} /></p>}
       {shown.length === 0
-        ? <div data-state="empty" className={`${card}`}><p className="text-base text-slate-800"><L id={query.trim() ? 'tg.empty.search' : filter === 'active' ? 'tg.empty.active' : 'tg.empty.archived'} /></p></div>
+        ? <div data-state="empty" className={`${card} space-y-3`}><p className="text-base text-slate-800"><L id={query.trim() ? 'tg.empty.search' : filter === 'active' ? 'tg.empty.active' : 'tg.empty.archived'} /></p>
+          {!query.trim() && filter === 'active' && <Link href="/teacher/groups/new" data-create-group-empty className={`${primaryButton} !min-h-[48px]`}><L id="tg.create.button" /></Link>}</div>
         : <ul className="grid gap-4 lg:grid-cols-2" data-group-list>{shown.map(g => <li key={g.id}><GroupCard group={g} track={firstView.current} /></li>)}</ul>}
     </>}
   </div>;

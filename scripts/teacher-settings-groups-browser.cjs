@@ -37,6 +37,7 @@ import Sidebar from '@/frontend/components/sidebar';
 import MobileSidebar from '@/frontend/features/dashboard/mobile-sidebar';
 import { TeacherGroupsList } from '@/frontend/features/teacher-groups/list-view';
 import { TeacherGroupView } from '@/frontend/features/teacher-groups/group-view';
+import { CreateGroupView } from '@/frontend/features/teacher-groups/group-form';
 import { TeacherSettingsShell } from '@/frontend/features/teacher-settings/shell';
 import { SettingsIndex } from '@/frontend/features/teacher-settings/settings-index';
 import { TeacherAccountSection } from '@/frontend/features/teacher-settings/account-section';
@@ -54,6 +55,7 @@ document.documentElement.lang = lang; document.documentElement.dir = lang === 'a
 const section = pathname.split('/')[3] || '';
 function Body() {
  if (pathname === '/teacher/groups') return <TeacherGroupsList />;
+ if (pathname === '/teacher/groups/new') { const c = new URLSearchParams(location.search).get('courses'); return <CreateGroupView courses={c === 'none' ? { ok: true, value: [] } : c === 'fail' ? { ok: false, status: 503 } : { ok: true, value: [{ courseId: uuid(10), title: 'Synthetic Physics', runId: uuid(101) }, { courseId: uuid(11), title: 'Synthetic Chemistry', runId: null }] }} />; }
  const m = /^\\/teacher\\/groups\\/([0-9a-f-]{36})$/.exec(pathname); if (m) return <TeacherGroupView groupId={m[1]} />;
  return <p>Harness page {pathname}</p>;
 }
@@ -90,7 +92,8 @@ const groups = () => ({
  [G.old]: { id: G.old, offering_id: uuid(101), offering_name: 'Synthetic Maths', name: 'Synthetic Archived Group', description: '', mode: 'center', location: 'Synthetic Centre', join_url: '', instructions: '', capacity: 12, status: 'archived', version: 2, staff: true, instructor: true },
  [G.other]: { id: G.other, offering_id: uuid(103), offering_name: 'Synthetic Other', name: 'Not managed by this teacher', description: '', mode: 'online', location: '', join_url: '', instructions: '', capacity: null, status: 'active', version: 1, staff: false, instructor: false },
 });
-const schedules = { [G.alg]: [{ weekday: 3, time: '17:00', durationMinutes: 90 }, { weekday: 0, time: '17:00', durationMinutes: 90 }], [G.phys]: [{ weekday: 1, time: '18:30', durationMinutes: 60 }], [G.old]: [], [G.other]: [] };
+const freshSchedules = () => ({ [G.alg]: [{ weekday: 3, time: '17:00', durationMinutes: 90 }, { weekday: 0, time: '17:00', durationMinutes: 90 }], [G.phys]: [{ weekday: 1, time: '18:30', durationMinutes: 60 }], [G.old]: [], [G.other]: [] });
+let schedules = freshSchedules();
 function seed() {
  const now = Date.now(), sessions = {}, members = {}, mk = (g, n, start, extra = {}) => ({ id: uuid(1000 + g * 100 + n), group_id: uuid(g), title: 'Synthetic lesson ' + n, starts_at: iso(start), ends_at: iso(start + H), mode: 'online', location: '', join_url: '', instructions: '', cancelled: false, version: 1, attendance_state: start > now ? 'draft' : 'finalized', ...extra });
  sessions[G.alg] = [mk(1, 1, now + 2 * D), mk(1, 2, now + 5 * D), mk(1, 3, now + 9 * D), mk(1, 4, now + 12 * D, { cancelled: true })];
@@ -101,10 +104,11 @@ function seed() {
  members[G.alg] = Array.from({ length: 14 }, (_, i) => ({ id: uuid(5000 + i), user_id: uuid(6000 + i), display_name: 'Synthetic student ' + (i + 1), starts_at: iso(now - 90 * D), ends_at: i >= 12 ? iso(now - 10 * D) : null, eligible: true }));
  members[G.phys] = Array.from({ length: 30 }, (_, i) => ({ id: uuid(7000 + i), user_id: uuid(8000 + i), display_name: i === 0 ? 'طالب تجريبي' : 'Synthetic pupil ' + (i + 1), starts_at: iso(now - 90 * D), ends_at: null, eligible: true }));
  members[G.old] = []; members[G.other] = [];
- return { groups: groups(), sessions, members };
+ const eligible = [...Array.from({ length: 30 }, (_, i) => ({ user_id: uuid(6000 + i), display_name: 'Synthetic student ' + (i + 1) }))];
+ return { groups: groups(), sessions, members, eligible };
 }
 const S = { scenario: 'demo', fail: {}, cmd: 'ok', posts: [], data: seed() };
-const reset = () => { S.scenario = 'demo'; S.fail = {}; S.cmd = 'ok'; S.posts = []; S.data = seed(); };
+const reset = () => { S.scenario = 'demo'; S.fail = {}; S.cmd = 'ok'; S.posts = []; S.data = seed(); schedules = freshSchedules(); };
 const take = key => { if ((S.fail[key] || 0) > 0) { S.fail[key]--; return true; } return false; };
 const PAGE = 25;
 class Fail { constructor(status) { this.status = status; } }
@@ -130,13 +134,29 @@ function view(body) {
   const list = S.scenario === 'cleared' ? [] : S.data.members[groupId];
   return { rows: list.slice(page * PAGE, page * PAGE + PAGE), page, hasMore: list.length > (page + 1) * PAGE };
  }
+ if (section === 'eligible') {
+  if (take('eligible:' + groupId)) throw new Fail(503);
+  const q = (body.data.search || '').toLowerCase(), list = S.data.eligible.filter(r => r.display_name.toLowerCase().includes(q));
+  return { rows: list.slice(page * PAGE, page * PAGE + PAGE), page, hasMore: list.length > (page + 1) * PAGE };
+ }
  throw new Fail(400);
 }
 function command(body) {
  const { action, groupId, version, data } = body, g = S.data.groups[groupId];
  if (S.cmd === 'denied') throw new Fail(403);
  if (S.cmd === 'changed') throw new Fail(409);
+ if (S.cmd === 'invalid') throw new Fail(400);
+ if (action === 'course-run') return { offeringId: uuid(990) };
+ if (action === 'create') {
+  const id = uuid(900);
+  S.data.groups[id] = { id, offering_id: data.offeringId, offering_name: 'Synthetic Physics', name: data.definition.name, description: '', mode: data.definition.mode, location: data.definition.location, join_url: data.definition.joinUrl, instructions: '', capacity: data.definition.capacity, status: 'active', version: 1, staff: true, instructor: true };
+  S.data.sessions[id] = []; S.data.members[id] = []; schedules[id] = data.definition.schedules;
+  return { id, version: 1 };
+ }
  if (!g) throw new Fail(403);
+ if (action === 'edit') { if (version !== g.version) throw new Fail(409); Object.assign(g, 'name' in data ? { name: data.name } : {}, 'mode' in data ? { mode: data.mode } : {}, 'location' in data ? { location: data.location } : {}, 'joinUrl' in data ? { join_url: data.joinUrl } : {}, 'capacity' in data ? { capacity: data.capacity } : {}); if (data.schedules) schedules[groupId] = data.schedules; g.version++; return { id: g.id, version: g.version }; }
+ if (action === 'add') { if (version !== g.version) throw new Fail(409); const who = S.data.eligible.find(r => r.user_id === data.userId); if (!who) throw new Fail(400); S.data.members[groupId].unshift({ id: uuid(40000 + S.data.members[groupId].length), user_id: who.user_id, display_name: who.display_name, starts_at: iso(Date.now()), ends_at: null, eligible: true }); g.version++; return { id: g.id, version: g.version }; }
+ if (action === 'remove') { if (version !== g.version) throw new Fail(409); const m = S.data.members[groupId].find(r => r.user_id === data.userId && r.ends_at == null); if (!m) throw new Fail(409); m.ends_at = iso(Date.now()); g.version++; return { id: g.id, version: g.version }; }
  if (action === 'archive') { if (version !== g.version) throw new Fail(409); g.status = 'archived'; g.version++; for (const s of S.data.sessions[groupId]) if (Date.parse(s.starts_at) > Date.now()) s.cancelled = true; return { ok: true }; }
  if (action === 'one-off') { if (version !== g.version) throw new Fail(409); S.data.sessions[groupId].push({ id: uuid(9000 + S.data.sessions[groupId].length), group_id: groupId, title: data.title, starts_at: data.startsAt, ends_at: data.endsAt, mode: g.mode, location: '', join_url: '', instructions: '', cancelled: false, version: 1, attendance_state: 'draft' }); g.version++; return { ok: true }; }
  if (action === 'session') { const s = S.data.sessions[groupId].find(x => x.id === data.sessionId); if (!s || s.version !== data.sessionVersion || data.operation !== 'cancel') throw new Fail(409); s.cancelled = true; s.version++; return { ok: true }; }
@@ -145,6 +165,7 @@ function command(body) {
 
 (async () => {
  const stubs = {
+  '@/frontend/components/providers/use-page-loading-signal': 'export const usePageLoadingSignal = () => {};',
   '@/frontend/components/providers/use-loading-router': 'export const useLoadingRouter = () => ({ push(p) { location.assign(p); }, replace(p) { location.replace(p); }, refresh() { window.__refreshes = (window.__refreshes || 0) + 1; } });',
   'next/navigation': 'window.__refreshes = window.__refreshes || 0; export const usePathname = () => location.pathname; export const useRouter = () => ({ push(p) { location.assign(p); }, replace(p) { location.replace(p); }, refresh() { window.__refreshes++; } });',
   'next/link': 'import React from "react"; export default function Link({ href, children, onClick, ...rest }) { return React.createElement("a", { ...rest, href, onClick: e => { onClick && onClick(e); if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); location.assign(href); } }, children); }',
@@ -181,6 +202,13 @@ function command(body) {
     if (body.action !== 'view') S.posts.push(body);
     if (lost) return req.socket.destroy();
     try { send(body.action === 'view' ? view(body) : command(body)); } catch (e) { if (e instanceof Fail) return send({ error: 'x' }, e.status); throw e; }
+   }); return;
+  }
+  if (url.pathname === '/api/study-groups/course-run' && req.method === 'POST') {
+   const parts = []; req.on('data', c => parts.push(c)); req.on('end', () => {
+    const data = JSON.parse(Buffer.concat(parts)); S.posts.push({ action: 'course-run', groupId: null, data });
+    if (S.cmd === 'lost') return req.socket.destroy();
+    try { send(command({ action: 'course-run', groupId: null, data })); } catch (e) { if (e instanceof Fail) return send({ error: 'x' }, e.status); throw e; }
    }); return;
   }
   if (url.pathname.startsWith('/api/')) { if (url.pathname === '/api/communications') return send({ rows: [], page: 0, unread: 0 }); if (url.pathname === '/api/user/status') return send({ user: { role: 'teacher' } }); return send({ error: 'harness: not served' }, 404); }
@@ -455,10 +483,134 @@ function command(body) {
   await page.getByRole('link', { name: 'Settings' }).click(); await page.waitForURL('**/teacher/settings/account'); await page.locator('[data-settings-account]').waitFor(); await context.close();
  });
 
+
+ // ------------------------------------------------------------------ Create a Group, Edit a Group, students in a Group
+ const NEW = '/teacher/groups/new', tall = page => page.evaluate(() => [...document.querySelectorAll('main form button, main form input, main form select, main [data-group-students] button, main [data-group-students] input, main [data-details-edit] button')].filter(e => { const r = e.getBoundingClientRect(); return r.width && r.height < 47.5; }).map(e => e.outerHTML.slice(0, 90)));
+ const posts = () => fetch(origin + '/__posts').then(r => r.json());
+ const fillCentre = async page => { await page.locator('[data-group-name]').fill('Synthetic new Group'); await page.locator('[data-group-location]').fill('Synthetic Centre'); await page.locator('[data-time-start]').first().fill('17:00'); };
+ await step('Create: the middleware lets exactly the new page through, and lookalikes stay out', async () => {
+  const get = p => fetch(origin + p, { redirect: 'manual' });
+  assert.equal((await get(NEW)).status, 200);
+  for (const bad of [NEW + '/', NEW + '/x', '/teacher/groups/news', '/teacher/groups/New']) assert.equal((await get(bad)).status, 307, bad);
+  for (const bad of ['/api/study-groups/course-run/', '/api/study-groups/course-run/x', '/api/study-groups/other']) assert.equal((await get(bad)).status, 503, bad);
+ });
+ await step('Create from the list, English desktop: names every problem, saves with the course run out of sight, opens the new Group', async () => {
+  const { page, context } = await open(desktop, '/teacher/groups');
+  await page.locator('[data-group-card]').first().waitFor(); await page.locator('[data-create-group]').click(); await page.waitForURL('**' + NEW); await page.locator('[data-create-group-form]').waitFor();
+  assert.deepEqual(await page.locator('[data-group-course] option').allInnerTexts(), ['Synthetic Physics', 'Synthetic Chemistry']);
+  await page.locator('[data-save-group]').click();
+  assert.deepEqual(await page.locator('[data-problem]').evaluateAll(n => n.map(e => e.dataset.problem)), ['name', 'location', 'time'], 'empty fields are named');
+  assert.equal((await posts()).length, 0, 'nothing is sent');
+  await fillCentre(page); await page.locator('[data-group-capacity]').fill('0'); await page.locator('[data-save-group]').click();
+  assert.deepEqual(await page.locator('[data-problem]').evaluateAll(n => n.map(e => e.dataset.problem)), ['capacity']);
+  await page.locator('[data-group-capacity]').fill('15'); await page.locator('[data-time-length]').first().selectOption('90');
+  assert.doesNotMatch(await main(page), forbidden); await shot(page, 'group-create-en-1440');
+  await page.locator('[data-save-group]').click(); await page.waitForURL('**/teacher/groups/' + uuid(900));
+  const sent = await posts(); assert.equal(sent.length, 1, 'a course with a current run needs only one call'); assert.equal(sent[0].action, 'create'); assert.equal(sent[0].groupId, null);
+  assert.deepEqual(sent[0].data, { offeringId: uuid(101), definition: { name: 'Synthetic new Group', mode: 'center', location: 'Synthetic Centre', joinUrl: '', capacity: 15, schedules: [{ weekday: 0, time: '17:00', durationMinutes: 90 }], description: '', instructions: '' } });
+  await page.locator('[data-teacher-group] h1').waitFor(); assert.equal(await page.locator('[data-teacher-group] h1').innerText(), 'Synthetic new Group');
+  await context.close();
+ });
+ await step('Create in a course with no current run: it gets one first; online Group with two weekly times; a bad link and a repeated time are named', async () => {
+  const { page, context } = await open(phone, NEW); await page.locator('[data-create-group-form]').waitFor();
+  await page.locator('[data-group-course]').selectOption(uuid(11)); await page.locator('[data-mode="online"]').click();
+  assert.equal(await page.locator('[data-mode="online"]').getAttribute('aria-pressed'), 'true'); assert.equal(await page.locator('[data-group-location]').count(), 0);
+  await page.locator('[data-group-name]').fill('Synthetic online'); await page.locator('[data-group-join]').fill('http://meet.example.test/room');
+  await page.locator('[data-time-start]').first().fill('18:00'); await page.locator('[data-time-add]').click(); await page.locator('[data-time-start]').nth(1).fill('18:00');
+  await page.locator('[data-save-group]').click();
+  assert.deepEqual(await page.locator('[data-problem]').evaluateAll(n => n.map(e => e.dataset.problem)), ['join', 'times_duplicate']);
+  await page.locator('[data-group-join]').fill('https://meet.example.test/room'); await page.locator('[data-time-day]').nth(1).selectOption('3');
+  await page.locator('[data-save-group]').click(); await page.waitForURL('**/teacher/groups/' + uuid(900));
+  const sent = await posts(); assert.deepEqual(sent.map(p => p.action), ['course-run', 'create']); assert.deepEqual(sent[0].data, { courseId: uuid(11) }); assert.equal(sent[1].data.offeringId, uuid(990));
+  assert.equal(sent[1].data.definition.location, ''); assert.equal(sent[1].data.definition.capacity, null); assert.equal(sent[1].data.definition.schedules.length, 2);
+  await context.close();
+ });
+ await step('Create on a phone, English and Arabic: no sideways scroll, 48px controls, mirrored, teacher words only', async () => {
+  for (const lang of ['en', 'ar']) {
+   const { page, context } = await open(phone, NEW, { lang }); await page.locator('[data-create-group-form]').waitFor();
+   await page.locator('[data-time-add]').click();
+   assert.ok(await overflow(page), 'no horizontal scroll ' + lang); assert.deepEqual(await tall(page), [], '48px targets ' + lang); assert.deepEqual(await smallText(page), [], '16px text ' + lang);
+   assert.doesNotMatch(await main(page), forbidden);
+   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); assert.match(await main(page), /إنشاء مجموعة/); assert.match(await main(page), /المواعيد الأسبوعية/); }
+   await shot(page, `group-create-${lang}-390`); await context.close();
+  }
+ });
+ await step('Create, other states: no course, a failed course read with retry, a refused save, a lost reply that does not invite a blind retry', async () => {
+  const none = await open(phone, NEW + '?courses=none'); await none.page.locator('[data-state="empty"]').waitFor(); assert.match(await none.page.locator('[data-state="empty"]').innerText(), /You need a course/); assert.equal(await none.page.locator('[data-state="empty"] a').getAttribute('href'), '/teacher/settings/courses'); await none.context.close();
+  const fail = await open(phone, NEW + '?courses=fail'); await fail.page.locator('[data-state="error"]').waitFor(); assert.equal(await fail.page.locator('[data-create-group-form]').count(), 0); await fail.page.getByRole('button', { name: 'Try again' }).click(); await fail.context.close();
+  for (const [cmd, text] of [['invalid', /We could not create this Group/], ['denied', /You do not have access/], ['lost', /cannot tell whether it went through/]]) {
+   await ctl({ cmd }); const o = await open(desktop, NEW); await o.page.locator('[data-create-group-form]').waitFor(); await fillCentre(o.page); await o.page.locator('[data-save-group]').click();
+   await o.page.locator('[data-state="error"]').waitFor(); assert.match(await o.page.locator('[data-state="error"]').innerText(), text);
+   if (cmd === 'lost') assert.equal(await o.page.locator('[data-state="error"] button').innerText(), 'See your Groups');
+   await o.context.close();
+  }
+  await ctl({ cmd: 'ok' });
+  await ctl({ scenario: 'cleared' }); const empty = await open(phone, '/teacher/groups'); await empty.page.locator('[data-create-group-empty]').waitFor(); assert.equal(await empty.page.locator('[data-create-group-empty]').getAttribute('href'), NEW); await empty.context.close();
+ });
+ await step('Edit from Details, desktop: filled in from the Group, sends its version and only what changed, warns about removed times, shows the result', async () => {
+  const { page, context } = await open(desktop, '/teacher/groups/' + G.alg); await page.locator('[data-tab="details"]').click();
+  await page.locator('[data-edit-group]').click(); await page.locator('[data-edit-group-form]').waitFor();
+  assert.equal(await page.locator('[data-group-name]').inputValue(), 'Synthetic Algebra Group'); assert.equal(await page.locator('[data-group-location]').inputValue(), 'Synthetic Centre, Room 4'); assert.equal(await page.locator('[data-group-capacity]').inputValue(), '20'); assert.equal(await page.locator('[data-time-row]').count(), 2);
+  assert.equal(await page.locator('[data-times-warning]').count(), 0); assert.equal(await page.locator('[data-place-note]').count(), 0);
+  await page.locator('[data-cancel-edit]').click(); await page.locator('[data-group-details]').waitFor(); assert.equal((await posts()).length, 0, 'Cancel sends nothing');
+  await page.locator('[data-edit-group]').click(); await page.locator('[data-group-name]').fill('Synthetic renamed'); await page.locator('[data-group-capacity]').fill('25');
+  await page.locator('[data-save-edit]').click(); await page.locator('[data-group-details]').waitFor(); await page.waitForFunction(() => document.querySelector('[data-teacher-group] h1').innerText === 'Synthetic renamed');
+  let sent = await posts(); assert.deepEqual(sent[0].data, { name: 'Synthetic renamed', mode: 'center', location: 'Synthetic Centre, Room 4', joinUrl: '', capacity: 25 }, 'unchanged times and place are left out'); assert.equal(sent[0].action, 'edit'); assert.equal(sent[0].version, 3);
+  await page.locator('[data-edit-group]').click(); await page.locator('[data-time-remove]').first().click(); assert.equal(await page.locator('[data-times-warning]').count(), 1);
+  await page.locator('[data-group-location]').fill('Synthetic Centre, Room 9'); assert.equal(await page.locator('[data-place-note]').count(), 1); assert.doesNotMatch(await main(page), forbidden); await shot(page, 'group-edit-en-1440');
+  await page.locator('[data-save-edit]').click(); await page.locator('[data-group-details]').waitFor();
+  sent = await posts(); assert.equal(sent[1].version, 4, 'the next save uses the version read after the first'); assert.equal(sent[1].data.applyMeetingDefaults, true); assert.deepEqual(sent[1].data.schedules, [{ weekday: 3, time: '17:00', durationMinutes: 90 }]);
+  await context.close();
+ });
+ await step('Edit, conflicts and limits: a stale version says so and reloads, a capacity below the students says so, only the instructor of an active Group sees it', async () => {
+  await ctl({ cmd: 'changed' }); const { page, context } = await open(phone, '/teacher/groups/' + G.alg); await page.locator('[data-tab="details"]').click(); await page.locator('[data-edit-group]').click(); await page.locator('[data-group-name]').fill('Stale');
+  await page.locator('[data-save-edit]').click(); await page.locator('[data-state="error"]').waitFor(); assert.match(await page.locator('[data-state="error"]').innerText(), /This changed while you were looking at it/);
+  await ctl({ cmd: 'ok' }); await page.getByRole('button', { name: 'Reload' }).click(); await page.locator('[data-group-details]').waitFor(); assert.equal(await page.locator('[data-teacher-group] h1').innerText(), 'Synthetic Algebra Group', 'the unsaved change is gone and the Group reads again');
+  await ctl({ cmd: 'invalid' }); await page.locator('[data-edit-group]').click(); await page.locator('[data-group-capacity]').fill('1'); await page.locator('[data-save-edit]').click(); await page.locator('[data-state="error"]').waitFor(); assert.match(await page.locator('[data-state="error"]').innerText(), /Capacity cannot be lower than the number of students/);
+  assert.ok(await overflow(page), 'no horizontal scroll'); assert.deepEqual(await tall(page), [], '48px targets'); await shot(page, 'group-edit-en-390'); await context.close(); await ctl({ cmd: 'ok' });
+  for (const [id, why] of [[G.phys, 'not the instructor'], [G.old, 'archived']]) { const o = await open(desktop, '/teacher/groups/' + id); await o.page.locator('[data-tab="details"]').click(); await o.page.locator('[data-group-details]').waitFor(); assert.equal(await o.page.locator('[data-edit-group]').count(), 0, why); await o.context.close(); }
+  const ar = await open(phone, '/teacher/groups/' + G.alg, { lang: 'ar' }); await ar.page.locator('[data-tab="details"]').click(); await ar.page.locator('[data-edit-group]').click(); await ar.page.locator('[data-edit-group-form]').waitFor(); assert.ok(await overflow(ar.page), 'no horizontal scroll in Arabic'); assert.match(await main(ar.page), /حفظ التغييرات/); assert.doesNotMatch(await main(ar.page), forbidden); await shot(ar.page, 'group-edit-ar-390'); await ar.context.close();
+ });
+ await step('Students: add from those with access (never one already here), several in a row with no reload, remove asks first and the list follows', async () => {
+  const { page, context } = await open(desktop, '/teacher/groups/' + G.alg); await page.locator('[data-tab="students"]').click(); await page.locator('[data-group-students]').waitFor();
+  assert.match(await page.locator('[data-students-total]').innerText(), /12 of 20 students/); await page.locator('[data-add-student]').click(); await page.locator('[data-eligible]').first().waitFor();
+  assert.equal(await page.locator(`[data-eligible="${uuid(6000)}"]`).count(), 0, 'someone already in the Group is not offered'); assert.equal(await page.locator(`[data-eligible="${uuid(6012)}"]`).count(), 1, 'a student who left can come back');
+  await shot(page, 'group-students-add-en-1440');
+  await page.locator('[data-student-search]').fill('student 15'); await page.waitForFunction(() => document.querySelectorAll('[data-eligible]').length === 1); await page.locator('[data-add-one]').click();
+  await page.waitForFunction(id => !document.querySelector(`[data-eligible="${id}"]`) && !!document.querySelector(`[data-student="${id}"]`), uuid(6014));
+  await page.locator('[data-student-search]').fill('student 16'); await page.waitForFunction(id => !!document.querySelector(`[data-eligible="${id}"]`), uuid(6015)); await page.locator('[data-add-one]').click();
+  await page.waitForFunction(id => !!document.querySelector(`[data-student="${id}"]`), uuid(6015));
+  let sent = await posts(); assert.deepEqual(sent.map(p => [p.action, p.version, p.data.userId]), [['add', 3, uuid(6014)], ['add', 4, uuid(6015)]], 'the second add uses the version the first returned');
+  await page.waitForFunction(() => /14 of 20 students/.test(document.querySelector('[data-students-total]').innerText));
+  await page.locator('[data-student-search]').fill('nobody at all'); await page.locator('[data-add-students] [data-state="empty"]').waitFor(); assert.match(await page.locator('[data-add-students] [data-state="empty"]').innerText(), /No student matches/);
+  await page.locator('[data-close-add]').click(); assert.equal(await page.locator('[data-add-students]').count(), 0);
+  const row = page.locator(`[data-student="${uuid(6000)}"]`); assert.equal(await row.locator('[data-remove-student]').getAttribute('aria-label'), 'Remove Synthetic student 1');
+  await row.locator('[data-remove-student]').click(); assert.match(await row.innerText(), /keep their access to the course/); assert.equal((await posts()).length, 2, 'asks first');
+  await row.getByRole('button', { name: 'Keep' }).click(); assert.equal((await posts()).length, 2); await row.locator('[data-remove-student]').click(); await row.locator('[data-confirm-remove]').click();
+  await page.waitForFunction(id => !document.querySelector(`[data-student="${id}"]`), uuid(6000));
+  sent = await posts(); assert.deepEqual([sent[2].action, sent[2].version, sent[2].data.userId], ['remove', 5, uuid(6000)]); assert.doesNotMatch(await main(page), forbidden); await context.close();
+ });
+ await step('Students, states: nobody with access, a full Group, an add the database refuses, a failed read with retry, a stale removal, an archived Group', async () => {
+  S.data.eligible = []; const none = await open(phone, '/teacher/groups/' + G.old.replace(G.old, G.phys)); await none.page.locator('[data-tab="students"]').click(); await none.page.locator('[data-add-student]').click(); await none.page.locator('[data-add-students] [data-state="empty"]').waitFor(); assert.match(await none.page.locator('[data-add-students] [data-state="empty"]').innerText(), /Only students who already have access/); await none.context.close();
+  await ctl({ reset: true }); S.data.groups[G.alg].capacity = 12; const full = await open(desktop, '/teacher/groups/' + G.alg); await full.page.locator('[data-tab="students"]').click(); await full.page.locator('[data-add-student]').click(); await full.page.locator('[data-group-full]').waitFor(); await full.page.locator('[data-add-one]').first().waitFor(); assert.equal(await full.page.locator('[data-add-one]').first().isDisabled(), true, 'a full Group offers no Add'); await full.context.close();
+  await ctl({ reset: true, cmd: 'invalid' }); const refused = await open(desktop, '/teacher/groups/' + G.alg); await refused.page.locator('[data-tab="students"]').click(); await refused.page.locator('[data-add-student]').click(); await refused.page.locator('[data-add-one]').first().click(); await refused.page.locator('[data-add-students] [data-state="error"]').waitFor(); assert.match(await refused.page.locator('[data-add-students] [data-state="error"]').innerText(), /may already be in another Group/); await refused.context.close();
+  await ctl({ reset: true, fail: { ['eligible:' + G.alg]: 1 } }); const failed = await open(desktop, '/teacher/groups/' + G.alg); await failed.page.locator('[data-tab="students"]').click(); await failed.page.locator('[data-add-student]').click(); await failed.page.locator('[data-add-students] [data-state="error"]').waitFor(); await failed.page.getByRole('button', { name: 'Try again' }).click(); await failed.page.locator('[data-eligible]').first().waitFor(); await failed.context.close();
+  await ctl({ reset: true, cmd: 'changed' }); const stale = await open(desktop, '/teacher/groups/' + G.alg); await stale.page.locator('[data-tab="students"]').click(); await stale.page.locator('[data-remove-student]').first().click(); await stale.page.locator('[data-confirm-remove]').click(); await stale.page.locator('[data-group-students] [data-state="error"]').waitFor(); assert.match(await stale.page.locator('[data-group-students] [data-state="error"]').innerText(), /This changed while you were looking at it/); await stale.context.close();
+  await ctl({ reset: true }); const old = await open(desktop, '/teacher/groups/' + G.old); await old.page.locator('[data-tab="students"]').click(); await old.page.locator('[data-group-students]').waitFor(); assert.equal(await old.page.locator('[data-add-student]').count(), 0, 'an archived Group cannot change'); await old.context.close();
+ });
+ await step('Students on a phone, English and Arabic: rows and buttons are 48px, no sideways scroll, mirrored, Arabic copy, a long name wraps', async () => {
+  for (const lang of ['en', 'ar']) {
+   const { page, context } = await open(phone, '/teacher/groups/' + G.alg, { lang }); await page.locator('[data-tab="students"]').click(); await page.locator('[data-group-students]').waitFor(); await page.locator('[data-add-student]').click(); await page.locator('[data-eligible]').first().waitFor(); await page.locator('[data-remove-student]').first().click();
+   assert.ok(await overflow(page), 'no horizontal scroll ' + lang); assert.deepEqual(await tall(page), [], '48px targets ' + lang); assert.doesNotMatch(await main(page), forbidden);
+   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); assert.match(await main(page), /إضافة/); assert.match(await main(page), /هل تريد إزالة/); }
+   await shot(page, `group-students-add-${lang}-390`); await context.close();
+  }
+ });
+
  await browser.close(); server.close();
  assert.deepEqual(errors, [], 'no uncaught or console errors');
  assert.deepEqual(external, [], 'no external requests');
- const apis = [...new Set(requests.slice(probes).filter(r => /\/api\//.test(r)))].sort();
- assert.deepEqual(apis.filter(r => !/\/api\/(study-groups|communications|user\/status)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
+ const apis = [...new Set(requests.slice(probes).filter(r => /\/api\//.test(r) && !/^GET \/api\/study-groups\//.test(r)))].sort(); // those GETs are the Create step's middleware probes
+ assert.deepEqual(apis.filter(r => !/\/api\/(study-groups(\/course-run)?|communications|user\/status)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
  console.log(`Teacher Settings and Groups browser checks passed: ${results.length} groups (real middleware, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);
 })().catch(e => { console.error(e); process.exit(1); });

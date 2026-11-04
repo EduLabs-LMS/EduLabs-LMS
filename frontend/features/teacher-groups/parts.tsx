@@ -1,19 +1,35 @@
 'use client';
+import { useState } from 'react';
 import { AlertCircle, Loader2, MapPin, Video } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import type { MessageKey } from '@/frontend/locales/messages';
 import { plainButton } from '@/frontend/features/teacher-home/parts';
 import { sortedSchedules, weeklyReference, type FailureKind, type WeeklyTime } from '@/shared/teacher-groups';
 import type { GroupSession } from '@/shared/contracts/groups';
+import { GroupCallError } from './api';
 
 const failureText: Record<FailureKind, MessageKey> = { signin: 'tg.error.signin', denied: 'tg.error.denied', changed: 'tg.error.changed', invalid: 'tg.error.invalid', unavailable: 'tg.error.unavailable' };
 
 /** An honest failure: never shown as "nothing found". A 403 has no retry; a lost reply of a change says the outcome is unknown. */
-export function GroupError({ kind, unknownOutcome = false, onRetry, retryLabel = 'tg.retry', pending = false }: { kind: FailureKind; unknownOutcome?: boolean; onRetry?: () => void; retryLabel?: 'tg.retry' | 'tg.reload'; pending?: boolean }) {
+export function GroupError({ kind, unknownOutcome = false, onRetry, retryLabel = 'tg.retry', pending = false, invalidText }: { kind: FailureKind; unknownOutcome?: boolean; onRetry?: () => void; retryLabel?: 'tg.retry' | 'tg.reload' | 'tg.create.see_groups'; pending?: boolean; invalidText?: MessageKey }) {
   return <div role="alert" data-state="error" className="space-y-3 rounded-2xl border-2 border-black bg-rose-50 p-4 text-slate-900">
-    <p className="flex gap-2 text-base"><AlertCircle aria-hidden className="mt-1 h-5 w-5 shrink-0" /><span><L id={unknownOutcome ? 'tg.error.unknown_outcome' : failureText[kind]} /></span></p>
+    <p className="flex gap-2 text-base"><AlertCircle aria-hidden className="mt-1 h-5 w-5 shrink-0" /><span><L id={unknownOutcome ? 'tg.error.unknown_outcome' : kind === 'invalid' && invalidText ? invalidText : failureText[kind]} /></span></p>
     {kind !== 'denied' && onRetry && <button type="button" onClick={onRetry} disabled={pending} className={plainButton}>{pending && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id={retryLabel} /></button>}
   </div>;
+}
+
+export const asError = (e: unknown) => e instanceof GroupCallError ? e : new GroupCallError(null);
+
+/** Everything that changes data asks first, sends the version it read, and says plainly when the reply never came. */
+export function useCommand(onDone: () => void) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<GroupCallError | null>(null);
+  const run = async (job: () => Promise<unknown>) => {
+    if (busy) return;
+    setBusy(true); setError(null);
+    try { await job(); onDone(); } catch (e) { setError(asError(e)); } finally { setBusy(false); }
+  };
+  return { busy, error, run, clear: () => setError(null) };
 }
 
 export function Loading({ label = 'tg.loading', className = 'h-24' }: { label?: MessageKey; className?: string }) {

@@ -100,12 +100,12 @@ test('groups: attendance summary and the "not saved" flag follow the saved state
 test('groups: a failed call is never shown as empty, and a lost reply is an unknown outcome', () => {
  assert.deepEqual([401, 403, 409, 400, 413, 500, null].map(model.failureKind), ['signin', 'denied', 'changed', 'invalid', 'invalid', 'unavailable', 'unavailable']);
 });
-test('groups: the screens use the one existing endpoint and only commands that already exist', () => {
- const files = ['api.ts', 'list-view.tsx', 'group-view.tsx', 'parts.tsx'].map(f => read('frontend/features/teacher-groups/' + f)).join('\n');
- assert.deepEqual([...new Set([...files.matchAll(/['"`](\/api\/[^'"`]*)['"`]/g)].map(m => m[1]))], ['/api/study-groups']);
+test('groups: the screens use the Groups endpoint and the course-run route, and only commands that already exist', () => {
+ const files = ['api.ts', 'list-view.tsx', 'group-view.tsx', 'group-form.tsx', 'parts.tsx'].map(f => read('frontend/features/teacher-groups/' + f)).join('\n');
+ assert.deepEqual([...new Set([...files.matchAll(/['"`](\/api\/[^'"`]*)['"`]/g)].map(m => m[1]))], ['/api/study-groups', '/api/study-groups/course-run']);
  const commands = [...new Set([...files.matchAll(/groupCall(?:<[^>]*>)?\('([a-z-]+)'/g)].map(m => m[1]))].sort();
- assert.deepEqual(commands, ['archive', 'one-off', 'session', 'view']);
- for (const out of ['attendance', 'finalize', 'reopen', 'transfer', "'create'", "'edit'", "'add'", "'remove'"]) assert.ok(!files.includes(`groupCall('${out.replace(/'/g, '')}'`), out + ' is not called');
+ assert.deepEqual(commands, ['add', 'archive', 'create', 'edit', 'one-off', 'remove', 'session', 'view']);
+ for (const out of ['attendance', 'finalize', 'reopen', 'transfer']) assert.ok(!files.includes(`groupCall('${out.replace(/'/g, '')}'`), out + ' is not called');
  assert.match(files, /operation: 'cancel'/); assert.doesNotMatch(files, /operation: '(reschedule|restore)'/);
 });
 test('groups: changes ask first, send the version they read, and Archive is for the instructor only', () => {
@@ -130,17 +130,18 @@ test('middleware: with Firebase staging on, exactly the Settings and Group pages
  }).default;
  const run = path => middleware({ nextUrl: new URL('https://platform.example' + path), url: 'https://platform.example' + path }, {});
  const id = '1234abcd-0000-4000-8000-00000000000f';
- for (const ok of [...settings.teacherSettingsPaths, '/teacher/groups', '/teacher/groups/' + id, '/teacher/groups/' + id + '/attendance/' + id]) assert.equal(run(ok).kind, 'next', ok + ' passes through');
- const refusedPages = ['/teacher/settings/', '/teacher/settings/account/', '/teacher/settings/other', '/teacher/settings/account/extra', '/teacher/settings//account', '/teacher/settings/Account', '/teacher/settings/courses.json', '/teacher/groups/', '/teacher/groups/not-a-uuid', '/teacher/groups/' + id + '/', '/teacher/groups/' + id + '/sessions', '/teacher/groups/' + id.toUpperCase(), '/teacher/groups/' + id.slice(1), '/teacher/groups//' + id, '/teacher/analytics', '/teacher/settings/notifications/preferences'];
+ for (const ok of [...settings.teacherSettingsPaths, '/teacher/groups', '/teacher/groups/new', '/teacher/groups/' + id, '/teacher/groups/' + id + '/attendance/' + id]) assert.equal(run(ok).kind, 'next', ok + ' passes through');
+ const refusedPages = ['/teacher/groups/new/', '/teacher/groups/new/x', '/teacher/groups/New', '/teacher/groups/news', '/teacher/settings/', '/teacher/settings/account/', '/teacher/settings/other', '/teacher/settings/account/extra', '/teacher/settings//account', '/teacher/settings/Account', '/teacher/settings/courses.json', '/teacher/groups/', '/teacher/groups/not-a-uuid', '/teacher/groups/' + id + '/', '/teacher/groups/' + id + '/sessions', '/teacher/groups/' + id.toUpperCase(), '/teacher/groups/' + id.slice(1), '/teacher/groups//' + id, '/teacher/analytics', '/teacher/settings/notifications/preferences'];
  for (const path of refusedPages) { const r = run(path); assert.equal(r.kind, 'redirect:/unavailable', path + ' is not reachable'); }
  for (const path of ['/api/teacher/settings', '/api/teacher/groups', '/api/teacher/groups/' + id, '/api/settings/teacher', '/api/groups']) { const r = run(path); assert.equal(r.kind, 'json', path); assert.equal(r.status, 503, path); }
- assert.equal(run('/api/study-groups').kind, 'next', 'the one existing Groups endpoint is the only API these screens use');
+ assert.equal(run('/api/study-groups').kind, 'next', 'the Groups endpoint'); assert.equal(run('/api/study-groups/course-run').kind, 'next', 'the course-run route');
+ for (const path of ['/api/study-groups/', '/api/study-groups/course-run/', '/api/study-groups/course-run/x', '/api/study-groups/x']) assert.equal(run(path).status, 503, path);
 });
 test('middleware: the allowed page list in the source is exactly the Settings array plus the two Group pages and the attendance page', () => {
  const source = read('middleware.ts');
  const literal = [...source.matchAll(/path === '(\/teacher\/settings[^']*)'/g)].map(m => m[1]);
  assert.deepEqual(literal.sort(), [...settings.teacherSettingsPaths].sort());
- assert.match(source, /path === '\/teacher\/groups' \|\| \/\^\\\/teacher\\\/groups\\\/\[0-9a-f-\]\{36\}\(\\\/attendance\\\/\[0-9a-f-\]\{36\}\)\?\$\/\.test\(path\)/);
+ assert.match(source, /path === '\/teacher\/groups' \|\| path === '\/teacher\/groups\/new' \|\| \/\^\\\/teacher\\\/groups\\\/\[0-9a-f-\]\{36\}\(\\\/attendance\\\/\[0-9a-f-\]\{36\}\)\?\$\/\.test\(path\)/);
  assert.doesNotMatch(source + read('shared/website-routes.ts'), /teacher\/analytics/);
 });
 
@@ -173,4 +174,86 @@ test('middleware: the Notifications page that Home and Settings > Notifications 
  for (const path of ['/notifications/', '/notifications/x', '/notification']) assert.equal(run(path).kind, 'redirect:/unavailable', path);
  for (const file of ['frontend/features/teacher-home/home-view.tsx', 'frontend/features/teacher-settings/notifications-section.tsx']) assert.match(read(file), /href="\/notifications"/, file + ' links to it');
  assert.match(read('app/(dashboard)/(routes)/notifications/page.tsx'), /isFirebaseStaging\(\)[\s\S]*getApplicationViewer\(\)[\s\S]*NotificationsView/, 'the page needs a signed-in viewer, nothing else (a teacher is a viewer)');
+});
+
+// ------------------------------------------------------------------ Create a Group, Edit a Group, students in a Group
+const groupsModel = () => load('shared/teacher-groups.ts', { '@/shared/contracts/groups': load('shared/contracts/groups.ts', { zod: require('zod') }) });
+const goodForm = (over = {}) => ({ name: ' Group A ', mode: 'center', location: ' Room 4 ', joinUrl: 'https://left.example/over', capacity: '', times: [{ weekday: 0, time: '17:00', durationMinutes: 90 }], ...over });
+test('group form: every problem is named, and a good form is exactly what the existing contract accepts', () => {
+ const m = groupsModel(), contract = load('shared/contracts/groups.ts', { zod: require('zod') });
+ const problems = over => [...m.checkGroupForm(goodForm(over)).problems];
+ assert.deepEqual(problems(), []);
+ assert.deepEqual(problems({ name: '   ' }), ['name']); assert.deepEqual(problems({ location: ' ' }), ['location']);
+ assert.deepEqual(problems({ mode: 'online', joinUrl: 'http://not-secure.example' }), ['join']); assert.deepEqual(problems({ mode: 'online', joinUrl: '' }), [], 'the join link is optional');
+ for (const capacity of ['0', '-1', '1.5', 'abc', '10001']) assert.deepEqual(problems({ capacity }), ['capacity'], capacity);
+ assert.deepEqual(problems({ times: [] }), ['times_required']); assert.deepEqual(problems({ times: [{ weekday: 0, time: '', durationMinutes: 60 }] }), ['time']);
+ assert.deepEqual(problems({ times: [{ weekday: 1, time: '10:00', durationMinutes: 60 }, { weekday: 1, time: '10:00', durationMinutes: 90 }] }), ['times_duplicate']);
+ assert.deepEqual([...m.checkGroupForm(goodForm({ times: [] }), false).problems], [], 'a Group that already has no weekly times can stay that way');
+ const center = m.checkGroupForm(goodForm({ capacity: '12' })).value;
+ assert.equal(center.name, 'Group A'); assert.equal(center.location, 'Room 4'); assert.equal(center.joinUrl, '', 'a centre keeps no join link'); assert.equal(center.capacity, 12);
+ assert.equal(contract.groupDefinition.safeParse({ ...center, description: '', instructions: '' }).success, true);
+ const online = m.checkGroupForm(goodForm({ mode: 'online', joinUrl: 'https://meet.example.test/room' })).value;
+ assert.equal(online.location, '', 'online keeps no location'); assert.equal(online.capacity, null);
+ assert.equal(contract.groupDefinition.safeParse({ ...online, description: '', instructions: '' }).success, true);
+});
+test('group edit: weekly times are only sent when they changed, a changed place moves the upcoming Sessions, and the payload passes the contract', () => {
+ const m = groupsModel(), contract = load('shared/contracts/groups.ts', { zod: require('zod') });
+ const group = { name: 'G', mode: 'center', location: 'Room 4', join_url: '', capacity: 20 }, before = [{ weekday: 3, time: '17:00', durationMinutes: 90 }, { weekday: 0, time: '17:00', durationMinutes: 90 }];
+ const form = m.formFromGroup(group, before);
+ assert.equal(form.capacity, '20'); assert.deepEqual([...form.times.map(t => t.weekday)], [0, 3], 'sorted for reading');
+ const same = m.editPayload(group, before, m.checkGroupForm(form).value);
+ assert.equal('schedules' in same, false, 'unchanged times are left out, so the Sessions are not touched'); assert.equal('applyMeetingDefaults' in same, false);
+ const moved = m.editPayload(group, before, m.checkGroupForm({ ...form, location: 'Room 5' }).value); assert.equal(moved.applyMeetingDefaults, true);
+ const changed = m.editPayload(group, before, m.checkGroupForm({ ...form, times: [form.times[0]] }).value); assert.equal(changed.schedules.length, 1);
+ assert.equal(contract.groupEdit.safeParse(changed).success, true); assert.equal(contract.groupEdit.safeParse(moved).success, true);
+ assert.equal(m.timesRemoved(before, before), false); assert.equal(m.timesRemoved(before, [before[0]]), true); assert.equal(m.timesRemoved(before, before.map(t => ({ ...t, durationMinutes: 60 }))), true, 'a changed length replaces the old time');
+ assert.equal(m.placeChanged(group, { mode: 'center', location: 'Room 4', joinUrl: '' }), false); assert.equal(m.placeChanged(group, { mode: 'online', location: '', joinUrl: '' }), true);
+});
+test('course choice: the current run is active and not ended, always the same one, and the rule for who may pick mirrors the database', () => {
+ const m = groupsModel(), now = Date.parse('2026-11-04T00:00:00Z'), run = (id, status, extra = {}) => ({ id, course_id: 'c', status, ...extra });
+ assert.equal(m.currentRun([run('a', 'draft'), run('b', 'completed'), run('d', 'archived')], 'c', now), null, 'only an active run counts');
+ assert.equal(m.currentRun([run('a', 'active', { ends_at: '2026-01-01T00:00:00Z' })], 'c', now), null, 'an ended run is not current');
+ assert.equal(m.currentRun([run('a', 'active', { starts_at: '2026-01-01T00:00:00Z' }), run('b', 'active', { starts_at: '2026-09-01T00:00:00Z' }), run('z', 'active')], 'c', now).id, 'b', 'the latest start wins');
+ assert.equal(m.currentRun([run('b', 'active'), run('a', 'active')], 'c', now).id, 'a', 'a tie is still always the same one');
+ assert.equal(m.currentRun([{ ...run('a', 'active'), course_id: 'other' }], 'c', now), null);
+ const course = (id, organization_id = 'org', status = 'draft') => ({ id, organization_id, title: id, status }), none = { memberships: [], courseStaff: [], offeringStaff: [] };
+ const ids = (courses, runs, access) => [...m.groupCourseChoices(courses, runs, access, now)].map(c => c.courseId);
+ assert.deepEqual(ids([course('c')], [], none), [], 'no role, no choice');
+ assert.deepEqual(ids([course('c')], [], { ...none, memberships: [{ organization_id: 'org', role: 'owner', status: 'active' }] }), ['c'], 'space owner');
+ assert.deepEqual(ids([course('c')], [], { ...none, memberships: [{ organization_id: 'org', role: 'owner', status: 'suspended' }] }), [], 'a suspended owner is nobody');
+ assert.deepEqual(ids([course('c')], [], { ...none, memberships: [{ organization_id: 'org', role: 'teacher', status: 'active' }] }), [], 'a teacher who does not teach this course');
+ assert.deepEqual(ids([course('c')], [], { ...none, memberships: [{ organization_id: 'org', role: 'teacher', status: 'active' }], courseStaff: [{ course_id: 'c', role: 'owner' }] }), ['c'], 'the course owner');
+ assert.deepEqual(ids([course('c')], [], { ...none, memberships: [{ organization_id: 'org', role: 'assistant', status: 'active' }], courseStaff: [{ course_id: 'c', role: 'editor' }] }), [], 'an editor');
+ assert.deepEqual(ids([course('c')], [run('r', 'active')], { ...none, offeringStaff: [{ offering_id: 'r', role: 'instructor' }] }), ['c'], 'the instructor of the current run');
+ assert.deepEqual(ids([course('c')], [run('r', 'active')], { ...none, offeringStaff: [{ offering_id: 'r', role: 'teaching_assistant' }] }), [], 'an assistant');
+ assert.deepEqual(ids([course('c', 'org', 'archived')], [], { ...none, memberships: [{ organization_id: 'org', role: 'owner', status: 'active' }] }), [], 'an archived course');
+ const picked = [...m.groupCourseChoices([course('c')], [], { ...none, memberships: [{ organization_id: 'org', role: 'owner', status: 'active' }] }, now)][0];
+ assert.equal(picked.runId, null, 'a course with no run is still offered; saving gets it one');
+});
+test('course-run: same gates as Groups with strict input, leaves the pinned Groups files alone, runs as the caller with no privileged client, and adds only when no current run exists', () => {
+ const http = read('server/http/group-course-run.ts'), service = read('server/services/group-course-run.ts');
+ assert.match(http, /z\.object\(\{ courseId: z\.string\(\)\.uuid\(\) \}\)\.strict\(\)/);
+ for (const gate of ['isFirebaseStaging()', 'validFirebaseOrigin(request)', "viewer.backend !== 'firebase'", 'content-type']) assert.ok(http.includes(gate), gate);
+ for (const pinned of ['server/http/groups.ts', 'server/services/groups.ts']) assert.doesNotMatch(read(pinned), /course-?run/i, pinned);
+ assert.match(service, /getSupabaseServerClient\(\)/); assert.doesNotMatch(service, /service.?role|createClient/i);
+ const body = service;
+ assert.ok(body.indexOf('currentRun(') < body.indexOf('.insert('), 'an existing current run is reused first');
+ assert.match(body, /status: 'active'/); assert.doesNotMatch(body, /insert\([^)]*\)\s*\.select/, 'the read rule refuses reading the new run back in the same statement'); assert.doesNotMatch(body, /courses'\)\.(insert|update)/);
+ assert.equal((read('supabase/tests/group-course-run.sql').match(/student cannot add a run|assistant cannot add a run/g) || []).length, 2);
+ assert.match(read('scripts/exam-sql-local.cjs'), /'group-course-run'/);
+});
+test('group screens: Create, Edit, add and remove send what the contract and the database expect, and ask first where it matters', () => {
+ const form = read('frontend/features/teacher-groups/group-form.tsx'), view = read('frontend/features/teacher-groups/group-view.tsx'), list = read('frontend/features/teacher-groups/list-view.tsx'), page = read('app/(dashboard)/(routes)/teacher/groups/new/page.tsx');
+ assert.match(page, /staffContext\(\)/); assert.match(page, /isFirebaseStaging\(\)/);
+ assert.match(form, /postJson<\{ offeringId: string \}>\('\/api\/study-groups\/course-run', \{ courseId: choice\.courseId \}\)/); assert.match(form, /choice\.runId \?\?/);
+ assert.match(form, /groupCall<\{ id: string \}>\('create', null, \{ offeringId, definition: \{ \.\.\.value, description: '', instructions: '' \} \}\)/);
+ assert.match(form, /groupCall\('edit', group\.id, editPayload\(group, schedules, value\), group\.version\)/);
+ assert.match(view, /'add', group\.id, \{ userId: r\.user_id \}, group\.version/); assert.match(view, /'remove', group\.id, \{ userId: row\.user_id \}, group\.version/);
+ assert.match(view, /section: 'eligible'/); assert.match(view, /data-confirm-remove/);
+ assert.match(view, /group\.status === 'active' && group\.instructor && <button type="button" data-edit-group/, 'Edit is for the instructor of an active Group');
+ assert.match(view, /const canChange = group\.status === 'active' && group\.staff/);
+ assert.match(list, /href="\/teacher\/groups\/new" data-create-group data-tour="create-group"/); assert.match(list, /data-create-group-empty/);
+ for (const target of ['group-course', 'group-name', 'group-place', 'weekly-times', 'group-capacity', 'save-group']) assert.match(form, new RegExp(`data-tour="${target}"`), target);
+ for (const target of ['edit-group', 'add-student', 'student-rows', 'remove-student', 'eligible-students']) assert.match(view, new RegExp(`data-tour="${target}"`), target);
+ assert.doesNotMatch(form + view, /offering_id|offering_name\}.*tg\.form/, 'the run never reaches a label');
 });

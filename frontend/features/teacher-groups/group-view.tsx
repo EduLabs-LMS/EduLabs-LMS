@@ -2,19 +2,19 @@
 import Link from 'next/link';
 import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { card, inkButton, linkClass, plainButton, primaryButton, sessionTime } from '@/frontend/features/teacher-home/parts';
 import { cairoWallTime, sessionDefinition, sessionState, type GroupPage, type GroupRow, type GroupSession, type StudyGroup } from '@/shared/contracts/groups';
 import { attendanceHref, canTakeAttendance } from '@/shared/teacher-attendance';
 import { RECENT_PAST, attendanceSummary, currentMembers, partitionSessions, type WeeklyTime } from '@/shared/teacher-groups';
 import { GroupCallError, groupCall, isAbort } from './api';
-import { GroupError, Loading, ModeLabel, WeeklyTimes, stateTone } from './parts';
+import { EditGroup } from './group-form';
+import { GroupError, Loading, ModeLabel, WeeklyTimes, asError, stateTone, useCommand } from './parts';
 
 type Detail = { group: StudyGroup; schedules: WeeklyTime[]; serverNow: string };
 type Tab = 'sessions' | 'students' | 'details';
 const tabs: Tab[] = ['sessions', 'students', 'details'];
-const asError = (e: unknown) => e instanceof GroupCallError ? e : new GroupCallError(null);
 
 export function TeacherGroupView({ groupId }: { groupId: string }) {
   const { t } = useLanguage();
@@ -74,8 +74,8 @@ export function TeacherGroupView({ groupId }: { groupId: string }) {
         </div>
         <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} className={`${card} space-y-4`}>
           {tab === 'sessions' && <SessionsPanel key={sessionsRevision} group={group} now={now} onChanged={reload} track={firstView.current} />}
-          {tab === 'students' && <StudentsPanel group={group} />}
-          {tab === 'details' && <Details group={group} schedules={schedules} />}
+          {tab === 'students' && <StudentsPanel group={group} onVersion={version => setDetail(d => d && { ...d, group: { ...d.group, version } })} onStale={reload} />}
+          {tab === 'details' && <Details group={group} schedules={schedules} onChanged={reload} />}
         </div>
       </div>
       <aside aria-labelledby={`${tabId}-glance`} data-group-panel className={`${card} hidden h-fit space-y-3 lg:block`}>
@@ -101,9 +101,12 @@ function Facts({ group, schedules }: { group: StudyGroup; schedules: WeeklyTime[
   </dl>;
 }
 
-function Details({ group, schedules }: { group: StudyGroup; schedules: WeeklyTime[] }) {
+function Details({ group, schedules, onChanged }: { group: StudyGroup; schedules: WeeklyTime[]; onChanged: () => void }) {
+  const [editing, setEditing] = useState(false);
   const none = <span className="text-slate-600"><L id="tg.details.none" /></span>;
+  if (editing) return <EditGroup group={group} schedules={schedules} onClose={() => setEditing(false)} onDone={() => { setEditing(false); onChanged(); }} />;
   return <div data-group-details className="space-y-4">
+    {group.status === 'active' && group.instructor && <button type="button" data-edit-group data-tour="edit-group" onClick={() => setEditing(true)} className={`${plainButton} !min-h-[48px]`}><L id="tg.edit.button" /></button>}
     <Facts group={group} schedules={schedules} />
     {group.mode === 'online' && <dl className="text-base"><dt className="font-bold"><L id="tg.details.join" /></dt><dd className="break-all">{group.join_url ? <a href={group.join_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">{group.join_url}</a> : none}</dd></dl>}
     <dl className="text-base"><dt className="font-bold"><L id="tg.details.instructions" /></dt><dd className="whitespace-pre-line break-words">{group.instructions || none}</dd></dl>
@@ -118,9 +121,11 @@ function usePaged<T extends { id?: string; user_id?: string }>(groupId: string, 
   const [tracked] = useState(track);
   usePageLoadingSignal(tracked && data.state === 'loading');
   const [revision, setRevision] = useState(0);
+  const quiet = useRef(false);
   useEffect(() => {
     const controller = new AbortController();
-    setData({ state: 'loading' });
+    if (!quiet.current) setData({ state: 'loading' });
+    quiet.current = false;
     groupCall<GroupPage<T>>('view', groupId, { section, page: 0, search: '' }, null, controller.signal)
       .then(r => setData({ state: 'ready', rows: r.rows, hasMore: Boolean(r.hasMore), page: 0, catchingUp: Boolean(r.catchingUp), more: 'idle' }), e => { if (!isAbort(e)) setData({ state: 'error', error: asError(e) }); });
     return () => controller.abort();
@@ -135,7 +140,7 @@ function usePaged<T extends { id?: string; user_id?: string }>(groupId: string, 
       setData({ state: 'ready', rows: [...data.rows, ...r.rows.filter(x => !seen.has(key(x)))], hasMore: Boolean(r.hasMore), page: data.page + 1, catchingUp: data.catchingUp, more: 'idle' });
     } catch (e) { setData({ ...data, more: asError(e) }); }
   }, [data, groupId, section]);
-  return { data, retry: () => setRevision(v => v + 1), more };
+  return { data, retry: () => setRevision(v => v + 1), refresh: () => { quiet.current = true; setRevision(v => v + 1); }, more };
 }
 
 function SessionsPanel({ group, now, onChanged, track }: { group: StudyGroup; now: number; onChanged: () => void; track: boolean }) {
@@ -177,18 +182,6 @@ function SessionItem({ s, now, group, canCancel, onChanged }: { s: GroupSession;
     {att !== 'none' && <p data-attendance={att} className="text-base text-slate-700"><L id={`tg.att.${att}`} /></p>}
     {canCancel && state === 'upcoming' && <CancelSession s={s} group={group} onDone={onChanged} />}
   </li>;
-}
-
-/** Everything that changes data asks first, sends the version it read, and says plainly when the reply never came. */
-function useCommand(onDone: () => void) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<GroupCallError | null>(null);
-  const run = async (job: () => Promise<unknown>) => {
-    if (busy) return;
-    setBusy(true); setError(null);
-    try { await job(); onDone(); } catch (e) { setError(asError(e)); } finally { setBusy(false); }
-  };
-  return { busy, error, run, clear: () => setError(null) };
 }
 
 function CancelSession({ s, group, onDone }: { s: GroupSession; group: StudyGroup; onDone: () => void }) {
@@ -260,16 +253,90 @@ function AddSession({ group, onClose, onDone }: { group: StudyGroup; onClose: ()
   </form>;
 }
 
-function StudentsPanel({ group }: { group: StudyGroup }) {
-  const { data, retry, more } = usePaged<GroupRow>(group.id, 'members');
+function StudentsPanel({ group, onVersion, onStale }: { group: StudyGroup; onVersion: (version: number) => void; onStale: () => void }) {
+  const { data, retry, refresh, more } = usePaged<GroupRow>(group.id, 'members');
+  const [adding, setAdding] = useState(false);
   if (data.state === 'loading') return <Loading label="tg.loading_students" className="h-32" />;
   if (data.state === 'error') return <GroupError kind={data.error.kind} onRetry={retry} />;
   const students = currentMembers(data.rows);
-  if (!students.length && !data.hasMore) return <div data-state="empty"><p className="text-base text-slate-800"><L id="tg.students.empty" /></p></div>;
+  const canChange = group.status === 'active' && group.staff;
+  const changed = (version: number) => { onVersion(version); refresh(); };
+  const full = group.capacity !== null && !data.hasMore && students.length >= group.capacity;
   return <div data-group-students className="space-y-3">
-    <p className="text-base font-bold" data-students-total>{data.hasMore ? <L id="tg.card.students_more" values={{ count: students.length }} /> : group.capacity ? <L id="tg.card.students_of" values={{ count: students.length, capacity: group.capacity }} /> : <L id="tg.card.students" values={{ count: students.length }} />}</p>
-    <ul className="divide-y-2 divide-black/15">{students.map(r => <li key={r.id ?? r.user_id} className="min-h-[44px] py-3 text-base break-words">{r.display_name}</li>)}</ul>
+    {!students.length && !data.hasMore
+      ? <p data-state="empty" className="text-base text-slate-800"><L id="tg.students.empty" /></p>
+      : <p className="text-base font-bold" data-students-total>{data.hasMore ? <L id="tg.card.students_more" values={{ count: students.length }} /> : group.capacity ? <L id="tg.card.students_of" values={{ count: students.length, capacity: group.capacity }} /> : <L id="tg.card.students" values={{ count: students.length }} />}</p>}
+    {canChange && !adding && <button type="button" data-add-student data-tour="add-student" onClick={() => setAdding(true)} className={`${primaryButton} !min-h-[48px]`}><L id="tg.students.add" /></button>}
+    {canChange && adding && <AddStudents group={group} present={students.map(r => r.user_id)} full={full} onAdded={changed} onStale={onStale} onClose={() => setAdding(false)} />}
+    {students.length > 0 && <ul data-tour="student-rows" className="divide-y-2 divide-black/15">{students.map(r => <StudentRow key={r.id ?? r.user_id} row={r} group={group} canChange={canChange} onRemoved={changed} onStale={onStale} />)}</ul>}
     {data.hasMore && <button type="button" data-more-students className={plainButton} disabled={data.more === 'loading'} onClick={() => void more()}>{data.more === 'loading' && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="tg.students.more" /></button>}
     {data.more instanceof GroupCallError && <GroupError kind={data.more.kind} onRetry={() => void more()} />}
   </div>;
+}
+
+function StudentRow({ row, group, canChange, onRemoved, onStale }: { row: GroupRow; group: StudyGroup; canChange: boolean; onRemoved: (version: number) => void; onStale: () => void }) {
+  const { t } = useLanguage();
+  const [confirm, setConfirm] = useState(false);
+  const { busy, error, run } = useCommand(() => setConfirm(false));
+  return <li data-student={row.user_id} className="space-y-2 py-3">
+    <div className="flex min-h-[48px] items-center justify-between gap-3">
+      <span className="min-w-0 text-base break-words"><bdi>{row.display_name}</bdi></span>
+      {canChange && !confirm && <button type="button" data-remove-student data-tour="remove-student" aria-label={t('tg.students.remove_named', { name: row.display_name })} onClick={() => setConfirm(true)} className={`${plainButton} !min-h-[48px] shrink-0`}><L id="tg.students.remove" /></button>}
+    </div>
+    {confirm && <div role="group" aria-label={row.display_name} className="space-y-2">
+      <p className="text-base"><L id="tg.students.remove_confirm" values={{ name: row.display_name }} /></p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" data-confirm-remove disabled={busy} className={`${inkButton} !min-h-[48px]`} onClick={() => run(async () => onRemoved((await groupCall<{ version: number }>('remove', group.id, { userId: row.user_id }, group.version)).version))}>{busy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="tg.students.remove_yes" /></button>
+        <button type="button" disabled={busy} className={`${plainButton} !min-h-[48px]`} onClick={() => setConfirm(false)}><L id="tg.students.remove_keep" /></button>
+      </div>
+    </div>}
+    {error && <GroupError kind={error.kind} unknownOutcome={error.status === null} onRetry={error.status === null || error.kind === 'changed' ? onStale : undefined} retryLabel="tg.reload" />}
+  </li>;
+}
+
+type Eligible = { state: 'loading' } | { state: 'error'; error: GroupCallError } | { state: 'ready'; rows: GroupRow[]; hasMore: boolean; page: number; more: 'idle' | 'loading' | GroupCallError };
+
+/** Students who already have access to this course (the existing `eligible` read); the database re-checks access and capacity on every Add. */
+function AddStudents({ group, present, full, onAdded, onStale, onClose }: { group: StudyGroup; present: string[]; full: boolean; onAdded: (version: number) => void; onStale: () => void; onClose: () => void }) {
+  const { t } = useLanguage();
+  const [search, setSearch] = useState(''), [query, setQuery] = useState('');
+  const [list, setList] = useState<Eligible>({ state: 'loading' });
+  const [revision, setRevision] = useState(0);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const { busy, error, run } = useCommand(() => setBusyId(null));
+  useEffect(() => { const timer = setTimeout(() => setQuery(search.trim()), 300); return () => clearTimeout(timer); }, [search]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setList({ state: 'loading' });
+    groupCall<GroupPage<GroupRow>>('view', group.id, { section: 'eligible', page: 0, search: query }, null, controller.signal)
+      .then(r => setList({ state: 'ready', rows: r.rows, hasMore: Boolean(r.hasMore), page: 0, more: 'idle' }), e => { if (!isAbort(e)) setList({ state: 'error', error: asError(e) }); });
+    return () => controller.abort();
+  }, [group.id, query, revision]);
+  async function loadMore() {
+    if (list.state !== 'ready' || list.more === 'loading') return;
+    setList({ ...list, more: 'loading' });
+    try {
+      const r = await groupCall<GroupPage<GroupRow>>('view', group.id, { section: 'eligible', page: list.page + 1, search: query });
+      const seen = new Set(list.rows.map(x => x.user_id));
+      setList({ state: 'ready', rows: [...list.rows, ...r.rows.filter(x => !seen.has(x.user_id))], hasMore: Boolean(r.hasMore), page: list.page + 1, more: 'idle' });
+    } catch (e) { setList({ ...list, more: asError(e) }); }
+  }
+  const rows = list.state === 'ready' ? list.rows.filter(r => !present.includes(r.user_id)) : [];
+  return <section data-add-students data-tour="eligible-students" className="space-y-3 border-y-2 border-black/15 py-3">
+    <label className="relative block"><span className="sr-only"><L id="tg.students.search" /></span>
+      <Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2" />
+      <input type="search" data-student-search value={search} maxLength={160} placeholder={t('tg.students.search')} onChange={e => setSearch(e.target.value)} className="min-h-[48px] w-full rounded-2xl border-2 border-black bg-white ps-10 pe-3 text-base" /></label>
+    {full && <p data-group-full className="text-base font-bold"><L id="tg.students.full" /></p>}
+    {list.state === 'loading' && <Loading label="tg.students.loading_eligible" className="h-16" />}
+    {list.state === 'error' && <GroupError kind={list.error.kind} onRetry={() => setRevision(v => v + 1)} />}
+    {list.state === 'ready' && !rows.length && !list.hasMore && <p data-state="empty" className="text-base text-slate-800"><L id={query ? 'tg.students.none_match' : 'tg.students.none_eligible'} /></p>}
+    {rows.length > 0 && <ul className="divide-y-2 divide-black/15">{rows.map(r => <li key={r.user_id} data-eligible={r.user_id} className="flex min-h-[48px] items-center justify-between gap-3 py-2">
+      <span className="min-w-0 text-base break-words"><bdi>{r.display_name}</bdi></span>
+      <button type="button" data-add-one aria-label={t('tg.students.add_named', { name: r.display_name })} disabled={busy || full} onClick={() => { setBusyId(r.user_id); void run(async () => onAdded((await groupCall<{ version: number }>('add', group.id, { userId: r.user_id }, group.version)).version)); }} className={`${plainButton} !min-h-[48px] shrink-0`}>{busyId === r.user_id && busy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="tg.students.add_one" /></button>
+    </li>)}</ul>}
+    {list.state === 'ready' && list.hasMore && <button type="button" data-more-eligible disabled={list.more === 'loading'} onClick={() => void loadMore()} className={`${plainButton} !min-h-[48px]`}>{list.more === 'loading' && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="tg.students.more_eligible" /></button>}
+    {list.state === 'ready' && list.more instanceof GroupCallError && <GroupError kind={list.more.kind} onRetry={() => void loadMore()} />}
+    {error && <GroupError kind={error.kind} unknownOutcome={error.status === null} invalidText="tg.students.add_failed" onRetry={error.status === null || error.kind === 'changed' ? onStale : undefined} retryLabel="tg.reload" />}
+    <button type="button" data-close-add onClick={onClose} className={`${plainButton} !min-h-[48px]`}><L id="tg.students.close" /></button>
+  </section>;
 }

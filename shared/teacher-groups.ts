@@ -1,4 +1,4 @@
-import { nextSession, sessionState, type GroupRow, type GroupSession, type StudyGroup } from '@/shared/contracts/groups';
+import { nextSession, sessionState, validGroupMeetingUrl, type GroupRow, type GroupSession, type StudyGroup } from '@/shared/contracts/groups';
 
 /**
  * Pure mapping for the teacher Groups & Classes screens. Everything here is derived from what the existing group service already returns
@@ -74,4 +74,72 @@ export function filterGroups<T extends Pick<StudyGroup, 'name' | 'offering_name'
 export type FailureKind = 'signin' | 'denied' | 'changed' | 'invalid' | 'unavailable';
 export function failureKind(status: number | null): FailureKind {
   return status === 401 ? 'signin' : status === 403 ? 'denied' : status === 409 ? 'changed' : status === 400 || status === 413 || status === 415 ? 'invalid' : 'unavailable';
+}
+
+// ---- Create and Edit a Group: the form is plain text until it is checked; the database still checks everything again.
+export const GROUP_LENGTHS = [30, 45, 60, 75, 90, 120, 150, 180];
+export const MAX_WEEKLY_TIMES = 14;
+export type TimeRow = { weekday: number; time: string; durationMinutes: number };
+export type GroupForm = { name: string; mode: 'center' | 'online'; location: string; joinUrl: string; capacity: string; times: TimeRow[] };
+export type GroupFormProblem = 'name' | 'location' | 'join' | 'capacity' | 'times_required' | 'time' | 'times_duplicate';
+export type GroupFields = { name: string; mode: 'center' | 'online'; location: string; joinUrl: string; capacity: number | null; schedules: WeeklyTime[] };
+
+export const emptyTime = (): TimeRow => ({ weekday: 0, time: '', durationMinutes: 60 });
+export const emptyGroupForm = (): GroupForm => ({ name: '', mode: 'center', location: '', joinUrl: '', capacity: '', times: [emptyTime()] });
+export function formFromGroup(group: Pick<StudyGroup, 'name' | 'mode' | 'location' | 'join_url' | 'capacity'>, schedules: readonly WeeklyTime[]): GroupForm {
+  return { name: group.name, mode: group.mode, location: group.location, joinUrl: group.join_url, capacity: group.capacity === null ? '' : String(group.capacity), times: sortedSchedules(schedules).map(s => ({ ...s })) };
+}
+
+/** `requireTimes` is true except when editing a Group that already has no weekly times. */
+export function checkGroupForm(form: GroupForm, requireTimes = true): { problems: GroupFormProblem[]; value: GroupFields | null } {
+  const problems: GroupFormProblem[] = [], name = form.name.trim(), location = form.location.trim(), joinUrl = form.joinUrl.trim(), capacity = form.capacity.trim();
+  if (!name || name.length > 160) problems.push('name');
+  if (form.mode === 'center' && (!location || location.length > 1000)) problems.push('location');
+  if (form.mode === 'online' && !validGroupMeetingUrl(joinUrl)) problems.push('join');
+  const count = Number(capacity);
+  if (capacity && !(/^\d+$/.test(capacity) && count >= 1 && count <= 10000)) problems.push('capacity');
+  if (requireTimes && !form.times.length) problems.push('times_required');
+  if (form.times.some(t => !/^([01]\d|2[0-3]):[0-5]\d$/.test(t.time))) problems.push('time');
+  else if (new Set(form.times.map(t => `${t.weekday}:${t.time}`)).size !== form.times.length) problems.push('times_duplicate');
+  if (problems.length) return { problems, value: null };
+  return { problems, value: { name, mode: form.mode, location: form.mode === 'center' ? location : '', joinUrl: form.mode === 'online' ? joinUrl : '', capacity: capacity ? count : null, schedules: form.times.map(t => ({ ...t })) } };
+}
+
+const scheduleKey = (items: readonly WeeklyTime[]) => sortedSchedules(items).map(s => `${s.weekday}:${s.time}:${s.durationMinutes}`).join();
+export const placeChanged = (group: Pick<StudyGroup, 'mode' | 'location' | 'join_url'>, value: Pick<GroupFields, 'mode' | 'location' | 'joinUrl'>) => group.mode !== value.mode || group.location !== value.location || group.join_url !== value.joinUrl;
+/** A saved weekly time is gone or changed, so the database will cancel its upcoming automatic Sessions. */
+export function timesRemoved(before: readonly WeeklyTime[], after: readonly WeeklyTime[]) {
+  const kept = new Set(after.map(s => `${s.weekday}:${s.time}:${s.durationMinutes}`));
+  return before.some(s => !kept.has(`${s.weekday}:${s.time}:${s.durationMinutes}`));
+}
+/** Weekly times are only sent when they changed (leaving them out keeps them); a changed place also moves the upcoming automatic Sessions. */
+export function editPayload(group: Pick<StudyGroup, 'mode' | 'location' | 'join_url'>, before: readonly WeeklyTime[], value: GroupFields) {
+  const { schedules, ...fields } = value;
+  return { ...fields, ...(scheduleKey(before) === scheduleKey(schedules) ? {} : { schedules }), ...(placeChanged(group, value) ? { applyMeetingDefaults: true } : {}) };
+}
+
+// ---- Which course a new Group can belong to. Teachers pick a course; the course's current run stays out of sight.
+export type RunRow = { id: string; course_id: string; status: string; starts_at?: string | null; ends_at?: string | null };
+export type CourseChoice = { courseId: string; title: string; runId: string | null };
+type GroupCourse = { id: string; organization_id: string; title: string; status: string };
+type Access = { memberships: readonly { organization_id: string; role: string; status: string }[]; courseStaff: readonly { course_id: string; role: string }[]; offeringStaff: readonly { offering_id: string; role: string }[] };
+
+/** The active, not yet ended run; with several, the one that started last, so the choice is always the same one. */
+export function currentRun<T extends RunRow>(runs: readonly T[], courseId: string, now: number): T | null {
+  const open = runs.filter(r => r.course_id === courseId && r.status === 'active' && (!r.ends_at || Date.parse(r.ends_at) > now));
+  const start = (r: T) => (r.starts_at ? Date.parse(r.starts_at) : 0);
+  return [...open].sort((a, b) => start(b) - start(a) || a.id.localeCompare(b.id))[0] ?? null;
+}
+/** The courses this teacher may create a Group in (same rule as the database, which still decides). A course without a current run can get one on saving. */
+export function groupCourseChoices(courses: readonly GroupCourse[], runs: readonly RunRow[], access: Access, now: number): CourseChoice[] {
+  const choices: CourseChoice[] = [];
+  for (const course of courses) {
+    if (course.status === 'archived') continue;
+    const run = currentRun(runs, course.id, now);
+    const manages = access.memberships.some(m => m.organization_id === course.organization_id && m.status === 'active' && ['owner', 'admin'].includes(m.role))
+      || (access.memberships.some(m => m.organization_id === course.organization_id && m.status === 'active') && access.courseStaff.some(s => s.course_id === course.id && ['owner', 'instructor'].includes(s.role)));
+    const instructsRun = run !== null && access.offeringStaff.some(s => s.offering_id === run.id && s.role === 'instructor');
+    if (manages || instructsRun) choices.push({ courseId: course.id, title: course.title, runId: run?.id ?? null });
+  }
+  return choices.sort((a, b) => a.title.localeCompare(b.title) || a.courseId.localeCompare(b.courseId));
 }

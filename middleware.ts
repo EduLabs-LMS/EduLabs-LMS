@@ -36,7 +36,7 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (path === '/teacher-invitation') {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');response.headers.set('X-Robots-Tag','noindex, nofollow');return response;}
   // Teacher Settings and Groups & Classes: EXACT pages only, nothing underneath them (scripts/teacher-settings-groups.test.cjs runs this function and keeps the list in step with shared/teacher-settings.ts).
   if (path === '/teacher/settings' || path === '/teacher/settings/account' || path === '/teacher/settings/courses' || path === '/teacher/settings/language' || path === '/teacher/settings/notifications') return NextResponse.next();
-  if (path === '/teacher/groups' || /^\/teacher\/groups\/[0-9a-f-]{36}(\/attendance\/[0-9a-f-]{36})?$/.test(path)) return NextResponse.next();
+  if (path === '/teacher/groups' || path === '/teacher/groups/new' || /^\/teacher\/groups\/[0-9a-f-]{36}(\/attendance\/[0-9a-f-]{36})?$/.test(path)) return NextResponse.next();
   if (path === '/api/personalization') return NextResponse.next();
   if (path === '/api/student-academics') return NextResponse.next();
   if (path === '/api/learning-overview') return NextResponse.next();
@@ -46,7 +46,7 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(resources|blocks)\/[0-9a-f-]{36}$/.test(path)) return NextResponse.next();
   if (/^\/api\/secure-exams\/[0-9a-f-]{36}\/(state|start|answers|submit|decision|result|photo|grading|grade|release|release-review|definition|save-definition|clone)$/.test(path)) return NextResponse.next();
   if (/^\/join\/[A-Za-z0-9_-]{43}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
-  if (path === '/api/student-administration' || path === '/api/communications' || path === '/api/study-groups' || path.startsWith('/sign-in') || path.startsWith('/sign-up') || path === '/lms-staging' || isPhaseOneRoute(path)) return NextResponse.next();
+  if (path === '/api/student-administration' || path === '/api/communications' || path === '/api/study-groups' || path === '/api/study-groups/course-run' || path.startsWith('/sign-in') || path.startsWith('/sign-up') || path === '/lms-staging' || isPhaseOneRoute(path)) return NextResponse.next();
   // No Firebase UID may enter an unmigrated Clerk/Prisma or UploadThing handler.
   if (path.startsWith('/api/') || path.startsWith('/trpc/')) return NextResponse.json({ error: 'This legacy workflow is unavailable in Firebase staging.' }, { status: 503 });
   return NextResponse.redirect(new URL('/unavailable', request.url));
