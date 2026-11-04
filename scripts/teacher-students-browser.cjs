@@ -38,21 +38,24 @@ import Sidebar from '@/frontend/components/sidebar';
 import MobileSidebar from '@/frontend/features/dashboard/mobile-sidebar';
 import { TeacherStudentsView } from '@/frontend/features/teacher-students/students-view';
 import { StudentDetailView } from '@/frontend/features/teacher-students/student-view';
+import { StudentAccess } from '@/frontend/features/admin/users/student-access';
 const pathname = location.pathname, query = new URLSearchParams(location.search);
 const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
 let lang = 'en'; try { lang = localStorage.getItem('edulabs-lms-language') === 'ar' ? 'ar' : 'en'; } catch {}
 document.documentElement.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
 const choices = {
-  normal: [{ courseId: uuid(10), title: 'Synthetic Maths', runId: uuid(101), published: true }, { courseId: uuid(12), title: 'Synthetic History', runId: null, published: false }],
+  normal: [{ courseId: uuid(10), title: 'Synthetic Maths', runId: uuid(101), published: true }, { courseId: uuid(12), title: 'Synthetic History', runId: null, published: false }, { courseId: uuid(13), title: 'Synthetic Physics', runId: null, published: true }],
+  drafts: [{ courseId: uuid(12), title: 'Synthetic History', runId: null, published: false }],
   none: [],
 };
 function Body() {
   if (pathname === '/teacher/students') {
     const c = query.get('courses');
-    return <TeacherStudentsView courses={c === 'fail' ? { ok: false, status: 503 } : { ok: true, value: choices[c === 'none' ? 'none' : 'normal'] }} inviteOffering={query.get('invite')} />;
+    return <TeacherStudentsView courses={c === 'fail' ? { ok: false, status: 503 } : { ok: true, value: choices[c === 'none' ? 'none' : c === 'drafts' ? 'drafts' : 'normal'] }} inviteOffering={query.get('invite')} />;
   }
   const m = /^\\/teacher\\/students\\/([0-9a-f-]{36})$/.exec(pathname);
   if (m) return <StudentDetailView studentId={m[1]} offeringId={query.get('course')} />;
+  const j = /^\\/join\\/([A-Za-z0-9_-]{43})$/.exec(pathname); if (j) return <StudentAccess token={j[1]} />;
   return <p>Harness page {pathname}</p>;
 }
 createRoot(document.getElementById('root')).render(
@@ -112,8 +115,8 @@ function seed() {
   const links = { [O.maths]: [{ id: uuid(6001), kind: 'request', expires_at: iso(now + 4 * D), revoked_at: null, claimed_at: null }, { id: uuid(6002), kind: 'request', expires_at: iso(now - D), revoked_at: null, claimed_at: null }], [O.science]: [], [O.history]: [] };
   return { roster, requests, groups, members, history, links };
 }
-const S = { fail: {}, groupAdd: 'ok', suspend: 'ok', lost: false, posts: [], admin: [], tokens: [], saved: new Map(), data: seed(), offeringsEmpty: false, emptyRoster: false };
-const reset = () => { Object.assign(S, { fail: {}, groupAdd: 'ok', suspend: 'ok', lost: false, posts: [], admin: [], tokens: [], saved: new Map(), data: seed(), offeringsEmpty: false, emptyRoster: false }); };
+const S = { inspect: 'ok', fail: {}, groupAdd: 'ok', suspend: 'ok', lost: false, posts: [], admin: [], tokens: [], saved: new Map(), data: seed(), offeringsEmpty: false, emptyRoster: false };
+const reset = () => { Object.assign(S, { inspect: 'ok', fail: {}, groupAdd: 'ok', suspend: 'ok', lost: false, posts: [], admin: [], tokens: [], saved: new Map(), data: seed(), offeringsEmpty: false, emptyRoster: false }); };
 const take = key => { if ((S.fail[key] || 0) > 0) { S.fail[key]--; return true; } return false; };
 const PAGE = 25;
 class Fail { constructor(status) { this.status = status; } }
@@ -122,7 +125,8 @@ const keyOf = r => (r.display_name || '').toLowerCase() + '\u0000' + r.id;
 function administration(body) {
   const { action, offeringId, subjectId, version, requestId, data } = body, now = Date.now();
   const known = offerings().find(o => o.id === offeringId);
-  if (!/^(offerings|roster|requests|links|approve|reject|suspend|reactivate|link|revoke-link)$/.test(action)) throw new Fail(400);
+  if (!/^(offerings|roster|requests|links|approve|reject|suspend|reactivate|link|revoke-link|inspect)$/.test(action)) throw new Fail(400);
+  if (action === 'inspect') { if (S.inspect !== 'ok') throw new Fail(S.inspect); return { name: 'Synthetic Maths', organization: 'Synthetic space', kind: 'request', expiresAt: iso(now + D), enrolled: false, requestStatus: null }; }
   if (action === 'offerings') { if (take('offerings')) throw new Fail(503); return { page: 0, rows: S.offeringsEmpty ? [] : offerings() }; }
   const writes = ['approve', 'reject', 'suspend', 'reactivate', 'link', 'revoke-link'];
   if (writes.includes(action)) {
@@ -227,7 +231,7 @@ function groupsCommand(body) {
   if (url.pathname === '/__app.js') { res.setHeader('Content-Type', 'application/javascript'); return res.end(fs.readFileSync(path.join(out, 'app.js'))); }
   if (url.pathname === '/__style.css') { res.setHeader('Content-Type', 'text/css'); return res.end(css); }
   if (url.pathname.startsWith('/_next/static/media/')) { const f = path.join(mediaDir, path.basename(url.pathname)); if (!fs.existsSync(f)) { res.statusCode = 404; return res.end(); } res.setHeader('Content-Type', 'font/woff2'); return res.end(fs.readFileSync(f)); }
-  if (url.pathname === '/__ctl') { const parts = []; req.on('data', c => parts.push(c)); req.on('end', () => { const b = JSON.parse(Buffer.concat(parts) || '{}'); if (b.reset) reset(); for (const k of ['groupAdd', 'suspend', 'lost', 'offeringsEmpty', 'emptyRoster']) if (k in b) S[k] = b[k]; Object.assign(S.fail, b.fail || {}); send({}); }); return; }
+  if (url.pathname === '/__ctl') { const parts = []; req.on('data', c => parts.push(c)); req.on('end', () => { const b = JSON.parse(Buffer.concat(parts) || '{}'); if (b.reset) reset(); for (const k of ['groupAdd', 'suspend', 'lost', 'offeringsEmpty', 'emptyRoster', 'inspect']) if (k in b) S[k] = b[k]; Object.assign(S.fail, b.fail || {}); send({}); }); return; }
   if (url.pathname === '/__state') return send({ posts: S.posts, admin: S.admin, tokens: S.tokens, requests, roster: S.data.roster, links: S.data.links });
   requests.push(req.method + ' ' + req.url);
   const decision = gate(url.pathname);
@@ -471,12 +475,12 @@ function groupsCommand(body) {
   assert.equal((await posts()).admin.filter(a => a.action === 'revoke-link').length, 1);
   await context.close();
  });
- await step('Invite students: a course with no run yet gets one through the existing course-run route first; an unpublished course says students need it published', async () => {
+ await step('Invite students: a published course with no run yet gets one through the existing course-run route first', async () => {
   const { page, context } = await open(desktop, '/teacher/students?invite=' + O.maths); await waitSettled(page);
   await page.locator('[data-invite-panel]').waitFor(); assert.equal(await page.locator('[data-invite-course]').inputValue(), uuid(10), 'opened from the empty Group with its course chosen');
-  await page.locator('[data-invite-course]').selectOption(uuid(12)); await page.locator('[data-unpublished]').waitFor();
+  await page.locator('[data-invite-course]').selectOption(uuid(13));
   await page.locator('[data-invite-days]').selectOption('3'); await page.locator('[data-create-link]').click(); await page.locator('[data-made-link]').waitFor();
-  const s = await posts(); assert.deepEqual(s.posts.map(p => p.action), ['course-run']); assert.equal(s.posts[0].data.courseId, uuid(12));
+  const s = await posts(); assert.deepEqual(s.posts.map(p => p.action), ['course-run']); assert.equal(s.posts[0].data.courseId, uuid(13));
   const sent = s.admin.find(a => a.action === 'link'); assert.equal(sent.offeringId, O.history, 'the link is for the run the route returned');
   await checkClean(page, 'invite desktop'); await context.close();
   const ph = await open(phone, '/teacher/students', { lang: 'ar' }); await waitSettled(ph.page); await ph.page.locator('[data-invite-students]').click(); await ph.page.locator('[data-create-link]').click(); await ph.page.locator('[data-made-link]').waitFor();
@@ -525,6 +529,44 @@ function groupsCommand(body) {
   ({ page, context } = await open(desktop, `/teacher/students/${stu(1)}?course=${O.maths}`)); await page.locator('[data-student-attendance] [role="alert"]').waitFor(); assert.match(await page.locator('[data-student-groups-section]').innerText(), /Synthetic Algebra Group/, 'Groups still shown'); await context.close();
   await ctl({ reset: true, suspend: 'changed' });
   ({ page, context } = await open(desktop, `/teacher/students/${stu(1)}?course=${O.maths}`)); await page.locator('[data-ask-access]').click(); await page.locator('[data-confirm-access]').click(); await page.locator('[data-access-change] [role="alert"]').waitFor(); assert.match(await page.locator('[data-student-status]').first().innerText(), /Active/, 'nothing changed on screen'); await context.close();
+ });
+
+ await step('Invite students and draft courses: only published courses can be chosen; a draft is shown disabled with how to publish it; nothing is sent for a draft; with none published there is no Create link', async () => {
+  const { page, context } = await open(desktop, '/teacher/students'); await waitSettled(page); await page.locator('[data-invite-students]').click(); await page.locator('[data-invite-panel]').waitFor();
+  const options = await page.locator('[data-invite-course] option').evaluateAll(os => os.map(o => [o.textContent, o.disabled]));
+  assert.deepEqual(options, [['Synthetic Maths', false], ['Synthetic Physics', false], ['Synthetic History (draft)', true]], 'drafts are listed, last and disabled');
+  const draft = page.locator(`[data-draft-course="${uuid(12)}"]`); await draft.waitFor();
+  assert.match(await draft.innerText(), /Publish this course in Settings → Courses before inviting students\./);
+  assert.equal(await draft.locator('[data-draft-link]').getAttribute('href'), '/teacher/settings/courses');
+  await checkClean(page, 'invite drafts desktop'); await shot(page, 'students-invite-drafts-en-1440');
+  // Even if the page were made to select the draft, no link is asked for.
+  await page.evaluate(id => { const sel = document.querySelector('[data-invite-course]'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(sel, id); sel.dispatchEvent(new Event('change', { bubbles: true })); }, uuid(12));
+  assert.equal(await page.locator('[data-create-link]').isDisabled(), true, 'Create link is off for a draft');
+  await page.locator('[data-create-link]').click({ force: true, timeout: 1000 }).catch(() => {});
+  const s = await posts(); assert.equal(s.admin.filter(a => a.action === 'link').length, 0); assert.equal(s.posts.filter(p => p.action === 'course-run').length, 0, 'no run is made for a draft');
+  await context.close();
+  const only = await open(phone, '/teacher/students?courses=drafts', { lang: 'ar' }); await waitSettled(only.page); await only.page.locator('[data-invite-students]').click(); await only.page.locator('[data-no-published]').waitFor();
+  assert.equal(await only.page.locator('[data-create-link]').isVisible(), false); assert.match(await main(only.page), /انشر هذه الدورة من الإعدادات ← الدورات قبل دعوة الطلاب/);
+  await checkClean(only.page, 'invite drafts phone ar'); await shot(only.page, 'students-invite-drafts-ar-390'); await only.context.close();
+ });
+ await step('Student join page failure: one human sentence in English and Arabic that does not say which reason applied; an outage keeps its own message', async () => {
+  const token = 'A'.repeat(43);
+  for (const [lang, expected] of [['en', /This link isn't working\. It may have expired or been turned off, or the course isn't open yet\. Ask your teacher for a new link\./], ['ar', /هذا الرابط لا يعمل\. ربما انتهت صلاحيته أو تم إيقافه، أو أن الدورة لم تُفتح بعد\. اطلب من معلمك رابطًا جديدًا\./]]) {
+   const texts = new Set();
+   for (const status of [403, 400, 404]) {
+    await ctl({ reset: true, inspect: status });
+    const { page, context } = await open(phone, '/join/' + token, { lang }); await page.locator('[role="alert"]').waitFor({ timeout: 5000 }).catch(async e => { console.log('BODY', (await page.locator('body').innerText()).slice(0, 400)); throw e; });
+    const text = await page.locator('[role="alert"]').innerText(); assert.match(text, expected, lang + ' ' + status); assert.doesNotMatch(text, /permission denied|Access unavailable|draft|publish|revoked/i);
+    texts.add(text.split('\n')[0]);
+    if (status === 403) { assert.ok(await overflow(page), 'no sideways scroll'); await shot(page, `join-failed-${lang}-390`); }
+    await context.close();
+   }
+   assert.equal(texts.size, 1, 'every refusal reads the same');
+  }
+  await ctl({ reset: true, inspect: 503 });
+  const { page, context } = await open(phone, '/join/' + token); await page.locator('[role="alert"]').waitFor(); assert.doesNotMatch(await page.locator('[role="alert"]').innerText(), /This link isn't working/); await context.close();
+  await ctl({ reset: true });
+  const ok = await open(phone, '/join/' + token); await ok.page.getByRole('button', { name: 'Request access' }).waitFor(); await ok.context.close();
  });
 
  await browser.close(); server.close();

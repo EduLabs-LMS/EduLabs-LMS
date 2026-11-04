@@ -191,3 +191,31 @@ test('locales: every Students string exists in English and Arabic with the same 
  const used = new Set([...all.matchAll(/['"](ts\.(?:students|requests|student|invite)\.[a-z_.]+)['"]/g)].map(m => m[1]));
  for (const k of used) assert.ok(messages.en[k] && messages.ar[k], 'missing ' + k);
 });
+
+// ------------------------------------------------------------------ fixes found on staging
+test('invite: only published courses can be chosen, a draft is disabled with the way to publish it, and the client refuses a draft before calling anything', () => {
+ const inv = src('invite.tsx');
+ assert.match(inv, /const open = courses\.filter\(c => c\.published\), drafts = courses\.filter\(c => !c\.published\)/);
+ assert.match(inv, /const choice = open\.find\(c => c\.courseId === courseId\)/, 'a draft can never be the chosen course');
+ assert.match(inv, /if \(!choice \|\| !choice\.published\) return;/, 'refused before the API');
+ assert.match(inv, /value=\{c\.courseId\} disabled>/); assert.match(inv, /href="\/teacher\/settings\/courses"/);
+ assert.doesNotMatch(inv, /ts\.invite\.unpublished/);
+ // the course-run route and the link call both come after that guard
+ assert.ok(inv.indexOf('if (!choice || !choice.published) return;') < inv.indexOf("'/api/study-groups/course-run'"));
+ assert.ok(inv.indexOf('if (!choice || !choice.published) return;') < inv.indexOf("adminCall('link'"));
+ assert.equal(messages.en['ts.invite.draft_line'], 'Publish this course in Settings → Courses before inviting students.');
+ for (const k of ['ts.invite.draft_option', 'ts.invite.draft_line', 'ts.invite.draft_link', 'ts.invite.none_published', 'join.link_failed']) assert.ok(messages.en[k] && messages.ar[k], k);
+ assert.equal(messages.en['ts.invite.unpublished'], undefined);
+});
+test('join page: refusals for a link that cannot be used show one sentence that does not say why; outages keep their own message', () => {
+ const fail = load('shared/join-failure.ts');
+ for (const status of [400, 403, 404]) assert.equal(fail.linkIsUnusable({ status }), true, String(status));
+ for (const status of [409, 429, 500, 503, undefined, null]) assert.equal(fail.linkIsUnusable({ status }), false, String(status));
+ assert.equal(fail.linkIsUnusable(null), false); assert.equal(fail.linkIsUnusable(new Error('x')), false);
+ assert.equal(messages.en['join.link_failed'], "This link isn't working. It may have expired or been turned off, or the course isn't open yet. Ask your teacher for a new link.");
+ assert.match(messages.ar['join.link_failed'], /^هذا الرابط لا يعمل/);
+ assert.doesNotMatch(messages.en['join.link_failed'] + messages.ar['join.link_failed'], /permission|denied|draft|publish/i);
+ const page = read('frontend/features/admin/users/student-access.tsx');
+ assert.match(page, /linkIsUnusable\(e\)\?text\.current\('join\.link_failed'\)/); assert.equal((page.match(/join\.link_failed/g) ?? []).length, 2, 'inspect and submit');
+ assert.doesNotMatch(page, /\},\[token,page,refresh,t\]\)/, 'the language function must not retrigger the load');
+});

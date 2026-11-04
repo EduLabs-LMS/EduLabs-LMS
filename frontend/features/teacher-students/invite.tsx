@@ -2,7 +2,8 @@
 import { useId, useState } from 'react';
 import { Check, Copy, Loader2, Share2 } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
-import { inkButton, plainButton, primaryButton } from '@/frontend/features/teacher-home/parts';
+import Link from 'next/link';
+import { inkButton, linkClass, plainButton, primaryButton } from '@/frontend/features/teacher-home/parts';
 import { GroupError, useCommand } from '@/frontend/features/teacher-groups/parts';
 import { postJson } from '@/frontend/features/teacher-groups/api';
 import type { CourseChoice } from '@/shared/teacher-groups';
@@ -46,19 +47,21 @@ export function InvitePanel({ courses, initialOffering, onClose }: { courses: Co
   const id = useId();
   const { t } = useLanguage();
   const date = useDate();
-  const [courseId, setCourseId] = useState(() => (courses.find(c => c.runId && c.runId === initialOffering) ?? courses[0])?.courseId ?? '');
+  // Only a published course can be invited to: a student opening the link of a draft would be refused. Drafts are listed, disabled, with the way to publish them.
+  const open = courses.filter(c => c.published), drafts = courses.filter(c => !c.published);
+  const [courseId, setCourseId] = useState(() => (open.find(c => c.runId && c.runId === initialOffering) ?? open[0])?.courseId ?? '');
   const [days, setDays] = useState<number>(DEFAULT_LINK_DAYS);
   const [made, setMade] = useState<Made | null>(null);
   const [copied, setCopied] = useState<'yes' | 'failed' | null>(null);
   const [revision, setRevision] = useState(0);
   const [runs, setRuns] = useState<Record<string, string>>({});
-  const choice = courses.find(c => c.courseId === courseId);
+  const choice = open.find(c => c.courseId === courseId);
   const runId = choice ? runs[choice.courseId] ?? choice.runId : null;
   const { busy, error, run } = useCommand(() => setRevision(v => v + 1));
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   const create = () => {
-    if (!choice) return;
+    if (!choice || !choice.published) return; // never ask for a link to a draft course, whatever the screen shows
     setMade(null); setCopied(null);
     void run(async () => {
       const offeringId = runId ?? (await postJson<{ offeringId: string }>('/api/study-groups/course-run', { courseId: choice.courseId })).offeringId;
@@ -82,14 +85,17 @@ export function InvitePanel({ courses, initialOffering, onClose }: { courses: Co
   return <section aria-labelledby={`${id}-t`} data-invite-panel data-tour="invite-panel" className="space-y-4 border-y-2 border-black/15 py-5">
     <div><h2 id={`${id}-t`} className="font-display text-2xl leading-tight"><L id="ts.invite.title" /></h2><p className="text-base text-slate-700"><L id="ts.invite.intro" /></p></div>
     {courses.length === 0 ? <p data-state="empty" className="text-base text-slate-800"><L id="ts.invite.no_courses" /></p> : <>
-      <div className="grid gap-3 sm:grid-cols-2">
+      {open.length === 0 && <p data-no-published className="text-base text-slate-800"><L id="ts.invite.none_published" /></p>}
+      {open.length > 0 && <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1" htmlFor={`${id}-c`}><span className="font-bold"><L id="ts.invite.course" /></span>
-          <select id={`${id}-c`} data-invite-course className={fieldClass} value={courseId} onChange={e => { setCourseId(e.target.value); setMade(null); setCopied(null); }}>{courses.map(c => <option key={c.courseId} value={c.courseId}>{c.title}</option>)}</select></label>
+          <select id={`${id}-c`} data-invite-course className={fieldClass} value={courseId} onChange={e => { setCourseId(e.target.value); setMade(null); setCopied(null); }}>{open.map(c => <option key={c.courseId} value={c.courseId}>{c.title}</option>)}{drafts.map(c => <option key={c.courseId} value={c.courseId} disabled>{t('ts.invite.draft_option', { title: c.title })}</option>)}</select></label>
         <label className="block space-y-1" htmlFor={`${id}-d`}><span className="font-bold"><L id="ts.invite.length" /></span>
           <select id={`${id}-d`} data-invite-days className={fieldClass} value={days} onChange={e => setDays(Number(e.target.value))}>{LINK_DAYS.map(d => <option key={d} value={d}>{t(d === 1 ? 'ts.invite.day_one' : 'ts.invite.days', { count: d })}</option>)}</select></label>
-      </div>
-      {choice && !choice.published && <p data-unpublished className="text-base text-slate-800"><L id="ts.invite.unpublished" /></p>}
-      <button type="button" data-create-link data-tour="create-link" onClick={create} disabled={busy || !choice} className={`${primaryButton} ${tall} w-full sm:w-auto`}>{busy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ts.invite.create" /></button>
+      </div>}
+      {drafts.length > 0 && <ul data-draft-courses className="divide-y-2 divide-black/15 border-y-2 border-black/15">{drafts.map(c => <li key={c.courseId} data-draft-course={c.courseId} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <span className="min-w-0"><span className="block break-words text-base font-bold"><bdi dir="auto">{c.title}</bdi></span><span className="block text-base text-slate-700"><L id="ts.invite.draft_line" /></span></span>
+        <Link href="/teacher/settings/courses" data-draft-link className={linkClass}><L id="ts.invite.draft_link" /></Link></li>)}</ul>}
+      {open.length > 0 && <button type="button" data-create-link data-tour="create-link" onClick={create} disabled={busy || !choice} className={`${primaryButton} ${tall} w-full sm:w-auto`}>{busy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ts.invite.create" /></button>}
       {error && <GroupError kind={error.kind} unknownOutcome={error.status === null} invalidText="ts.invite.invalid" onRetry={error.status === null ? undefined : create} pending={busy} />}
       {error?.status === null && <p data-link-unknown className="text-base text-slate-800"><L id="ts.invite.unknown" /></p>}
       {made && <div data-made-link role="status" className="space-y-3 rounded-xl border-2 border-black bg-primary/20 p-4">
