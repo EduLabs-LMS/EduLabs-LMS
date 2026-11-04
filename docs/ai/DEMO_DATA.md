@@ -19,7 +19,7 @@ How it works, in short:
   a teacher was not recorded and its foreign key made the whole Clear fail.)
 - Clear refuses (and removes nothing) when the space has any enrollment that is not a recorded demo enrollment, and when the
   space holds content Clear does not remove:
-  homework, exams, media, lesson segments, website courses, student access links/requests. The message names what it found.
+  homework, exams, media, lesson segments, website courses, and what a real person did with student access (see "Clear and the Students screen"). The message names what it found.
   `removedRows` counts every removed content row, added ones included (lesson blocks and staff rows removed by cascade are not
   counted); the audit row also holds `removedSupportRows` and `removedByTable`.
 - The seed version is one integer for the whole seed. The current value is stored when a space is filled, so the admin page
@@ -91,3 +91,20 @@ or when the SQL tracks a module or table this document does not list.
 
 Real students, homework, exams, results, payments, e-mail and any customer record. The only enrollments in demo data are
 the fake demo students above. Demo data is synthetic and is never copied from a real space.
+
+## Clear and the Students screen (draft migration `20261104120000_demo_students_screen.sql`, not applied anywhere)
+
+- A teacher who tries Invite students, Approve or Suspend in a demo space leaves join links, join requests and student-administration audit rows
+  behind. Before this migration Clear refused any space that had one, so the Students screen made Clear impossible.
+- The migration replaces `private.demo_clear_core` only (same signature and grants, no new objects, seed version stays 3). Clear now:
+  - removes, found only through the space's recorded course runs: the join links, the join requests of demo students and the
+    `private.student_admin_audit` rows of the space (links, revoke, suspend, reactivate of demo students). Each count goes into the platform
+    audit row (`removedByTable.student_access_links`, `.enrollment_requests`, `.student_admin_audit`; the audit rows count as support rows);
+  - still refuses, naming it, and removes nothing, when a REAL person is involved: `join requests or invitations from real people` (a request
+    from, or an invitation for or claimed by, someone who is not a recorded demo student) and `student administration records of real people`
+    (an audit row about someone who is not a recorded demo student). Real enrolled students are still refused first as `enrolled students`;
+  - leaves `private.student_admin_commands` (the idempotency record of the teacher's commands) alone.
+- The three tables are not append-only: no trigger, rule or grant makes them so (checked in the migrations). Removing the audit rows is
+  therefore possible, and the platform audit row is the trace that it happened. Audit immutability is not weakened because there is none to weaken;
+  if the owner wants it later, that is a separate decision.
+- Tested by `supabase/tests/demo-students-screen.sql` (rolled back, 19 checks) and `scripts/demo-spaces.test.cjs`.

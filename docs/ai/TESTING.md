@@ -78,3 +78,9 @@ These use synthetic data and are not provider acceptance.
 
 
 Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; registered in scripts/exam-sql-local.cjs, so `npm run test:exam-sql:postgres` runs it on a disposable PostgreSQL only; it has NOT been run against any database yet).
+
+## Students screen (`claude/students-screen`)
+
+- `node --test scripts/teacher-students.test.cjs`: the model (status, merged paging, Group index, approve outcomes, the 43-character link secret against the real contract), the REAL middleware, the menu entry, source guards (the secret never logged, stored or navigated to; only the existing endpoints and actions; actions hidden without manage rights) and English/Arabic locales.
+- `node scripts/teacher-students-browser.cjs` (needs the same environment as the other teacher browser harnesses: `source .local/pa-env.sh`, `LMS_FRESH_CSS`): desktop, phone, Arabic/RTL, dark theme, the real middleware, fictional student-administration and Groups services, every error state, approve then Group add (and its partial failure), Invite students and that the secret appears only in the create request and the final `/join/<token>` text.
+- `supabase/tests/demo-students-screen.sql` runs in the local PostgreSQL suite (`npm run test:exam-sql:postgres`), rolled back.
