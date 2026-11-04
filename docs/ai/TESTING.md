@@ -84,3 +84,9 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `node --test scripts/teacher-students.test.cjs`: the model (status, merged paging, Group index, approve outcomes, the 43-character link secret against the real contract), the REAL middleware, the menu entry, source guards (the secret never logged, stored or navigated to; only the existing endpoints and actions; actions hidden without manage rights) and English/Arabic locales.
 - `node scripts/teacher-students-browser.cjs` (needs the same environment as the other teacher browser harnesses: `source .local/pa-env.sh`, `LMS_FRESH_CSS`): desktop, phone, Arabic/RTL, dark theme, the real middleware, fictional student-administration and Groups services, every error state, approve then Group add (and its partial failure), Invite students and that the secret appears only in the create request and the final `/join/<token>` text.
 - `supabase/tests/demo-students-screen.sql` runs in the local PostgreSQL suite (`npm run test:exam-sql:postgres`), rolled back.
+
+## Students fixes (`claude/students-fixes`)
+
+- `supabase/tests/group-summary-performance.sql` runs in the local PostgreSQL suite: the previous `group_view` is installed as `group_view_before` and compared with the new one for 35 person/group cases plus the independent counts.
+- `node scripts/exam-sql-local.cjs --postgres --bench` also runs `group-summary-performance-benchmark.sql` (20,400 attendance rows in six extra spaces, EXPLAIN ANALYZE before and after). It is slow because the old function is slow; it is not part of `npm run test:exam-sql:postgres`.
+- `node scripts/teacher-students-browser.cjs` covers the Invite panel with draft courses and the `/join` failure text in English and Arabic.

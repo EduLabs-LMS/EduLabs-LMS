@@ -40,7 +40,7 @@ as a functioning teacher pilot. Student pages retain the approved pre-redesign V
   waits: Approve (optionally "Approve into a Group": that course's active Groups or "No Group yet"; if the Group step fails: "Approved, but not added to the Group.
   Add them from the Group page." and nothing is retried or undone) or Reject (asks for a short reason). Teachers who only support a course see no buttons.
   **Student page**: status, course, Groups, attendance (date, Group, Present/Absent) and Suspend/Reactivate with confirmation; no grades or homework.
-  **Invite students** (button here and in an empty Group's Students tab): pick a course and how long (default 7 days), Create link, the link is shown once
+  **Invite students** (button here and in an empty Group's Students tab): only published courses can be chosen (a draft is shown disabled with "Publish this course in Settings → Courses before inviting students" and a link; the client also refuses to ask for a link to a draft): pick a course and how long (default 7 days), Create link, the link is shown once
   with Copy and Share (the phone's share sheet; no WhatsApp address, because that would put the secret in a URL), active links below with Revoke.
   Every section has its own error with Retry; 48px targets; English and Arabic (RTL); dark theme. Tour targets: `invite-students`, `student-filters`,
   `student-rows`, `join-requests`, `invite-panel`, `create-link`, `student-access`, `student-groups`, `student-attendance`.
