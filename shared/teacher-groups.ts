@@ -120,7 +120,7 @@ export function editPayload(group: Pick<StudyGroup, 'mode' | 'location' | 'join_
 
 // ---- Which course a new Group can belong to. Teachers pick a course; the course's current run stays out of sight.
 export type RunRow = { id: string; course_id: string; status: string; starts_at?: string | null; ends_at?: string | null };
-export type CourseChoice = { courseId: string; title: string; runId: string | null };
+export type CourseChoice = { courseId: string; title: string; runId: string | null; published: boolean };
 type GroupCourse = { id: string; organization_id: string; title: string; status: string };
 type Access = { memberships: readonly { organization_id: string; role: string; status: string }[]; courseStaff: readonly { course_id: string; role: string }[]; offeringStaff: readonly { offering_id: string; role: string }[] };
 
@@ -139,7 +139,7 @@ export function groupCourseChoices(courses: readonly GroupCourse[], runs: readon
     const manages = access.memberships.some(m => m.organization_id === course.organization_id && m.status === 'active' && ['owner', 'admin'].includes(m.role))
       || (access.memberships.some(m => m.organization_id === course.organization_id && m.status === 'active') && access.courseStaff.some(s => s.course_id === course.id && ['owner', 'instructor'].includes(s.role)));
     const instructsRun = run !== null && access.offeringStaff.some(s => s.offering_id === run.id && s.role === 'instructor');
-    if (manages || instructsRun) choices.push({ courseId: course.id, title: course.title, runId: run?.id ?? null });
+    if (manages || instructsRun) choices.push({ courseId: course.id, title: course.title, runId: run?.id ?? null, published: course.status === 'published' });
   }
   return choices.sort((a, b) => a.title.localeCompare(b.title) || a.courseId.localeCompare(b.courseId));
 }

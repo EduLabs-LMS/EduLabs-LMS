@@ -264,7 +264,7 @@ function StudentsPanel({ group, onVersion, onStale }: { group: StudyGroup; onVer
   const full = group.capacity !== null && !data.hasMore && students.length >= group.capacity;
   return <div data-group-students className="space-y-3">
     {!students.length && !data.hasMore
-      ? <p data-state="empty" className="text-base text-slate-800"><L id="tg.students.empty" /></p>
+      ? <div data-state="empty" className="space-y-3"><p className="text-base text-slate-800"><L id="tg.students.empty" /></p>{group.instructor && group.status === 'active' && <Link href={`/teacher/students?invite=${group.offering_id}`} data-invite-from-group data-tour="invite-students" className={`${primaryButton} !min-h-[48px]`}><L id="ts.students.invite" /></Link>}</div>
       : <p className="text-base font-bold" data-students-total>{data.hasMore ? <L id="tg.card.students_more" values={{ count: students.length }} /> : group.capacity ? <L id="tg.card.students_of" values={{ count: students.length, capacity: group.capacity }} /> : <L id="tg.card.students" values={{ count: students.length }} />}</p>}
     {canChange && !adding && <button type="button" data-add-student data-tour="add-student" onClick={() => setAdding(true)} className={`${primaryButton} !min-h-[48px]`}><L id="tg.students.add" /></button>}
     {canChange && adding && <AddStudents group={group} present={students.map(r => r.user_id)} full={full} onAdded={changed} onStale={onStale} onClose={() => setAdding(false)} />}

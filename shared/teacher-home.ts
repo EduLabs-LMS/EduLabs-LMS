@@ -150,7 +150,7 @@ export const teacherHomeHref = '/home';
 /** The main teacher menu. Courses and Settings live under /teacher/settings (the cog beside the profile). Destinations without a new screen go to the existing neutral scaffold or the existing page; nothing here is faked. */
 export const teacherNav: readonly TeacherNavItem[] = [
   { key: 'home', href: teacherHomeHref, match: p => p === '/' || p === '/home' },
-  { key: 'students', href: '/admin/users', match: p => p.startsWith('/admin/users') },
+  { key: 'students', href: '/teacher/students', match: p => p === '/teacher/students' || p.startsWith('/teacher/students/') },
   { key: 'groups', href: '/teacher/groups', match: p => p === '/teacher/groups' || p.startsWith('/teacher/groups/') },
   { key: 'homework', href: '/admin/submissions', match: p => p.startsWith('/admin/submissions') },
   { key: 'exams', href: '/exams', match: p => p.startsWith('/exams') },

@@ -255,5 +255,7 @@ test('group screens: Create, Edit, add and remove send what the contract and the
  assert.match(list, /href="\/teacher\/groups\/new" data-create-group data-tour="create-group"/); assert.match(list, /data-create-group-empty/);
  for (const target of ['group-course', 'group-name', 'group-place', 'weekly-times', 'group-capacity', 'save-group']) assert.match(form, new RegExp(`data-tour="${target}"`), target);
  for (const target of ['edit-group', 'add-student', 'student-rows', 'remove-student', 'eligible-students']) assert.match(view, new RegExp(`data-tour="${target}"`), target);
- assert.doesNotMatch(form + view, /offering_id|offering_name\}.*tg\.form/, 'the run never reaches a label');
+ assert.doesNotMatch(form, /offering_id|offering_name\}.*tg\.form/, 'the run never reaches a label');
+ assert.deepEqual(view.match(/offering_id/g), ['offering_id'], 'the Group page uses the run only inside the Invite students address');
+ assert.match(view, /href=\{`\/teacher\/students\?invite=\$\{group\.offering_id\}`\}/);
 });
