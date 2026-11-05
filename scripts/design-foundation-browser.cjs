@@ -15,9 +15,12 @@ const css = fs.readdirSync(cssDir).filter(f => f.endsWith('.css')).map(f => fs.r
 const fontVars = (css.match(/\.__variable_[a-z0-9]+\{[^}]*\}/g) || []).map(v => v.match(/^\.([^{]+)\{/)[1]).join(' ');
 
 const entry = `
-import React, { useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 import { LanguageProvider, L } from '@/frontend/components/language-provider';
+import { ToastProvider } from '@/frontend/components/providers/toast-provider';
+import { actionToast } from '@/frontend/lib/action-toast';
+import { usePathname } from 'next/navigation';
 import { ThemeProvider } from '@/frontend/components/theme-provider';
 import { TeacherFrame } from '@/frontend/features/teacher-frame/teacher-frame';
 import { TeacherHomeView } from '@/frontend/features/teacher-home/home-view';
@@ -28,7 +31,8 @@ import { buildTeacherHome, createTargets } from '@/shared/teacher-home';
 import { Avatar, Button, buttonClass, Card, CardHead, DateTile, DesignSkeleton, Dialog, Field, Icon, IconBadge, ListRow, PageHeader, SearchField, SegmentedControl, StatusPill, Tabs } from '@/frontend/components/design';
 const q = new URLSearchParams(location.search), view = q.get('view') || 'home';
 window.__pathname = q.get('path') || ({ home: '/home', settings: '/teacher/settings/language', gallery: '/teacher/groups', guard: '/teacher/groups/g/attendance/s' })[view];
-const NOW = Date.now(), at = m => new Date(NOW + m * 60000).toISOString();
+// The server's clock can be given, to prove the screen does not read the device's.
+const NOW = Number(q.get('serverNow')) || Date.now(), at = m => new Date(NOW + m * 60000).toISOString();
 const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
 const ok = value => ({ ok: true, value });
 const group = (n, name) => ({ id: uuid(n), offering_id: uuid(100 + n), offering_name: 'Synthetic offering', name, description: '', mode: 'online', location: '', join_url: '', instructions: '', capacity: null, status: 'active', version: 1, staff: true, instructor: false });
@@ -37,7 +41,7 @@ const note = (n, event, m) => ({ id: uuid(300 + n), event_type: event, created_a
 const raw = {
  courses: ok([]), now: NOW,
  groups: ok({ rows: [group(1, 'Synthetic Group Alpha'), group(2, 'مجموعة الصف العاشر'), group(3, 'Synthetic Group Gamma')], page: 0, hasMore: false }),
- upcoming: ok({ rows: [session(1, 1, 'Synthetic Group Alpha', -20), session(2, 2, 'مجموعة الصف العاشر', 1500), session(3, 1, 'Synthetic Group Alpha', 3000), session(4, 3, 'Synthetic Group Gamma', 4400)], page: 0 }),
+ upcoming: ok({ rows: q.get('upcoming') ? q.get('upcoming').split(',').map((m, i) => session(50 + i, 1, 'Synthetic Group Alpha', Number(m))) : [session(1, 1, 'Synthetic Group Alpha', -20), session(2, 2, 'مجموعة الصف العاشر', 1500), session(3, 1, 'Synthetic Group Alpha', 3000), session(4, 3, 'Synthetic Group Gamma', 4400)], page: 0 }),
  notifications: ok({ rows: [note(1, 'support_reply', -30), note(2, 'session_details', -300), note(3, 'session_starting', -60)], page: 0, unread: 3 }),
  unsaved: ok([{ groupId: uuid(3), rows: [session(14, 3, 'Synthetic Group Gamma', -4000)] }]),
  metrics: ok({ totalStudents: 41, pendingWaitlistCount: 3 }), nextFacts: { kind: 'marked', marked: 9, total: 14 },
@@ -52,6 +56,7 @@ function Gallery() {
   <Card data-gallery-buttons className="p-4"><div className="flex flex-wrap items-center gap-3">
    <Button data-variant="primary" variant="primary">Primary</Button><Button data-variant="secondary" variant="secondary">Secondary</Button><Button data-variant="tertiary" variant="tertiary">Tertiary</Button><Button data-variant="destructive" variant="destructive">Destructive</Button><Button data-variant="icon" variant="icon" aria-label="More"><Icon name="more" /></Button>
    <Button data-open-dialog variant="secondary" onClick={() => setDialog(true)}>Open dialog</Button>
+   <Button data-toast-button variant="secondary" onClick={() => actionToast('Synthetic action done')}>Toast</Button>
   </div></Card>
   <Card data-gallery-pills className="p-4"><div className="flex flex-wrap items-center gap-3">{['success', 'info', 'warning', 'danger', 'neutral'].map(t => <StatusPill key={t} tone={t} data-pill={t}>{t}</StatusPill>)}{['success', 'info', 'warning', 'danger', 'neutral'].map(t => <IconBadge key={t} name="bell" tone={t} />)}</div></Card>
   <Card data-gallery-list list aria-labelledby="gallery-list"><CardHead id="gallery-list" title="A list" action={<a href="#all" className={buttonClass('tertiary')}>See all</a>} /><ul>
@@ -69,15 +74,21 @@ function GuardPage() {
 }
 function Body() {
  if (view === 'settings') return <TeacherSettingsShell><DesignSettings initial={document.documentElement.dataset.design} /></TeacherSettingsShell>;
- if (view === 'gallery') return <Gallery />;
+ if (view === 'gallery') return <><Gallery /><DesignSkeleton className="h-6 w-40" /></>;
  if (view === 'guard') return <GuardPage />;
  return <TeacherHomeView data={home} />;
+}
+// A page has its first render when the address changes; a refresh (window.__refresh) brings new data to the page that is already there.
+function Page() {
+ const path = usePathname();
+ const [revision, setRevision] = useState(0); window.__refresh = () => setRevision(v => v + 1);
+ return <TeacherFrame><Body key={path} /><span hidden data-revision={revision} /></TeacherFrame>;
 }
 const lang = q.get('lang') === 'ar' ? 'ar' : 'en';
 document.documentElement.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
 createRoot(document.getElementById('root')).render(
  <LanguageProvider initialLanguage={lang}>
-  <ThemeProvider attribute="class" defaultTheme={q.get('theme') === 'dark' ? 'dark' : 'light'} enableSystem={false} disableTransitionOnChange><TeacherFrame><Body /></TeacherFrame></ThemeProvider>
+  <ThemeProvider attribute="class" defaultTheme={q.get('theme') === 'dark' ? 'dark' : 'light'} enableSystem={false} disableTransitionOnChange><Page /><ToastProvider /></ThemeProvider>
  </LanguageProvider>);
 `;
 
@@ -132,7 +143,7 @@ const helpers = () => {
     },
     /** What the look must not change: the tags, data attributes and words of the page (owner decision b). */
     structure() {
-      const walk = e => [e.tagName, ...[...e.attributes].filter(a => a.name.startsWith('data-') && a.name !== 'data-radix' && !a.name.includes('radix')).map(a => a.name + '=' + a.value), ...[...e.childNodes].map(n => n.nodeType === 3 ? n.textContent.replace(/\d+/g, '#').trim() : n.nodeType === 1 && n.tagName !== 'svg' ? walk(n) : '').filter(Boolean)];
+      const walk = e => [e.tagName, ...[...e.attributes].filter(a => a.name.startsWith('data-') && a.name !== 'data-radix' && !a.name.includes('radix') && a.name !== 'data-enter').map(a => a.name + '=' + a.value), ...[...e.childNodes].map(n => n.nodeType === 3 ? n.textContent.replace(/\d+/g, '#').trim() : n.nodeType === 1 && n.tagName !== 'svg' ? walk(n) : '').filter(Boolean)];
       return JSON.stringify(walk(document.querySelector('[data-teacher-shell]'))).replace(/:r[\w]+:/g, '');
     },
   };
@@ -140,7 +151,7 @@ const helpers = () => {
 
 (async () => {
  const stubs = {
-  'next/navigation': 'window.__pushes = window.__pushes || []; export const usePathname = () => window.__pathname; export const useRouter = () => ({ push(p) { window.__pushes.push(p); }, replace() {}, refresh() {} });',
+  'next/navigation': 'import { useSyncExternalStore } from "react"; import { flushSync } from "react-dom"; window.__pushes = window.__pushes || []; const subs = new Set(); window.__setPath = p => { window.__pathname = p; flushSync(() => subs.forEach(f => f())); }; export const usePathname = () => useSyncExternalStore(f => { subs.add(f); return () => subs.delete(f); }, () => window.__pathname); export const useRouter = () => ({ push(p) { window.__pushes.push(p); }, replace() {}, refresh() {} });',
   '@/frontend/components/providers/use-loading-router': 'export const useLoadingRouter = () => ({ push(p) { window.__pushes.push(p); }, replace() {}, refresh() {} });',
   'next/link': 'import React from "react"; export default React.forwardRef(function Link({ href, children, onClick, ...rest }, ref) { return React.createElement("a", { ...rest, ref, href, onClick: e => { onClick && onClick(e); if (e.defaultPrevented) return; e.preventDefault(); (window.__clicks = window.__clicks || []).push(href); } }, children); });',
   'next/image': 'import React from "react"; export default function Image({ unoptimized, fill, priority, ...p }) { return React.createElement("img", p); }',
@@ -179,7 +190,7 @@ const helpers = () => {
  const errors = [], external = [], results = [];
  const desktop = { width: 1440, height: 900 }, phone = { width: 390, height: 844 };
  /** look: the cookie this browser already has (undefined = none). */
- const open = async (viewport, query, look, extra = {}) => {
+ const open = async (viewport, query, look, { beforeGoto, ...extra } = {}) => {
   const lang = /lang=ar/.test(query) ? 'ar' : 'en';
   const context = await browser.newContext({ viewport, locale: lang, ...extra });
   if (look !== undefined) await context.addCookies([{ name: designCookieKey, value: look, url: origin }]);
@@ -188,18 +199,22 @@ const helpers = () => {
   await page.addInitScript(helpers);
   page.on('pageerror', e => { errors.push(e.message); console.error('PAGEERROR', e.message.slice(0, 300)); }); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
   await page.route('**/*', r => { if (r.request().url().startsWith(origin)) return r.continue(); external.push(r.request().url()); return r.abort(); });
+  if (beforeGoto) await beforeGoto(page);
   await page.goto(origin + '/?' + query);
   await page.locator('[data-teacher-shell]').waitFor();
   await page.evaluate(() => document.fonts.ready);
+  // Measure a page at rest: its first render's animation has ended. A test of that animation changes the address itself.
+  await page.waitForFunction(() => !document.querySelector('main[data-enter]'));
   return { page, context };
  };
  const noOverflow = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
  const shot = (page, name) => page.screenshot({ path: path.join(shots, name + '.png'), fullPage: true });
- const step = async (name, fn) => { try { await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); console.error(e); process.exit(1); } };
+ const only = process.env.LMS_ONLY_STEPS && new RegExp(process.env.LMS_ONLY_STEPS); // for working on one group; a full run sets nothing
+ const step = async (name, fn) => { if (only && !only.test(name)) return; try { await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); console.error(e); process.exit(1); } };
  const box = (page, selector) => page.locator(selector).first().boundingBox();
  const css1 = (page, selector, property) => page.locator(selector).first().evaluate((e, p) => getComputedStyle(e)[p], property);
 
- await step('Desktop frame, both looks: a 240px sidebar flush to the edge, four items, Notifications, Settings and the profile row at the bottom', async () => {
+ await step('Desktop frame, both looks: a 240px sidebar flush to the edge, four links, Notifications, Settings and the profile row at the bottom', async () => {
   for (const look of ['classic', 'new']) {
    const { page, context } = await open(desktop, 'view=home', look);
    await page.locator('[data-teacher-home]').waitFor();
@@ -207,8 +222,6 @@ const helpers = () => {
    assert.equal(side.x, 0, look); assert.equal(side.y, 0, look); assert.equal(side.width, 240, look); assert.equal(side.height, desktop.height, look);
    assert.deepEqual(await page.locator('[data-teacher-nav] a').evaluateAll(n => n.map(e => e.textContent.trim())), ['Home', 'Groups', 'Students', 'Courses'], look);
    assert.deepEqual(await page.locator('[data-teacher-nav] a').evaluateAll(n => n.map(e => e.getAttribute('href'))), ['/home', '/teacher/groups', '/teacher/students', '/teacher/courses'], look);
-   const words = await page.locator('[data-teacher-sidebar]').innerText();
-   assert.doesNotMatch(words, /Homework|Exams|Reports/, 'hidden until they are built');
    assert.match(await page.locator('[data-teacher-sidebar] a.d-logo').innerText(), /EduLabs/); assert.equal(await page.locator('[data-teacher-sidebar] a.d-logo').count(), 1, 'one link to Home'); assert.equal(await page.locator('[data-teacher-sidebar] a.d-logo').getAttribute('href'), '/home');
    assert.equal(await page.locator('[data-unread-count]').innerText(), '3');
    const nav = await box(page, '[data-nav="notifications"]'), settings = await box(page, '[data-nav="settings"]'), profile = await box(page, '[data-teacher-profile]');
@@ -257,7 +270,8 @@ const helpers = () => {
    assert.equal(await page.locator('[data-teacher-phone-footer]').evaluate(e => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map(b => Math.round(b.top))).size; }), 1, 'one line of footer');
    await page.locator('[data-bottom-tab="more"]').click();
    await page.locator('[data-more-sheet]').waitFor();
-   assert.deepEqual(await page.locator('[data-more-item]').evaluateAll(n => n.map(e => e.dataset.moreItem)), ['courses', 'settings', 'help', 'signout']);
+   assert.deepEqual(await page.locator('[data-more-item]').evaluateAll(n => n.map(e => e.dataset.moreItem)), ['courses', 'homework', 'exams', 'reports', 'settings', 'help', 'signout']);
+   await page.waitForTimeout(300); // the sheet has finished sliding up
    const sheet = await box(page, '[data-more-sheet]'); assert.ok(Math.abs(sheet.y + sheet.height - phone.height) < 2, 'a bottom sheet on a phone');
    for (const b of await page.locator('[data-more-item]').evaluateAll(n => n.map(e => e.getBoundingClientRect().height))) assert.ok(b >= 44);
    await page.locator('[data-more-item="signout"]').click();
@@ -407,17 +421,17 @@ const helpers = () => {
    assert.equal((await box(page, pill)).height, 24, tone); assert.equal(await css1(page, pill, 'fontSize'), '13px'); assert.equal(await css1(page, pill, 'fontWeight'), '600'); assert.equal(await css1(page, pill, 'color'), color, tone); assert.equal(await css1(page, pill, 'backgroundColor'), back, tone); assert.equal(await css1(page, pill, 'borderTopWidth'), '0px', 'no border');
   }
   const primary = '[data-variant="primary"]';
-  assert.equal(await css1(page, primary, 'backgroundColor'), 'rgb(127, 217, 89)'); assert.equal(await css1(page, primary, 'color'), 'rgb(20, 48, 26)'); assert.match(await css1(page, primary, 'boxShadow'), /rgb\(63, 143, 34\) 0px 3px 0px/); assert.equal(await css1(page, primary, 'borderRadius'), '12px');
+  assert.equal(await css1(page, primary, 'backgroundColor'), 'rgb(127, 217, 89)'); assert.equal(await css1(page, primary, 'color'), 'rgb(20, 48, 26)'); assert.match(await css1(page, primary, 'boxShadow'), /rgb\(43, 100, 22\) 3px 3px 0px/); assert.equal(await css1(page, primary, 'borderRadius'), '16px');
   const secondary = '[data-variant="secondary"]';
   assert.equal(await css1(page, secondary, 'borderTopColor'), 'rgb(183, 198, 170)'); assert.equal(await css1(page, secondary, 'borderTopWidth'), '1px'); assert.match(await css1(page, secondary, 'boxShadow'), /0px 2px 0px/);
   const card = '[data-gallery-list]';
-  assert.equal(await css1(page, card, 'borderTopColor'), 'rgb(211, 222, 201)'); assert.equal(await css1(page, card, 'borderTopWidth'), '1px'); assert.match(await css1(page, card, 'boxShadow'), /rgb\(211, 222, 201\) 0px 3px 0px/); assert.match(await css1(page, card, 'boxShadow'), /0px 14px 28px -18px/); assert.ok(['16px', '18px'].includes(await css1(page, card, 'borderRadius')));
+  assert.equal(await css1(page, card, 'borderTopColor'), 'rgb(211, 222, 201)'); assert.equal(await css1(page, card, 'borderTopWidth'), '1px'); assert.match(await css1(page, card, 'boxShadow'), /rgb\(211, 222, 201\) 0px 3px 0px/); assert.match(await css1(page, card, 'boxShadow'), /0px 14px 28px -18px/); assert.equal(await css1(page, card, 'borderRadius'), '24px');
   assert.equal(await page.locator('.d-tile').count(), 1);
   await context.close();
   const home = await open(desktop, 'view=home', 'new');
   await home.page.locator('[data-next-session]').waitFor();
   const hero = home.page.locator('[data-next-session]');
-  assert.match(await hero.evaluate(e => getComputedStyle(e).backgroundImage), /linear-gradient/); assert.equal(await hero.evaluate(e => getComputedStyle(e).borderRadius), '20px');
+  assert.match(await hero.evaluate(e => getComputedStyle(e).backgroundImage), /linear-gradient/); assert.equal(await hero.evaluate(e => getComputedStyle(e).borderRadius), '24px');
   const circles = await hero.evaluate(e => [getComputedStyle(e, '::before').content, getComputedStyle(e, '::after').content]); assert.deepEqual(circles.map(c => c !== 'none'), [true, true], 'two soft circles');
   assert.equal(await home.page.locator('[data-progress-ring]').count(), 1);
   assert.match(await home.page.locator('[data-progress-ring]').innerText(), /9\s*\/\s*14/);
@@ -437,10 +451,11 @@ const helpers = () => {
    const title = await box(wide.page, '[data-gallery-header] .d-title'), action = await header.locator('button:visible').first().boundingBox();
    assert.ok(action.x > title.x + title.width && action.y < title.y + title.height, 'trailing, at the top');
    await wide.page.locator('[data-open-dialog]').click();
+   await wide.page.waitForTimeout(300); // the dialog has finished opening
    const dialog = await box(wide.page, '[data-gallery-dialog]');
    assert.ok(Math.abs(dialog.x + dialog.width / 2 - desktop.width / 2) < 2 && dialog.y > 20 && dialog.y + dialog.height < desktop.height - 20, 'centred');
    await wide.page.keyboard.press('Escape'); await wide.page.locator('[data-gallery-dialog]').waitFor({ state: 'detached' });
-   assert.ok(await wide.page.locator('[data-open-dialog]').evaluate(e => e === document.activeElement), 'focus returns to what opened it');
+   await wide.page.waitForFunction(() => document.activeElement?.hasAttribute('data-open-dialog'), null, { timeout: 2000 }); // Radix hands focus back just after it unmounts
    await wide.context.close();
 
    const narrow = await open(phone, 'view=gallery', look);
@@ -453,6 +468,7 @@ const helpers = () => {
    assert.deepEqual(await narrow.page.locator('[role="menuitem"]').allInnerTexts(), ['Edit', 'Delete']);
    await narrow.page.getByRole('menuitem', { name: 'Delete' }).click(); assert.equal(await narrow.page.evaluate(() => window.__destructive), true);
    await narrow.page.locator('[data-open-dialog]').click();
+   await narrow.page.waitForTimeout(300); // the sheet has finished sliding up
    const sheet = await box(narrow.page, '[data-gallery-dialog]');
    assert.ok(Math.abs(sheet.y + sheet.height - phone.height) < 2 && sheet.width === phone.width, 'a bottom sheet');
    await narrow.context.close();
@@ -499,6 +515,8 @@ const helpers = () => {
   const one = await read(), two = await read();
   assert.deepEqual(one.v, two.v); assert.equal(one.v[0][0], 'SS'); assert.doesNotMatch(one.stored, /Synthetic Student|طالب/);
  });
+
+ await require('./design-feedback-checks.cjs')({ step, open, box, css1, desktop, phone, shot });
 
  assert.deepEqual(errors, [], 'no page errors or console errors');
  assert.deepEqual(external, [], 'nothing left the loopback');

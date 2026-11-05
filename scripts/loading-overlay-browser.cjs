@@ -9,6 +9,7 @@
 const fs = require('fs'), path = require('path'), http = require('http'), assert = require('node:assert/strict');
 const esbuild = require(path.join(process.env.LMS_ESBUILD_RUNTIME, 'esbuild')), { chromium } = require(path.join(process.env.LMS_BROWSER_RUNTIME, 'playwright'));
 const out = path.resolve('.local/loading-overlay-browser'); fs.mkdirSync(out, { recursive: true });
+const { firstOpenScript, FIRST_OPEN_KEY } = require('./localization-test-loader.cjs').load('frontend/lib/first-load.ts');
 
 const nav = `
 import { useSyncExternalStore } from 'react';
@@ -34,6 +35,7 @@ const entry = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LoadingProvider, useGlobalLoading } from '@/frontend/components/providers/loading-provider';
+import FirstOpenCurtain from '@/frontend/components/first-open-curtain';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
 import { softNavigate, usePathname, usePending } from 'next/navigation';
 import { PageSkeleton, Skeleton } from '@/frontend/components/skeleton';
@@ -97,7 +99,8 @@ function Root() {
   const [uid, setUid] = React.useState('signed-out'); window.__setUid = setUid;
   return <React.Fragment key={uid}><LoadingProvider><App /></LoadingProvider></React.Fragment>;
 }
-createRoot(document.getElementById('root')).render(<Root />);
+// As in the root layout: the curtain is outside the part of the tree that is keyed on the user.
+createRoot(document.getElementById('root')).render(<><Root /><FirstOpenCurtain /></>);
 `;
 
 const plugin = {
@@ -114,7 +117,8 @@ const plugin = {
 
 (async () => {
   await esbuild.build({ bundle: true, jsx: 'automatic', plugins: [plugin], logLevel: 'warning', platform: 'browser', define: { 'process.env.NODE_ENV': '"production"' }, stdin: { contents: entry, resolveDir: process.cwd(), loader: 'tsx' }, outfile: path.join(out, 'client.js') });
-  const html = '<!doctype html><meta charset=utf-8><link rel=stylesheet href=/style.css><body><div id=root></div><script src=/client.js></script>';
+  // The real head script, as the root layout writes it.
+  const html = '<!doctype html><meta charset=utf-8><script>' + firstOpenScript + '</script><link rel=stylesheet href=/style.css><body><div id=root></div><script src=/client.js></script>';
   const css = require('./harness-css.cjs')();
   const server = http.createServer((req, res) => {
     if (req.url === '/style.css') { res.setHeader('Content-Type', 'text/css'); return res.end(css); }
@@ -140,9 +144,11 @@ const plugin = {
     window.__iv = setInterval(() => window.__log.push({ t: Math.round(performance.now() - t0), overlay: !!document.querySelector('[role="status"][aria-label]'), skeleton: !!document.querySelector('[data-skeleton]'),
       page: (document.querySelector('[data-page]') || {}).dataset ? document.querySelector('[data-page]').dataset.page : null, sameFrame: document.getElementById('frame') === window.__frameNode }), 10);
   };
-  async function open(url, { reduced = false, sessionFlag = false } = {}) {
+  /** fresh: a brand new tab. Otherwise the tab has been opened before, so only the sign-in overlay is under test. */
+  async function open(url, { reduced = false, sessionFlag = false, fresh = false } = {}) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
     const page = await ctx.newPage(); page.on('pageerror', e => errors.push(e.message));
+    if (!fresh) await page.addInitScript(key => sessionStorage.setItem(key, '1'), FIRST_OPEN_KEY);
     if (sessionFlag) await page.addInitScript(() => { if (!sessionStorage.getItem('__seeded')) { sessionStorage.setItem('edulabs-first-load', 'pending'); sessionStorage.setItem('__seeded', '1'); } });
     await page.goto(origin + url); await page.locator('#frame').waitFor();
     return { ctx, page };
@@ -187,8 +193,102 @@ const plugin = {
     const log = await page.evaluate(() => { clearInterval(window.__iv); return window.__log; }); await ctx.close();
     assert.equal(summary(log).overlayShown, false); assert.equal(summary(log).frameAlways, true);
   });
-  await ok('opening a page directly or restoring a session (a plain load, no sign-in) shows no overlay', async () => {
+  await ok('in a tab that has been opened, loading a page again or restoring a session (no sign-in) shows no overlay', async () => {
     const r = await action('/teacher/home', null, { wait: 800 }); assert.equal(r.overlayShown, false);
+  });
+
+  // ---- a fresh opening: the first full page load in a browser tab, on any route ----
+  const CURTAIN = '[data-first-open-curtain]';
+  // Every 10 ms from the first moment of the document: is the curtain on screen, and did it stay one and the same element.
+  const CURTAIN_SAMPLER = () => {
+    window.__c = []; const t0 = performance.now(); let node = null; window.__nodes = 0;
+    const sample = () => { const e = document.querySelector('[data-first-open-curtain]'); if (e && e !== node) { node = e; window.__nodes++; }
+      const s = e && getComputedStyle(e); window.__c.push({ t: Math.round(performance.now() - t0), on: !!s && s.display !== 'none' && s.visibility !== 'hidden' && +s.opacity > 0, attr: document.documentElement.getAttribute('data-first-open') }); };
+    window.__ci = setInterval(sample, 10);
+  };
+  const seen = log => { const on = log.filter(r => r.on); return { shown: on.length > 0, for: on.length ? on[on.length - 1].t - on[0].t : 0, last: log[log.length - 1] }; };
+  for (const route of ['/', '/sign-in', '/sign-up', '/join/abc', '/home', '/teacher/home', '/teacher/groups', '/notifications', '/settings', '/public-page']) {
+    await ok('a fresh opening plays the logo to its end on ' + route, async () => {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage(); page.on('pageerror', e => errors.push(e.message));
+      await page.addInitScript(CURTAIN_SAMPLER);
+      await page.goto(origin + route); await page.locator('#frame').waitFor({ state: 'attached' });
+      assert.equal(await page.evaluate(() => { const e = document.querySelector('[data-first-open-curtain] [data-first-load-logo]'); return !!e && e.getAnimations({ subtree: true }).length > 0; }), true, 'the logo is animating, over the page');
+      assert.equal(await page.locator(OVERLAY).count(), 0, 'it is the curtain, not the action overlay');
+      await page.waitForFunction(() => !document.querySelector('[data-first-open-curtain]'), null, { timeout: 4000 });
+      const log = await page.evaluate(() => window.__c); const r = seen(log);
+      assert.equal(r.shown, true); assert.ok(r.for >= 1300, 'the whole animation: ' + r.for); assert.ok(r.for < 3400, 'and then it goes: ' + r.for);
+      assert.equal(await page.evaluate(() => document.documentElement.hasAttribute('data-first-open')), false, 'nothing is left behind');
+      const stored = await page.evaluate(() => JSON.stringify(Object.entries(sessionStorage)));
+      assert.equal(stored, JSON.stringify([[FIRST_OPEN_KEY, '1']]), 'one word in session storage, no personal data');
+      await ctx.close();
+    });
+  }
+  await ok('a fresh opening: once per tab. Not on a reload, not on in-app navigation; a new tab plays it again', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage();
+    await page.addInitScript(CURTAIN_SAMPLER);
+    await page.goto(origin + '/teacher/home'); await page.waitForFunction(() => !document.querySelector('[data-first-open-curtain]'), null, { timeout: 4000 });
+    await page.click('#slow'); await page.waitForTimeout(900);
+    assert.equal(seen(await page.evaluate(() => window.__c)).last.attr, null, 'in-app navigation');
+    assert.equal(await page.locator(CURTAIN).count(), 0, 'in-app navigation');
+    await page.reload(); await page.locator('#frame').waitFor(); await page.waitForTimeout(400);
+    assert.equal(seen(await page.evaluate(() => window.__c)).shown, false, 'the reload never shows it, not even for a moment');
+    await page.goto(origin + '/teacher/groups'); await page.locator('#frame').waitFor(); await page.waitForTimeout(300);
+    assert.equal(seen(await page.evaluate(() => window.__c)).shown, false, 'nor a full page load to another address in the same tab');
+    const other = await ctx.newPage(); await other.addInitScript(CURTAIN_SAMPLER);
+    await other.goto(origin + '/teacher/groups'); await other.waitForFunction(() => !document.querySelector('[data-first-open-curtain]'), null, { timeout: 4000 });
+    assert.ok(seen(await other.evaluate(() => window.__c)).for >= 1300, 'another tab is a fresh opening');
+    await ctx.close();
+  });
+  await ok('a fresh opening: the logo stays one element while the user change mounts the app tree again, so it never restarts', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage();
+    await page.addInitScript(CURTAIN_SAMPLER);
+    await page.goto(origin + '/teacher/home'); await page.locator('#frame').waitFor({ state: 'attached' });
+    await page.evaluate(() => window.__setUid('uid-restored')); await page.waitForTimeout(100);
+    await page.waitForFunction(() => !document.querySelector('[data-first-open-curtain]'), null, { timeout: 4000 });
+    assert.equal(await page.evaluate(() => window.__nodes), 1);
+    await ctx.close();
+  });
+  await ok('a fresh opening with reduced motion: the still logo, nothing moving, for a moment', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' }), page = await ctx.newPage();
+    await page.addInitScript(CURTAIN_SAMPLER);
+    await page.goto(origin + '/sign-in'); await page.locator('#frame').waitFor({ state: 'attached' });
+    assert.equal(await page.evaluate(() => { const e = document.querySelector('[data-first-load-logo]'); return e.getAnimations({ subtree: true }).length; }), 0, 'nothing moves');
+    await page.locator('[data-first-load-logo] svg').waitFor();
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.first-load-letter')).opacity), '1', 'the word is there from the start');
+    await page.waitForFunction(() => !document.querySelector('[data-first-open-curtain]'), null, { timeout: 2000 });
+    const r = seen(await page.evaluate(() => window.__c)); assert.ok(r.for >= 400 && r.for < 1200, 'a moment: ' + r.for);
+    await ctx.close();
+  });
+  await ok('a fresh opening cannot block: no storage means no logo; the page underneath is there all along', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage();
+    await page.addInitScript(() => Object.defineProperty(window, 'sessionStorage', { get() { throw new Error('blocked'); } }));
+    await page.goto(origin + '/teacher/home'); await page.locator('#frame').waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.hasAttribute('data-first-open')), false); assert.equal(await page.locator(CURTAIN).count(), 0);
+    await ctx.close();
+    const quota = await browser.newContext({ viewport: { width: 1280, height: 800 } }), second = await quota.newPage();
+    await second.addInitScript(() => { Storage.prototype.setItem = () => { throw new Error('quota'); }; });
+    await second.goto(origin + '/teacher/home'); await second.locator('#frame').waitFor();
+    assert.equal(await second.evaluate(() => document.documentElement.hasAttribute('data-first-open')), false, 'a flag that cannot be written would replay on every load: skipped instead');
+    await quota.close();
+  });
+  await ok('a fresh opening whose JavaScript never arrives: the stylesheet lifts the logo by itself', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage();
+    await page.route('**/client.js', r => r.abort());
+    await page.goto(origin + '/teacher/home');
+    // The harness renders on the client, so with no client the markup the server sends in the real app is written here, to the real stylesheet and the real head script.
+    await page.evaluate(() => { const e = document.createElement('div'); e.setAttribute('data-first-open-curtain', ''); e.textContent = 'logo'; document.body.append(e); });
+    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-first-open')), '1');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[data-first-open-curtain]')).visibility), 'visible');
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-first-open-curtain]')).visibility === 'hidden', null, { timeout: 7500 });
+    await ctx.close();
+  });
+  await ok('a fresh opening, then signing in: the sign-in overlay still plays once', async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } }), page = await ctx.newPage();
+    await page.goto(origin + '/sign-in'); await page.waitForFunction(() => !document.querySelector('[data-first-open-curtain]'), null, { timeout: 4000 });
+    await page.click('#signin'); await page.locator(OVERLAY).waitFor({ timeout: 300 });
+    await page.waitForFunction(selector => !document.querySelector(selector), OVERLAY, { timeout: 3200 });
+    assert.equal(await page.locator(CURTAIN).count(), 0, 'and the curtain did not come back');
+    await ctx.close();
   });
 
   // ---- first load after sign-in ----

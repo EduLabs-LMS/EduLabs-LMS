@@ -144,7 +144,7 @@ createRoot(document.getElementById('root')).render(
  const sections = ['th-next', 'th-coming', 'th-updates'];
  const menuItems = ['Home', 'Groups', 'Students', 'Courses'];
 
- await step('Home with data, English desktop: the sections (no Homework card), real data, real tree mark, the four-item menu', async () => {
+ await step('Home with data, English desktop: the sections (no Homework card), real data, real tree mark, the menu', async () => {
   const { page, context } = await open(desktop, 'view=home&s=full');
   await page.locator('[data-teacher-home]').waitFor();
   assert.deepEqual((await page.locator('[data-section]').evaluateAll(n => n.map(e => e.dataset.section))).sort(), [...sections].sort());
@@ -161,7 +161,7 @@ createRoot(document.getElementById('root')).render(
   assert.equal(await page.locator('[data-home-courses-link]').count(), 0, 'no Courses link or block on Home');
   assert.ok(await page.locator('aside svg').first().isVisible(), 'the real tree mark is shown');
   const nav = page.locator('[data-teacher-nav] a'); assert.deepEqual(await nav.allInnerTexts(), menuItems);
-  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses'], 'four items in the agreed order; Homework, Exams and Reports stay hidden until they are built');
+  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses', 'homework', 'exams', 'reports'], 'in the agreed order; the last three are shown as Soon until they are built');
   assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Home');
   const footer = page.locator('[data-teacher-footer]'); assert.equal(await footer.locator('[data-profile-name]').innerText(), 'Synthetic Teacher'); assert.equal(await footer.locator('[data-profile-space]').innerText(), 'Synthetic space');
   const settings = footer.locator('[data-nav="settings"]'); assert.equal(await settings.getAttribute('href'), '/teacher/settings'); const cb = await settings.boundingBox(); assert.ok(cb.width >= 44 && cb.height >= 44, 'Settings is a 44px target');
@@ -190,7 +190,7 @@ createRoot(document.getElementById('root')).render(
   await page.screenshot({ path: path.join(shots, 'home-en-390.png'), fullPage: true });
   await context.close();
  });
- await step('Phone: a 56 px header with the logo and bell, bottom tabs Home, Groups, Students, More; More opens Courses, Settings, Help and Sign out', async () => {
+ await step('Phone: a 56 px header with the logo and bell, bottom tabs Home, Groups, Students, More; More opens Courses, the Soon items, Settings, Help and Sign out', async () => {
   const { page, context } = await open(phone, 'view=home&s=full');
   await page.locator('[data-teacher-home]').waitFor();
   assert.equal(await page.locator('[data-teacher-nav]:visible').count(), 0, 'no desktop menu on a phone');
@@ -200,7 +200,7 @@ createRoot(document.getElementById('root')).render(
   const tabs = await page.locator('[data-teacher-tabs] [data-bottom-tab]').evaluateAll(n => n.map(e => e.getBoundingClientRect().height)); assert.ok(tabs.every(h => h >= 44), 'tabs are 44px+');
   assert.equal(await page.locator('[data-bottom-tab="home"]').getAttribute('aria-current'), 'page');
   await page.locator('[data-bottom-tab="more"]').click(); const sheet = page.locator('[data-more-sheet]'); await sheet.waitFor();
-  assert.deepEqual(await sheet.locator('[data-more-item]').evaluateAll(n => n.map(e => e.dataset.moreItem)), ['courses', 'settings', 'help', 'signout']);
+  assert.deepEqual(await sheet.locator('[data-more-item]').evaluateAll(n => n.map(e => e.dataset.moreItem)), ['courses', 'homework', 'exams', 'reports', 'settings', 'help', 'signout']);
   assert.equal(await sheet.locator('[data-more-item="courses"]').getAttribute('href'), '/teacher/courses'); assert.equal(await sheet.locator('[data-more-item="settings"]').getAttribute('href'), '/teacher/settings'); assert.equal(await sheet.locator('[data-more-item="help"]').getAttribute('href'), '/support');
   const rows = await sheet.locator('[data-more-item]').evaluateAll(n => n.map(e => e.getBoundingClientRect().height)); assert.ok(rows.every(h => h >= 44));
   await page.screenshot({ path: path.join(shots, 'menu-en-390.png') });

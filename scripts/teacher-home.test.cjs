@@ -107,12 +107,15 @@ test('navigation: Home, Groups, Students, Courses in that order, for active staf
  assert.equal((read('frontend/features/teacher-home/teacher-nav.tsx').match(/NotificationBell/g) ?? []).length, 0, 'no notification entry in the main menu');
  for (const n of home.teacherNav) assert.ok(messages.en['th.nav.' + n.key] && messages.ar['th.nav.' + n.key], n.key);
 });
-test('navigation: every destination is a real page, and nothing in the menu is a disabled or Coming soon item', () => {
+test('navigation: every link is a real page; what is not built yet is shown as Soon and is not a link', () => {
  const byKey = Object.fromEntries(home.teacherNav.map(n => [n.key, n.href]));
  assert.equal(byKey.home, '/home'); assert.equal(byKey.groups, '/teacher/groups'); assert.equal(byKey.students, '/teacher/students'); assert.equal(byKey.courses, '/teacher/courses');
  for (const key of ['groups', 'students', 'courses']) assert.ok(fs.existsSync('app/(dashboard)/(routes)' + byKey[key] + '/page.tsx'), key);
  assert.equal(home.teacherNav.some(n => n.href === null), false);
- assert.doesNotMatch(read('frontend/features/teacher-home/teacher-nav.tsx'), /aria-disabled|data-soon|th\.nav\.soon/);
+ // Owner decision (DECISIONS.md, "Owner feedback on the New look"): this replaces hiding them. V1 needs them gone, each one by becoming a real link (V1.md).
+ assert.deepEqual([...home.teacherNavSoon], ['homework', 'exams', 'reports']);
+ assert.equal(home.teacherNav.some(n => home.teacherNavSoon.includes(n.key)), false, 'never both a link and Soon');
+ assert.match(read('frontend/features/teacher-home/teacher-nav.tsx'), /teacherNavSoon\.map\(key => <span key=\{key\} role="link" aria-disabled="true"/);
  assert.doesNotMatch(read('middleware.ts') + read('shared/website-routes.ts'), /teacher\/analytics/, 'no legacy path is allow-listed');
 });
 test('locales: every teacher Home string exists in English and Arabic with the same placeholders, and the keys stay in sync', () => {

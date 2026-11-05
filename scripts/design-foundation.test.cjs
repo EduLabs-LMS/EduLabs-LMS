@@ -63,14 +63,14 @@ test('contrast: the focus ring and the tab colours stand out at 3:1 (non-text) o
 });
 
 test('New tokens are the owner\'s values', () => {
-  const expected = { canvas: '#EDF1E8', surface: '#FBFDF8', sidebar: '#F3F7EE', ink: '#1D2518', 'text-2': '#44523D', meta: '#5C6E51', line: '#D3DEC9', 'field-line': '#B7C6AA', primary: '#7FD959', 'on-primary': '#14301A', tint: '#E3F3DA', deep: '#2B6416', 'primary-shadow': '0 3px 0 #3F8F22', 'pill-success': '#2B6416', 'pill-success-bg': '#E3F3DA', 'pill-info': '#1F5A6B', 'pill-info-bg': '#E0F0F3', 'pill-warning': '#7A4F00', 'pill-warning-bg': '#FEF3C7', 'pill-danger': '#A61B1B', 'pill-danger-bg': '#FBE9E9', 'pill-neutral': '#44523D', 'pill-neutral-bg': '#E3E9DC' };
+  const expected = { canvas: '#EDF1E8', surface: '#FBFDF8', sidebar: '#F3F7EE', ink: '#1D2518', 'text-2': '#44523D', meta: '#5C6E51', line: '#D3DEC9', 'field-line': '#B7C6AA', primary: '#7FD959', 'on-primary': '#14301A', tint: '#E3F3DA', deep: '#2B6416', 'primary-shadow': '3px 3px 0 #2B6416', 'pill-success': '#2B6416', 'pill-success-bg': '#E3F3DA', 'pill-info': '#1F5A6B', 'pill-info-bg': '#E0F0F3', 'pill-warning': '#7A4F00', 'pill-warning-bg': '#FEF3C7', 'pill-danger': '#A61B1B', 'pill-danger-bg': '#FBE9E9', 'pill-neutral': '#44523D', 'pill-neutral-bg': '#E3E9DC' };
   for (const [name, value] of Object.entries(expected)) assert.equal(newLight['--d-' + name].toUpperCase(), value.toUpperCase(), name);
   assert.match(newLight['--d-card-shadow'], /0 3px 0 #D3DEC9/i); assert.match(newLight['--d-card-shadow'], /0 14px 28px -18px rgba\(29,\s*37,\s*24,\s*0?\.28\)/i);
   for (const [name, value] of Object.entries({ canvas: '#111813', surface: '#1C2620', ink: '#EDF2E9', line: '#33423A' })) assert.equal(newDark['--d-' + name].toUpperCase(), value, 'dark ' + name);
   assert.equal(newLight['--d-pill-height'], '24px'); assert.equal(newLight['--d-pill-size'], '13px'); assert.equal(newLight['--d-pill-weight'], '600');
   assert.equal(newLight['--d-title-md'], '28px'); assert.equal(newLight['--d-title-phone'], '24px');
   assert.equal(newLight['--d-section-size'], '18px'); assert.equal(newLight['--d-section-weight'], '700'); assert.equal(newLight['--d-body-size'], '15px'); assert.equal(newLight['--d-label-size'], '14px'); assert.equal(newLight['--d-meta-size'], '13px'); assert.equal(newLight['--d-data-size'], '14px');
-  assert.equal(newLight['--d-radius-hero'], '20px'); assert.equal(newLight['--d-radius-control'], '12px');
+  assert.equal(newLight['--d-radius-hero'], '24px'); assert.equal(newLight['--d-radius-control'], '16px');
   assert.match(tokens, /html\[data-design="new"\]\[lang="ar"\] \{\s*--d-body-lh: 1\.6;/);
 });
 
@@ -94,7 +94,7 @@ test('Classic is today\'s look: its tokens are what the existing utilities resol
 
 test('tokens: every variable the components and the bridge read is defined, in both looks', () => {
   const defined = new Set([...tokens.matchAll(/(--d-[\w-]+):/g)].map(m => m[1]));
-  defined.add('--d-tabs-offset'); defined.add('--d-tile-count');
+  defined.add('--d-tabs-offset'); defined.add('--d-tile-count'); defined.add('--d-i');
   const used = new Set([...(components + bridge).matchAll(/var\((--d-[\w-]+)/g)].map(m => m[1]));
   assert.deepEqual([...used].filter(u => !defined.has(u)), []);
   const onlyNew = [...Object.keys(newLight)].filter(k => !(k in classicLight)), onlyClassic = [...Object.keys(classicLight)].filter(k => !(k in newLight));

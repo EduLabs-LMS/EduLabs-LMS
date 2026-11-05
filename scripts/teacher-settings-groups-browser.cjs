@@ -472,9 +472,9 @@ function command(body) {
   await page.locator('[data-settings-sidebar] [data-settings-section="account"]').focus(); await page.keyboard.press('Tab'); assert.equal(await page.evaluate(() => document.activeElement.dataset.settingsSection), 'language'); await page.keyboard.press('Enter');
   await page.waitForURL('**/teacher/settings/language'); await context.close();
  });
- await step('Teacher menu in the real frame: four items, Settings at the bottom opens Settings', async () => {
+ await step('Teacher menu in the real frame: four links and the Soon items, Settings at the bottom opens Settings', async () => {
   const { page, context } = await open(desktop, '/teacher/groups'); await page.locator('[data-teacher-nav]').waitFor();
-  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses']);
+  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses', 'homework', 'exams', 'reports']);
   assert.equal(await page.locator('[data-teacher-nav] a[href*="settings"], [data-teacher-nav] a[href*="analytics"]').count(), 0);
   await page.locator('[data-nav="settings"]').click(); await page.waitForURL('**/teacher/settings/account'); await page.locator('[data-settings-account]').waitFor(); await context.close();
  });
