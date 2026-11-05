@@ -133,7 +133,7 @@ function harness({ configured = true, originValue = origin, keyValue = linkKey, 
  return { ...mod, client, calls, mailed, db, keyBox, svc: mod.platformProvisioningService(client, deps), names: () => calls.map(c => c.name) };
 }
 function require_delivery() { return load('server/services/invitation-delivery.ts', { 'server-only': {}, 'node:crypto': crypto, '@/shared/public-website': publicWebsite }); }
-const provisionInput = () => contract.provisionTeacherRequest.parse({ teacherEmail: 'a@example.test', expiresInDays: 7, systems: [{ label: 'S', grades: [{ key: 'g', label: 'G' }] }], subjects: [{ key: 's', label: 'Sub' }], course: { title: 'C', gradeKey: 'g', subjectKey: 's' } });
+const provisionInput = () => contract.provisionTeacherRequest.parse({ teacherEmail: 'a@example.test', expiresInDays: 7, spaceName: 'Synthetic space', systems: [{ label: 'S', grades: [{ key: 'g', label: 'G' }] }], subjects: [{ key: 's', label: 'Sub' }], course: { title: 'C', gradeKey: 'g', subjectKey: 's' } });
 
 test('service: a missing origin, link key or mailer stops before any database change and names the reason', async () => {
  const noOrigin = harness({ originValue: null });

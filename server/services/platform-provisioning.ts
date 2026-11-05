@@ -2,7 +2,7 @@ import 'server-only';
 import { createHash, randomBytes } from 'node:crypto';
 import type { getSupabaseServerClient } from '@/server/integrations/supabase';
 import { deriveInvitationSecret, productionInvitationDeps, type InvitationDeps } from '@/server/services/invitation-delivery';
-import type { CopyLinkResult, InvitationDelivery, InvitationPreview, PortalDetail, PortalOverview, ProvisionResult, ProvisionTeacherRequest, ProvisioningReason, ReissueResult, SendEmailResult } from '@/shared/contracts/platform-provisioning';
+import type { CopyLinkResult, InvitationDelivery, InvitationPreview, PortalDetail, PortalOverview, ProvisionResult, ProvisionTeacherRequest, ProvisioningReason, ReissueResult, RenameResult, SendEmailResult } from '@/shared/contracts/platform-provisioning';
 import { buildInvitationLink } from '@/shared/invitation-link';
 
 type Client = Awaited<ReturnType<typeof getSupabaseServerClient>>;
@@ -137,6 +137,12 @@ export function platformProvisioningService(client: Client, deps: InvitationDeps
    } catch { return { ...base, delivery: out.outcome === 'sent' ? 'sent' : 'failed', statusSaved: false }; }
    return { ...base, delivery: out.outcome === 'sent' ? 'sent' : 'failed', statusSaved: true };
   },
+  /** Platform administrators only (the database decides). Renaming never touches the invitation, the link or any student data. */
+  async rename(organizationId: string, name: string): Promise<RenameResult> {
+   const { data, error } = await client.rpc('platform_rename_teaching_space', { p_organization_id: organizationId, p_name: name });
+   if (error || !data) throw provisioningError(error ?? {});
+   return data as unknown as RenameResult;
+  },
   async revoke(organizationId: string) {
    const { data, error } = await client.rpc('platform_revoke_teacher_invitation', { p_organization_id: organizationId });
    if (error || !data) throw provisioningError(error ?? {});
@@ -148,6 +154,13 @@ export function platformProvisioningService(client: Client, deps: InvitationDeps
    return data as unknown as PortalOverview;
   },
  };
+}
+
+/** The owner of a teaching space renames it, as themselves. The database allows only an active owner of an active space. */
+export async function renameMyTeachingSpace(client: Client, organizationId: string, name: string): Promise<RenameResult> {
+ const { data, error } = await client.rpc('rename_my_teaching_space', { p_organization_id: organizationId, p_name: name });
+ if (error || !data) throw provisioningError(error ?? {});
+ return data as unknown as RenameResult;
 }
 
 /** Acceptance runs as the signed-in teacher (not an administrator) and needs only the hash. */

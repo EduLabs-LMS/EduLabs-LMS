@@ -1,18 +1,18 @@
-import { invitationLifetimes, provisioningLimits, provisionTeacherRequest, type ProvisionTeacherRequest } from '@/shared/contracts/platform-provisioning';
+import { invitationLifetimes, provisioningLimits, provisionTeacherRequest, spaceNameMax, type ProvisionTeacherRequest } from '@/shared/contracts/platform-provisioning';
 
 /** The in-progress form. It is plain data so inline creation can never discard anything entered earlier. */
 export type DraftGrade = { key: string; label: string };
 export type DraftSystem = { id: string; label: string; board: string; grades: DraftGrade[] };
 export type DraftSubject = { key: string; label: string };
 export type Draft = {
- email: string; lifetime: number; systems: DraftSystem[]; subjects: DraftSubject[];
+ email: string; spaceName: string; lifetime: number; systems: DraftSystem[]; subjects: DraftSubject[];
  courseTitle: string; courseTitleTouched: boolean; courseGradeKey: string; courseSubjectKey: string; nextId: number;
 };
-export type DraftErrorCode = 'email_required' | 'email_invalid' | 'name_required' | 'name_long' | 'board_long' | 'duplicate' | 'system_required' | 'grade_required' | 'subject_required' | 'course_title' | 'course_grade' | 'course_subject' | 'limit' | 'unsafe';
-/** Keys: `email`, `lifetime`, `system.<i>`, `system.<i>.board`, `system.<i>.grade.<j>`, `subject.<i>`, `course.title|grade|subject`, `systems`, `subjects`. */
+export type DraftErrorCode = 'space_required' | 'space_long' | 'email_required' | 'email_invalid' | 'name_required' | 'name_long' | 'board_long' | 'duplicate' | 'system_required' | 'grade_required' | 'subject_required' | 'course_title' | 'course_grade' | 'course_subject' | 'limit' | 'unsafe';
+/** Keys: `email`, `spaceName`, `lifetime`, `system.<i>`, `system.<i>.board`, `system.<i>.grade.<j>`, `subject.<i>`, `course.title|grade|subject`, `systems`, `subjects`. */
 export type DraftErrors = Record<string, DraftErrorCode>;
 
-export const emptyDraft = (): Draft => ({ email: '', lifetime: 7, systems: [{ id: 'sys-1', label: '', board: '', grades: [] }], subjects: [], courseTitle: '', courseTitleTouched: false, courseGradeKey: '', courseSubjectKey: '', nextId: 2 });
+export const emptyDraft = (): Draft => ({ email: '', spaceName: '', lifetime: 7, systems: [{ id: 'sys-1', label: '', board: '', grades: [] }], subjects: [], courseTitle: '', courseTitleTouched: false, courseGradeKey: '', courseSubjectKey: '', nextId: 2 });
 
 const control = /[\u0000-\u001f\u007f]/;
 const emailShape = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -78,6 +78,10 @@ export function validateDraft(draft: Draft): DraftErrors {
  const email = draft.email.trim();
  if (!email) errors.email = 'email_required';
  else if (email.length > 254 || !emailShape.test(email) || control.test(email)) errors.email = 'email_invalid';
+ const space = norm(draft.spaceName);
+ if (!space) errors.spaceName = 'space_required';
+ else if (space.length > spaceNameMax) errors.spaceName = 'space_long';
+ else if (control.test(space)) errors.spaceName = 'unsafe';
  if (!(invitationLifetimes as readonly number[]).includes(draft.lifetime)) errors.lifetime = 'limit';
  const seenSystems = new Set<string>();
  draft.systems.forEach((system, i) => {
@@ -124,6 +128,7 @@ export function toRequest(draft: Draft): ProvisionTeacherRequest | null {
  if (Object.keys(validateDraft(draft)).length) return null;
  const parsed = provisionTeacherRequest.safeParse({
   teacherEmail: draft.email,
+  spaceName: norm(draft.spaceName),
   expiresInDays: draft.lifetime,
   systems: draft.systems.map((s) => ({ label: norm(s.label), ...(norm(s.board) ? { examinationBoard: norm(s.board) } : {}), grades: s.grades.map((g) => ({ key: g.key, label: norm(g.label) })) })),
   subjects: draft.subjects.map((s) => ({ key: s.key, label: norm(s.label) })),
@@ -137,7 +142,7 @@ export const isDirty = (draft: Draft) => JSON.stringify({ ...draft, nextId: 0 })
 /** The create flow is four steps; every validation key belongs to exactly one of them. */
 export const wizardStepIds = ['teacher', 'education', 'subjects', 'course'] as const;
 export function stepOfError(key: string): number {
- if (key === 'email' || key === 'lifetime') return 0;
+ if (key === 'email' || key === 'spaceName' || key === 'lifetime') return 0;
  if (key.startsWith('system')) return 1;
  if (key === 'subjects' || key.startsWith('subject.')) return 2;
  return 3;

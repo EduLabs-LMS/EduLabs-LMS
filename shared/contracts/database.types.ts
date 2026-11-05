@@ -2272,6 +2272,8 @@ export type Database = {
       platform_provision_teacher: { Args: { p_request: Json; p_token_hash: string }; Returns: Json }
       platform_reissue_teacher_invitation: { Args: { p_organization_id: string; p_token_hash: string; p_expires_in_days: number; p_email?: string | null }; Returns: Json }
       platform_revoke_teacher_invitation: { Args: { p_organization_id: string }; Returns: Json }
+      platform_rename_teaching_space: { Args: { p_organization_id: string; p_name: string }; Returns: Json }
+      rename_my_teaching_space: { Args: { p_organization_id: string; p_name: string }; Returns: Json }
       accept_teacher_invitation: { Args: { p_token_hash: string }; Returns: Json }
       platform_portal_overview: { Args: { p_limit?: number }; Returns: Json }
       platform_portal_detail: { Args: { p_organization_id: string }; Returns: Json }

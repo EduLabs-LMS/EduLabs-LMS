@@ -14,7 +14,7 @@ const contract = load('shared/contracts/platform-provisioning.ts');
 const draftLib = load('frontend/lib/provisioning-draft.ts', { '@/shared/contracts/platform-provisioning': contract });
 
 const request = () => ({
- teacherEmail: 'Teacher@Example.Test', expiresInDays: 7,
+ teacherEmail: 'Teacher@Example.Test', expiresInDays: 7, spaceName: "  Mr   Ahmed's Physics ",
  systems: [{ label: 'IGCSE', examinationBoard: 'Cambridge', grades: [{ key: 'g1', label: 'Grade 10' }, { key: 'g2', label: 'Grade 11' }] }, { label: 'American Diploma', grades: [{ key: 'g3', label: 'Grade 12' }] }],
  subjects: [{ key: 's1', label: 'Physics' }, { key: 's2', label: 'Chemistry' }],
  course: { title: 'Physics 10', gradeKey: 'g1', subjectKey: 's1' },
@@ -109,11 +109,11 @@ test('wizard: every error belongs to one step; a step opens only when every earl
  const lib = draftLib; let d = lib.emptyDraft();
  assert.deepEqual([...lib.wizardStepIds], ['teacher', 'education', 'subjects', 'course']);
  const all = lib.validateDraft(d); for (const key of Object.keys(all)) assert.ok([0, 1, 2, 3].includes(lib.stepOfError(key)), key);
- assert.deepEqual(Object.keys(lib.validateStep(d, 0)), ['email']); assert.ok(Object.keys(lib.validateStep(d, 1)).every(k => k.startsWith('system')));
+ assert.deepEqual(Object.keys(lib.validateStep(d, 0)).sort(), ['email', 'spaceName']); assert.ok(Object.keys(lib.validateStep(d, 1)).every(k => k.startsWith('system')));
  assert.deepEqual(Object.keys(lib.validateStep(d, 2)), ['subjects']); assert.deepEqual(Object.keys(lib.validateStep(d, 3)).sort(), ['course.grade', 'course.subject', 'course.title']);
  assert.deepEqual([...lib.stepValidity(d)], [false, false, false, false]);
  assert.equal(lib.canVisitStep(d, 0, 0), true); assert.equal(lib.canVisitStep(d, 0, 1), false, 'cannot skip an invalid teacher step'); assert.equal(lib.canVisitStep(d, 0, 3), false);
- d = { ...d, email: 'a@b.test' }; assert.equal(lib.canVisitStep(d, 0, 1), true); assert.equal(lib.canVisitStep(d, 0, 2), false, 'education is still invalid');
+ d = { ...d, email: 'a@b.test' }; assert.equal(lib.canVisitStep(d, 0, 1), false, 'the teaching space name is required too'); d = { ...d, spaceName: 'Mr Ahmed' }; assert.equal(lib.canVisitStep(d, 0, 1), true); assert.equal(lib.canVisitStep(d, 0, 2), false, 'education is still invalid');
  d = lib.updateSystem(d, 'sys-1', { label: 'IGCSE' }); const g = lib.addGrade(d, 'sys-1', 'Grade 10'); d = g.draft; assert.equal(lib.canVisitStep(d, 0, 2), true); assert.equal(lib.canVisitStep(d, 0, 3), false, 'subjects missing');
  const s = lib.addSubject(d, 'Physics'); d = lib.chooseCourse(s.draft, { courseGradeKey: g.key, courseSubjectKey: s.key });
  assert.deepEqual([...lib.stepValidity(d)], [true, true, true, true]); assert.equal(lib.canVisitStep(d, 0, 3), true);
@@ -170,16 +170,16 @@ test('draft: removing a grade, subject or system clears only a dependent course 
 test('draft: validation reports each problem by field; a valid draft becomes the exact request', () => {
  const lib = draftLib;
  const empty = lib.validateDraft(lib.emptyDraft());
- for (const key of ['email', 'system.0', 'system.0.grades', 'subjects', 'course.title', 'course.grade', 'course.subject']) assert.ok(empty[key], key);
+ for (const key of ['email', 'spaceName', 'system.0', 'system.0.grades', 'subjects', 'course.title', 'course.grade', 'course.subject']) assert.ok(empty[key], key);
  assert.equal(lib.toRequest(lib.emptyDraft()), null);
  assert.equal(lib.validateDraft({ ...lib.emptyDraft(), email: 'bad' }).email, 'email_invalid');
  let d = lib.updateSystem(lib.emptyDraft(), 'sys-1', { label: 'IGCSE', board: 'x'.repeat(121) }); assert.equal(lib.validateDraft(d)['system.0.board'], 'board_long');
  d = lib.addSystem(lib.updateSystem(lib.emptyDraft(), 'sys-1', { label: 'IGCSE' })); d = lib.updateSystem(d, 'sys-2', { label: ' igcse ' }); assert.equal(lib.validateDraft(d)['system.1'], 'duplicate');
  const g = lib.addGrade(lib.updateSystem(lib.emptyDraft(), 'sys-1', { label: 'IGCSE', board: ' Cambridge ' }), 'sys-1', 'Grade 10'); const s = lib.addSubject(g.draft, 'Physics');
- const ok = { ...s.draft, email: ' Teacher@Example.test ', courseTitle: ' Physics 10 ', courseGradeKey: g.key, courseSubjectKey: s.key };
+ const ok = { ...s.draft, email: ' Teacher@Example.test ', spaceName: "  Mr   Ahmed's Physics ", courseTitle: ' Physics 10 ', courseGradeKey: g.key, courseSubjectKey: s.key };
  assert.deepEqual(JSON.parse(JSON.stringify(lib.validateDraft(ok))), {});
- const req = lib.toRequest(ok); assert.ok(req); assert.equal(req.teacherEmail, 'teacher@example.test'); assert.equal(req.systems[0].examinationBoard, 'Cambridge'); assert.equal(req.course.title, 'Physics 10');
- assert.deepEqual(Object.keys(req).sort(), ['course', 'expiresInDays', 'subjects', 'systems', 'teacherEmail']);
+ const req = lib.toRequest(ok); assert.ok(req); assert.equal(req.teacherEmail, 'teacher@example.test'); assert.equal(req.systems[0].examinationBoard, 'Cambridge'); assert.equal(req.course.title, 'Physics 10'); assert.equal(req.spaceName, "Mr Ahmed's Physics");
+ assert.deepEqual(Object.keys(req).sort(), ['course', 'expiresInDays', 'spaceName', 'subjects', 'systems', 'teacherEmail']);
  assert.equal(lib.isDirty(lib.emptyDraft()), false); assert.equal(lib.isDirty(ok), true);
 });
 

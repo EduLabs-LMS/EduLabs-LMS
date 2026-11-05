@@ -5,13 +5,13 @@ import { ArrowLeft, Link2, Loader2, Mail } from 'lucide-react';
 import { useLanguage } from '@/frontend/components/language-provider';
 import { Badge, Banner, Button, ButtonLink, Page, Card, CardBody, CardHead, Chip, ChipList, DefinitionList, Field, Input, PageHeader, Select } from '@/frontend/design-system';
 import type { MessageKey } from '@/frontend/locales/messages';
-import { invitationLifetimes, type CopyLinkResult, type InvitationStatus, type DeliveryStatus, type PortalDetail, type ReissueResult, type SendEmailResult } from '@/shared/contracts/platform-provisioning';
+import { invitationLifetimes, spaceName as spaceNameRule, type CopyLinkResult, type InvitationStatus, type DeliveryStatus, type PortalDetail, type ReissueResult, type RenameResult, type SendEmailResult } from '@/shared/contracts/platform-provisioning';
 import { InvitationLinkCard, StatusBadge, UtcDate, api, reasonMessage } from './common';
 import { DemoSection } from './demo-section';
 
 const activityKey: Record<string, MessageKey> = {
  'portal.provision': 'pa.activity.provision', 'invitation.reissue': 'pa.activity.reissue', 'invitation.revoke': 'pa.activity.revoke', 'invitation.accept': 'pa.activity.accept',
- 'demo.mark': 'pa.activity.demo_mark', 'demo.unmark': 'pa.activity.demo_unmark', 'demo.fill': 'pa.activity.demo_fill', 'demo.clear': 'pa.activity.demo_clear',
+ 'portal.rename': 'pa.activity.rename', 'demo.mark': 'pa.activity.demo_mark', 'demo.unmark': 'pa.activity.demo_unmark', 'demo.fill': 'pa.activity.demo_fill', 'demo.clear': 'pa.activity.demo_clear',
 };
 /** A write whose response never arrived: what we knew before it, so a refresh can tell what really happened. */
 type Unknown = { action: 'reissue' | 'revoke' | 'send_email'; baselineId: string | undefined; baselineStatus: InvitationStatus | undefined; baselineAttempts: number };
@@ -25,6 +25,43 @@ const deliveryNote: Record<DeliveryStatus, MessageKey> = { not_sent: 'pa.deliver
 function DeliveryState({ delivery }: { delivery: PortalDetail['invitations'][number]['delivery'] }) {
  const { t } = useLanguage();
  return <span className="pa-delivery-state"><Badge tone={deliveryTone[delivery.status]} data-delivery={delivery.status}>{t(deliveryLabel[delivery.status])}</Badge>{delivery.attemptedAt ? <> <UtcDate value={delivery.attemptedAt} /></> : null}</span>;
+}
+
+/** The administrator renames a teaching space. A reply that never arrives is reported as unknown, never as a failure or a success. */
+function SpaceName({ portalId, name, onRenamed, onUnknown }: { portalId: string; name: string; onRenamed: (name: string) => void; onUnknown: () => void }) {
+ const { t } = useLanguage();
+ const [editing, setEditing] = useState(false);
+ const [value, setValue] = useState(name);
+ const [busy, setBusy] = useState(false);
+ const [error, setError] = useState<MessageKey | null>(null);
+ async function save() {
+  if (busy) return;
+  const parsed = spaceNameRule.safeParse(value);
+  if (!parsed.success) { setError(value.trim() ? 'pa.draft.space_long' : 'pa.draft.space_required'); return; }
+  setBusy(true); setError(null);
+  const out = await api<RenameResult>(`/api/platform-admin/portals/${portalId}`, { method: 'POST', body: { action: 'rename', name: parsed.data } });
+  setBusy(false);
+  if (out.ok) { setEditing(false); onRenamed(out.data.name); return; }
+  if (out.reason === 'network') { setEditing(false); onUnknown(); return; }
+  setError(reasonMessage(out.reason));
+ }
+ return <Card labelledBy="pa-p-space">
+  <CardHead id="pa-p-space" title={t('pa.portal.space')} />
+  <CardBody>
+   {editing ? <form data-space-form onSubmit={(e) => { e.preventDefault(); void save(); }}>
+    <Field id="pa-space-edit" label={t('pa.field.space')} error={error ? t(error) : undefined}>
+     <Input value={value} maxLength={200} autoComplete="off" dir="auto" data-space-input onChange={(e) => setValue(e.target.value)} />
+    </Field>
+    <div className="eds-actions">
+     <Button type="submit" variant="primary" disabled={busy} aria-busy={busy}>{busy ? <Loader2 size={16} className="eds-spin" aria-hidden="true" /> : null}{t('pa.portal.space_save')}</Button>
+     <Button onClick={() => { setEditing(false); setError(null); }} disabled={busy}>{t('pa.action.cancel')}</Button>
+    </div>
+   </form> : <div className="eds-actions">
+    <span className="eds-strong" data-space-name dir="auto">{name}</span>
+    <Button onClick={() => { setValue(name); setError(null); setEditing(true); }} data-space-rename>{t('pa.portal.space_rename')}</Button>
+   </div>}
+  </CardBody>
+ </Card>;
 }
 
 export function PortalView({ initial, portalId }: { initial: PortalDetail; portalId: string }) {
@@ -119,7 +156,7 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
  const openReplacement = () => { setReissue({ ...reissue, open: true }); setConfirmRevoke(false); };
 
  return <Page layout="wide">
-  <PageHeader title={<bdi dir="ltr">{latest?.teacherEmail}</bdi>} intro={t(detail.hasOwner ? 'pa.portal.owner_active' : 'pa.portal.owner_pending')}
+  <PageHeader title={<bdi dir="auto">{detail.name}</bdi>} intro={t(detail.hasOwner ? 'pa.portal.owner_active' : 'pa.portal.owner_pending')}
    actions={<ButtonLink href="/platform-admin/teachers" variant="ghost"><ArrowLeft size={16} className="eds-flip" aria-hidden="true" />{t('pa.portal.back')}</ButtonLink>} />
   {notice ? <Banner tone={notice.tone} role={notice.tone === 'error' ? 'alert' : 'status'}>{t(notice.key)}</Banner> : null}
   {unknown ? <Banner tone="warn" role="alert">
@@ -135,6 +172,7 @@ export function PortalView({ initial, portalId }: { initial: PortalDetail; porta
 
   <div className="pa-split">
    <div className="pa-stack">
+    <SpaceName portalId={portalId} name={detail.name} onRenamed={(name) => { setDetail((d) => ({ ...d, name })); setNotice({ tone: 'ok', key: 'pa.portal.space_saved' }); }} onUnknown={() => setNotice({ tone: 'warn', key: 'pa.portal.space_unknown' })} />
     <Card labelledBy="pa-p-edu">
      <CardHead id="pa-p-edu" title={t('pa.portal.education')} />
      <CardBody divided>

@@ -36,10 +36,11 @@ export function TeachersView({ initial }: { initial: PortalOverview | null }) {
    <div className="eds-table-wrap">
     <table className="eds-table">
      <caption className="eds-sr">{t('pa.teachers.title')}</caption>
-     <thead><tr><th scope="col">{t('pa.col.teacher')}</th><th scope="col">{t('pa.col.course')}</th><th scope="col">{t('pa.col.status')}</th><th scope="col">{t('pa.col.created')}</th></tr></thead>
+     <thead><tr><th scope="col">{t('pa.col.space')}</th><th scope="col">{t('pa.col.teacher')}</th><th scope="col">{t('pa.col.course')}</th><th scope="col">{t('pa.col.status')}</th><th scope="col">{t('pa.col.created')}</th></tr></thead>
      <tbody>
       {data.items.map((item) => <tr key={item.organizationId}>
-       <td data-label={t('pa.col.teacher')}><Link href={`/platform-admin/teachers/${item.organizationId}`} className="eds-strong" dir="ltr">{item.teacherEmail}</Link></td>
+       <td data-label={t('pa.col.space')}><Link href={`/platform-admin/teachers/${item.organizationId}`} className="eds-strong" dir="auto" data-space-name>{item.name}</Link></td>
+       <td data-label={t('pa.col.teacher')}><bdi dir="ltr">{item.teacherEmail}</bdi></td>
        <td data-label={t('pa.col.course')}>{item.course ? <><span className="eds-strong">{item.course.title}</span><span className="eds-meta">{[item.course.educationSystem, item.course.examinationBoard, item.course.grade, item.course.subject].filter(Boolean).join(' · ')}</span></> : '—'}</td>
        <td data-label={t('pa.col.status')}><StatusBadge status={item.invitationStatus} /></td>
        <td data-label={t('pa.col.created')}><UtcDate value={item.createdAt} /></td>

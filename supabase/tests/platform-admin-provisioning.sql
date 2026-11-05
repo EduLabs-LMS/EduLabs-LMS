@@ -21,7 +21,7 @@ returns void language plpgsql set search_path='' as $$begin
 create function pg_temp.key(k text) returns uuid language sql as $$select current_setting('pap.'||k)::uuid$$;
 create function pg_temp.hash(secret text) returns text language sql as $$select encode(sha256(convert_to(secret,'utf8')),'hex')$$;
 create function pg_temp.req(email text,extra jsonb default '{}') returns jsonb language sql as $$
- select jsonb_build_object('teacherEmail',email,
+ select jsonb_build_object('teacherEmail',email,'spaceName','Mr Ahmed''s Physics',
   'systems',jsonb_build_array(
    jsonb_build_object('label','Egyptian National','examinationBoard','Ministry of Education',
     'grades',jsonb_build_array(jsonb_build_object('key','g3','label','Third Secondary'),jsonb_build_object('key','g2','label','Second Secondary'))),
@@ -124,7 +124,7 @@ reset role;
 select set_config('pap.org',(current_setting('pap.prov')::jsonb)->>'organizationId',true);
 select set_config('pap.inv',(current_setting('pap.prov')::jsonb)->>'invitationId',true);
 select set_config('pap.course',(current_setting('pap.prov')::jsonb)->>'courseId',true);
-select pg_temp.ok((select name='Pending teacher portal' and status='active' and created_by is null from public.organizations where id=pg_temp.key('org')),
+select pg_temp.ok((select name='Mr Ahmed''s Physics' and status='active' and created_by is null from public.organizations where id=pg_temp.key('org')),
  'portal created with a neutral placeholder name, no invented display name and no creator ownership');
 select pg_temp.ok((select count(*)=0 from public.organization_memberships where organization_id=pg_temp.key('org')),'no owner membership before acceptance');
 select pg_temp.ok((select count(*)=0 from public.organization_websites where organization_id=pg_temp.key('org')),'creating a portal activates no public site or domain');

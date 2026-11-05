@@ -21,7 +21,7 @@ returns void language plpgsql set search_path='' as $$begin
 create function pg_temp.key(k text) returns uuid language sql as $$select current_setting('tid.'||k)::uuid$$;
 create function pg_temp.hash(secret text) returns text language sql as $$select encode(sha256(convert_to(secret,'utf8')),'hex')$$;
 create function pg_temp.req(email text) returns jsonb language sql as $$
- select jsonb_build_object('teacherEmail',email,
+ select jsonb_build_object('teacherEmail',email,'spaceName','Synthetic delivery space',
   'systems',jsonb_build_array(jsonb_build_object('label','Egyptian National','grades',jsonb_build_array(jsonb_build_object('key','g3','label','Third Secondary')))),
   'subjects',jsonb_build_array(jsonb_build_object('key','phy','label','Physics')),
   'course',jsonb_build_object('title','Physics - Third Secondary','gradeKey','g3','subjectKey','phy'))$$;

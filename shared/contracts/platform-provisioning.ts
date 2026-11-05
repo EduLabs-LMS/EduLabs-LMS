@@ -8,6 +8,9 @@ const noControl = /^[^\u0000-\u001f\u007f]*$/;
 const label = (max: number) => z.string().trim().min(1).max(max).regex(noControl);
 const key = z.string().min(1).max(40).regex(/^[a-z0-9_-]+$/);
 const email = z.string().trim().toLowerCase().min(3).max(254).regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/);
+/** The name teachers and students see for a teaching space: the same rules as every other name here (trimmed, spaces collapsed, no control characters, 1 to 200). */
+export const spaceNameMax = 200;
+export const spaceName = z.string().trim().min(1).max(spaceNameMax).regex(noControl).transform((v) => v.replace(/\s+/g, ' '));
 const lifetime = z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(14), z.literal(30)]);
 
 const grade = z.object({ key, label: label(160) }).strict();
@@ -20,6 +23,7 @@ const subject = z.object({ key, label: label(160) }).strict();
 
 export const provisionTeacherRequest = z.object({
  teacherEmail: email,
+ spaceName,
  expiresInDays: lifetime,
  systems: z.array(system).min(1).max(provisioningLimits.systems),
  subjects: z.array(subject).min(1).max(provisioningLimits.subjects),
@@ -45,6 +49,7 @@ export const portalAction = z.discriminatedUnion('action', [
  z.object({ action: z.literal('send_email') }).strict(),
  z.object({ action: z.literal('copy_link') }).strict(),
  z.object({ action: z.literal('revoke') }).strict(),
+ z.object({ action: z.literal('rename'), name: spaceName }).strict(),
 ]);
 export type PortalAction = z.infer<typeof portalAction>;
 
@@ -59,7 +64,7 @@ export type ProvisioningReason = 'invalid' | 'duplicate' | 'pending_exists' | 'n
  | 'demo_not_marked' | 'demo_filled' | 'demo_not_cleared' | 'not_accepted' | 'has_students';
 
 export type PortalSummary = {
- organizationId: string; teacherEmail: string; createdAt: string; expiresAt: string; acceptedAt: string | null; invitationStatus: InvitationStatus;
+ organizationId: string; /** The teaching space name. */ name: string; teacherEmail: string; createdAt: string; expiresAt: string; acceptedAt: string | null; invitationStatus: InvitationStatus;
  course: { id: string; title: string; subject: string | null; grade: string | null; educationSystem: string | null; examinationBoard: string | null } | null;
 };
 export type PortalOverview = { items: PortalSummary[]; hasMore: boolean };
@@ -69,7 +74,7 @@ export type InvitationDelivery = { status: DeliveryStatus; attemptedAt: string |
 /** What platform_portal_detail returns for a course. The page shows a badge for these two only; any other value shows none. */
 export type CourseStatus = 'draft' | 'published';
 export type PortalDetail = {
- organizationId: string; status: string; createdAt: string; hasOwner: boolean;
+ organizationId: string; name: string; status: string; createdAt: string; hasOwner: boolean;
  invitations: { id: string; teacherEmail: string; createdAt: string; expiresAt: string; acceptedAt: string | null; revokedAt: string | null; revokeReason: 'revoked' | 'superseded' | null; status: InvitationStatus; delivery: InvitationDelivery }[];
  educationSystems: { id: string; name: string; examinationBoard: string | null; gradeLevels: { id: string; name: string }[] }[];
  subjects: { id: string; name: string }[];
@@ -84,6 +89,9 @@ export type ReissueResult = { organizationId: string; invitationId: string; expi
 export type CopyLinkResult = { organizationId: string; invitationId: string; expiresAt: string; invitationLink: string };
 /** 'unconfirmed': the provider call did not return a verdict; the invitation stays in "sending" until an administrator checks. */
 export type SendEmailResult = { organizationId: string; invitationId: string; expiresAt: string; delivery: 'sent' | 'failed' | 'unconfirmed'; statusSaved: boolean; attempt: number };
+
+/** A teaching space was renamed (by an administrator here, or by its owner from Settings). */
+export type RenameResult = { organizationId: string; name: string };
 
 export type InvitationPreviewState = 'valid' | 'expired' | 'revoked' | 'used' | 'unavailable';
 export type InvitationPreview = { state: InvitationPreviewState; emailVerified: boolean; emailMatches?: boolean; acceptedByMe?: boolean; maskedEmail?: string };

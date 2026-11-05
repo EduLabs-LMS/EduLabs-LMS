@@ -76,6 +76,7 @@ export async function platformPortalHTTP(request: NextRequest, portalId: string)
   const input = portalAction.safeParse(parsed.body);
   if (!input.success) return reply({ error: 'Some details are not valid.', reason: 'invalid' }, 400);
   if (input.data.action === 'revoke') return reply(await gate.service.revoke(portalId));
+  if (input.data.action === 'rename') return reply(await gate.service.rename(portalId, input.data.name));
   if (input.data.action === 'send_email') return reply(await gate.service.sendEmail(portalId));
   if (input.data.action === 'copy_link') return reply(await gate.service.copyLink(portalId));
   return reply(await gate.service.reissue(portalId, input.data.expiresInDays, input.data.teacherEmail));

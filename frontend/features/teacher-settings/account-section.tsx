@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { LogOut, User } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import { useApplicationAuth } from '@/frontend/components/providers/application-auth-provider';
+import { SpaceNames, type SpaceRow } from './space-names';
 
 const panel = 'rounded-3xl border-2 border-black bg-white p-5 shadow-hard-sm sm:p-6';
 const button = 'inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-black bg-primary px-5 py-2.5 text-sm font-bold shadow-hard-sm disabled:opacity-50';
@@ -13,7 +14,7 @@ const button = 'inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 
  * My account: the same identity-bound account the student Settings page shows (same hook, same strings). Name and photo are edited in the existing
  * account editor that `openUserProfile` opens; nothing here writes anything itself. Student Settings (DashboardForm) is not changed.
  */
-export function TeacherAccountSection() {
+export function TeacherAccountSection({ spaces = [] }: { spaces?: SpaceRow[] }) {
   const { ui } = useLanguage();
   const { user, openUserProfile, signOut, accountStatus } = useApplicationAuth();
   const [failedImage, setFailedImage] = useState<string | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
@@ -43,6 +44,7 @@ export function TeacherAccountSection() {
         </>}
       {accountStatus?.error && <div role="alert" className="mt-4 text-sm text-red-800"><p><L id="settings.your_profile_details_could_not" /></p>{accountStatus.reload && <button type="button" className="mt-2 min-h-[44px] font-semibold underline" onClick={() => void accountStatus.reload?.()}><L id="settings.retry_profile" /></button>}<Link href="/sign-in" className="ms-3 inline-flex min-h-[44px] items-center underline"><L id="settings.sign_in_again" /></Link></div>}
     </section>
+    <SpaceNames spaces={spaces} />
     {user && <section aria-labelledby="ts-session-h" className={panel}>
       <h2 id="ts-session-h" className="font-display text-2xl"><L id="settings.your_session" /></h2>
       <p className="mt-3 text-sm text-slate-600"><L id="settings.sign_out_of_edulabs_on" /></p>

@@ -27,7 +27,7 @@ module.exports = async (makeClient, admin) => {
    ids[label] = (await setup.query('select public.onboard_firebase_profile() id')).rows[0].id; await setup.query('commit');
   }
   await admin.query("insert into private.platform_admins(user_id,note) values($1,'synthetic race admin')", [ids.admin]);
-  const request = { teacherEmail: `teacher.${run}@example.test`, systems: [{ label: 'Egyptian National', grades: [{ key: 'g3', label: 'Third Secondary' }] }],
+  const request = { teacherEmail: `teacher.${run}@example.test`, spaceName: 'Synthetic race space', systems: [{ label: 'Egyptian National', grades: [{ key: 'g3', label: 'Third Secondary' }] }],
    subjects: [{ key: 'phy', label: 'Physics' }], course: { title: 'Physics - Third Secondary', gradeKey: 'g3', subjectKey: 'phy' } };
   await setup.begin();
   const provisioned = (await setup.query('select public.platform_provision_teacher($1::jsonb,$2) v', [JSON.stringify(request), hash(`race-${run}`)])).rows[0].v;

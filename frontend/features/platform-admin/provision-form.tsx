@@ -189,6 +189,7 @@ export function ProvisionForm() {
      <CardHead id="pa-review-title" title={t('pa.review.summary')} />
      <CardBody>
       <DefinitionList items={[
+       { key: 'space', term: t('pa.review.space'), detail: <bdi dir="auto">{draft.spaceName.trim().replace(/\s+/g, ' ')}</bdi> },
        { key: 'email', term: t('pa.field.email'), detail: <bdi dir="ltr">{draft.email.trim().toLowerCase()}</bdi> },
        { key: 'owner', term: t('pa.review.owner'), detail: t('pa.review.owner_value') },
        { key: 'life', term: t('pa.field.lifetime'), detail: t('pa.lifetime.days', { count: draft.lifetime }) },
@@ -228,6 +229,9 @@ export function ProvisionForm() {
       {step === 1 ? <small>{t('pa.section.systems_hint')}</small> : step === 3 ? <small>{t('pa.section.course_hint')}</small> : null}</div>
      <CardBody divided={step === 1}>
       {step === 0 ? <>
+       <Field id="pa-space" label={t('pa.field.space')} hint={t('pa.field.space_hint')} error={err('spaceName')}>
+        <Input value={draft.spaceName} maxLength={200} autoComplete="off" dir="auto" data-space-name onChange={(e) => patch({ ...draft, spaceName: e.target.value })} />
+       </Field>
        <Field id="pa-email" label={t('pa.field.email')} hint={t('pa.field.email_hint')} error={err('email')}>
         <Input type="email" inputMode="email" autoComplete="off" dir="ltr" value={draft.email} onChange={(e) => patch({ ...draft, email: e.target.value })} />
        </Field>
