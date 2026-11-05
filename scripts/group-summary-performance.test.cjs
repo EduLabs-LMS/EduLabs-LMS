@@ -27,7 +27,8 @@ test('migration: the summary decides the managed groups once and never calls the
  assert.ok(s1.includes('private.can_manage_group(s.group_id)'), 'the old summary did call it per row');
  assert.equal((s2.match(/private\.can_manage_group\(/g) ?? []).length, 1, 'once, over candidate groups');
  assert.doesNotMatch(s2, /can_manage_group\(s\./); assert.match(s2, /managed:=array\(select g2\.id from public\.study_groups g2/);
- assert.match(s2, /organization_memberships m where m\.user_id=\(select auth\.uid\(\)\)/, 'only groups of the caller\'s own organizations are candidates');
+ assert.match(s2, /organization_memberships m where m\.user_id=u and m\.status='active'/, 'only groups of the caller\'s own organizations are candidates');
+ assert.doesNotMatch(s2.replace(/--.*$/gm, ''), /auth\.uid\(\)/, 'the caller is current_app_user_id(), never auth.uid(): a Firebase subject is not a UUID');
  assert.match(s2, /where a\.user_id=u and not s\.cancelled/); assert.match(s2, /s\.group_id=any\(managed\) and not s\.cancelled/);
  assert.match(s2, /h\.offering_id=any\(offs\) and private\.homework_enrolled\(h\.id\)/, 'homework only in offerings the caller is enrolled in, still decided by the same function');
  assert.match(s2, /e\.user_id=u and e\.status='active'/);

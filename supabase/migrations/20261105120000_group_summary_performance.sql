@@ -24,11 +24,12 @@ begin
  if p_section='summary' then
   if p_group is not null and not private.can_view_group(p_group) then raise exception 'Group unavailable' using errcode='42501'; end if;
   -- The groups this caller manages, decided ONCE (not once per attendance row, three times). Managing a group needs an active membership of its
-  -- organization (private.has_org_role / is_org_member, which read auth.uid()), so only groups of the caller's organizations are candidates; each
-  -- candidate still goes through private.can_manage_group, so the answer is exactly the one the per-row call gave.
+  -- organization (private.has_org_role / is_org_member, which resolve the caller with private.current_app_user_id()), so only groups of the caller's
+  -- organizations are candidates; each candidate still goes through private.can_manage_group, so the answer is exactly the one the per-row call gave.
+  -- The caller is the profile resolved once above (u), never the token subject cast to uuid: a Firebase subject is not a UUID, and that cast raises 22P02.
   managed:=array(select g2.id from public.study_groups g2 join public.course_offerings o2 on o2.id=g2.offering_id join public.courses c2 on c2.id=o2.course_id
    where (p_group is null or g2.id=p_group)
-    and c2.organization_id in (select m.organization_id from public.organization_memberships m where m.user_id=(select auth.uid()) and m.status='active')
+    and c2.organization_id in (select m.organization_id from public.organization_memberships m where m.user_id=u and m.status='active')
     and private.can_manage_group(g2.id));
   -- Only two bounded sets are read: the caller's own marks (index on user_id) and the marks of the sessions of the groups the caller manages.
   select jsonb_build_object(

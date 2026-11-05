@@ -13,8 +13,10 @@ create function pg_temp.claim(u uuid) returns void language sql as $$select set_
 create function pg_temp.u(n integer) returns uuid language sql as $$select ('10000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid$$;
 create function pg_temp.g(n integer) returns uuid language sql as $$select ('a1000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid$$;
 -- One summary call, as the signed-in user, by function name: the JSON it returned, or ERR plus the SQLSTATE of the refusal.
-create function pg_temp.call(fn text,who uuid,grp uuid) returns text language plpgsql as $$declare r jsonb;begin
- perform pg_temp.claim(who);
+-- The same person signing in with Firebase: the subject is NOT a UUID, the issuer and audience are the project's, and the identity row maps it to the profile.
+create function pg_temp.fbclaim(u uuid) returns void language sql as $$select set_config('request.jwt.claims',jsonb_build_object('iss','https://securetoken.google.com/diagonproduction','aud','diagonproduction','role','authenticated','email_verified',true,'auth_time',floor(extract(epoch from now()))::bigint,'sub','gsp-firebase-'||right(u::text,3))::text,true)::void$$;
+create function pg_temp.call(fn text,who uuid,grp uuid,fb boolean default false) returns text language plpgsql as $$declare r jsonb;begin
+ if fb then perform pg_temp.fbclaim(who); else perform pg_temp.claim(who); end if;
  begin execute format('select %s($1,''summary'',0,'''')',fn) into r using grp; return r::text;
  exception when others then return 'ERR '||sqlstate; end;end$$;
 
@@ -161,6 +163,12 @@ insert into public.homework_assignments(id,course_id,offering_id,lesson_id,title
  ('e3000000-0000-0000-0000-0000000000a4','30000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','GSP draft','draft','e3000000-0000-0000-0000-0000000000a4',pg_temp.u(2));
 insert into public.homework_submissions(assignment_id,user_id,number,status,submitted_at) values('e3000000-0000-0000-0000-0000000000a2',pg_temp.u(5),1,'submitted',now());
 
+-- Each person also has a Firebase identity (as the database owner, the way the onboarding function would have stored it).
+insert into private.external_identities(profile_id,provider,issuer,subject,verified_at)
+select p.id,'firebase','https://securetoken.google.com/diagonproduction','gsp-firebase-'||right(p.id::text,3),now()
+from public.profiles p where p.id in (pg_temp.u(2),pg_temp.u(3),pg_temp.u(4),pg_temp.u(5),pg_temp.u(6),pg_temp.u(7),pg_temp.u(225));
+select pg_temp.ok((select count(*)=7 from private.external_identities where provider='firebase' and subject like 'gsp-firebase-%' and subject !~ '^[0-9a-f-]{36}$'),'seven Firebase identities with subjects that are not UUIDs');
+
 -- ---------------------------------------------------------------- what the data really holds (as the database owner), so nothing is compared as zeros
 select set_config('gsp.u5_att',(select count(*) from public.session_attendance a join public.group_sessions s on s.id=a.session_id where a.user_id=pg_temp.u(5) and s.attendance_state='finalized' and not s.cancelled and a.status='attended')::text,true);
 select set_config('gsp.u5_abs',(select count(*) from public.session_attendance a join public.group_sessions s on s.id=a.session_id where a.user_id=pg_temp.u(5) and s.attendance_state='finalized' and not s.cancelled and a.status='absent')::text,true);
@@ -191,8 +199,24 @@ end$$;
 select pg_temp.ok(current_setting('gsp.bad')::int=0,'before and after agree in all '||current_setting('gsp.cases')||' cases');
 select pg_temp.ok(current_setting('gsp.cases')::int=35 and current_setting('gsp.real')::int>=15,'the comparison covered 35 cases, at least 15 with real counts ('||current_setting('gsp.real')||')');
 
+-- The same 35 cases signed in with Firebase: the old and the new function agree, the Firebase answer is the one the same person gets with a Supabase
+-- sign-in, and nothing raises 22P02 (auth.uid() casts the subject to uuid, which a Firebase subject is not).
+do $$declare who uuid;grp uuid;a text;b text;c text;n integer:=0;bad integer:=0;real integer:=0;raised integer:=0;begin
+ foreach who in array array[pg_temp.u(2),pg_temp.u(3),pg_temp.u(4),pg_temp.u(5),pg_temp.u(6),pg_temp.u(7),pg_temp.u(225)] loop
+  foreach grp in array array[null::uuid,pg_temp.g(1),pg_temp.g(2),pg_temp.g(3),pg_temp.g(4)] loop
+   a:=pg_temp.call('private.group_view_before',who,grp,true); b:=pg_temp.call('private.group_view',who,grp,true); c:=pg_temp.call('private.group_view',who,grp); n:=n+1;
+   if a is distinct from b or b is distinct from c then bad:=bad+1; raise warning 'FIREBASE DIFFERENT for % group %: before % after % supabase %',who,grp,a,b,c; end if;
+   if b like 'ERR 22%' or a like 'ERR 22%' then raised:=raised+1; end if;
+   if b not like 'ERR%' and b not like '%"attended": 0%"absent": 0%"attended": 0%"absent": 0%' then real:=real+1; end if;
+  end loop;
+ end loop;
+ perform set_config('gsp.fbcases',n::text,true);perform set_config('gsp.fbbad',bad::text,true);perform set_config('gsp.fbreal',real::text,true);perform set_config('gsp.fbraised',raised::text,true);
+end$$;
+select pg_temp.ok(current_setting('gsp.fbraised')::int=0,'no Firebase call raised an invalid-uuid error (22P02)');
+select pg_temp.ok(current_setting('gsp.fbbad')::int=0 and current_setting('gsp.fbcases')::int=35 and current_setting('gsp.fbreal')::int>=15,'with a Firebase sign-in, before and after agree in all 35 cases and match the Supabase sign-in ('||current_setting('gsp.fbreal')||' with real counts)');
+
 -- ---------------------------------------------------------------- and the values are the right ones, not merely equal
-create function pg_temp.f(who uuid,grp uuid) returns jsonb language sql as $$select pg_temp.call('private.group_view',who,grp)::jsonb$$;
+create function pg_temp.f(who uuid,grp uuid,fb boolean default false) returns jsonb language sql as $$select pg_temp.call('private.group_view',who,grp,fb)::jsonb$$;
 select pg_temp.ok((pg_temp.f(pg_temp.u(2),null)->'staff'->>'attended')=current_setting('gsp.all_att') and (pg_temp.f(pg_temp.u(2),null)->'staff'->>'absent')=current_setting('gsp.all_abs'),'a teacher of several groups in two spaces: every mark of every group they manage, no cancelled session');
 select pg_temp.ok((pg_temp.f(pg_temp.u(2),pg_temp.g(1))->'staff'->>'attended')=current_setting('gsp.a_att') and (pg_temp.f(pg_temp.u(2),pg_temp.g(1))->'staff'->>'absent')=current_setting('gsp.a_abs'),'with a group: only that group');
 select pg_temp.ok((pg_temp.f(pg_temp.u(4),null)->'staff'->>'attended')=current_setting('gsp.a_att') and (pg_temp.f(pg_temp.u(4),null)->'staff'->>'absent')=current_setting('gsp.a_abs'),'an assistant: only the group they are assigned to');
@@ -204,6 +228,11 @@ select pg_temp.ok(pg_temp.f(pg_temp.u(225),null)='{"own":{"attended":0,"absent":
 select pg_temp.ok(pg_temp.call('private.group_view',pg_temp.u(5),pg_temp.g(2))='ERR 42501' and pg_temp.call('private.group_view',pg_temp.u(5),pg_temp.g(4))='ERR 42501','a group the caller cannot see is still refused');
 select pg_temp.ok(pg_temp.call('private.group_view',pg_temp.u(6),pg_temp.g(2))='ERR 42501','a former member is still refused');
 select pg_temp.ok((pg_temp.f(pg_temp.u(5),null)->>'pendingHomework')='2' and (pg_temp.f(pg_temp.u(6),null)->>'pendingHomework')='3' and (pg_temp.f(pg_temp.u(4),null)->>'pendingHomework')='2' and (pg_temp.f(pg_temp.u(7),null)->>'pendingHomework')='0','pending homework: submitted, draft and other offerings are not counted');
+select pg_temp.ok((pg_temp.f(pg_temp.u(2),null,true)->'staff'->>'attended')=current_setting('gsp.all_att') and (pg_temp.f(pg_temp.u(2),pg_temp.g(1),true)->'staff'->>'absent')=current_setting('gsp.a_abs'),'Firebase teacher: every group they manage, and one group when given');
+select pg_temp.ok((pg_temp.f(pg_temp.u(4),null,true)->'staff'->>'attended')=current_setting('gsp.a_att') and (pg_temp.f(pg_temp.u(4),null,true)->'own'->>'attended')=current_setting('gsp.u4_own_att'),'Firebase assistant: the assigned group and their own marks');
+select pg_temp.ok((pg_temp.f(pg_temp.u(5),null,true)->'own'->>'attended')=current_setting('gsp.u5_att') and (pg_temp.f(pg_temp.u(5),null,true)->'staff')='{"attended":0,"absent":0}'::jsonb and (pg_temp.f(pg_temp.u(5),null,true)->>'pendingHomework')='2','Firebase student: own finalized marks, no staff counts, pending homework');
+select pg_temp.ok(pg_temp.f(pg_temp.u(225),null,true)='{"own":{"attended":0,"absent":0},"staff":{"attended":0,"absent":0},"pendingHomework":0}'::jsonb,'Firebase person with nothing: zeros, no error');
+select pg_temp.ok(pg_temp.call('private.group_view',pg_temp.u(5),pg_temp.g(4),true)='ERR 42501','Firebase student asking for a group they cannot see: still refused with 42501');
 
 -- ---------------------------------------------------------------- the same function, the same grants
 reset role;
