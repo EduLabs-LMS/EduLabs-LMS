@@ -5,7 +5,7 @@
  * Every rule starts with `html[data-design="new"]:has([data-teacher-shell])`, for two reasons:
  *  - a student or a signed-out page has no teacher shell, so it is never touched, even in a browser whose cookie says New;
  *  - dialogs and menus render in a portal outside the shell, and they are still covered because the condition is on <html>.
- * Classic never matches any of this. Delete this file with the losing look.
+ * Classic never matches any of this. A screen drops out of this file when it is rebuilt with the design components.
  */
 
 html[data-design="new"]:has([data-teacher-shell]) body { background-color: var(--d-canvas); }

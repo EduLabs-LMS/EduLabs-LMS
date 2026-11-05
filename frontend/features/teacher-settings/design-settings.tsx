@@ -5,8 +5,8 @@ import { L, useLanguage } from '@/frontend/components/language-provider';
 import { defaultDesign, designCookie, isDesign, type Design } from '@/shared/design';
 
 /**
- * The temporary Classic / New switch (owner decision, DECISIONS.md). It changes only the visual layer. The choice goes in a plain cookie, per browser, with no user data in it,
- * so the server paints the right look from the first byte. Delete this file with the losing look.
+ * The Classic / New switch, a lasting personal preference (owner decision, DECISIONS.md). It changes only the visual layer. The choice goes in a plain cookie, per browser, with no user data in it,
+ * so the server paints the right look from the first byte.
  */
 export function DesignSettings({ initial = defaultDesign }: { initial?: Design }) {
   const { t } = useLanguage();
@@ -22,7 +22,7 @@ export function DesignSettings({ initial = defaultDesign }: { initial?: Design }
     <h2 id="design-title" className="font-display text-2xl"><L id="ds.design.title" /></h2>
     <p className="mt-3 text-sm text-muted-foreground"><L id="ds.design.help" /></p>
     <div className="mt-5">
-      <SegmentedControl label={t('ds.design.title')} name="lms-design" value={design} onChange={choose} options={[
+      <SegmentedControl label={t('ds.design.title')} value={design} onChange={choose} options={[
         { value: 'classic', label: <L id="ds.design.classic" />, 'data-design-option': 'classic' },
         { value: 'new', label: <L id="ds.design.new" />, 'data-design-option': 'new' },
       ]} />

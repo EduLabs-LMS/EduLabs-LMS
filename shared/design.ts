@@ -1,6 +1,6 @@
 /**
- * The temporary Classic / New look switch (owner decision, DECISIONS.md). It changes only the visual layer of the teacher app and is deleted, together
- * with the losing look, once the owner and co-founder have decided. The value is a plain preference: it decides nothing about access and holds no user data.
+ * The Classic / New look: a lasting personal preference, and both looks stay (owner decision, DECISIONS.md). It changes only the visual layer of the teacher app.
+ * The value is a plain preference: it decides nothing about access and holds no user data.
  */
 export const designCookieKey = 'edulabs_design';
 export const designs = ['classic', 'new'] as const;
