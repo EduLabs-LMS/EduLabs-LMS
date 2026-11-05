@@ -33,12 +33,29 @@ export type RawInputs = {
   groups: Settled<GroupPage<StudyGroup>>;
   upcoming: Settled<GroupPage<GroupSession & { group_name?: string }>>;
   notifications: Settled<NotificationPage>;
-  /** Each Group the teacher manages with its first page of sessions (upcoming first, then the latest finished ones). */
-  unsaved?: Settled<{ groupId: string; rows: GroupSession[] }[]>;
+  /** Each Group the teacher manages with its first page of sessions (upcoming first, then the latest finished ones). `more`: the page did not hold them all. */
+  unsaved?: Settled<{ groupId: string; rows: GroupSession[]; more?: boolean }[]>;
+  /** The existing staff counts of the student administration read. */
+  metrics?: Settled<HomeMetrics>;
+  /** What the hero says about the next session; null when it could not be read (the fact is then left out). */
+  nextFacts?: HomeNextFacts | null;
   now: number;
 };
 
+export type HomeMetrics = { totalStudents: number; pendingWaitlistCount: number };
+/** For a class already running: how many of its students are marked. Before it starts: how many students the Group has (`more`: at least this many). */
+export type HomeNextFacts = { kind: 'marked'; marked: number; total: number } | { kind: 'members'; students: number; more: boolean };
+
 export type TeacherHomeData = {
+  /** The server clock when Home was read: the greeting and the date come from it, not from the device. */
+  now: string;
+  /** The small numbers on Home. Null means not known, and then that tile is left out. */
+  summary: { activeGroups: number | null; students: number | null };
+  /** Join requests waiting for a decision. */
+  waiting: Section<{ count: number }>;
+  /** Sessions on today's Cairo date, finished ones included. Null means it could not be counted for certain. */
+  sessionsToday: number | null;
+  nextFacts: HomeNextFacts | null;
   courses: Section<{ items: HomeCourse[]; truncated: boolean }>;
   groups: Section<{ count: number; partial: boolean }>;
   sessions: Section<{ next: HomeSession | null; comingUp: HomeSession[]; partial: boolean }>;
@@ -100,11 +117,44 @@ export function safeLink(link: string | null): string | null {
   return link && /^\/(?![/\\])[A-Za-z0-9\-._~!$&'()*+,;=:@/?#%]*$/.test(link) ? link : null;
 }
 
+const cairoDayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' });
+const cairoHourFormat = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Cairo', hour: '2-digit', hourCycle: 'h23' });
+/** YYYY-MM-DD on the Cairo calendar, so it also compares by plain string order. */
+export const cairoDay = (at: number) => cairoDayFormat.format(new Date(at));
+export const cairoHour = (at: number) => Number(cairoHourFormat.format(new Date(at)));
+export const greetingKey = (hour: number): 'morning' | 'afternoon' | 'evening' => hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+export const sessionsTodayKey = (count: number) => count === 0 ? 'th.home.sessions_none' as const : count === 1 ? 'th.home.sessions_one' as const : 'th.home.sessions_many' as const;
+
+/**
+ * Sessions on today's Cairo date: those still to come (the upcoming read) and those already finished (each Group's own page). It says a number only when every
+ * read that could hold one of today's sessions was complete; otherwise null, and the page shows no count rather than a wrong one.
+ */
+export function countSessionsToday(input: RawInputs, staffIds: Map<string, string>, groups: TeacherHomeData['groups']): number | null {
+  if (groups.state !== 'ready' || groups.data.partial || staffIds.size > UNSAVED_GROUP_LIMIT) return null;
+  if (!input.upcoming.ok || input.upcoming.value.hasMore || !input.unsaved?.ok) return null;
+  const today = cairoDay(input.now);
+  const found = new Set<string>();
+  const add = (s: GroupSession) => { if (staffIds.has(s.group_id) && !s.cancelled && cairoDay(Date.parse(s.starts_at)) === today) found.add(s.id); };
+  input.upcoming.value.rows.forEach(add);
+  for (const { rows, more } of input.unsaved.value) {
+    // A cut-off page still answers for today if it reached back past today.
+    if (more && !rows.some(r => cairoDay(Date.parse(r.starts_at)) < today)) return null;
+    rows.forEach(add);
+  }
+  return found.size;
+}
+
 export function buildTeacherHome(input: RawInputs): TeacherHomeData {
   const courses = mapCourses(input.courses);
   const { section: groups, staffIds } = mapGroups(input.groups);
   const firstVisit = courses.state === 'ready' && courses.data.items.length === 0 && groups.state === 'ready' && groups.data.count === 0 && !groups.data.partial;
+  const metrics = input.metrics;
   return {
+    now: new Date(input.now).toISOString(),
+    summary: { activeGroups: groups.state === 'ready' && !groups.data.partial ? groups.data.count : null, students: metrics?.ok ? metrics.value.totalStudents : null },
+    waiting: !metrics ? { state: 'unavailable' } : metrics.ok ? { state: 'ready', data: { count: metrics.value.pendingWaitlistCount } } : fail(metrics),
+    sessionsToday: countSessionsToday(input, staffIds, groups),
+    nextFacts: input.nextFacts ?? null,
     courses, groups,
     sessions: mapSessions(input.upcoming, staffIds, groups, input.now),
     unsaved: mapUnsaved(input.unsaved, staffIds, groups, input.now),
@@ -144,17 +194,18 @@ export function courseSlug(title: string, random: () => string): string {
   return base ? `${base}-${suffix}` : `course-${suffix}`;
 }
 
-export type TeacherNavItem = { key: 'home' | 'students' | 'groups' | 'homework' | 'exams' | 'reports'; /** null = the screen does not exist yet: shown as a disabled "Coming soon" item, never a link. */ href: string | null; match: (path: string) => boolean };
+export type TeacherNavItem = { key: 'home' | 'groups' | 'students' | 'courses'; href: string; match: (path: string) => boolean };
 /** Where the whole logo and the Home menu item go. */
 export const teacherHomeHref = '/home';
-/** The main teacher menu. Courses and Settings live under /teacher/settings (the cog beside the profile). Destinations without a new screen go to the existing neutral scaffold or the existing page; nothing here is faked. */
+/** A course's own page keeps its address under Settings (/teacher/settings/courses/<id>) but belongs to the Courses menu item. */
+export const teacherCoursesActive = (p: string) => p === '/teacher/courses' || p.startsWith('/teacher/courses/') || p.startsWith('/teacher/settings/courses/');
+export const teacherSettingsActive = (p: string) => (p === '/teacher/settings' || p.startsWith('/teacher/settings/')) && !teacherCoursesActive(p);
+/** The main teacher menu. Homework, Exams and Reports stay hidden until they are built (owner decision, DECISIONS.md). Notifications and Settings sit at the bottom of the frame. */
 export const teacherNav: readonly TeacherNavItem[] = [
   { key: 'home', href: teacherHomeHref, match: p => p === '/' || p === '/home' },
-  { key: 'students', href: '/teacher/students', match: p => p === '/teacher/students' || p.startsWith('/teacher/students/') },
   { key: 'groups', href: '/teacher/groups', match: p => p === '/teacher/groups' || p.startsWith('/teacher/groups/') },
-  { key: 'homework', href: '/admin/submissions', match: p => p.startsWith('/admin/submissions') },
-  { key: 'exams', href: '/exams', match: p => p.startsWith('/exams') },
-  { key: 'reports', href: null, match: () => false },
+  { key: 'students', href: '/teacher/students', match: p => p === '/teacher/students' || p.startsWith('/teacher/students/') },
+  { key: 'courses', href: '/teacher/courses', match: teacherCoursesActive },
 ];
 
 /** Teacher navigation is for active staff of the Firebase/Supabase build only; students and the Clerk fallback keep their own navigation. */

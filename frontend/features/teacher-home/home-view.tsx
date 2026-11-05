@@ -1,126 +1,180 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
-import { CalendarClock, Check, MapPin, Video } from 'lucide-react';
+import { Card, CardHead, DateTile, Icon, IconBadge, ListRow, PageHeader, StatusPill, buttonClass } from '@/frontend/components/design';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
+import { useApplicationAuth, useWebsiteNavigation } from '@/frontend/components/providers/application-auth-provider';
 import { eventLabels } from '@/shared/contracts/communications';
 import { cn } from '@/shared/utils';
-import type { HomeSession, HomeUnsaved, TeacherHomeLoad } from '@/shared/teacher-home';
+import { cairoHour, greetingKey, sessionsTodayKey, type HomeSession, type HomeUnsaved, type TeacherHomeLoad } from '@/shared/teacher-home';
 import { attendanceHref } from '@/shared/teacher-attendance';
 import { CreateCourse } from './create-course';
-import { Empty, Section, SectionError, inkButton, linkClass, plainButton, sessionTime, useRetry } from './parts';
+import { SectionError, plainButton, sessionTime, useRetry } from './parts';
 
 type HomeData = TeacherHomeLoad;
 type Retry = ReturnType<typeof useRetry>;
 
 const zone = { timeZone: 'Africa/Cairo' } as const;
+const clock: Intl.DateTimeFormatOptions = { ...zone, hour: 'numeric', minute: '2-digit' };
+const dayAndTime: Intl.DateTimeFormatOptions = { ...zone, weekday: 'long', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' };
+const shortDayAndTime: Intl.DateTimeFormatOptions = { ...zone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
 
-function SessionRow({ s }: { s: HomeSession }) {
-  return <li className="flex items-center gap-3 border-t-2 border-black/15 py-3 first:border-t-0" data-session={s.id}>
-    <span aria-hidden className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-black bg-primary/30 font-bold leading-tight">
-      <span className="text-base"><LocalDate value={s.startsAt} options={{ ...zone, month: 'short' }} /></span>
-      <span className="text-xl"><LocalDate value={s.startsAt} options={{ ...zone, day: 'numeric' }} /></span>
-    </span>
-    <span className="flex min-w-0 flex-1 flex-col">
-      <span className="break-words text-base font-bold"><bdi dir="auto">{s.title}</bdi></span>
-      <span className="break-words text-base text-slate-700"><L id="th.coming.kind" /> · <bdi dir="auto">{s.groupName}</bdi></span>
-      <span className="text-base text-slate-700"><LocalDate value={s.startsAt} options={{ ...zone, weekday: 'long', hour: 'numeric', minute: '2-digit' }} /></span>
-    </span>
-  </li>;
+/** Nothing to show: said plainly, once. */
+function Quiet({ id }: { id: 'th.next.empty' | 'th.first.next' | 'th.updates.empty' | 'th.coming.empty' }) {
+  return <p data-state="empty" className="d-body pb-3"><L id={id} /></p>;
 }
 
-/** `hero` is the highlighted card on Home; the first visit shows the same read as a quiet card. */
-function NextSession({ data, retry, slot, hero = true }: { data: HomeData['sessions']; retry: Retry; slot?: string; hero?: boolean }) {
+function Greeting({ now }: { now: string }) {
+  const { user } = useApplicationAuth();
+  const navigation = useWebsiteNavigation();
+  const name = (user?.firstName || user?.fullName || navigation?.viewer.displayName || '').trim();
+  const key = greetingKey(cairoHour(Date.parse(now)));
+  return name ? <L id={`th.greet.${key}`} values={{ name }} /> : <L id={`th.greet.${key}_plain`} />;
+}
+
+function HomeMeta({ now, today }: { now: string; today: number | null }) {
+  const { number } = useLanguage();
+  return <>
+    <LocalDate value={now} options={{ ...zone, weekday: 'long', day: 'numeric', month: 'long' }} />
+    {today !== null && <span data-sessions-today> · <L id={sessionsTodayKey(today)} values={{ count: number(today) }} /></span>}
+  </>;
+}
+
+/** One small number with its icon. A tile whose number is not known is left out, never guessed. */
+function Tile({ name, value, label, tone }: { name: 'groups' | 'students'; value: number; label: 'th.summary.groups' | 'th.summary.students'; tone: 'success' | 'info' }) {
+  const { number } = useLanguage();
+  return <div data-summary={name} className="d-card d-kpi"><IconBadge name={name} tone={tone} /><span className="min-w-0"><span className="d-kpi-value">{number(value)}</span><span className="d-meta"><L id={label} /></span></span></div>;
+}
+
+function Summary({ data }: { data: HomeData['summary'] }) {
+  const count = (data.activeGroups !== null ? 1 : 0) + (data.students !== null ? 1 : 0);
+  if (!count) return null;
+  return <div data-home-summary className="d-tiles" style={{ '--d-tile-count': count } as React.CSSProperties}>
+    {data.activeGroups !== null && <Tile name="groups" tone="success" value={data.activeGroups} label="th.summary.groups" />}
+    {data.students !== null && <Tile name="students" tone="info" value={data.students} label="th.summary.students" />}
+  </div>;
+}
+
+/** marked / total around the hero's headline. The sentence is for screen readers; the numbers are the picture. */
+function Ring({ marked, total }: { marked: number; total: number }) {
+  const { t, number } = useLanguage();
+  const radius = 23, around = 2 * Math.PI * radius, done = total ? Math.min(marked / total, 1) : 0;
+  return <span role="img" aria-label={t('th.next.ring', { marked: number(marked), total: number(total) })} data-progress-ring className="d-ring">
+    <svg aria-hidden viewBox="0 0 56 56" fill="none"><circle className="d-ring-center" cx="28" cy="28" r={radius} /><circle className="d-ring-track" cx="28" cy="28" r={radius} strokeWidth="6" /><circle className="d-ring-fill" cx="28" cy="28" r={radius} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${around * done} ${around}`} /></svg>
+    <span aria-hidden className="d-ring-text"><bdi dir="ltr">{number(marked)}/{number(total)}</bdi></span>
+  </span>;
+}
+
+function Facts({ next, facts }: { next: HomeSession; facts: HomeData['nextFacts'] }) {
+  const { number } = useLanguage();
+  const students = facts?.kind === 'marked' ? facts.total : facts?.kind === 'members' ? facts.students : null;
+  const more = facts?.kind === 'members' && facts.more;
+  return <p className="d-hero-facts">
+    <span className="d-hero-fact"><Icon name="clock" size={16} />{next.happening ? <><LocalDate value={next.startsAt} options={clock} /> – <LocalDate value={next.endsAt} options={clock} /></> : <LocalDate value={next.startsAt} options={sessionTime} />}</span>
+    <span className="d-hero-fact"><Icon name={next.mode === 'online' ? 'video' : 'pin'} size={16} />{next.mode === 'online' ? <L id="th.next.online" /> : <span><L id="th.next.center" />{next.location && <> · <bdi dir="auto">{next.location}</bdi></>}</span>}</span>
+    {students !== null && <span data-next-students className="d-hero-fact"><Icon name="students" size={16} /><L id={more ? 'th.next.students_more' : students === 1 ? 'th.next.student_one' : 'th.next.students'} values={{ count: number(students) }} /></span>}
+  </p>;
+}
+
+/** The one heavy thing on the screen: the class happening now, or the next one. */
+function NextSession({ data, facts, retry, emptyId = 'th.next.empty' }: { data: HomeData['sessions']; facts: HomeData['nextFacts']; retry: Retry; emptyId?: 'th.next.empty' | 'th.first.next' }) {
   const next = data.state === 'ready' ? data.data.next : null;
-  const now = Boolean(next?.happening);
+  if (data.state === 'unavailable') return null;
+  if (!next) return <Card list aria-labelledby="th-next" data-section="th-next">
+    <CardHead id="th-next" title={<L id="th.next.title" />} />
+    {data.state === 'error' ? <div className="pb-3"><SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} /></div> : <Quiet id={emptyId} />}
+  </Card>;
+  const now = next.happening;
   // The live class's attendance was finished: say so and offer to edit it, instead of asking for it again. A draft (even with marks) still says Take attendance and continues.
-  const taken = now && next?.attendance === 'finalized';
-  return <Section id="th-next" eyebrow={hero} title={<L id={now ? 'th.next.now' : 'th.next.title'} />} className={cn(hero && 'bg-primary/30', slot)}>
-    {data.state === 'error' ? <SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} />
-      : data.state === 'unavailable' ? null
-      : !next ? <Empty id={hero ? 'th.next.empty' : 'th.first.next'} />
-      : <div className="space-y-3" data-tour="next-session" data-next-session={next.id} data-happening-now={now ? 'true' : undefined}>
-        <p className="flex items-start gap-2 break-words font-display text-3xl leading-tight lg:text-4xl"><CalendarClock aria-hidden className="mt-1.5 h-6 w-6 shrink-0" /><span><LocalDate value={next.startsAt} options={sessionTime} /></span></p>
-        <p className="break-words text-xl font-bold"><bdi dir="auto">{next.groupName}</bdi></p>
-        <p className="break-words text-base"><bdi dir="auto">{next.title}</bdi></p>
-        <p className="flex items-center gap-2 text-base">{next.mode === 'online' ? <Video aria-hidden className="h-5 w-5 shrink-0" /> : <MapPin aria-hidden className="h-5 w-5 shrink-0" />}
-          {next.mode === 'online' ? <L id="th.next.online" /> : <><L id="th.next.center" />{next.location && <> · <bdi dir="auto">{next.location}</bdi></>}</>}</p>
-        <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
-          {/* During a live class, taking attendance is the main thing to do: it is first and dark, and opening the Group is the quiet second button. */}
-          {now && !taken && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.attendance" /></Link>}
-          {taken && <p data-attendance-taken className="flex min-h-[48px] items-center gap-2 text-lg font-bold sm:min-h-[44px]"><Check aria-hidden className="h-5 w-5 shrink-0" /><L id="th.next.taken" /></p>}
-          {taken && <Link href={attendanceHref(next.groupId, next.id)} data-edit-attendance className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="ta.edit" /></Link>}
-          <Link href={`/teacher/groups/${next.groupId}`} data-open-group className={cn(now ? plainButton : inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.open" /></Link>
-        </div>
-        {data.data.partial && <p className="text-base text-slate-800"><L id="th.next.partial" /></p>}
-      </div>}
-  </Section>;
+  const taken = now && next.attendance === 'finalized';
+  const ring = now && facts?.kind === 'marked' && facts.total > 0 ? facts : null;
+  return <section aria-labelledby="th-next" data-section="th-next"><div data-tour="next-session" data-next-session={next.id} data-happening-now={now ? 'true' : undefined} className="d-hero">
+    <div className="d-hero-main">
+      {ring && <Ring marked={ring.marked} total={ring.total} />}
+      <div className="d-hero-text">
+        <h2 id="th-next" className="d-hero-heading"><span className="d-pill d-hero-pill">{now && <span aria-hidden className="d-pill-dot" />}<L id={now ? 'th.next.now' : 'th.next.title'} /></span></h2>
+        <p className="d-hero-title"><bdi dir="auto">{next.groupName}</bdi></p>
+        <p className="d-body"><bdi dir="auto">{next.title}</bdi></p>
+        <Facts next={next} facts={facts} />
+        {data.state === 'ready' && data.data.partial && <p className="d-meta"><L id="th.next.partial" /></p>}
+      </div>
+    </div>
+    <div className="d-hero-actions">
+      {/* During a live class, taking attendance is the main thing to do: it is first, on every width, and opening the Group is the quiet second button. */}
+      {now && !taken && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={buttonClass('primary', { size: 'lg' })}><L id="th.next.attendance" /></Link>}
+      {taken && <p data-attendance-taken className="d-hero-taken"><Icon name="check" /><L id="th.next.taken" /></p>}
+      {taken && <Link href={attendanceHref(next.groupId, next.id)} data-edit-attendance className={buttonClass('primary', { size: 'lg' })}><L id="ta.edit" /></Link>}
+      <Link href={`/teacher/groups/${next.groupId}`} data-open-group className={buttonClass(now ? 'secondary' : 'primary', { size: 'lg' })}><L id="th.next.open" /></Link>
+    </div>
+  </div></section>;
 }
 
-
-function Updates({ data, retry, slot }: { data: HomeData['updates']; retry: Retry; slot?: string }) {
-  return <Section id="th-updates" title={<L id="th.updates.title" />} className={slot}>
-    {data.state === 'error' ? <SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} />
-      : data.state === 'unavailable' ? null
-      : !data.data.items.length ? <Empty id="th.updates.empty" />
-      : <ul>{data.data.items.map(u => <li key={u.id} data-update={u.id} className="flex items-start gap-3 border-t-2 border-black/15 py-3 first:border-t-0">
-        <span aria-hidden className={cn('mt-2 h-3 w-3 shrink-0 rounded-full border-2 border-black', u.sessionChange ? 'bg-rose-300' : 'bg-primary')} />
-        <span className="flex min-w-0 flex-col">
-          <span className="break-words text-base font-bold">{u.sessionChange && <span className="sr-only"><L id="th.updates.session" />: </span>}
-            {u.link ? <Link href={u.link} className="inline-flex min-h-[44px] items-center underline underline-offset-4"><L text={eventLabels[u.event]} /></Link> : <L text={eventLabels[u.event]} />}</span>
-          <span className="text-base text-slate-700"><LocalDate value={u.createdAt} options={{ day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }} /></span>
-        </span>
-      </li>)}</ul>}
-    <Link href="/notifications" className={linkClass}><L id="th.updates.all" /></Link>
-  </Section>;
-}
-
-/** A finished session still waiting for attendance: date, Group, the plain reason and one yellow "Take attendance" button that opens it. */
+/** A finished session still waiting for attendance. */
 function UnsavedRow({ s }: { s: HomeUnsaved }) {
   const { t } = useLanguage();
-  return <li className="flex items-center gap-3 border-t-2 border-black/15 py-3 first:border-t-0" data-unsaved-session={s.id}>
-    <span aria-hidden className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-black bg-amber-100 font-bold leading-tight text-black">
-      <span className="text-base"><LocalDate value={s.startsAt} options={{ ...zone, month: 'short' }} /></span>
-      <span className="text-xl"><LocalDate value={s.startsAt} options={{ ...zone, day: 'numeric' }} /></span>
-    </span>
-    <span className="flex min-w-0 flex-1 flex-col">
-      <span className="break-words text-base font-bold"><bdi dir="auto">{s.groupName}</bdi></span>
-      <span className="text-base text-slate-700"><LocalDate value={s.startsAt} options={{ ...zone, weekday: 'long', hour: 'numeric', minute: '2-digit' }} /></span>
-      <span className="text-base font-bold text-slate-800"><L id="th.coming.unsaved" /></span>
-    </span>
-    <Link href={attendanceHref(s.groupId, s.id)} data-unsaved-finish aria-label={t('th.coming.take_for', { group: s.groupName })} className="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-2xl border-2 border-black bg-amber-300 px-4 text-base font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"><L id="th.next.attendance" /></Link>
-  </li>;
+  return <ListRow data-unsaved-session={s.id} action leading={<IconBadge name="warning" tone="warning" />}
+    title={<bdi dir="auto">{s.groupName}</bdi>}
+    meta={<LocalDate value={s.startsAt} options={dayAndTime} />}
+    trailing={<><StatusPill tone="warning"><L id="tg.att.unsaved" /></StatusPill><Link href={attendanceHref(s.groupId, s.id)} data-unsaved-finish aria-label={t('th.coming.take_for', { group: s.groupName })} className={buttonClass('attention', { size: 'lg' })}><L id="th.next.attendance" /></Link></>} />;
 }
 
-function ComingUp({ data, unsaved, retry, slot }: { data: HomeData['sessions']; unsaved: HomeData['unsaved']; retry: Retry; slot?: string }) {
+/** Only what asks for something. Shown when there is something, or when a read failed (a failed read is never "nothing to do"). */
+function NeedsAttention({ unsaved, waiting, retry }: { unsaved: HomeData['unsaved']; waiting: HomeData['waiting']; retry: Retry }) {
+  const { number } = useLanguage();
   const rows = unsaved.state === 'ready' ? unsaved.data : [];
-  return <Section id="th-coming" title={<L id="th.coming.title" />} className={slot}>
-    {data.state === 'error' ? <SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} />
-      : data.state === 'unavailable' ? null
-      : <>
-        {unsaved.state === 'error' && <SectionError status={unsaved.status} onRetry={retry.retry} pending={retry.pending} />}
-        {rows.length > 0 && <ul data-tour="unsaved-attendance" data-unsaved-list>{rows.map(u => <UnsavedRow key={u.id} s={u} />)}</ul>}
-        {!data.data.comingUp.length ? <Empty id="th.coming.empty" /> : <ul>{data.data.comingUp.map(x => <SessionRow key={x.id} s={x} />)}</ul>}
-      </>}
-  </Section>;
+  const asking = waiting.state === 'ready' ? waiting.data.count : 0;
+  const failed = unsaved.state === 'error' ? unsaved.status : waiting.state === 'error' ? waiting.status : undefined;
+  const total = rows.length + (asking > 0 ? 1 : 0);
+  if (!total && failed === undefined) return null;
+  return <Card list aria-labelledby="th-attention" data-section="th-attention">
+    <CardHead id="th-attention" title={<L id="th.attention.title" />} badge={total > 0 ? <StatusPill tone="warning">{number(total)}</StatusPill> : undefined} />
+    {failed !== undefined && <div className="pb-3"><SectionError status={failed} onRetry={retry.retry} pending={retry.pending} /></div>}
+    {total > 0 && <ul className="d-list" data-tour="unsaved-attendance" data-unsaved-list>
+      {rows.map(u => <UnsavedRow key={u.id} s={u} />)}
+      {asking > 0 && <ListRow data-waiting-requests action leading={<IconBadge name="user-plus" tone="info" />}
+        title={<L id="th.attention.asked" />}
+        meta={<L id="th.attention.waiting_meta" />}
+        trailing={<><StatusPill tone="info"><L id="th.attention.waiting" values={{ count: number(asking) }} /></StatusPill><Link href="/teacher/students" data-waiting-review className={buttonClass('secondary')}><L id="th.attention.review" /></Link></>} />}
+    </ul>}
+  </Card>;
+}
+
+function ComingUp({ data, retry }: { data: HomeData['sessions']; retry: Retry }) {
+  if (data.state === 'unavailable') return null;
+  return <Card list aria-labelledby="th-coming" data-section="th-coming">
+    <CardHead id="th-coming" title={<L id="th.coming.title" />} />
+    {data.state === 'error' ? <div className="pb-3"><SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} /></div>
+      : !data.data.comingUp.length ? <Quiet id="th.coming.empty" />
+      : <ul className="d-list">{data.data.comingUp.map(s => <ListRow key={s.id} data-session={s.id} href={`/teacher/groups/${s.groupId}`} leading={<DateTile value={s.startsAt} />}
+        title={<bdi dir="auto">{s.groupName}</bdi>}
+        meta={<><bdi dir="auto">{s.title}</bdi> · <LocalDate value={s.startsAt} options={shortDayAndTime} /></>} />)}</ul>}
+  </Card>;
+}
+
+function Updates({ data, retry }: { data: HomeData['updates']; retry: Retry }) {
+  if (data.state === 'unavailable') return null;
+  return <Card list aria-labelledby="th-updates" data-section="th-updates">
+    <CardHead id="th-updates" title={<L id="th.updates.title" />} action={<Link href="/notifications" data-updates-all className={buttonClass('tertiary')}><L id="th.updates.all" /></Link>} />
+    {data.state === 'error' ? <div className="pb-3"><SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} /></div>
+      : !data.data.items.length ? <Quiet id="th.updates.empty" />
+      : <ul className="d-list">{data.data.items.map(u => <ListRow key={u.id} data-update={u.id} leading={<IconBadge name={u.sessionChange ? 'calendar' : 'bell'} tone={u.sessionChange ? 'warning' : 'neutral'} />}
+        title={<>{u.sessionChange && <span className="sr-only"><L id="th.updates.session" />: </span>}{u.link ? <Link href={u.link} className="d-focus inline-flex min-h-[44px] items-center underline underline-offset-4"><L text={eventLabels[u.event]} /></Link> : <L text={eventLabels[u.event]} />}</>}
+        meta={<LocalDate value={u.createdAt} options={{ ...zone, day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }} />} />)}</ul>}
+  </Card>;
 }
 
 /** Shown only when the server confirmed that every teaching space of this teacher is a demo space. */
 function DemoLabel() {
-  return <span data-demo-label className="inline-flex min-h-[28px] w-fit items-center rounded-full border-2 border-black bg-amber-100 px-3 text-base font-bold text-black"><L id="demo.space_label" /></span>;
+  return <StatusPill tone="warning" data-demo-label><L id="demo.space_label" /></StatusPill>;
 }
 
 /** Calm first visit: no tour, no steps, no numbers. Shown only when both reads succeeded and found nothing. */
 function FirstVisit({ data }: { data: HomeData }) {
   const retry = useRetry();
   const [how, setHow] = useState(false);
-  return <div data-first-visit className="mx-auto w-full max-w-6xl space-y-6">
-    <header className="space-y-1">
-      {data.demo && <DemoLabel />}
-      <h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="th.first.title" /></h1>
-      <p className="text-base text-slate-700"><L id="th.first.intro" /></p>
-    </header>
-    <section aria-labelledby="th-first-step" className="flex flex-wrap items-center justify-between gap-6 rounded-[24px] border-[2.5px] border-black bg-primary p-5 shadow-hard sm:p-8">
+  return <div data-first-visit className="d-page">
+    <PageHeader title={<L id="th.first.title" />} pill={data.demo ? <DemoLabel /> : undefined} meta={<L id="th.first.intro" />} />
+    <section aria-labelledby="th-first-step" data-first-hero className="flex flex-wrap items-center justify-between gap-6 rounded-[24px] border-[2.5px] border-black bg-primary p-5 shadow-hard sm:p-8">
       <div className="max-w-xl space-y-2">
         <p className="text-base font-bold uppercase tracking-wider"><L id="th.first.eyebrow" /></p>
         <h2 id="th-first-step" className="font-display text-3xl leading-tight"><L id="th.first.step_title" /></h2>
@@ -133,36 +187,30 @@ function FirstVisit({ data }: { data: HomeData }) {
       </div>
     </section>
     <div className="grid gap-5 md:grid-cols-2">
-      <NextSession data={data.sessions} retry={retry} hero={false} />
+      <NextSession data={data.sessions} facts={data.nextFacts} retry={retry} emptyId="th.first.next" />
       <Updates data={data.updates} retry={retry} />
     </div>
-    <p className="text-base text-slate-700"><L id="th.first.help" /> <Link href="/support" className="font-bold underline underline-offset-4"><L id="th.first.help_link" /></Link>. <L id="th.first.help_end" /></p>
+    <p className="d-body"><L id="th.first.help" /> <Link href="/support" className="d-focus font-bold underline underline-offset-4"><L id="th.first.help_link" /></Link>. <L id="th.first.help_end" /></p>
   </div>;
 }
 
 /**
- * Two columns on a desktop (your day | your inbox), one column on a phone. The column wrappers dissolve on a phone
- * (`contents`), so `order` sets the phone sequence: next session, updates, coming up. Homework to correct returns here with the Homework build. Courses are not on Home: they live in Settings, Courses.
+ * Greeting, the small numbers, the hero, then two columns on a desktop (what needs you and what is coming | updates). A phone stacks the same order.
+ * Homework to correct returns here with the Homework build. Courses are not on Home: they have their own menu item.
  */
 export function TeacherHomeView({ data }: { data: HomeData }) {
   const retry = useRetry();
   if (data.firstVisit) return <FirstVisit data={data} />;
-  return <div data-teacher-home className="mx-auto w-full max-w-6xl space-y-6">
-    <header className="flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0 space-y-1">
-        {data.demo && <DemoLabel />}
-        <h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="th.home.title" /></h1>
-        <p className="hidden text-base text-slate-700 lg:block"><L id="th.home.intro" /></p>
+  return <div data-teacher-home className="d-page">
+    <PageHeader title={<Greeting now={data.now} />} pill={data.demo ? <DemoLabel /> : undefined} meta={<HomeMeta now={data.now} today={data.sessionsToday} />} />
+    <Summary data={data.summary} />
+    <NextSession data={data.sessions} facts={data.nextFacts} retry={retry} />
+    <div className="d-home-grid">
+      <div className="d-home-col">
+        <NeedsAttention unsaved={data.unsaved} waiting={data.waiting} retry={retry} />
+        <ComingUp data={data.sessions} retry={retry} />
       </div>
-    </header>
-    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start lg:gap-7">
-      <div className="contents lg:flex lg:flex-col lg:gap-5">
-        <NextSession data={data.sessions} retry={retry} slot="order-1 lg:order-none" />
-        <ComingUp data={data.sessions} unsaved={data.unsaved} retry={retry} slot="order-3 lg:order-none" />
-      </div>
-      <div className="contents lg:flex lg:flex-col lg:gap-5">
-        <Updates data={data.updates} retry={retry} slot="order-2 lg:order-none" />
-      </div>
+      <div className="d-home-col"><Updates data={data.updates} retry={retry} /></div>
     </div>
   </div>;
 }

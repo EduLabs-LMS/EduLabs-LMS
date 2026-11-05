@@ -3,11 +3,12 @@ import { courseCapability, type WebsiteContext } from '@/server/services/website
 import { groupService } from '@/server/services/groups';
 import { communicationService } from '@/server/services/communications';
 import { spaceIsDemo } from '@/server/services/demo-space';
+import { studentAdministration } from '@/server/services/student-administration';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
-import type { GroupPage, GroupSession, StudyGroup } from '@/shared/contracts/groups';
+import type { GroupPage, GroupRow, GroupSession, StudyGroup } from '@/shared/contracts/groups';
 import type { NotificationPage } from '@/shared/contracts/communications';
 import { groupCourseChoices } from '@/shared/teacher-groups';
-import { DEMO_CHECK_LIMIT, UNSAVED_GROUP_LIMIT, buildTeacherHome, mapGroups, createTargets, mapCourses, showDemoLabel, teachingSpaceIds, type RawCourse, type Settled, type TeacherHomeLoad } from '@/shared/teacher-home';
+import { DEMO_CHECK_LIMIT, UNSAVED_GROUP_LIMIT, buildTeacherHome, mapGroups, mapSessions, createTargets, mapCourses, showDemoLabel, teachingSpaceIds, type HomeMetrics, type HomeNextFacts, type RawCourse, type RawInputs, type Settled, type TeacherHomeLoad } from '@/shared/teacher-home';
 
 /** Reads run independently; one failing read marks only its own section as failed. Uses the existing services, which stay authoritative. */
 export async function settle<T>(read: () => PromiseLike<T>): Promise<Settled<T>> {
@@ -38,11 +39,35 @@ export async function loadTeacherHome(context: WebsiteContext, now = Date.now())
     const all: string[] = [];
     mapGroups(g).staffIds.forEach((_name, id) => all.push(id));
     const ids = all.slice(0, UNSAVED_GROUP_LIMIT);
-    return Promise.all(ids.map(async groupId => ({ groupId, rows: (await service.view<GroupSession>(groupId, 'sessions')).rows })));
+    return Promise.all(ids.map(async groupId => { const page = await service.view<GroupSession>(groupId, 'sessions'); return { groupId, rows: page.rows, more: Boolean(page.hasMore) }; }));
   }));
   const notifications = settle(async () => (await (await communicationService())('notifications', 'list', { page: 0, filter: 'unread' })) as unknown as NotificationPage);
-  const [g, u, n, a, demoShown] = await Promise.all([groups, upcoming, notifications, unsaved, demo]);
-  return { ...buildTeacherHome({ courses: ownCourses, groups: g, upcoming: u, notifications: n, unsaved: a, now }), createTargets: targets, demo: demoShown };
+  // The existing counts the database scopes to what the caller may support.
+  const metrics = settle(() => studentAdministration<HomeMetrics>('metrics', {}));
+  const nextFacts = Promise.all([groups, upcoming]).then(([g, u]) => readNextFacts(g, u, now));
+  const [g, u, n, a, m, facts, demoShown] = await Promise.all([groups, upcoming, notifications, unsaved, metrics, nextFacts, demo]);
+  return { ...buildTeacherHome({ courses: ownCourses, groups: g, upcoming: u, notifications: n, unsaved: a, metrics: m, nextFacts: facts, now }), createTargets: targets, demo: demoShown };
+}
+
+/**
+ * What the hero says about the next session, from the same reads the Group and Attendance pages use. A running class: its marked count (this read also fixes the class's
+ * list, exactly as opening its Attendance page does: see DECISIONS.md). A later one: the Group's students. If the read fails the fact is left out, and Home still shows.
+ */
+async function readNextFacts(groups: RawInputs['groups'], upcoming: RawInputs['upcoming'], now: number): Promise<HomeNextFacts | null> {
+  const { section, staffIds } = mapGroups(groups);
+  const sessions = mapSessions(upcoming, staffIds, section, now);
+  const next = sessions.state === 'ready' ? sessions.data.next : null;
+  if (!next) return null;
+  const read = await settle(async () => {
+    const service = await groupService();
+    if (next.happening) {
+      const counts = (await service.view<GroupRow>(next.groupId, next.id)).counts;
+      return counts ? { kind: 'marked' as const, marked: counts.attended + counts.absent, total: counts.attended + counts.absent + counts.not_marked } : null;
+    }
+    const page = await service.view<GroupRow>(next.groupId, 'members');
+    return { kind: 'members' as const, students: page.rows.length, more: Boolean(page.hasMore) };
+  });
+  return read.ok ? read.value : null;
 }
 
 /** A failed check shows no label and no error: the label only ever says something the database confirmed. */
