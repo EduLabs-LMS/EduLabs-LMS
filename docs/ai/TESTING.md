@@ -72,7 +72,7 @@ Teacher Settings and Groups & Classes: scripts/teacher-settings-groups.test.cjs 
 middleware run through the REAL middleware.ts, pure Groups model, endpoint/command allow-list, EN/AR parity, wording) and
 scripts/teacher-settings-groups-browser.cjs (Chromium; every page and API request goes through the real middleware; fictional
 /api/study-groups; filled and cleared demo states, errors with retry, EN/AR, 390/1440, light/dark, 44px targets, keyboard).
-scripts/teacher-home-browser.cjs covers Home, the six-item menu and the profile footer. The teacher browser harnesses compile their stylesheet from the current sources (`scripts/harness-css.cjs`: Tailwind compile of app/globals.css plus the CSS files app/layout.tsx imports); `.next` is only read for the font faces, so an old build can no longer make them fail (or pass) wrongly. `LMS_FRESH_CSS` is no longer used.
+scripts/teacher-home-browser.cjs covers Home, the menu and the frame. The teacher browser harnesses compile their stylesheet from the current sources (`scripts/harness-css.cjs`: Tailwind compile of app/globals.css plus the CSS files app/layout.tsx imports); `.next` is only read for the font faces, so an old build can no longer make them fail (or pass) wrongly. `LMS_FRESH_CSS` is no longer used.
 These use synthetic data and are not provider acceptance.
 
 
@@ -105,3 +105,11 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - SQL: `scripts/exam-sql-local.cjs` runs `supabase/tests/listing-performance.sql` (equivalence); `--bench-listing` runs the benchmark. The migration is never applied from here.
 - Browser: `scripts/loading-overlay-browser.cjs` (skeletons instead of the overlay, first-load overlay once, stale-while-revalidate per user and cleared on sign-out). Needs `LMS_ESBUILD_RUNTIME` and `LMS_BROWSER_RUNTIME`. Its navigation is a stand-in for Next; confirm skeleton timing on staging.
 - Unit: `scripts/request-scope.test.cjs`, `scripts/swr-cache.test.cjs`, `scripts/listing-performance.test.cjs`.
+
+## Design foundation (`claude/design-v2-foundation`)
+
+- `node --test scripts/design-foundation.test.cjs` (part of `npm test`): WCAG AA of every text and fill pair in both looks and themes, the owner's New values, Classic values against today's sources, no black edge in New, every token defined in both looks, logical properties only, the switch cookie, the bridge's scoping, avatar hashing, locale strings, the REAL middleware for the new routes and lookalikes.
+- `node scripts/design-foundation-browser.cjs`: the real frame, Home, switch and shared components, 16 groups. The test server writes `data-design` from the cookie with the real `designFromCookie`. It sweeps both looks, both themes, phone and desktop, English and Arabic: AA on rendered text, 44 px targets, no overflow, no black edge in New. Screenshots go to `.local/design-foundation-browser/screenshots`, named `<look>-<theme>-<desktop|phone>-<en|ar>-<home|settings|gallery>.png`.
+- **Classic visual check:** run a harness on the commit before the foundation and keep its screenshots as the baseline, run the same harness with `LMS_CLASSIC_OLD_GEOMETRY=70` (the old phone header height; `scripts/harness-css.cjs` then puts the content where the old frame had it and leaves the footer out, which the old harnesses did not render), then `node scripts/classic-visual-compare.cjs <baseline> <current> <diffDir>`. It leaves the frame out and writes an image of what differs. Clock times in the data and buttons caught mid-transition show up as small differences; read the diff images before concluding anything. Baselines are not committed, so this is a manual check.
+- First-load logo: `scripts/loading-overlay-browser.cjs` (plays to its end, never on navigation, reduced motion, the 5 second cap).
+- A real-server check of the first byte: `next dev` with `EDULABS_DIST_DIR` set to a folder under `.local` and placeholder public Firebase values, then `curl -H 'Cookie: edulabs_design=new' /sign-in`. `next dev` rewrites `tsconfig.json`: restore it afterwards. It proves the cookie reaches `<html>` on a public page only; signed-in pages were not requested.

@@ -38,7 +38,7 @@ remain available here. Real provider/email/push acceptance has not run for this 
 ## Update 2026-10-29: teacher Settings and Groups & Classes
 - Branch chain (local until the owner approves a push): claude/demo-spaces -> claude/teacher-settings-groups. Staging runs
   manager v1.6.0 with migrations 32, 33 and 34 approved (owner statement; see docs/platform-admin-staging-release.md).
-- Built on top of the foundation: teacher Home, the six-item menu with the profile footer and Settings cog, the Settings area
+- Built on top of the foundation: teacher Home, the six-item menu with the profile footer and Settings cog, the Settings area (The menu and frame were rebuilt on `claude/design-v2-foundation`: see DECISIONS.md, "Design foundation".)
   (My account, Courses, Language and appearance, Notifications) and Groups & Classes (list and one Group). Details and the
   buttons that exist or were left out: TEACHER_UI_SPEC.md.
 - No migration, endpoint family or permission change. The demo space needs no seed change (nothing new is stored). Middleware

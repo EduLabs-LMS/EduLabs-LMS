@@ -29,3 +29,6 @@ deploy, migration or provider change. Next candidates, each needing its own appr
 per-session screen, Reports (replacing its "Coming soon" item), Students, Homework and Exams screens. Do not resurrect retired
 components; do not add legacy paths to the middleware allow-list.
 
+## Update 2026-11-05: design foundation
+
+Branch `claude/design-v2-foundation`, from `claude/teacher-v1`, pushed as a new branch, not merged or deployed. Classic and New looks behind a per-person switch, the new frame, Courses at `/teacher/courses`, Settings in the main shell, Home rebuilt. Decisions: DECISIONS.md, "Design foundation". Next step: the owner and co-founder compare the looks and choose; no screen beyond Home and the frame was rebuilt.
