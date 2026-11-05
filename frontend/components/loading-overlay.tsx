@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 
 import EduLabsMark from '@/frontend/components/edulabs-mark';
+import { FIRST_LOAD_PLAY_FALLBACK_MS, FIRST_LOAD_REDUCED_MS } from '@/frontend/lib/first-load';
 import { cn } from '@/shared/utils';
 
 const WORD = 'EduLabs'.split('');
@@ -16,7 +17,43 @@ interface LoadingOverlayProps {
 	done?: boolean;
 	/** Block taps on the page underneath (forms and uploads). Page navigations leave the page tappable. */
 	blocking?: boolean;
+	/** The first load after sign-in: an opaque screen with the logo animation only, which plays to its end. */
+	firstLoad?: boolean;
+	/** Called once, when that animation has played to its end. */
+	onPlayed?: () => void;
 }
+
+/**
+ * The logo after sign-in: the tree grows and the word's letters follow one by one, all in CSS, so "the end" is what the browser reports and not a guess.
+ * Reduced motion shows the still logo for a moment. If the browser never reports an end, a fallback timer moves on, so sign-in can never hang here.
+ */
+const FirstLoadLogo = ({ onPlayed }: { onPlayed?: () => void }) => {
+	const ref = useRef<HTMLDivElement>(null);
+	const played = useRef(onPlayed);
+	played.current = onPlayed;
+	useEffect(() => {
+		let over = false;
+		const finish = () => { if (!over) { over = true; played.current?.(); } };
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			const hold = window.setTimeout(finish, FIRST_LOAD_REDUCED_MS);
+			return () => { over = true; window.clearTimeout(hold); };
+		}
+		const fallback = window.setTimeout(finish, FIRST_LOAD_PLAY_FALLBACK_MS);
+		const frame = window.requestAnimationFrame(() => {
+			const running = ref.current?.getAnimations?.({ subtree: true }) ?? [];
+			if (running.length) void Promise.all(running.map((a) => a.finished)).then(finish, finish);
+		});
+		return () => { over = true; window.clearTimeout(fallback); window.cancelAnimationFrame(frame); };
+	}, []);
+	return (
+		<div ref={ref} data-first-load-logo className="flex flex-col items-center px-4">
+			<EduLabsMark grow shadow stagger={30} className="h-44 w-auto sm:h-56" />
+			<div dir="ltr" aria-hidden="true" className="mt-7 flex font-display text-5xl leading-none text-black dark:text-white sm:text-6xl">
+				{WORD.map((letter, i) => <span key={i} className="first-load-letter" style={{ '--i': i } as React.CSSProperties}>{letter}</span>)}
+			</div>
+		</div>
+	);
+};
 
 /**
  * The EduLabs word fills in while the real load is running. It follows a curve that slows
@@ -54,6 +91,8 @@ const LoadingOverlay = ({
 	message = 'Loading page...',
 	done = false,
 	blocking = false,
+	firstLoad = false,
+	onPlayed,
 }: LoadingOverlayProps) => {
 	const { revealed, revealedBeforeDone } = useWordProgress(done);
 	const label = message.replace(/\.+$/, '') || 'Loading';
@@ -68,11 +107,12 @@ const LoadingOverlay = ({
 			exit={{ opacity: 0 }}
 			transition={{ duration: 0.25, ease: 'easeOut' }}
 			className={cn(
-				'fixed inset-0 z-[100] flex select-none flex-col items-center justify-center bg-background/45 backdrop-blur-xl',
-				blocking ? 'pointer-events-auto' : 'pointer-events-none'
+				'fixed inset-0 z-[100] flex select-none flex-col items-center justify-center',
+				firstLoad ? 'bg-background' : 'bg-background/45 backdrop-blur-xl',
+				blocking || firstLoad ? 'pointer-events-auto' : 'pointer-events-none'
 			)}
 		>
-			<div className="flex flex-col items-center px-4">
+			{firstLoad ? <FirstLoadLogo onPlayed={onPlayed} /> : <div className="flex flex-col items-center px-4">
 				<EduLabsMark grow shadow stagger={30} className="h-44 w-auto sm:h-56" />
 
 				<div
@@ -110,7 +150,7 @@ const LoadingOverlay = ({
 						<span className="loading-dot">.</span>
 					</span>
 				</p>
-			</div>
+			</div>}
 		</motion.div>
 	);
 };

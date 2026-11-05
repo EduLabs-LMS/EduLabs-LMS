@@ -15,12 +15,12 @@ import { usePathname } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import LoadingOverlay from '@/frontend/components/loading-overlay';
 import {
-	FIRST_LOAD_CAP_MS,
+	FIRST_LOAD_ARRIVAL_CAP_MS,
 	FIRST_LOAD_EVENT,
 	FIRST_LOAD_FINISH_MS,
-	FIRST_LOAD_MIN_MS,
 	clearFirstLoad,
 	firstLoadPending,
+	firstLoadWaitsForAddress,
 	markFirstLoad,
 } from '@/frontend/lib/first-load';
 
@@ -30,7 +30,7 @@ const SHOW_DELAY_MS = 120;
 /** How long the overlay stays after the action ends, so the word can complete. */
 const FINISH_MS = 650;
 
-type FirstLoad = { phase: 'idle' | 'running' | 'finishing'; from: string };
+type FirstLoad = { phase: 'idle' | 'running' | 'finishing'; from: string; played: boolean };
 
 interface LoadingContextValue {
 	/** True while a blocking action (startLoading) is in progress. */
@@ -40,7 +40,7 @@ interface LoadingContextValue {
 	startLoading: (customMessage?: string) => void;
 	stopLoading: () => void;
 	/**
-	 * Called by sign-in code when the person has just signed in: the logo overlay plays once, for under a second, over the first page.
+	 * Called by sign-in code when the person has just signed in: the logo animation plays once, to its full end, and then the first page shows.
 	 * Safe to call twice. In-app navigation afterwards keeps the app frame and shows a skeleton of the page instead.
 	 */
 	beginFirstLoad: () => void;
@@ -54,8 +54,7 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 	const [manual, setManual] = useState(false);
 	const [message, setMessage] = useState(DEFAULT_MESSAGE);
 	const [overlay, setOverlay] = useState({ visible: false, done: false });
-	const [first, setFirst] = useState<FirstLoad>({ phase: 'idle', from: '' });
-	const firstStartedAt = useRef(0);
+	const [first, setFirst] = useState<FirstLoad>({ phase: 'idle', from: '', played: false });
 	const pathRef = useRef(pathname);
 	pathRef.current = pathname;
 
@@ -71,8 +70,7 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 	const startFirst = useCallback(() => {
 		setFirst((prev) => {
 			if (prev.phase !== 'idle') return prev;
-			firstStartedAt.current = performance.now();
-			return { phase: 'running', from: pathRef.current };
+			return { phase: 'running', from: pathRef.current, played: false };
 		});
 	}, []);
 
@@ -87,25 +85,24 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 	// A full page load in the middle of signing in (the Google redirect) still counts as the first load.
 	useEffect(() => {
 		if (firstLoadPending()) {
-			firstStartedAt.current = performance.now();
-			setFirst((prev) => (prev.phase === 'idle' ? { phase: 'running', from: pathRef.current } : prev));
+			setFirst((prev) => (prev.phase === 'idle' ? { phase: 'running', from: pathRef.current, played: false } : prev));
 		}
 	}, []);
 
-	// Running: finish when the first page has taken over (the address changed) but not before the minimum, and never later than the cap.
+	const firstPlayed = useCallback(() => setFirst((prev) => (prev.phase === 'running' ? { ...prev, played: true } : prev)), []);
+
+	// Running: the animation always plays to its end. Then the page shows as soon as the first page's address is there, and a slow page never holds the logo past the cap.
 	useEffect(() => {
-		if (first.phase !== 'running') return;
-		const elapsed = performance.now() - firstStartedAt.current;
-		const arrived = pathname !== first.from;
-		const wait = arrived ? Math.max(0, FIRST_LOAD_MIN_MS - elapsed) : Math.max(0, FIRST_LOAD_CAP_MS - elapsed);
-		const timer = window.setTimeout(() => setFirst((prev) => (prev.phase === 'running' ? { ...prev, phase: 'finishing' } : prev)), wait);
+		if (first.phase !== 'running' || !first.played) return;
+		const arrived = pathname !== first.from || !firstLoadWaitsForAddress(first.from);
+		const timer = window.setTimeout(() => setFirst((prev) => (prev.phase === 'running' ? { ...prev, phase: 'finishing' } : prev)), arrived ? 0 : FIRST_LOAD_ARRIVAL_CAP_MS);
 		return () => window.clearTimeout(timer);
 	}, [first, pathname]);
 
 	useEffect(() => {
 		if (first.phase !== 'finishing') return;
 		clearFirstLoad();
-		const timer = window.setTimeout(() => setFirst({ phase: 'idle', from: '' }), FIRST_LOAD_FINISH_MS);
+		const timer = window.setTimeout(() => setFirst({ phase: 'idle', from: '', played: false }), FIRST_LOAD_FINISH_MS);
 		return () => window.clearTimeout(timer);
 	}, [first.phase]);
 
@@ -134,6 +131,8 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 	);
 
 	const showFirst = first.phase !== 'idle';
+	// While the first load is finishing, its overlay stays and only fades: it must not change into the action overlay's look.
+	const firstLoadOverlay = showFirst && !overlay.visible;
 	const visible = overlay.visible || showFirst;
 
 	return (
@@ -146,6 +145,8 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 						message={overlay.visible ? message : DEFAULT_MESSAGE}
 						done={overlay.visible ? overlay.done : first.phase === 'finishing'}
 						blocking={manual}
+						firstLoad={firstLoadOverlay}
+						onPlayed={firstPlayed}
 					/>
 				)}
 			</AnimatePresence>

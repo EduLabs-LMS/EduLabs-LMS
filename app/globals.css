@@ -125,6 +125,15 @@ body,
   animation: splash-in 0.6s ease-out 2s forwards;
 }
 
+/* First load after sign-in: the word's letters follow the tree, one by one, in CSS, so the overlay can wait for the real end of the animation */
+.first-load-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translate3d(0, 45%, 0) scale(0.4) rotate(-8deg);
+  animation: splash-in 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) forwards;
+  animation-delay: calc(0.3s + var(--i) * 100ms);
+}
+
 /* Loading screen: the three dots after "Loading" */
 @keyframes loading-dot {
   0%, 80%, 100% {
@@ -154,6 +163,7 @@ body,
     transform: none;
     animation: none;
   }
+  .first-load-letter,
   .splash-letter,
   .splash-tag {
     opacity: 1;
