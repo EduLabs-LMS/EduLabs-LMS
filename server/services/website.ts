@@ -3,19 +3,33 @@ import { cache } from 'react';
 import { randomUUID } from 'node:crypto';
 import { getApplicationViewer } from '@/server/services/application-auth';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
+import { getFirebaseSession } from '@/server/services/firebase-auth';
 import { createWebsiteRepository } from '@/server/repositories/website';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { lessonThumbnails } from '@/server/services/lesson-media';
 
+/**
+ * Who the caller is and what they may see, read once per request.
+ * Rounds: (1) the profile lookup (two reads), the spaces, and the courses followed by their offerings, all side by side (none of
+ * those three needs the profile id), then (2) memberships, course staff and offering staff together. Authorization is unchanged:
+ * every read still runs with the caller's own token under RLS, and nothing from round (1) is used if the profile is missing.
+ */
 export const getWebsiteContext = cache(async () => {
   if (!isFirebaseStaging()) throw new Error('Firebase staging required');
+  const session = await getFirebaseSession();
+  if (!session || session.identity.role !== 'authenticated' || !session.identity.email_verified) return null;
+  const client = await getSupabaseServerClient();
+  // organizations(), courses() and offerings() never use the profile id, so they can start before the profile is known.
+  const early = createWebsiteRepository(client, '');
+  const spacesAndCourses = Promise.all([early.organizations(), early.courses().then(async courses => ({ courses, offerings: await early.offerings(courses.map(c => c.id)) }))]);
+  spacesAndCourses.catch(() => {}); // when there is no profile the result is dropped; a failure must not surface as an unhandled rejection
   const viewer = await getApplicationViewer();
   if (!viewer) return null;
-  const repository = createWebsiteRepository(await getSupabaseServerClient(), viewer.id);
-  const [organizations, memberships, courseStaff, offeringStaff] = await Promise.all([
-    repository.organizations(), repository.memberships(), repository.courseStaff(), repository.offeringStaff(),
+  const repository = createWebsiteRepository(client, viewer.id);
+  const [[organizations, { courses, offerings }], memberships, courseStaff, offeringStaff] = await Promise.all([
+    spacesAndCourses, repository.memberships(), repository.courseStaff(), repository.offeringStaff(),
   ]);
-  return { viewer, repository, organizations, memberships, courseStaff, offeringStaff };
+  return { viewer, repository, organizations, memberships, courseStaff, offeringStaff, courses, offerings };
 });
 
 export type WebsiteContext = NonNullable<Awaited<ReturnType<typeof getWebsiteContext>>>;

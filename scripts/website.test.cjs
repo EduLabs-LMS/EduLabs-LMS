@@ -7,11 +7,11 @@ function load(file, dependencies = {}) {
   const module = { exports: {} };
   const source = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
   vm.runInNewContext(source, { module, exports: module.exports, Date, Set, Array,
-    require: name => { if (name === 'server-only') return {}; assert.ok(name in dependencies, name); return dependencies[name]; } });
+    require: name => { if (name === 'server-only') return {}; if (name === '@/server/request-scope') return require('./request-scope-double.cjs'); assert.ok(name in dependencies, name); return dependencies[name]; } });
   return module.exports;
 }
 const { courseCapability, offeringCapability, loadWebsiteScope } = load('server/services/website.ts', {
-  react: { cache: fn => fn }, 'node:crypto': require('node:crypto'), '@/server/services/application-auth': {}, '@/server/integrations/supabase': {}, '@/server/repositories/website': {}, '@/shared/auth-config': {}, '@/server/services/lesson-media': {},
+  react: { cache: fn => fn }, 'node:crypto': require('node:crypto'), '@/server/services/application-auth': {}, '@/server/services/firebase-auth': {}, '@/server/integrations/supabase': {}, '@/server/repositories/website': {}, '@/shared/auth-config': {}, '@/server/services/lesson-media': {},
 });
 test('navigation capabilities require active membership and assignments in the specific organization', () => {
   const courseA = { id: 'a', organization_id: 'orgA' }, courseB = { id: 'b', organization_id: 'orgB' };

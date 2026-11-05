@@ -12,6 +12,7 @@ function load(file, dependencies, env = {}) {
   vm.runInNewContext(code, { module, exports: module.exports, process: { env }, console,
     require(name) {
       if (name === 'server-only' || name.endsWith('.css')) return {};
+      if (name === '@/server/request-scope') return require('./request-scope-double.cjs');
       assert.ok(Object.hasOwn(dependencies, name), `Unexpected dependency: ${name}`);
       return dependencies[name];
     },

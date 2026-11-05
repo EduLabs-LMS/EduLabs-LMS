@@ -8,7 +8,7 @@ function load(file, deps, env = {}) {
   const module = { exports: {} };
   const source = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
   vm.runInNewContext(source, { module, exports: module.exports, process: { env }, Date, Map, Buffer, URL, console,
-    require(name) { if (name === 'server-only') return {}; assert.ok(name in deps, name); return deps[name]; } });
+    require(name) { if (name === 'server-only') return {}; if (name === '@/server/request-scope') return require('./request-scope-double.cjs'); assert.ok(name in deps, name); return deps[name]; } });
   return module.exports;
 }
 const env = { NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'diagonproduction' };

@@ -58,3 +58,4 @@ application_default_credentials.json
 *.key
 /deployment-public.json
 /infra/*.env
+/.next-*/

@@ -54,7 +54,21 @@ function Assessments({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof l
     {upcoming.map(s => <div className="border-t py-3 text-sm" key={s.id}><Link href={'/exams/'+s.id}><strong>{scope.assessments.find(a => a.id === s.assessment_id)?.title || 'Assessment'}</strong></Link><p>{scope.offerings.find(o => o.id === s.offering_id)?.name}{" "}<L id="common.opens"/>{" "}{s.opens_at ? new Date(s.opens_at).toISOString() : 'any time'}{" "}<L id="common.closes"/>{" "}{s.closes_at ? new Date(s.closes_at).toISOString() : 'without a deadline'}</p></div>)}
   </section>;
 }
+/**
+ * A teacher's Home needs none of the student learning scope (modules, lessons, progress, assessments, thumbnails: about eight more
+ * reads in several rounds). With no filter and within the limits, decide staff-or-not from the context's own course and offering
+ * reads, exactly as below, and only a student pays for the full scope.
+ */
+function staffFromContext(context: Awaited<ReturnType<typeof requireWebsiteContext>>) {
+  if (context.courses.length > 100 || context.offerings.length > 100) return null; // limits reached: take the full path, which reports them
+  const supported = context.offerings.filter(o => { const course = context.courses.find(c => c.id === o.course_id); return course && offeringCapability(context, course, o.id); });
+  return context.courses.some(c => courseCapability(context, c)) || supported.length > 0 || context.memberships.some(m => m.status === 'active' && ['owner', 'admin'].includes(m.role));
+}
 export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
+  if (Object.keys(search).length === 0) {
+    const context = await requireWebsiteContext();
+    if (staffFromContext(context)) return <div className="space-y-8"><TeacherHomePage/></div>;
+  }
   const { context, scope } = await scopeFor(search);
   const supported = scope.offerings.filter(o => {
     const course = scope.courses.find(c => c.id === o.course_id);

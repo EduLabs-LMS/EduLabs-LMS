@@ -1,3 +1,4 @@
+import { ServerTimingMarker } from '@/app/(dashboard)/_components/server-timing-marker';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { TeacherFoundationPage } from '@/app/(dashboard)/_components/teacher-foundation-page';
 import { staffContext } from '@/app/(dashboard)/_components/teacher-home-pages';
@@ -7,5 +8,5 @@ import { TeacherGroupsList } from '@/frontend/features/teacher-groups/list-view'
 export default async function Page() {
   if (!isFirebaseStaging()) return <TeacherFoundationPage title="Groups & Classes" />;
   await staffContext();
-  return <TeacherGroupsList />;
+  return <><TeacherGroupsList /><ServerTimingMarker /></>;
 }

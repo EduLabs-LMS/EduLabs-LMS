@@ -1,3 +1,4 @@
+import { ServerTimingMarker } from '@/app/(dashboard)/_components/server-timing-marker';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { TeacherFoundationPage } from '@/app/(dashboard)/_components/teacher-foundation-page';
 import { staffContext } from '@/app/(dashboard)/_components/teacher-home-pages';
@@ -11,5 +12,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
   if (!isFirebaseStaging()) return <TeacherFoundationPage title="Students" />;
   const context = await staffContext();
   const { invite } = await searchParams;
-  return <TeacherStudentsView courses={await loadGroupCourses(context)} inviteOffering={typeof invite === 'string' && uuid.test(invite) ? invite : null} />;
+  const courses = await loadGroupCourses(context);
+  return <><TeacherStudentsView courses={courses} inviteOffering={typeof invite === 'string' && uuid.test(invite) ? invite : null} /><ServerTimingMarker /></>;
 }

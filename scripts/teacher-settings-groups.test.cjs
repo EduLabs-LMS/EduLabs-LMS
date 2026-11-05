@@ -116,7 +116,7 @@ test('groups: changes ask first, send the version they read, and Archive is for 
 });
 test('groups: pages are staff-only, validate the id, and the list route sits next to the menu entry', () => {
  const list = read('app/(dashboard)/(routes)/teacher/groups/page.tsx'), one = read('app/(dashboard)/(routes)/teacher/groups/[groupId]/page.tsx');
- assert.match(list, /await staffContext\(\);\s*return <TeacherGroupsList/); assert.match(one, /notFound\(\)/); assert.match(one, /await staffContext\(\);\s*return <TeacherGroupView/);
+ assert.match(list, /await staffContext\(\);\s*return <>\s*<TeacherGroupsList \/>/); assert.match(one, /notFound\(\)/); assert.match(one, /await staffContext\(\);\s*return <>\s*<TeacherGroupView/);
  assert.match(read('shared/teacher-home.ts'), /href: '\/teacher\/groups'/);
 });
 

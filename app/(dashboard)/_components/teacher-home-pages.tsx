@@ -1,3 +1,4 @@
+import { ServerTimingMarker } from '@/app/(dashboard)/_components/server-timing-marker';
 import { redirect } from 'next/navigation';
 import { getWebsiteContext } from '@/server/services/website';
 import { loadTeacherCourses, loadTeacherHome } from '@/server/services/teacher-home';
@@ -15,10 +16,11 @@ export async function staffContext() {
 }
 
 export async function TeacherHomePage() {
-  return <TeacherHomeView data={await loadTeacherHome(await staffContext())} />;
+  const data = await loadTeacherHome(await staffContext());
+  return <><TeacherHomeView data={data} /><ServerTimingMarker /></>;
 }
 
 export async function TeacherCoursesPage() {
   const { courses, createTargets } = await loadTeacherCourses(await staffContext());
-  return <TeacherCoursesView courses={courses} targets={createTargets} />;
+  return <><TeacherCoursesView courses={courses} targets={createTargets} /><ServerTimingMarker /></>;
 }

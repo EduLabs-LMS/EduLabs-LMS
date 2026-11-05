@@ -14,8 +14,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
 	if (isFirebaseStaging()) {
         const context = await getWebsiteContext();
         if (!context) redirect('/sign-in');
-        const courses = await context.repository.courses();
-        const offerings = await context.repository.offerings(courses.map(c => c.id));
+        const { courses, offerings } = context; // read together with the context: same reads, same limits
         const staffOrganizationIds = context.organizations.filter(o =>
           context.memberships.some(m => m.organization_id === o.id && m.status === 'active' && ['owner','admin'].includes(m.role)) ||
           courses.some(c => c.organization_id === o.id && (courseCapability(context,c) || offerings.some(f => f.course_id === c.id && offeringCapability(context,c,f.id))))

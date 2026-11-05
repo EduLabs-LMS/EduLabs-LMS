@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),vm=require('vm'),ts=require('typescript'),React=require('react');
 const {renderToStaticMarkup:render}=require('react-dom/server');
 function load(path,resolve){const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module:m,exports:m.exports,require:resolve});return m.exports}
-const context={viewer:{displayName:'Learner'},memberships:[],courseStaff:[],offeringStaff:[]};
+const context={viewer:{displayName:'Learner'},memberships:[],courseStaff:[],offeringStaff:[],courses:[],offerings:[]};
 const empty={courses:[],offerings:[],enrollments:[],modules:[],lessons:[],progress:[],scheduled:[],assessments:[],limited:false,contentLimited:false,progressLimited:false};
 function pages(scope,failure){return load('app/(dashboard)/_components/website-pages.tsx',n=>{if(n==='@/frontend/components/language-provider')return require('./localization-test-loader.cjs').language();
  if(n==='@/server/services/website')return {getWebsiteContext:async()=>context,loadWebsiteScope:async()=>{if(failure)throw Error('Load failed');return scope},courseCapability:()=>false,offeringCapability:()=>false};

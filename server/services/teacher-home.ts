@@ -19,11 +19,16 @@ export async function settle<T>(read: () => PromiseLike<T>): Promise<Settled<T>>
 }
 
 export async function teacherCourses(context: WebsiteContext): Promise<Settled<RawCourse[]>> {
-  return settle(async () => (await context.repository.courses()).filter(c => courseCapability(context, c)));
+  // The context already read the caller's courses (same read, same limit) in this request.
+  return settle(async () => context.courses.filter(c => courseCapability(context, c)));
 }
 
 
 export async function loadTeacherHome(context: WebsiteContext, now = Date.now()): Promise<TeacherHomeLoad> {
+  // The courses and spaces are already in the context, so the demo-label check can start with the other reads instead of after them.
+  const ownCourses = await teacherCourses(context);
+  const targets = createTargets(context.organizations, context.memberships);
+  const demo = demoLabel(teachingSpaceIds(targets, ownCourses));
   const groups = settle(async () => (await groupService()).overview() as Promise<GroupPage<StudyGroup>>);
   const upcoming = settle(async () => (await groupService()).view<GroupSession & { group_name?: string }>(null, 'upcoming'));
   // The rule "attendance not saved" is read per Group from its own sessions, exactly like a Group card does (the existing `view`, no new endpoint).
@@ -36,9 +41,8 @@ export async function loadTeacherHome(context: WebsiteContext, now = Date.now())
     return Promise.all(ids.map(async groupId => ({ groupId, rows: (await service.view<GroupSession>(groupId, 'sessions')).rows })));
   }));
   const notifications = settle(async () => (await (await communicationService())('notifications', 'list', { page: 0, filter: 'unread' })) as unknown as NotificationPage);
-  const [courses, g, u, n, a] = await Promise.all([teacherCourses(context), groups, upcoming, notifications, unsaved]);
-  const targets = createTargets(context.organizations, context.memberships);
-  return { ...buildTeacherHome({ courses, groups: g, upcoming: u, notifications: n, unsaved: a, now }), createTargets: targets, demo: await demoLabel(teachingSpaceIds(targets, courses)) };
+  const [g, u, n, a, demoShown] = await Promise.all([groups, upcoming, notifications, unsaved, demo]);
+  return { ...buildTeacherHome({ courses: ownCourses, groups: g, upcoming: u, notifications: n, unsaved: a, now }), createTargets: targets, demo: demoShown };
 }
 
 /** A failed check shows no label and no error: the label only ever says something the database confirmed. */
@@ -53,8 +57,7 @@ async function demoLabel(spaceIds: string[]): Promise<boolean> {
 /** The courses a new Group can belong to, for the Create a Group page. */
 export async function loadGroupCourses(context: WebsiteContext, now = Date.now()) {
   return settle(async () => {
-    const courses = await context.repository.courses();
-    return groupCourseChoices(courses, await context.repository.offerings(courses.map(c => c.id)), context, now);
+    return groupCourseChoices(context.courses, context.offerings, context, now);
   });
 }
 
