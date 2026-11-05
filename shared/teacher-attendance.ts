@@ -22,6 +22,8 @@ export const AUTO_RETRIES = 5;
 export const PENDING_NOTE_MS = 60_000;
 
 export const attendanceHref = (groupId: string, sessionId: string) => `/teacher/groups/${groupId}/attendance/${sessionId}`;
+/** The address of the Take attendance page: the teacher frame hides the phone tabs there. */
+export const attendancePathPattern = /^\/teacher\/groups\/[^/]+\/attendance\/[^/]+$/;
 
 const isMark = (v: unknown): v is Mark => v === 'attended' || v === 'absent' || v === 'not_marked';
 

@@ -1,42 +1,31 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, Bell, BookOpen, ChevronRight, Globe, User } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronRight, Globe, User } from 'lucide-react';
+import { Tabs } from '@/frontend/components/design';
 import { L, useLanguage } from '@/frontend/components/language-provider';
-import { cn } from '@/shared/utils';
 import { coursePagePattern } from '@/shared/teacher-course-page';
 import { settingsSectionFor, teacherSettingsRoot, teacherSettingsSections, type TeacherSettingsSection } from '@/shared/teacher-settings';
 
-export const sectionIcons: Record<TeacherSettingsSection['key'], typeof User> = { account: User, courses: BookOpen, language: Globe, notifications: Bell };
+export const sectionIcons: Record<TeacherSettingsSection['key'], typeof User> = { account: User, language: Globe, notifications: Bell };
 
 /**
- * The Settings area has its own frame (it is not inside the main teacher sidebar layout). Desktop: a "Settings" sidebar with a way back, content on the
- * right (max 880px). Phone: a back arrow and the title on top; the root is the list of sections, each section its own page.
+ * Settings inside the main teacher frame, with its own sub-navigation inside the content area. Desktop: the title and underline tabs. Phone: a back arrow
+ * and the title; the root is the list of sections, each section its own page. A course's page keeps its address under Settings but belongs to Courses, so it is shown without this sub-navigation.
  */
 export function TeacherSettingsShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
   const { t } = useLanguage();
-  const onCourse = coursePagePattern.test(pathname);
-  const section = settingsSectionFor(pathname) ?? (onCourse ? teacherSettingsSections.find(s => s.key === 'courses') ?? null : null);
-  return <div data-teacher-settings className="min-h-screen bg-slate-50 text-black md:flex">
-    <nav aria-label={t('ts.nav.label')} data-settings-sidebar className="hidden min-h-screen shrink-0 flex-col gap-1.5 border-e-2 border-black bg-white p-4 md:flex md:w-72">
-      <Link href="/home" data-settings-back className="inline-flex min-h-[44px] w-fit items-center gap-1.5 rounded-xl px-2 text-base font-bold hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /><L id="ts.back_to_app" /></Link>
-      <h1 className="px-2 py-3 font-display text-3xl leading-tight"><L id="ts.title" /></h1>
-      {teacherSettingsSections.map(s => {
-        const Icon = sectionIcons[s.key], active = pathname === s.href || (onCourse && s.key === 'courses');
-        return <Link key={s.key} href={s.href} data-settings-section={s.key} aria-current={active ? 'page' : undefined}
-          className={cn('flex min-h-[48px] items-center gap-3 rounded-2xl border-2 px-3 text-base transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2', active ? 'border-black bg-primary font-bold shadow-hard-sm' : 'border-transparent font-semibold text-slate-700 hover:bg-slate-100 hover:text-black')}>
-          <Icon aria-hidden className="h-[22px] w-[22px] shrink-0" /><span><L id={`ts.${s.key}.title`} /></span>
-        </Link>;
-      })}
-    </nav>
-    <div className="min-w-0 flex-1">
-      <header className="sticky top-0 z-10 flex items-center gap-2 border-b-2 border-black bg-white px-4 py-2.5 md:hidden">
-        <Link href={onCourse ? '/teacher/settings/courses' : section ? teacherSettingsRoot : '/home'} data-settings-phone-back aria-label={section && !onCourse ? t('ts.back_to_settings') : t('ts.back')} className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-black bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"><ArrowLeft aria-hidden className="h-6 w-6 rtl:rotate-180" /></Link>
-        <h1 className="font-display text-2xl leading-tight">{section ? <L id={`ts.${section.key}.title`} /> : <L id="ts.title" />}</h1>
-      </header>
-      <main className="px-4 py-5 md:px-14 md:py-10"><div className="w-full max-w-[880px] space-y-6">{children}</div></main>
-    </div>
+  if (coursePagePattern.test(pathname)) return <>{children}</>;
+  const section = settingsSectionFor(pathname);
+  return <div data-teacher-settings className="d-settings text-black">
+    <header className="hidden md:block"><h1 className="d-title"><L id="ts.title" /></h1></header>
+    <header className="flex items-center gap-2 md:hidden">
+      <Link href={section ? teacherSettingsRoot : '/home'} data-settings-phone-back aria-label={section ? t('ts.back_to_settings') : t('ts.back')} className="d-btn d-btn--icon"><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /></Link>
+      <h1 className="d-title">{section ? <L id={`ts.${section.key}.title`} /> : <L id="ts.title" />}</h1>
+    </header>
+    <div className="hidden md:block"><Tabs label={t('ts.nav.label')} active={section?.key ?? ''} data-settings-sidebar items={teacherSettingsSections.map(s => ({ key: s.key, href: s.href, label: <L id={`ts.${s.key}.title`} />, 'data-settings-section': s.key }))} /></div>
+    <div className="space-y-6">{children}</div>
   </div>;
 }
 

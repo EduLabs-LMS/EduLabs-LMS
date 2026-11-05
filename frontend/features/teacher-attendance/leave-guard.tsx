@@ -1,13 +1,14 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { L } from '@/frontend/components/language-provider';
+import { setActionGuard } from '@/frontend/lib/guarded-action';
 import { inkButton, plainButton } from '@/frontend/features/teacher-home/parts';
 
-type Leave = { kind: 'link'; href: string } | { kind: 'back' };
+type Leave = { kind: 'link'; href: string } | { kind: 'back' } | { kind: 'action'; run: () => void };
 
 /**
  * While `active`, every way out of the page asks first: closing or reloading the tab and typing another address (the browser's own prompt),
- * any link on the page (the menu, the logo, "Back to the Group", a Home link), and the browser's Back button. A link to another site, or
+ * any link on the page (the menu, the logo, "Back to the Group", a Home link), the browser's Back button, and signing out from the frame's menu. A link to another site, or
  * one that opens a new tab, is left to the browser. `go` is the app's own navigation, used once the teacher chooses to leave anyway.
  * Navigation that is not a link or Back (a script calling the router) cannot be intercepted here.
  */
@@ -32,11 +33,12 @@ export function useLeaveGuard(active: boolean, go: (href: string) => void) {
       e.preventDefault(); e.stopImmediatePropagation();
       setAsking({ kind: 'link', href: url.pathname + url.search + url.hash });
     };
+    const removeActionGuard = setActionGuard(run => setAsking({ kind: 'action', run }));
     window.addEventListener('beforeunload', beforeUnload);
     document.addEventListener('click', click, true);
     // One extra history entry so that Back lands on this page again, where it can be asked about. The state is copied, which keeps the router's own bookkeeping.
     if (!sentinel.current) { window.history.pushState(window.history.state, '', window.location.href); sentinel.current = true; }
-    return () => { window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('click', click, true); };
+    return () => { removeActionGuard(); window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('click', click, true); };
   }, [active]);
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export function useLeaveGuard(active: boolean, go: (href: string) => void) {
   const leave = () => {
     const target = asking; if (!target) return;
     leaving.current = true; setAsking(null);
-    if (target.kind === 'back') { sentinel.current = false; window.history.go(-2); } else go(target.href);
+    if (target.kind === 'back') { sentinel.current = false; window.history.go(-2); } else if (target.kind === 'action') target.run(); else go(target.href);
   };
   return { asking, stay, leave };
 }

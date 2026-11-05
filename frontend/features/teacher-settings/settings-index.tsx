@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { teacherSettingsSections } from '@/shared/teacher-settings';
 import { SettingsList } from './shell';
 
-/** /teacher/settings: a list on a phone, and on a desktop width straight to the first section (the sidebar is the list there). */
+/** /teacher/settings: a list on a phone, and on a desktop width straight to the first section (the tabs are the list there). */
 export function SettingsIndex() {
   const router = useRouter();
   useEffect(() => {

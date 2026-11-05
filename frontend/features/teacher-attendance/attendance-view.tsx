@@ -293,7 +293,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
           : <ul data-tour="student-rows" data-student-list className="divide-y divide-black/15">
             {shown.map(r => <StudentRow key={r.user_id} row={r} mark={marks[r.user_id] ?? 'not_marked'} editable={editable} onMark={m => mark({ ...marksRef.current, [r.user_id]: m })} />)}
           </ul>}
-      <div data-tour="save-actions" data-actions className="fixed inset-x-0 bottom-0 z-30 space-y-2 border-t-2 border-black bg-white p-4 lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:pt-2">
+      <div data-tour="save-actions" data-actions className="fixed inset-x-0 bottom-0 z-30 space-y-2 border-t-2 border-black bg-white p-4 md:start-[var(--d-sidebar-width)] lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:pt-2">
         {guard.asking && <LeaveQuestion stay={guard.stay} leave={guard.leave} />}
         {failure && !saveFailed && <GroupError kind={failure.kind} unknownOutcome={failure.status === null} onRetry={failure.kind === 'changed' || failure.status === null ? reloadAll : undefined} retryLabel="tg.reload" />}
         {confirming === 'finalize' && <div role="group" data-confirm-finalize aria-label={t('ta.finish')} className="space-y-2">

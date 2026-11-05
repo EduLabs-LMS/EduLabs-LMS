@@ -7,9 +7,6 @@ import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/frontend/components/ui/sheet';
 import Sidebar from '@/frontend/components/sidebar';
 import { BrandLogo } from '@/frontend/components/brand-logo';
-import { useWebsiteNavigation } from '@/frontend/components/providers/application-auth-provider';
-import { isFirebaseStaging } from '@/shared/auth-config';
-import { showTeacherNav, teacherHomeHref } from '@/shared/teacher-home';
 
 interface MobileSidebarProps {
 	initialRole?: string | null;
@@ -17,14 +14,12 @@ interface MobileSidebarProps {
 
 export const MobileSidebar = ({ initialRole }: MobileSidebarProps) => {
 	const { direction } = useLanguage();
-	const navigation = useWebsiteNavigation();
-	const teacherMode = showTeacherNav(isFirebaseStaging(), navigation?.staffOrganizationIds);
  const [open, setOpen] = useState(false);
 
 	return (
 		<div className="md:hidden sticky top-0 z-40 bg-white text-black px-4 py-3 border-b-[2.5px] border-black flex items-center justify-between">
 		{/* Mobile Branding Logo */}
-		<BrandLogo size="phone" href={teacherMode ? teacherHomeHref : undefined} />
+		<BrandLogo size="phone" />
 
 		{/* Sheet Trigger & Drawer Content */}
 		<div className="flex items-center gap-3">

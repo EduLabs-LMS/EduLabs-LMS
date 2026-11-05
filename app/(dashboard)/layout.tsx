@@ -3,6 +3,7 @@ import { getWebsiteContext, courseCapability, offeringCapability } from '@/serve
 import { WebsiteNavigationProvider } from '@/frontend/components/providers/application-auth-provider';
 import { redirect } from 'next/navigation';
 import { auth } from '@clerk/nextjs/server';
+import { TeacherFrame } from '@/frontend/features/teacher-frame/teacher-frame';
 import Sidebar from '@/frontend/components/sidebar';
 import MobileSidebar from '@/frontend/features/dashboard/mobile-sidebar';
 import Footer from '@/frontend/components/footer';
@@ -20,13 +21,13 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
           courses.some(c => c.organization_id === o.id && (courseCapability(context,c) || offerings.some(f => f.course_id === c.id && offeringCapability(context,c,f.id))))
         ).map(o => o.id);
         return <WebsiteNavigationProvider value={{ viewer: context.viewer, organizations: context.organizations.slice(0,100), staffOrganizationIds }}>
-          <div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
+          {staffOrganizationIds.length ? <TeacherFrame>{children}</TeacherFrame> : <div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
             <MobileSidebar />
             <aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50"><Sidebar /></aside>
             <main className="md:ps-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between">
               <div className="flex-1 w-full p-4 sm:p-6 md:p-8">{children}</div><Footer />
             </main>
-          </div>
+          </div>}
         </WebsiteNavigationProvider>;
     }
 	const { userId } = await auth();

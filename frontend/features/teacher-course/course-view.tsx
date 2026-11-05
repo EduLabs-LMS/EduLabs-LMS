@@ -26,7 +26,7 @@ export function CourseLoading() {
 /** One course: what it is, whether students can see it, and Publish / Unpublish. Chapters and lessons are not here yet (see TEACHER_UI_SPEC.md). */
 export function TeacherCourseView({ load }: { load: CourseLoad }) {
   const retry = useRetry();
-  const back = <Link href="/teacher/settings/courses" data-course-back className={linkClass}><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /><L id="tc.back" /></Link>;
+  const back = <Link href="/teacher/courses" data-course-back className={linkClass}><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /><L id="tc.back" /></Link>;
   if (load.state === 'error') return <div data-teacher-course className="space-y-4">{back}<div className={card}><SectionError status={load.status} onRetry={retry.retry} pending={retry.pending} /></div></div>;
   if (load.state === 'missing') return <div data-teacher-course data-state="missing" className="space-y-4">{back}
     <div className={`${card} space-y-2`}><h1 className="font-display text-2xl"><L id="tc.missing.title" /></h1><p className="text-base text-slate-800"><L id="tc.missing.body" /></p></div></div>;
