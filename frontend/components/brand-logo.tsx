@@ -9,7 +9,7 @@ import { cn } from '@/shared/utils';
 /**
  * The EduLabs logo.
  * Without `href` it is the student shell's plain markup: mark, wordmark and the "learning platform" line.
- * With `href` it is the teacher frame's one link to Home: mark and wordmark. The same markup in both looks; the design tokens paint it (a lime square behind the tree in New).
+ * With `href` it is the teacher frame's one link to Home: mark and wordmark. The same markup in both looks, the real tree at its natural shape, with nothing behind it.
  */
 export function BrandLogo({ href, onNavigate, size = 'desktop' }: { href?: string; onNavigate?: () => void; size?: 'desktop' | 'phone' }) {
   const { t } = useLanguage();

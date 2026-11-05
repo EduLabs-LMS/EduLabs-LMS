@@ -26,6 +26,7 @@ html[data-lms-appearance][lang] :is(h1, h2, h3).d-title { font-family: var(--d-f
 .d-btn[disabled], .d-btn[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
 .d-btn:not([disabled]):hover { transform: var(--d-hover-transform); }
 .d-btn:not([disabled]):active { transform: var(--d-active-transform); box-shadow: var(--d-active-shadow); }
+.d-btn--primary:not([disabled]):active { transform: var(--d-primary-active-transform); box-shadow: var(--d-primary-active-shadow); }
 .d-btn--primary { background: var(--d-primary); color: var(--d-on-primary); border-color: var(--d-primary-border); box-shadow: var(--d-primary-shadow); }
 .d-btn--secondary { background: var(--d-raised); color: var(--d-ink); border-color: var(--d-field-line); box-shadow: var(--d-control-shadow); }
 .d-btn--tertiary { background: transparent; color: var(--d-link); border-color: transparent; padding-inline: var(--d-space-2); text-decoration: var(--d-tertiary-decoration); text-underline-offset: 4px; }
@@ -102,7 +103,7 @@ html[data-lms-appearance][lang] :is(h1, h2, h3).d-title { font-family: var(--d-f
 .d-search .d-field-input { padding-inline-start: 38px; }
 
 /* ---- Tabs (underline) ---- */
-.d-tabs { display: flex; gap: var(--d-space-5); overflow-x: auto; border-bottom: var(--d-divider-width) solid var(--d-divider); scrollbar-width: none; }
+.d-tabs { position: relative; display: flex; gap: var(--d-space-5); overflow-x: auto; border-bottom: var(--d-divider-width) solid var(--d-divider); scrollbar-width: none; }
 .d-tabs::-webkit-scrollbar { display: none; }
 .d-tab { min-width: var(--d-target); display: inline-flex; align-items: center; justify-content: center; min-height: var(--d-target); padding: 0; background: none; border: 0; font: inherit; font-size: var(--d-label-size); font-weight: 600; color: var(--d-meta); white-space: nowrap; cursor: pointer; }
 .d-tab[aria-current="page"], .d-tab[aria-selected="true"] { color: var(--d-ink); box-shadow: inset 0 -2px 0 var(--d-deep); }
@@ -151,6 +152,7 @@ html[data-lms-appearance][lang] :is(h1, h2, h3).d-title { font-family: var(--d-f
 .d-sheet-item { display: flex; align-items: center; gap: var(--d-space-3); width: 100%; min-height: 52px; padding: 0 var(--d-space-1); background: none; border: 0; border-bottom: var(--d-divider-width) solid var(--d-divider); font: inherit; font-size: var(--d-body-size); font-weight: 600; color: var(--d-ink); text-align: start; cursor: pointer; }
 .d-sheet-item:last-child { border-bottom: 0; }
 .d-sheet-item--danger { color: var(--d-danger-text); }
+.d-sheet-item--soon { cursor: not-allowed; color: var(--d-meta); }
 
 /* ---- Skeleton ---- */
 .d-skeleton { background: var(--d-skeleton); border-radius: var(--d-radius-field); animation: d-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
@@ -158,17 +160,14 @@ html[data-lms-appearance][lang] :is(h1, h2, h3).d-title { font-family: var(--d-f
 
 /* ---- Logo ---- */
 .d-logo { display: inline-flex; align-items: center; gap: 10px; min-height: var(--d-target); border-radius: var(--d-radius-field); color: var(--d-logo-word); min-width: 0; }
-.d-logo-mark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9px; background: var(--d-logo-mark-bg); box-shadow: var(--d-logo-mark-shadow); }
+/* The owner's own tree at its natural shape and colour: no box and no background behind it (owner decision, DECISIONS.md). */
+.d-logo-mark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
 .d-logo-mark svg { height: 100%; width: auto; }
-html[data-design="new"] .d-logo-mark { width: 30px; height: 30px; }
-html[data-design="new"] .d-logo-mark svg { height: 20px; }
-.d-logo-mark svg > g:last-child path { fill: var(--d-logo-tree); }
+html[data-design="new"] .d-logo-mark { width: auto; height: 36px; }
 .d-logo-mark svg > g[aria-hidden] { display: var(--d-logo-tree-shadow); }
 .d-logo-word { font-family: var(--font-display), 'Cooper Black', Georgia, serif; font-weight: 400; font-size: 24px; line-height: 1; }
-html[data-design="new"] .d-logo-word { font-size: 20px; }
-html[data-design="new"] .d-logo--phone .d-logo-word { font-size: 18px; }
-html[data-design="new"] .d-logo--phone .d-logo-mark { width: 26px; height: 26px; }
-html[data-design="new"] .d-logo--phone .d-logo-mark svg { height: 17px; }
+html[data-design="new"] .d-logo--phone .d-logo-word { font-size: 20px; }
+html[data-design="new"] .d-logo--phone .d-logo-mark { height: 30px; }
 
 /* ---- App frame ---- */
 .d-shell { min-height: 100vh; width: 100%; position: relative; background: var(--d-canvas); color: var(--d-ink); --d-tabs-offset: calc(var(--d-tabs-height) + env(safe-area-inset-bottom)); }
@@ -187,8 +186,10 @@ html[data-design="new"] .d-logo--phone .d-logo-mark svg { height: 17px; }
 .d-nav { position: relative; display: flex; align-items: center; gap: var(--d-space-3); min-height: var(--d-nav-height); padding: 0 var(--d-space-3); border-radius: var(--d-radius-nav); border: var(--d-control-border-width) solid transparent; font-size: var(--d-nav-size); font-weight: var(--d-nav-weight); color: var(--d-nav-text); background: none; width: 100%; text-align: start; cursor: pointer; font-family: inherit; }
 .d-nav:hover { background: var(--d-hover); color: var(--d-ink); }
 .d-nav[aria-current="page"] { background: var(--d-nav-active-bg); color: var(--d-nav-active-text); font-weight: var(--d-nav-active-weight); border-color: var(--d-nav-active-border); box-shadow: var(--d-nav-active-shadow); overflow: hidden; }
-.d-nav[aria-current="page"]::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--d-nav-active-bar); }
 .d-nav[aria-current="page"] .d-icon { color: var(--d-nav-active-icon); }
+/* Not built yet: visible, says so, and goes nowhere. They become real links as each one is built (owner decision, DECISIONS.md). */
+.d-nav--soon, .d-nav--soon:hover { cursor: not-allowed; background: none; color: var(--d-meta); }
+.d-soon { margin-inline-start: auto; flex: none; display: inline-flex; align-items: center; min-height: 20px; padding: 0 8px; border-radius: 999px; border: var(--d-pill-border); font-size: 12px; line-height: 1; font-weight: 600; color: var(--d-pill-neutral); background: var(--d-pill-neutral-bg); }
 .d-sidebar-spacer { flex: 1; min-height: var(--d-space-4); }
 .d-count { margin-inline-start: auto; display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--d-pill-warning); background: var(--d-pill-warning-bg); border: var(--d-pill-border); }
 .d-profile { display: flex; align-items: center; gap: var(--d-space-3); width: 100%; min-height: 52px; margin-top: var(--d-space-1); padding: var(--d-space-1) var(--d-space-3); border-radius: var(--d-radius-nav); border: var(--d-control-border-width) solid transparent; background: none; font-family: inherit; text-align: start; color: var(--d-ink); cursor: pointer; }
@@ -204,8 +205,8 @@ html[data-design="new"] .d-logo--phone .d-logo-mark svg { height: 17px; }
 .d-bottom-tabs { position: fixed; inset-inline: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(4, 1fr); height: var(--d-tabs-offset); padding-bottom: env(safe-area-inset-bottom); background: var(--d-phone-bar); border-top: var(--d-frame-border-width) solid var(--d-line); }
 .d-bottom-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: var(--d-tabs-height); padding: 0; background: none; border: 0; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--d-tab-inactive); cursor: pointer; outline-offset: -4px !important; }
 .d-bottom-tab[aria-current="page"], .d-bottom-tab[data-active="true"] { color: var(--d-tab-active); }
-.d-bottom-tab-icon { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 26px; border-radius: 999px; }
-.d-bottom-tab[aria-current="page"] .d-bottom-tab-icon, .d-bottom-tab[data-active="true"] .d-bottom-tab-icon { background: var(--d-tab-active-bg); }
+.d-bottom-tab-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 26px; border-radius: 999px; }
+.d-bottom-tab[aria-current="page"] .d-bottom-tab-icon, .d-bottom-tab[data-active="true"] .d-bottom-tab-icon { background: var(--d-tab-active-bg); color: var(--d-tab-active-icon); box-shadow: var(--d-tab-active-shadow); }
 .d-phone-footer { margin: 0; padding: var(--d-space-3) var(--d-space-4); text-align: center; font-size: 13px; line-height: 18px; color: var(--d-meta); border-top: var(--d-divider-width) solid var(--d-divider); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- Home ---- */
@@ -234,6 +235,8 @@ html[data-design="new"] .d-logo--phone .d-logo-mark svg { height: 17px; }
 .d-hero-heading { margin: 0; display: flex; font-family: var(--d-font-body); font-weight: 400; font-size: inherit; }
 html[lang] h2.d-hero-heading { font-family: var(--d-font-body); font-weight: 400; }
 .d-hero-pill { background: var(--d-hero-pill-bg); color: var(--d-hero-pill-text); box-shadow: var(--d-hero-pill-shadow); border: var(--d-hero-pill-border); }
+/* How long until the session starts: a calm line, not a clock. It changes once a minute. */
+.d-countdown { display: block; font-size: var(--d-meta-size); line-height: var(--d-meta-lh); font-weight: 500; font-variant-numeric: tabular-nums; color: var(--d-text-2); }
 .d-hero-taken { display: inline-flex; align-items: center; gap: var(--d-space-2); min-height: var(--d-target); font-size: var(--d-label-size); font-weight: 700; color: var(--d-ink); }
 @media (min-width: 900px) { .d-hero { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--d-space-5); padding: 22px; } .d-hero-main { align-items: center; } .d-hero-actions { flex: none; flex-direction: var(--d-hero-actions-dir); } }
 @media (max-width: 899px) { .d-hero-actions > .d-btn--primary { flex: 1 1 auto; } .d-hero-main { flex-direction: row-reverse; justify-content: space-between; } }
@@ -249,8 +252,86 @@ html[lang] h2.d-hero-heading { font-family: var(--d-font-body); font-weight: 400
 /* ---- Settings inside the main shell ---- */
 .d-settings { width: 100%; max-width: 880px; display: flex; flex-direction: column; gap: var(--d-space-5); }
 
+/*
+ * ---- Motion, New only (owner decision, DECISIONS.md) ----
+ * Classic never matches any of this, and reduced motion turns all of it off: everything sits inside no-preference.
+ * Calm and quick, 120 to 250 ms, ease-out, on transform and opacity. Named exceptions, each one because the owner asked for the effect itself:
+ *  - a pressed button's edge shrinks (box-shadow), it cannot be done with a transform;
+ *  - the ring draws itself (stroke-dasharray);
+ *  - a skeleton's shimmer repeats for as long as the skeleton is there. It is the only thing that loops.
+ */
+.d-slider { display: none; position: absolute; pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  /* Buttons: hover lightens, press moves onto the edge, release springs back. */
+  html[data-design="new"] .d-btn { position: relative; transition: transform 180ms cubic-bezier(0.34, 1.3, 0.64, 1), box-shadow 180ms ease-out; }
+  html[data-design="new"] .d-btn:not(.d-btn--tertiary)::after { content: ''; position: absolute; inset: calc(var(--d-control-border-width) * -1); border-radius: inherit; background: #FFFFFF; opacity: 0; pointer-events: none; transition: opacity 120ms ease-out; }
+  html[data-design="new"] .d-btn:not(.d-btn--tertiary):not([disabled]):hover::after { opacity: 0.16; }
+  html[data-design="new"] .d-btn:not([disabled]):active { transition-duration: 120ms; transition-timing-function: ease-out; }
+
+  /* The active menu item and the tab underline slide. The real pill is painted again as soon as the slide ends. */
+  html[data-design="new"] [data-sliding] > .d-slider { display: block; }
+  html[data-design="new"] .d-slider--pill { border-radius: var(--d-radius-nav); background: var(--d-nav-active-bg); box-shadow: var(--d-nav-active-shadow); }
+  html[data-design="new"] .d-slider--tab { border-radius: 999px; background: var(--d-tab-active-bg); box-shadow: var(--d-tab-active-shadow); }
+  html[data-design="new"] .d-slider--line { background: var(--d-deep); }
+  html[data-design="new"] [data-sliding] > .d-nav-list .d-nav[aria-current="page"] { background: none; box-shadow: none; }
+  html[data-design="new"] [data-sliding] > .d-bottom-tab .d-bottom-tab-icon { background: none; box-shadow: none; }
+  html[data-design="new"] [data-sliding] > .d-tab { box-shadow: none; }
+
+  /* Cards and rows rise on a page's first render only: main[data-enter] exists for that moment and no longer (frontend/lib/page-entry.ts), so a data refresh never animates. */
+  html[data-design="new"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li):not(:has(.d-sticky-bar, .fixed)) { animation: d-enter 220ms ease-out backwards; animation-delay: calc(var(--d-i, 0) * 30ms); }
+  html[data-design="new"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li):nth-child(n+2) { --d-i: 1; }
+  html[data-design="new"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li):nth-child(n+3) { --d-i: 2; }
+  html[data-design="new"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li):nth-child(n+4) { --d-i: 3; }
+  html[data-design="new"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li):nth-child(n+5) { --d-i: 4; }
+  html[data-design="new"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li):nth-child(n+6) { --d-i: 5; }
+  html[data-design="new"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li):nth-child(n+7) { --d-i: 6; }
+  html[data-design="new"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li):nth-child(n+8) { --d-i: 7; }
+  html[data-design="new"] main[data-enter] [data-state="loading"] :is(.d-card, .d-hero, .d-row, .shadow-hard, li) { animation: none; }
+  html[data-design="new"] main[data-enter] .d-ring-fill { animation: d-ring-in 250ms ease-out backwards; }
+  /* Behind the opening logo nothing has started: the page is simply there, and rises as the logo fades. Not "paused": a paused rise holds the page at opacity 0, and if the app's JavaScript never came, the page would stay invisible after the stylesheet has lifted the logo. */
+  html[data-design="new"][data-first-open="1"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li, .d-ring-fill) { animation: none; }
+  @keyframes d-enter { from { opacity: 0; transform: translateY(6px); } }
+  @keyframes d-ring-in { from { stroke-dasharray: 0 200; } }
+
+  /* Dialogs fade and scale slightly; a phone's sheet slides up. Radix waits for the closing animation before it removes them. */
+  html[data-design="new"] .d-dialog-overlay[data-state="open"] { animation: d-fade-in 200ms ease-out; }
+  html[data-design="new"] .d-dialog-overlay[data-state="closed"] { animation: d-fade-out 160ms ease-out forwards; }
+  @media (min-width: 768px) {
+    html[data-design="new"] .d-dialog[data-state="open"] { animation: d-dialog-in 200ms ease-out; }
+    html[data-design="new"] .d-dialog[data-state="closed"] { animation: d-dialog-out 160ms ease-out forwards; }
+    html[data-design="new"][dir="rtl"] .d-dialog[data-state="open"] { animation-name: d-dialog-in-rtl; }
+    html[data-design="new"][dir="rtl"] .d-dialog[data-state="closed"] { animation-name: d-dialog-out-rtl; }
+  }
+  @media (max-width: 767px) {
+    html[data-design="new"] .d-dialog[data-state="open"] { animation: d-sheet-in 250ms ease-out; }
+    html[data-design="new"] .d-dialog[data-state="closed"] { animation: d-sheet-out 180ms ease-out forwards; }
+  }
+  @keyframes d-fade-in { from { opacity: 0; } }
+  @keyframes d-fade-out { to { opacity: 0; } }
+  @keyframes d-dialog-in { from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); } }
+  @keyframes d-dialog-out { to { opacity: 0; transform: translate(-50%, -50%) scale(0.97); } }
+  @keyframes d-dialog-in-rtl { from { opacity: 0; transform: translate(50%, -50%) scale(0.97); } }
+  @keyframes d-dialog-out-rtl { to { opacity: 0; transform: translate(50%, -50%) scale(0.97); } }
+  @keyframes d-sheet-in { from { transform: translateY(100%); } }
+  @keyframes d-sheet-out { to { transform: translateY(100%); } }
+
+  /* Skeletons: a soft band of light in place of Classic's pulse. Inside the teacher app the older skeletons get it too. */
+  html[data-design="new"] .d-skeleton, html[data-design="new"]:has([data-teacher-shell]) .animate-pulse:not(.absolute, .fixed) { position: relative; overflow: hidden; animation: none; }
+  html[data-design="new"] .d-skeleton::after, html[data-design="new"]:has([data-teacher-shell]) .animate-pulse:not(.absolute, .fixed)::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--d-shimmer), transparent); animation: d-shimmer 1400ms ease-out infinite; }
+  html[data-design="new"][dir="rtl"] .d-skeleton::after, html[data-design="new"][dir="rtl"]:has([data-teacher-shell]) .animate-pulse:not(.absolute, .fixed)::after { animation-name: d-shimmer-rtl; }
+  @keyframes d-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  @keyframes d-shimmer-rtl { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+
+  /* A short word for a finished action (frontend/lib/action-toast.tsx). */
+  html[data-design="new"] .d-toast { animation: d-toast-in 200ms ease-out; }
+  html[data-design="new"] .d-toast--leaving { animation: d-fade-out 160ms ease-out forwards; }
+  @keyframes d-toast-in { from { opacity: 0; transform: translateY(6px); } }
+}
+.d-toast { display: inline-flex; align-items: center; gap: var(--d-space-2); max-width: min(420px, calc(100vw - 32px)); padding: 10px 14px; border-radius: var(--d-radius-control); background: var(--d-surface); color: var(--d-ink); border: var(--d-card-border-width) solid var(--d-line); box-shadow: var(--d-menu-shadow); font-size: var(--d-label-size); line-height: var(--d-label-lh); font-weight: 600; }
+.d-toast .d-icon { color: var(--d-deep); }
+
 /* ---- Reduced motion: nothing moves ---- */
 @media (prefers-reduced-motion: reduce) {
-  .d-btn, .d-btn:not([disabled]):hover, .d-btn:not([disabled]):active { transition: none; transform: none; }
+  .d-btn, .d-btn:not([disabled]):hover, .d-btn:not([disabled]):active, .d-btn--primary:not([disabled]):active { transition: none; transform: none; }
   .d-skeleton { animation: none; }
 }
