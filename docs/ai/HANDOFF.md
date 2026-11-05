@@ -36,3 +36,7 @@ Branch `claude/design-v2-foundation`, from `claude/teacher-v1`, pushed as a new 
 ## Update 2026-11-05: owner feedback on the New look
 
 Same branch, `claude/design-v2-foundation`, not merged or deployed. New now carries Classic's lime pill, edge and rounded shapes; the logo has no box; Homework, Exams and Reports show with a Soon tag; New has its motion; the logo plays on every fresh opening of the site and replaces the old landing splash; Home has a countdown. Decisions: DECISIONS.md, "Owner feedback on the New look". Next step: the owner judges it on staging.
+
+## Update 2026-11-06: owner feedback after testing New
+
+Same branch, `claude/design-v2-foundation`, not merged or deployed. Both looks stay permanently, so every screen has to work in both. New this round: the credits in the owner's order; a help line for teachers in the footer; a menu that changes in place; a logo at 3:1 or more everywhere; `Switch`, `ChoiceGroup` and `Select` in place of native controls; "Edit attendance" in the page header. Decisions: DECISIONS.md, "Owner feedback after testing New".
