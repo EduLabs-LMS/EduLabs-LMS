@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Groups phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+.root{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.root *{box-sizing:border-box}
+a{color:inherit;text-decoration:none}
+.title{font-family:'Caprasimo',serif;font-weight:400;font-size:28px;line-height:34px;margin:0}
+.ptitle{font-family:'Caprasimo',serif;font-weight:400;font-size:24px;line-height:30px;margin:0}
+.sec{font-weight:700;font-size:18px;line-height:26px;margin:0}
+.meta{font-size:13px;line-height:18px;color:#5C6E51}
+.sub{color:#44523D}
+.label{font-weight:600;font-size:14px;line-height:20px}
+.data{font-weight:600;font-size:14px;font-variant-numeric:tabular-nums}
+.card{background:#FBFDF8;border:1px solid #D3DEC9;border-radius:18px;box-shadow:0 3px 0 #D3DEC9,0 14px 28px -18px rgba(29,37,24,.28)}
+.hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#E3F3DA 0%,#D3EEC4 100%);border:1px solid #BFE0A9;border-radius:20px;padding:22px;box-shadow:0 4px 0 #BFE0A9,0 18px 34px -20px rgba(43,100,22,.45)}
+.hero:before{content:'';position:absolute;right:-60px;top:-70px;width:260px;height:260px;border-radius:50%;background:rgba(127,217,89,.22)}
+.hero:after{content:'';position:absolute;right:90px;bottom:-90px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.35)}
+.hero>*{position:relative;z-index:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:12px;font-weight:600;font-size:14px;white-space:nowrap}
+.pri{background:#7FD959;color:#14301A;box-shadow:0 3px 0 #3F8F22;border:1px solid #5DB33B}
+.secb{background:#FFFFFF;border:1px solid #B7C6AA;color:#1D2518;box-shadow:0 2px 0 #D3DEC9}
+.ter{color:#2B6416;padding:0 8px}
+.dest{background:#FFFFFF;border:1px solid #E7A3A3;color:#B91C1C;box-shadow:0 2px 0 #F3CFCF}
+.icon{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;color:#44523D}
+.pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.ok{color:#2B6416;background:#E3F3DA}.info{color:#1F5A6B;background:#E0F0F3}.warn{color:#7A4F00;background:#FEF3C7}.bad{color:#A61B1B;background:#FBE9E9}.neu{color:#44523D;background:#E3E9DC}
+.row{display:flex;align-items:center;gap:12px;border-bottom:1px solid #C9D6BD}
+.row:last-child{border-bottom:0}
+.tile{flex:none;width:46px;height:48px;border-radius:12px;background:#FFFFFF;border:1px solid #D3DEC9;box-shadow:0 2px 0 #D3DEC9;display:flex;flex-direction:column;align-items:center;overflow:hidden;line-height:1}
+.tile span{display:block;width:100%;text-align:center;font-size:10px;font-weight:700;color:#FFFFFF;background:#2B6416;padding:3px 0;text-transform:uppercase;letter-spacing:.04em}.tile b{font-size:18px;margin-top:6px}
+.av{flex:none;width:36px;height:36px;border-radius:50%;background:#E3F3DA;color:#2B6416;box-shadow:inset 0 0 0 2px #FFFFFF,0 0 0 1px #D3DEC9;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.field{height:40px;border:1px solid #B7C6AA;border-radius:12px;background:#FFFFFF;box-shadow:inset 0 2px 0 rgba(29,37,24,.04);display:flex;align-items:center;padding:0 12px;color:#5C6E51;font-size:14px;gap:8px}
+.tabs{display:flex;gap:24px;border-bottom:1px solid #C9D6BD}
+.tab{padding:10px 0;font-weight:600;font-size:14px;color:#5C6E51}
+.tab.on{color:#1D2518;box-shadow:inset 0 -2px 0 #2B6416}
+.seg{display:inline-flex;border:1px solid #B7C6AA;border-radius:999px;overflow:hidden;height:44px;background:#FFFFFF;box-shadow:0 2px 0 #D3DEC9}
+.seg span{display:flex;align-items:center;padding:0 16px;font-weight:600;font-size:14px}
+.chev{color:#7F9170;font-size:18px}
+.ib{flex:none;width:36px;height:36px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center}
+.bar{height:6px;border-radius:999px;background:#E3E9DC;overflow:hidden;width:72px}.bar i{display:block;height:100%;background:#7FD959;border-radius:999px}
+.kpi{display:flex;align-items:center;gap:10px;padding:12px 16px}
+.ring{width:56px;height:56px;border-radius:50%;background:conic-gradient(#2B6416 var(--p),#FFFFFF 0);display:flex;align-items:center;justify-content:center}.ring b{width:44px;height:44px;border-radius:50%;background:#E3F3DA;display:flex;align-items:center;justify-content:center;font-size:13px}
+.side{width:240px;flex:none;background:#F3F7EE;border-right:1px solid #D3DEC9;box-shadow:4px 0 18px -14px rgba(29,37,24,.3);display:flex;flex-direction:column;padding:20px 12px;gap:2px}
+.nav{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:10px;font-weight:500;font-size:14px;color:#44523D}
+.nav.on{background:#FFFFFF;color:#1D2518;font-weight:600;box-shadow:inset 3px 0 0 #2B6416,0 2px 0 #D3DEC9;border:1px solid #D3DEC9}
+.nav svg{flex:none}.nav.on svg{color:#2B6416}
+.logo{display:flex;align-items:center;gap:10px;padding:4px 12px 18px}
+.mark{width:30px;height:30px;border-radius:9px;background:#7FD959;box-shadow:0 3px 0 #3F8F22;display:inline-flex;align-items:center;justify-content:center;color:#14301A}
+.word{font-family:'Caprasimo',serif;font-size:20px}
+.ph{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #C9D6BD;background:#F6F9F2;flex:none}
+.btabs{height:60px;flex:none;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #C9D6BD;background:#F6F9F2}
+.bt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:600;color:#5C6E51}
+.bt.on{color:#2B6416}
+.bt i{width:22px;height:22px;border-radius:6px;border:2px solid currentColor;display:block}
+.sticky{flex:none;height:64px;padding:8px 16px;background:rgba(251,253,248,.96);border-top:1px solid #D3DEC9;box-shadow:0 -10px 24px -18px rgba(29,37,24,.35);display:flex;gap:8px;align-items:center}
+.sticky .btn{height:48px;flex:1}
+</style>
+</helmet>
+<div class="root" style="width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden"><header class="ph"><span style="display:flex;align-items:center;gap:8px"><span class="mark" style="width:26px;height:26px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14301A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-8 6-14 14-14 0 8-6 14-14 14zM5 19l7-7"></path></svg></span><span class="word" style="font-size:18px">EduLabs</span></span><span class="icon" style="position:relative;background:#FFFFFF;border:1px solid #D3DEC9;box-shadow:0 2px 0 #D3DEC9"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"></path></svg><span style="position:absolute;top:7px;right:8px;width:8px;height:8px;border-radius:50%;background:#A61B1B;box-shadow:0 0 0 2px #FFFFFF"></span></span></header><div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px"><h1 class="ptitle">Groups</h1>
+<div style="display:flex;gap:8px"><span class="pill ok" style="height:32px;padding:0 14px">Active · 3</span><span class="pill neu" style="height:32px;padding:0 14px;background:transparent">Archived · 1</span></div>
+<span class="field" style="height:44px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg>Search groups</span><div class="card" style="padding:0 16px"><div class="row" style="padding:12px 0;min-height:72px"><span style="flex:1"><span class="label" style="font-size:15px">Physics · Saturday group</span><br><span class="meta">Next: Sat 7 Nov · 6:00 PM</span><br><span class="meta">14 of 20 students</span></span><span class="pill ok">Now</span><span class="chev">›</span></div><div class="row" style="padding:12px 0;min-height:72px"><span style="flex:1"><span class="label" style="font-size:15px">Physics · Online group</span><br><span class="meta">Next: Sun 8 Nov · 8:00 PM</span><br><span class="meta">9 students</span></span><span class="pill warn">Not taken</span><span class="chev">›</span></div><div class="row" style="padding:12px 0;min-height:72px"><span style="flex:1"><span class="label" style="font-size:15px">Chemistry · Monday group</span><br><span class="meta">No session scheduled</span><br><span class="meta">0 students</span></span><span class="chev">›</span></div></div></div><div class="sticky"><span class="btn pri">Create group</span></div><nav class="btabs"><a class="bt"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Home</a><a class="bt on"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM17 11a3 3 0 1 0 0-6M2 20c0-3 3-5 7-5s7 2 7 5M17 15c3 0 5 2 5 5"></path></svg>Groups</a><a class="bt"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>Students</a><a class="bt"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg>More</a></nav></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

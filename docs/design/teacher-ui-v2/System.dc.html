@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Design system v2</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+.root{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.root *{box-sizing:border-box}
+a{color:inherit;text-decoration:none}
+.title{font-family:'Caprasimo',serif;font-weight:400;font-size:28px;line-height:34px;margin:0}
+.ptitle{font-family:'Caprasimo',serif;font-weight:400;font-size:24px;line-height:30px;margin:0}
+.sec{font-weight:700;font-size:18px;line-height:26px;margin:0}
+.meta{font-size:13px;line-height:18px;color:#5C6E51}
+.sub{color:#44523D}
+.label{font-weight:600;font-size:14px;line-height:20px}
+.data{font-weight:600;font-size:14px;font-variant-numeric:tabular-nums}
+.card{background:#FBFDF8;border:1px solid #D3DEC9;border-radius:18px;box-shadow:0 3px 0 #D3DEC9,0 14px 28px -18px rgba(29,37,24,.28)}
+.hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#E3F3DA 0%,#D3EEC4 100%);border:1px solid #BFE0A9;border-radius:20px;padding:22px;box-shadow:0 4px 0 #BFE0A9,0 18px 34px -20px rgba(43,100,22,.45)}
+.hero:before{content:'';position:absolute;right:-60px;top:-70px;width:260px;height:260px;border-radius:50%;background:rgba(127,217,89,.22)}
+.hero:after{content:'';position:absolute;right:90px;bottom:-90px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.35)}
+.hero>*{position:relative;z-index:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:12px;font-weight:600;font-size:14px;white-space:nowrap}
+.pri{background:#7FD959;color:#14301A;box-shadow:0 3px 0 #3F8F22;border:1px solid #5DB33B}
+.secb{background:#FFFFFF;border:1px solid #B7C6AA;color:#1D2518;box-shadow:0 2px 0 #D3DEC9}
+.ter{color:#2B6416;padding:0 8px}
+.dest{background:#FFFFFF;border:1px solid #E7A3A3;color:#B91C1C;box-shadow:0 2px 0 #F3CFCF}
+.icon{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;color:#44523D}
+.pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.ok{color:#2B6416;background:#E3F3DA}.info{color:#1F5A6B;background:#E0F0F3}.warn{color:#7A4F00;background:#FEF3C7}.bad{color:#A61B1B;background:#FBE9E9}.neu{color:#44523D;background:#E3E9DC}
+.row{display:flex;align-items:center;gap:12px;border-bottom:1px solid #C9D6BD}
+.row:last-child{border-bottom:0}
+.tile{flex:none;width:46px;height:48px;border-radius:12px;background:#FFFFFF;border:1px solid #D3DEC9;box-shadow:0 2px 0 #D3DEC9;display:flex;flex-direction:column;align-items:center;overflow:hidden;line-height:1}
+.tile span{display:block;width:100%;text-align:center;font-size:10px;font-weight:700;color:#FFFFFF;background:#2B6416;padding:3px 0;text-transform:uppercase;letter-spacing:.04em}.tile b{font-size:18px;margin-top:6px}
+.av{flex:none;width:36px;height:36px;border-radius:50%;background:#E3F3DA;color:#2B6416;box-shadow:inset 0 0 0 2px #FFFFFF,0 0 0 1px #D3DEC9;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.field{height:40px;border:1px solid #B7C6AA;border-radius:12px;background:#FFFFFF;box-shadow:inset 0 2px 0 rgba(29,37,24,.04);display:flex;align-items:center;padding:0 12px;color:#5C6E51;font-size:14px;gap:8px}
+.tabs{display:flex;gap:24px;border-bottom:1px solid #C9D6BD}
+.tab{padding:10px 0;font-weight:600;font-size:14px;color:#5C6E51}
+.tab.on{color:#1D2518;box-shadow:inset 0 -2px 0 #2B6416}
+.seg{display:inline-flex;border:1px solid #B7C6AA;border-radius:999px;overflow:hidden;height:44px;background:#FFFFFF;box-shadow:0 2px 0 #D3DEC9}
+.seg span{display:flex;align-items:center;padding:0 16px;font-weight:600;font-size:14px}
+.chev{color:#7F9170;font-size:18px}
+.ib{flex:none;width:36px;height:36px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center}
+.bar{height:6px;border-radius:999px;background:#E3E9DC;overflow:hidden;width:72px}.bar i{display:block;height:100%;background:#7FD959;border-radius:999px}
+.kpi{display:flex;align-items:center;gap:10px;padding:12px 16px}
+.ring{width:56px;height:56px;border-radius:50%;background:conic-gradient(#2B6416 var(--p),#FFFFFF 0);display:flex;align-items:center;justify-content:center}.ring b{width:44px;height:44px;border-radius:50%;background:#E3F3DA;display:flex;align-items:center;justify-content:center;font-size:13px}
+.side{width:240px;flex:none;background:#F3F7EE;border-right:1px solid #D3DEC9;box-shadow:4px 0 18px -14px rgba(29,37,24,.3);display:flex;flex-direction:column;padding:20px 12px;gap:2px}
+.nav{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:10px;font-weight:500;font-size:14px;color:#44523D}
+.nav.on{background:#FFFFFF;color:#1D2518;font-weight:600;box-shadow:inset 3px 0 0 #2B6416,0 2px 0 #D3DEC9;border:1px solid #D3DEC9}
+.nav svg{flex:none}.nav.on svg{color:#2B6416}
+.logo{display:flex;align-items:center;gap:10px;padding:4px 12px 18px}
+.mark{width:30px;height:30px;border-radius:9px;background:#7FD959;box-shadow:0 3px 0 #3F8F22;display:inline-flex;align-items:center;justify-content:center;color:#14301A}
+.word{font-family:'Caprasimo',serif;font-size:20px}
+.ph{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #C9D6BD;background:#F6F9F2;flex:none}
+.btabs{height:60px;flex:none;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #C9D6BD;background:#F6F9F2}
+.bt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:600;color:#5C6E51}
+.bt.on{color:#2B6416}
+.bt i{width:22px;height:22px;border-radius:6px;border:2px solid currentColor;display:block}
+.sticky{flex:none;height:64px;padding:8px 16px;background:rgba(251,253,248,.96);border-top:1px solid #D3DEC9;box-shadow:0 -10px 24px -18px rgba(29,37,24,.35);display:flex;gap:8px;align-items:center}
+.sticky .btn{height:48px;flex:1}
+</style>
+</helmet>
+<div class="root" style="width:1360px;height:900px;padding:40px;display:flex;flex-direction:column;gap:28px">
+<div><h1 class="title">Design system v2</h1><div class="meta" style="font-size:14px">Calm by default. Heavy treatment only for the one most important thing on a screen.</div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+<div class="card" style="padding:20px;display:flex;flex-direction:column;gap:12px"><h2 class="sec">Type</h2>
+<div><span class="title">Page title · Caprasimo 28</span></div>
+<div class="sec">Section · Figtree 700 18</div><div>Body · Figtree 400 15 — default text for sentences.</div>
+<div class="label">Label · Figtree 600 14 — names, buttons, nav</div><div class="meta">Meta · 13 — dates, help text</div>
+<div class="data">Data · tabular 14 — Sat 7 Nov · 6:00 PM · 12 of 14</div>
+<div class="meta">Arabic: Lalezar for page titles only (28+), Cairo 400/600/700 elsewhere, line height 1.6.</div></div>
+<div class="card" style="padding:20px;display:flex;flex-direction:column;gap:14px"><h2 class="sec">Buttons</h2>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span class="btn pri">Take attendance</span><span class="btn secb">Open group</span><span class="btn ter">Mark the rest present</span><span class="btn dest">Archive group</span><span class="icon" style="border:1px solid #C9D6BD">⋯</span></div>
+<div class="meta">One primary (lime, hard shadow — the brand signature) per view. Secondary outlined. Tertiary is green text. Destructive is red and lives behind ⋯ or inside a confirmation.</div>
+<h2 class="sec" style="margin-top:6px">Status pills</h2>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill ok"><span class="dot"></span>Active</span><span class="pill ok">Present</span><span class="pill info">Upcoming</span><span class="pill info">Waiting</span><span class="pill warn">Draft</span><span class="pill warn">Not taken</span><span class="pill bad">Absent</span><span class="pill bad">Cancelled</span><span class="pill neu">Archived</span></div>
+<div class="meta">One shape for every status. Never looks like a button.</div></div></div>
+<div style="display:flex;gap:16px;flex-wrap:wrap"><div style="display:flex;flex-direction:column;gap:6px;width:120px"><div style="height:56px;border-radius:12px;background:#E9EEE4;border:1px solid #C9D6BD"></div><span class="label">Canvas</span><span class="meta">#E9EEE4 · page</span></div><div style="display:flex;flex-direction:column;gap:6px;width:120px"><div style="height:56px;border-radius:12px;background:#F6F9F2;border:1px solid #C9D6BD"></div><span class="label">Surface</span><span class="meta">#F6F9F2 · cards, sidebar</span></div><div style="display:flex;flex-direction:column;gap:6px;width:120px"><div style="height:56px;border-radius:12px;background:#1D2518;border:1px solid #C9D6BD"></div><span class="label">Ink</span><span class="meta">#1D2518 · text</span></div><div style="display:flex;flex-direction:column;gap:6px;width:120px"><div style="height:56px;border-radius:12px;background:#5C6E51;border:1px solid #C9D6BD"></div><span class="label">Meta</span><span class="meta">#5C6E51 · dates, help</span></div><div style="display:flex;flex-direction:column;gap:6px;width:120px"><div style="height:56px;border-radius:12px;background:#C9D6BD;border:1px solid #C9D6BD"></div><span class="label">Line</span><span class="meta">#C9D6BD · borders, dividers</span></div><div style="display:flex;flex-direction:column;gap:6px;width:120px"><div style="height:56px;border-radius:12px;background:#7FD959;border:1px solid #C9D6BD"></div><span class="label">Brand lime</span><span class="meta">#7FD959 · primary only</span></div><div style="display:flex;flex-direction:column;gap:6px;width:120px"><div style="height:56px;border-radius:12px;background:#E3F3DA;border:1px solid #C9D6BD"></div><span class="label">Brand tint</span><span class="meta">#E3F3DA · hero, active nav</span></div><div style="display:flex;flex-direction:column;gap:6px;width:120px"><div style="height:56px;border-radius:12px;background:#2B6416;border:1px solid #C9D6BD"></div><span class="label">Deep green</span><span class="meta">#2B6416 · links, tertiary</span></div></div>
+<div class="meta" style="font-size:14px">Borders: 1px Line on cards, dividers between rows, no black outlines, no nested cards. Radii: 12 controls · 16 cards · full pills. Spacing: 4·8·12·16·24·32·48. Widths: 1040 lists · 720 detail · 560 forms. Phone rows: student 64 · attendance 56 · session 64 · group 72.</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

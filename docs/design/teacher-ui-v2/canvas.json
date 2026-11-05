@@ -1,0 +1,120 @@
+{
+ "v": 3,
+ "attachments": {},
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-05T20:00:00Z"
+ },
+ "designSystems": [],
+ "title": "Teacher UI v2",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "System.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1360,
+   "h": 900,
+   "title": "Design system v2 \u00b7 tokens, buttons, pills",
+   "expand": "fill"
+  },
+  "Home-Desktop.dc.html": {
+   "x": 1440,
+   "y": 0,
+   "w": 1360,
+   "h": 900,
+   "title": "Desktop \u00b7 Home",
+   "expand": "fill"
+  },
+  "Group-Desktop.dc.html": {
+   "x": 0,
+   "y": 1020,
+   "w": 1360,
+   "h": 900,
+   "title": "Desktop \u00b7 Group (Sessions)",
+   "expand": "fill"
+  },
+  "Students-Desktop.dc.html": {
+   "x": 1440,
+   "y": 1020,
+   "w": 1360,
+   "h": 900,
+   "title": "Desktop \u00b7 Students",
+   "expand": "fill"
+  },
+  "Home-Phone.dc.html": {
+   "x": 0,
+   "y": 2040,
+   "w": 390,
+   "h": 844,
+   "title": "Phone \u00b7 Home",
+   "is_interactive": true
+  },
+  "Groups-Phone.dc.html": {
+   "x": 470,
+   "y": 2040,
+   "w": 390,
+   "h": 844,
+   "title": "Phone \u00b7 Groups",
+   "is_interactive": true
+  },
+  "Group-Phone.dc.html": {
+   "x": 940,
+   "y": 2040,
+   "w": 390,
+   "h": 844,
+   "title": "Phone \u00b7 Group",
+   "is_interactive": true
+  },
+  "Attendance-Phone.dc.html": {
+   "x": 1410,
+   "y": 2040,
+   "w": 390,
+   "h": 844,
+   "title": "Phone \u00b7 Attendance (no bottom tabs)",
+   "is_interactive": true
+  },
+  "Students-Phone.dc.html": {
+   "x": 1880,
+   "y": 2040,
+   "w": 390,
+   "h": 844,
+   "title": "Phone \u00b7 Students",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "System.dc.html",
+  "Home-Desktop.dc.html",
+  "Group-Desktop.dc.html",
+  "Students-Desktop.dc.html",
+  "Home-Phone.dc.html",
+  "Groups-Phone.dc.html",
+  "Group-Phone.dc.html",
+  "Attendance-Phone.dc.html",
+  "Students-Phone.dc.html"
+ ],
+ "noteOrder": [
+  "t1",
+  "n1"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -220,
+   "text": "Teacher UI v2: calm design system, new navigation",
+   "kind": "title1",
+   "maxW": 2800,
+   "w": 240
+  },
+  "n1": {
+   "x": 0,
+   "y": -90,
+   "w": 1200,
+   "text": "Built from both UX reviews. Thin borders instead of black outlines, one lime primary per screen, Caprasimo for page titles only, one status pill style, phone bottom tabs (Home, Groups, Students, More), bell for notifications, Courses in the main menu. Names and numbers are placeholders.",
+   "fill": "gray"
+  }
+ }
+}
