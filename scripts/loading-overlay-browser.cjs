@@ -114,8 +114,10 @@ const plugin = {
 
 (async () => {
   await esbuild.build({ bundle: true, jsx: 'automatic', plugins: [plugin], logLevel: 'warning', platform: 'browser', define: { 'process.env.NODE_ENV': '"production"' }, stdin: { contents: entry, resolveDir: process.cwd(), loader: 'tsx' }, outfile: path.join(out, 'client.js') });
-  const html = '<!doctype html><meta charset=utf-8><body><div id=root></div><script src=/client.js></script>';
+  const html = '<!doctype html><meta charset=utf-8><link rel=stylesheet href=/style.css><body><div id=root></div><script src=/client.js></script>';
+  const css = require('./harness-css.cjs')();
   const server = http.createServer((req, res) => {
+    if (req.url === '/style.css') { res.setHeader('Content-Type', 'text/css'); return res.end(css); }
     if (req.url === '/client.js') { res.setHeader('Content-Type', 'text/javascript'); return res.end(fs.readFileSync(path.join(out, 'client.js'))); }
     if (req.url.startsWith('/data')) {
       const q = new URL(req.url, 'http://x').searchParams;
@@ -190,29 +192,40 @@ const plugin = {
   });
 
   // ---- first load after sign-in ----
-  await ok('sign-in plays the logo overlay once, between the minimum and under one second, over a page that is ready', async () => {
-    const r = await action('/teacher/login', p => p.click('#signin'), { wait: 2000 });
+  await ok('sign-in plays the logo animation once and to its end, on an opaque screen with no loading text, over a page that is ready', async () => {
+    const { ctx, page } = await open('/sign-in'); await page.waitForTimeout(300);
+    await page.evaluate(SAMPLER);
+    // At the moment the overlay goes away, every animation inside the logo has to have finished.
+    await page.evaluate(() => { window.__atEnd = null; const iv = setInterval(() => { const logo = document.querySelector('[data-first-load-logo]'); if (!logo) { if (window.__seen) clearInterval(iv); return; } window.__seen = true; const all = logo.getAnimations({ subtree: true }); window.__atEnd = { count: all.length, running: all.filter(a => a.playState === 'running').length, word: logo.querySelector('.first-load-letter:last-child') ? getComputedStyle(logo.querySelector('.first-load-letter:last-child')).opacity : null, bg: getComputedStyle(logo.parentElement).backgroundColor, text: logo.parentElement.innerText, blocks: getComputedStyle(logo.parentElement).pointerEvents }; }, 20); });
+    await page.click('#signin'); await page.waitForTimeout(3200);
+    const log = await page.evaluate(() => { clearInterval(window.__iv); return window.__log; }); const end = await page.evaluate(() => window.__atEnd); await ctx.close();
+    const r = summary(log);
     assert.equal(r.overlayShown, true); assert.equal(r.runs, 1, 'one run');
     assert.ok(r.from <= 100, 'appears at once, no delay: ' + r.from);
-    const total = r.until - r.from;
-    assert.ok(total >= 250, 'long enough not to flash: ' + total); assert.ok(r.until < 1000, 'gone in under one second: ' + r.until);
+    assert.ok(r.until - r.from >= 1300, 'the whole animation plays, about 1.4 s and more: ' + (r.until - r.from)); assert.ok(r.until < 2600, 'and then it goes: ' + r.until);
+    assert.equal(end.running, 0, 'nothing was still running when it went'); assert.equal(end.word, '1', 'the last letter of the word has landed');
+    assert.doesNotMatch(end.text, /Loading/, 'no loading text'); assert.match(end.bg, /^rgb\(/, 'opaque: ' + end.bg); assert.equal(end.blocks, 'auto', 'taps do not reach the page underneath');
     assert.equal(r.finalPage, '/teacher/home');
   });
-  await ok('sign-in plays the overlay even though the user change mounts the whole app tree (and the loading provider) again mid-handler', async () => {
-    const r = await action('/teacher/login', p => p.click('#signin-remount'), { wait: 2000 });
+  await ok('sign-in plays it even though the user change mounts the whole app tree (and the loading provider) again mid-handler', async () => {
+    const r = await action('/sign-in', p => p.click('#signin-remount'), { wait: 3000 });
     assert.equal(r.overlayShown, true, 'overlay shown after a sign-in that remounts the tree'); assert.equal(r.runs, 1, 'one run');
-    const total = r.until - r.from; assert.ok(total >= 250 && r.until < 1200, 'plays, and lifts in under about one second after the handler reached goHome: ' + r.from + '..' + r.until);
+    assert.ok(r.until - r.from >= 1300 && r.until < 2800, 'plays, then lifts: ' + r.from + '..' + r.until);
     assert.equal(r.finalPage, '/teacher/home');
   });
-  await ok('a slow first page does not hold the overlay past the cap: the frame and a skeleton take over', async () => {
-    const r = await action('/teacher/login', async p => { await p.evaluate(() => { window.__signinMs = 3000; }); await p.click('#signin'); }, { wait: 3600 });
-    assert.equal(r.overlayShown, true); assert.ok(r.until < 1000, 'overlay gone in under one second even though the page took 3 s: ' + r.until);
-    assert.ok(r.log.some(x => x.t > r.until && x.skeleton), 'the skeleton is what is left while the page is on its way');
+  await ok('after the animation the logo waits for the first page to arrive, so the sign-in form never shows again', async () => {
+    const r = await action('/sign-in', async p => { await p.evaluate(() => { window.__signinMs = 2600; }); await p.click('#signin'); }, { wait: 3400 });
+    assert.equal(r.overlayShown, true); assert.ok(r.until >= 2500 && r.until < 3200, 'it stays until the address changed: ' + r.until);
     assert.equal(r.finalPage, '/teacher/home');
+  });
+  await ok('a page that takes very long does not hold the logo past the cap: the frame and a skeleton take over', async () => {
+    const r = await action('/sign-in', async p => { await p.evaluate(() => { window.__signinMs = 9000; }); await p.click('#signin'); }, { wait: 7400 });
+    assert.equal(r.overlayShown, true); assert.ok(r.until < 7200, 'gone although the page is still on its way: ' + r.until); assert.equal(r.log[r.log.length - 1].overlay, false);
+    assert.ok(r.log.some(x => x.t > r.until && x.skeleton), 'the skeleton is what is left while the page is on its way');
   });
   await ok('after the first load the overlay never replays: not on navigation, not after a reload in the same tab', async () => {
     const { ctx, page } = await open('/teacher/login'); await page.waitForTimeout(300);
-    await page.click('#signin'); await page.waitForTimeout(1800);
+    await page.click('#signin'); await page.waitForTimeout(2800);
     assert.equal(await page.evaluate(() => sessionStorage.getItem('edulabs-first-load')), null, 'the mark is cleared once played');
     await page.evaluate(SAMPLER); await page.click('#slow'); await page.waitForTimeout(1200);
     await page.reload(); await page.locator('#frame').waitFor(); await page.evaluate(SAMPLER); await page.waitForTimeout(900);
@@ -222,21 +235,21 @@ const plugin = {
   await ok('a full page load in the middle of signing in (the Google redirect) still plays it once', async () => {
     const { ctx, page } = await open('/teacher/home', { sessionFlag: true });
     const first = [];
-    const t0 = Date.now(); while (Date.now() - t0 < 1500) { first.push(await page.locator(OVERLAY).count()); await page.waitForTimeout(20); }
-    assert.ok(first.some(n => n > 0), 'overlay shown after the redirect load'); assert.equal(first[first.length - 1], 0, 'and gone within 1.5 s');
+    const t0 = Date.now(); while (Date.now() - t0 < 2800) { first.push(await page.locator(OVERLAY).count()); await page.waitForTimeout(20); }
+    assert.ok(first.some(n => n > 0), 'overlay shown after the redirect load'); assert.equal(first[first.length - 1], 0, 'and gone after playing');
     await page.reload(); await page.locator('#frame').waitFor(); await page.waitForTimeout(100);
     assert.equal(await page.locator(OVERLAY).count(), 0, 'a later reload does not replay it'); await ctx.close();
   });
-  await ok('with reduced motion the first-load overlay still shows and finishes', async () => {
+  await ok('with reduced motion the still logo shows for a moment and finishes', async () => {
     const r = await action('/teacher/login', p => p.click('#signin'), { wait: 1800, reduced: true });
-    assert.equal(r.overlayShown, true); assert.ok(r.until < 1000); assert.equal(r.log[r.log.length - 1].overlay, false);
+    assert.equal(r.overlayShown, true); assert.ok(r.until >= 500 && r.until < 1300, String(r.until)); assert.equal(r.log[r.log.length - 1].overlay, false);
   });
   await ok('a blocking action (save) still shows the overlay after the short delay and lets go when it ends', async () => {
-    const r = await action('/teacher/home', async p => { await p.click('#save'); await p.waitForTimeout(900); await p.click('#saved'); }, { wait: 1800 });
+    const r = await action('/teacher/home', async p => { await p.click('#save'); await p.waitForTimeout(900); await p.evaluate(() => document.getElementById('saved').click()); }, { wait: 1800 });
     assert.equal(r.overlayShown, true); assert.ok(r.from >= 100 && r.from <= 300, 'after the 120 ms delay: ' + r.from); assert.equal(r.log[r.log.length - 1].overlay, false);
   });
   await ok('a quick blocking action never flashes it', async () => {
-    const r = await action('/teacher/home', async p => { await p.click('#save'); await p.waitForTimeout(40); await p.click('#saved'); }, { wait: 800 });
+    const r = await action('/teacher/home', async p => { await p.click('#save'); await p.waitForTimeout(40); await p.evaluate(() => document.getElementById('saved').click()); }, { wait: 800 });
     assert.equal(r.overlayShown, false);
   });
 
@@ -306,4 +319,4 @@ const plugin = {
 
   assert.deepEqual(errors, []);
   await browser.close(); server.close();
-})().catch(e => { console.error(e); process.exitCode = 1; });
+})().catch(e => { console.error(e); process.exit(1); });

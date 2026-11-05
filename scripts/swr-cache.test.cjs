@@ -176,17 +176,20 @@ test('first-load: marked at sign-in, cleared once played or on sign-out; a missi
   f.markFirstLoad(broken); f.clearFirstLoad(broken);
 });
 
-test('first-load: the overlay stays under one second in total (cap + finish + fade) and never flashes (minimum)', () => {
+test('first-load: the logo plays to its end, a slow page or a silent browser can never hold it for long, and only the sign-in pages wait for the address to change', () => {
   const f = load('frontend/lib/first-load.ts', {}, { window: undefined });
-  assert.ok(f.FIRST_LOAD_CAP_MS + f.FIRST_LOAD_FINISH_MS + 250 < 1000);
-  assert.ok(f.FIRST_LOAD_MIN_MS >= 200 && f.FIRST_LOAD_MIN_MS < f.FIRST_LOAD_CAP_MS);
+  assert.ok(f.FIRST_LOAD_PLAY_FALLBACK_MS >= 2000 && f.FIRST_LOAD_PLAY_FALLBACK_MS <= 4000, 'a fallback longer than the animation');
+  assert.ok(f.FIRST_LOAD_ARRIVAL_CAP_MS <= 6000, 'a slow page gets its skeleton');
+  assert.ok(f.FIRST_LOAD_REDUCED_MS <= 1000);
+  for (const path of ['/', '/sign-in', '/sign-in/sso-callback', '/sign-up']) assert.equal(f.firstLoadWaitsForAddress(path), true, path);
+  for (const path of ['/home', '/teacher/groups', '/sign-inside']) assert.equal(f.firstLoadWaitsForAddress(path), false, path);
 });
 
 test('loading provider: only sign-in starts the overlay on its own; no link click, route change or page signal can bring it back', () => {
   const code = fs.readFileSync('frontend/components/providers/loading-provider.tsx', 'utf8');
   assert.doesNotMatch(code, /acquireLoading|startNavigation|addEventListener\(\s*['"]click/);
   assert.match(code, /beginFirstLoad/);
-  assert.match(code, /FIRST_LOAD_CAP_MS/);
+  assert.match(code, /FIRST_LOAD_ARRIVAL_CAP_MS/);
   const router = fs.readFileSync('frontend/components/providers/use-loading-router.ts', 'utf8');
   assert.match(router, /export const useLoadingRouter = \(\) => useRouter\(\);/);
   assert.equal(fs.existsSync('frontend/components/providers/use-page-loading-signal.ts'), false);
@@ -198,7 +201,7 @@ test('every teacher route has its own loading.tsx that draws the page\'s layout 
     'app/(dashboard)/(routes)/home', 'app/(dashboard)/(routes)/teacher/groups', 'app/(dashboard)/(routes)/teacher/groups/[groupId]',
     'app/(dashboard)/(routes)/teacher/groups/[groupId]/attendance/[sessionId]', 'app/(dashboard)/(routes)/teacher/groups/new',
     'app/(dashboard)/(routes)/teacher/students', 'app/(dashboard)/(routes)/teacher/students/[studentId]', 'app/(dashboard)/(routes)/teacher/courses',
-    'app/teacher/settings', 'app/teacher/settings/courses', 'app/teacher/settings/courses/[courseId]',
+    'app/(dashboard)/(routes)/teacher/settings', 'app/(dashboard)/(routes)/teacher/settings/courses/[courseId]',
   ];
   for (const dir of routes) {
     const file = `${dir}/loading.tsx`;

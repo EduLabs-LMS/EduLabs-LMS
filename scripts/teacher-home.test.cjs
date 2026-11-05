@@ -90,30 +90,30 @@ test('create targets and course names: owners, admins and teachers may create; n
  for (const title of ['Physics 10', '  Chemistry & Lab!! ', 'فيزياء الصف العاشر', 'Café Élève', '---', 'x'.repeat(300)]) { const slug = home.courseSlug(title, () => 'AbC123-zzz'); assert.match(slug, rule, title); assert.ok(slug.length <= 100); }
  assert.match(home.courseSlug('فيزياء', () => 'abc123'), /^course-abc123$/);
 });
-test('navigation: exactly six destinations in order, for active staff of the Firebase build only', () => {
- assert.deepEqual([...home.teacherNav.map(n => n.key)], ['home', 'students', 'groups', 'homework', 'exams', 'reports']);
+test('navigation: Home, Groups, Students, Courses in that order, for active staff of the Firebase build only; Homework, Exams and Reports stay hidden until they are built', () => {
+ assert.deepEqual([...home.teacherNav.map(n => n.key)], ['home', 'groups', 'students', 'courses']);
  assert.equal(home.showTeacherNav(true, [uuid(50)]), true);
  assert.equal(home.showTeacherNav(true, []), false, 'a student has no staff organizations');
  assert.equal(home.showTeacherNav(true, undefined), false); assert.equal(home.showTeacherNav(true, null), false);
  assert.equal(home.showTeacherNav(false, [uuid(50)]), false, 'the Clerk fallback keeps its own navigation');
  const active = path => [...home.teacherNav.filter(n => n.match(path)).map(n => n.key)];
  assert.deepEqual(active('/home'), ['home']); assert.deepEqual(active('/'), ['home']); assert.deepEqual(active('/teacher/groups'), ['groups']); assert.deepEqual(active('/teacher/groups/abc'), ['groups']);
- assert.deepEqual(active('/teacher/courses/abc'), [], 'Courses is not a main menu item any more'); assert.deepEqual(active('/teacher/settings/courses'), []); assert.deepEqual(active('/self-learning'), []);
- const sidebar = read('frontend/components/sidebar.tsx');
- assert.match(sidebar, /showTeacherNav\(isFirebaseStaging\(\), navigation\?\.staffOrganizationIds\)/); assert.match(sidebar, /teacherMode \? <TeacherNav/);
- assert.match(sidebar, /teacherMode \? <div data-teacher-footer[^>]*><TeacherProfile/, 'the teacher footer is the profile with the Settings cog');
- assert.equal((read('frontend/features/teacher-home/teacher-nav.tsx').match(/NotificationBell/g) ?? []).length, 0, 'no notification entry in the teacher menu');
+ assert.deepEqual(active('/teacher/courses'), ['courses']); assert.deepEqual(active('/teacher/courses/abc'), ['courses']); assert.deepEqual(active('/teacher/settings/courses/abc'), ['courses'], 'a course page keeps its address and belongs to Courses');
+ assert.deepEqual(active('/teacher/settings'), []); assert.deepEqual(active('/self-learning'), []);
+ assert.equal(home.teacherSettingsActive('/teacher/settings/account'), true); assert.equal(home.teacherSettingsActive('/teacher/settings/courses/abc'), false);
+ const layout = read('app/(dashboard)/layout.tsx'), sidebar = read('frontend/components/sidebar.tsx'), mobile = read('frontend/features/dashboard/mobile-sidebar.tsx');
+ assert.match(layout, /staffOrganizationIds\.length \? <TeacherFrame>\{children\}<\/TeacherFrame> : <div data-lms-shell/, 'staff get the teacher frame, a student keeps the student shell');
+ assert.doesNotMatch(sidebar + mobile, /teacherMode|TeacherNav|TeacherProfile/, 'the student shell has no teacher branch left');
+ assert.equal((read('frontend/features/teacher-home/teacher-nav.tsx').match(/NotificationBell/g) ?? []).length, 0, 'no notification entry in the main menu');
  for (const n of home.teacherNav) assert.ok(messages.en['th.nav.' + n.key] && messages.ar['th.nav.' + n.key], n.key);
- assert.ok(messages.en['th.nav.soon'] && messages.ar['th.nav.soon']);
 });
-test('navigation: destinations without a new screen reach the existing neutral scaffold or existing page; a missing screen is a disabled Coming soon item, never a link', () => {
+test('navigation: every destination is a real page, and nothing in the menu is a disabled or Coming soon item', () => {
  const byKey = Object.fromEntries(home.teacherNav.map(n => [n.key, n.href]));
- for (const key of ['students', 'homework']) { const route = 'app/(dashboard)/(routes)' + byKey[key] + '/page.tsx'; assert.match(read(route), /TeacherFoundationPage/, key); }
- assert.equal(byKey.home, '/home'); assert.equal(byKey.groups, '/teacher/groups'); assert.equal(byKey.exams, '/exams');
- assert.equal(byKey.reports, null, 'Reports has no screen yet'); assert.deepEqual([...home.teacherNav.filter(n => n.href === null).map(n => n.key)], ['reports']);
- const nav = read('frontend/features/teacher-home/teacher-nav.tsx');
- assert.match(nav, /item\.href === null\) return <span[^>]*aria-disabled="true"[^>]*data-soon/); assert.match(nav, /<L id="th\.nav\.soon" \/>/);
- assert.doesNotMatch(read('middleware.ts') + read('shared/website-routes.ts'), /teacher\/analytics/, 'no legacy path is allow-listed for the disabled item');
+ assert.equal(byKey.home, '/home'); assert.equal(byKey.groups, '/teacher/groups'); assert.equal(byKey.students, '/teacher/students'); assert.equal(byKey.courses, '/teacher/courses');
+ for (const key of ['groups', 'students', 'courses']) assert.ok(fs.existsSync('app/(dashboard)/(routes)' + byKey[key] + '/page.tsx'), key);
+ assert.equal(home.teacherNav.some(n => n.href === null), false);
+ assert.doesNotMatch(read('frontend/features/teacher-home/teacher-nav.tsx'), /aria-disabled|data-soon|th\.nav\.soon/);
+ assert.doesNotMatch(read('middleware.ts') + read('shared/website-routes.ts'), /teacher\/analytics/, 'no legacy path is allow-listed');
 });
 test('locales: every teacher Home string exists in English and Arabic with the same placeholders, and the keys stay in sync', () => {
  assert.deepEqual(Object.keys(messages.en).sort(), Object.keys(messages.ar).sort());
@@ -129,23 +129,22 @@ test('locales: every teacher Home string exists in English and Arabic with the s
 test('wording: no tenant, program or studio vocabulary reaches a teacher on these screens, in either language', () => {
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
  for (const k of Object.keys(messages.en).filter(k => k.startsWith('th.'))) { assert.doesNotMatch(messages.en[k], forbidden, k); assert.doesNotMatch(messages.ar[k], forbidden, k); }
- const shown = ['home-view', 'courses-view', 'parts', 'create-course', 'teacher-nav', 'teacher-profile'].map(f => read('frontend/features/teacher-home/' + f + '.tsx')).join('\n')
-  .replace(/organization_id|slug|courseSlug|Slug/g, '');
+ const shown = [...['home-view', 'courses-view', 'parts', 'create-course', 'teacher-nav'].map(f => read('frontend/features/teacher-home/' + f + '.tsx')), read('frontend/features/teacher-frame/teacher-frame.tsx')].join('\n')
+  .replace(/organization_id|slug|courseSlug|Slug|staffOrganizationIds/g, '');
  assert.doesNotMatch(shown.replace(/\b(className|class)=("[^"]*"|\{[^}]*\})/g, ''), /Organization|Tenant|Website Studio|>\s*Program|Module/);
 });
-test('layout contract: desktop has a day column and an inbox column; phone order is next session, updates, coming up; no courses and no homework card on Home', () => {
+test('layout contract: greeting, numbers and hero, then a column for what needs you and what is coming beside a column of updates; a phone stacks that order; no courses and no homework card on Home', () => {
  const view = read('frontend/features/teacher-home/home-view.tsx');
  const home = view.slice(view.indexOf('export function TeacherHomeView'));
- assert.deepEqual([...home.matchAll(/^\s+<(NextSession|Homework|Updates|ComingUp|CoursesLink)\b/gm)].map(m => m[1]), ['NextSession', 'ComingUp', 'Updates'], 'desktop columns: day (next session, coming up), inbox (updates)');
- const phone = [...home.matchAll(/<(NextSession|Homework|Updates|ComingUp|CoursesLink)\b[^>]*?\border-(\d) lg:order-none/g)].sort((x, y) => x[2] - y[2]).map(m => m[1]);
- assert.deepEqual(phone, ['NextSession', 'Updates', 'ComingUp']);
- assert.doesNotMatch(view, /function Courses\(|<Courses|CourseCards/, 'a returning teacher has no big Courses card on Home');
+ assert.deepEqual([...home.matchAll(/<(PageHeader|Summary|NextSession|NeedsAttention|Homework|Updates|ComingUp|CoursesLink)\b/g)].map(m => m[1]), ['PageHeader', 'Summary', 'NextSession', 'NeedsAttention', 'ComingUp', 'Updates']);
+ assert.doesNotMatch(view, /function Courses\(|<Courses|CourseCards/, 'a returning teacher has no big Courses card on Home');
  assert.doesNotMatch(view, /CoursesLink|data-home-courses-link|th\.courses\.title/, 'Home has no courses block and no Courses link');
- assert.match(view, /href=\{`\/teacher\/groups\/\$\{next\.groupId\}`\}/, 'Open this Group opens the teacher Group page'); assert.doesNotMatch(view, /<Link href="\/teacher\/groups"/, 'no All sessions button on the Next session card');
+ assert.match(view, /href=\{`\/teacher\/groups\/\$\{next\.groupId\}`\}/, 'Open group opens the teacher Group page'); assert.doesNotMatch(view, /<Link href="\/teacher\/groups"/, 'no All sessions button on the Next session card');
  assert.doesNotMatch(home, /CreateCourse/, 'no Create a course button in the Home header');
  assert.match(view, /<CreateCourse targets=\{data\.createTargets\} ink className="min-h-\[48px\]" \/>/, 'the first-visit card keeps its Create a course step');
  assert.match(view, /data\.firstVisit\) return <FirstVisit/);
  assert.doesNotMatch(view, /EduLabsMark/, 'the mark belongs to the shell, not to the page');
+ assert.doesNotMatch(view, /attendance.{0,20}month|th\.summary\.attendance/i, 'the attendance-this-month tile is left out: no existing read scopes attendance by month');
 });
 test('no new endpoint, migration or permission change was needed: only existing services are called', () => {
  const server = read('server/services/teacher-home.ts');
@@ -168,12 +167,12 @@ test('render: the Courses page states and the section errors render accessible, 
  }
 });
 
-test('sidebar: Support stays reachable for staff through the existing /support route, in both languages', () => {
- const sidebar = read('frontend/components/sidebar.tsx');
- assert.match(sidebar, /teacherMode && <div data-teacher-support[\s\S]*?href="\/support"[\s\S]*?<L id="navigation\.support" \/>/);
- assert.equal(home.teacherNav.length, 6, 'six teacher links');
- assert.ok(messages.en['navigation.support'] && messages.ar['navigation.support'], 'Support label exists in en and ar');
- assert.equal(home.teacherNav.some(n => n.href === '/support'), false, 'Support is the footer entry, not one of the six');
+test('frame: Help stays reachable for staff through the existing /support route, in both languages', () => {
+ const frame = read('frontend/features/teacher-frame/teacher-frame.tsx');
+ assert.match(frame, /const HELP = '\/support'/); assert.match(frame, /data-teacher-support/); assert.match(frame, /data-more-item="help"/);
+ assert.equal(home.teacherNav.length, 4, 'four main links');
+ assert.ok(messages.en['th.nav.help'] && messages.ar['th.nav.help'], 'Help label exists in en and ar');
+ assert.equal(home.teacherNav.some(n => n.href === '/support'), false, 'Help is in the profile menu and in More, not in the main menu');
 });
 
 // ------------------------------------------------------------------ attendance on Home
@@ -192,7 +191,7 @@ test('happening now: a finalized sheet is "taken" (edit link instead of Take att
  assert.equal(state('finalized').attendance, 'finalized'); assert.equal(state('finalized').happening, true);
  assert.equal(state('draft').attendance, 'draft'); assert.equal(state('reopened').attendance, 'reopened');
  const view = read('frontend/features/teacher-home/home-view.tsx');
- assert.ok(view.includes("const taken = now && next?.attendance === 'finalized'"));
+ assert.ok(view.includes("const taken = now && next.attendance === 'finalized'"));
  assert.ok(view.includes('{now && !taken && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance"'));
  assert.ok(view.includes('{taken && <p data-attendance-taken') && view.includes('<L id="th.next.taken" />'));
  assert.ok(view.includes('{taken && <Link href={attendanceHref(next.groupId, next.id)} data-edit-attendance') && view.includes('<L id="ta.edit" />'));
@@ -233,16 +232,15 @@ test('unsaved attendance: a failed read is an error, never "all clear"; without 
  assert.equal(build({ groups: bad(500), unsaved: ok([]) }).unsaved.state, 'error');
  assert.equal(build({ unsaved: bad(503) }).sessions.state, 'ready', 'the rest of Home is unaffected');
 });
-test('Home view: Take attendance and the unsaved rows, with their tour targets and 48px buttons', () => {
+test('Home view: Take attendance and the unsaved rows, with their tour targets and 44px or larger buttons', () => {
  const view = read('frontend/features/teacher-home/home-view.tsx');
- assert.match(view, /\{now && !taken && <Link href=\{attendanceHref\(next\.groupId, next\.id\)\} data-tour="take-attendance" data-take-attendance className=\{cn\(inkButton,/, 'during a live class Take attendance is the primary, dark button');
- assert.match(view, /data-open-group className=\{cn\(now \? plainButton : inkButton,/, 'and Open this Group is the secondary one');
+ assert.match(view, /\{now && !taken && <Link href=\{attendanceHref\(next\.groupId, next\.id\)\} data-tour="take-attendance" data-take-attendance className=\{buttonClass\('primary'/, 'during a live class Take attendance is the primary button');
+ assert.match(view, /data-open-group className=\{buttonClass\(now \? 'secondary' : 'primary'/, 'and Open group is the secondary one');
  assert.ok(view.indexOf('data-take-attendance') < view.indexOf('data-open-group'), 'Take attendance comes first');
- assert.match(view, /const now = Boolean\(next\?\.happening\)/); assert.match(view, /id=\{now \? 'th\.next\.now' : 'th\.next\.title'\}/);
+ assert.match(view, /const now = next\.happening/); assert.match(view, /id=\{now \? 'th\.next\.now' : 'th\.next\.title'\}/);
  assert.match(view, /data-tour="next-session"/); assert.match(view, /data-tour="unsaved-attendance"/);
- assert.match(view, /<Link href=\{attendanceHref\(s\.groupId, s\.id\)\} data-unsaved-finish aria-label=\{t\([^\n]*?\)\} className="[^"]*min-h-\[48px\][^"]*bg-amber-300/);
- assert.match(view, /<ul data-tour="unsaved-attendance"[^>]*>\{rows\.map/, 'at the top of Coming up, before the upcoming sessions');
- assert.ok(view.indexOf('data-unsaved-list') < view.indexOf('data.data.comingUp.map'));
+ assert.match(view, /<Link href=\{attendanceHref\(s\.groupId, s\.id\)\} data-unsaved-finish aria-label=\{t\([^\n]*?\)\} className=\{buttonClass\('attention', \{ size: 'lg' \}\)\}/);
+ assert.match(view, /<ul className="d-list" data-tour="unsaved-attendance"[^>]*>/, 'the unsaved rows are in Needs attention');
  for (const k of ['th.next.now', 'th.next.attendance', 'th.coming.unsaved', 'th.coming.take_for']) { assert.ok(messages.en[k] && messages.ar[k], k); assert.match(messages.ar[k], /[؀-ۿ]/); }
  assert.equal(messages.en['th.next.attendance'], 'Take attendance'); assert.ok(!('th.coming.finish' in messages.en), 'a past class with unsaved attendance says Take attendance, not Finish');
  assert.match(view, /data-unsaved-finish aria-label=\{t\('th\.coming\.take_for', \{ group: s\.groupName \}\)\}[^>]*><L id="th\.next\.attendance" \/>/);
@@ -250,12 +248,44 @@ test('Home view: Take attendance and the unsaved rows, with their tour targets a
  assert.match(server, /service\.view<GroupSession>\(groupId, 'sessions'\)/, 'the existing per-Group sessions read, like a Group card');
  assert.match(server, /UNSAVED_GROUP_LIMIT/);
 });
-test('logo: one BrandLogo in the brand font is used by the sidebar (desktop and the phone menu) and the phone header; the teacher logo is one link to the teacher Home', () => {
- const logo = read('frontend/components/brand-logo.tsx'), sidebar = read('frontend/components/sidebar.tsx'), mobile = read('frontend/features/dashboard/mobile-sidebar.tsx');
+test('logo: one BrandLogo; the student shell keeps its plain logo, and in the teacher frame it is one link to the teacher Home on desktop and phone', () => {
+ const logo = read('frontend/components/brand-logo.tsx'), sidebar = read('frontend/components/sidebar.tsx'), mobile = read('frontend/features/dashboard/mobile-sidebar.tsx'), frame = read('frontend/features/teacher-frame/teacher-frame.tsx');
  assert.match(logo, /font-display/); assert.doesNotMatch(logo + sidebar + mobile, /Times New Roman/);
- assert.match(logo, /aria-label=\{t\('navigation\.logo_home'\)\}/); assert.match(logo, /min-h-\[44px\]/); assert.match(logo, /focus-visible:outline-2/);
- assert.equal((logo.match(/<Link\b/g) || []).length, 1, 'mark, wordmark and line sit inside ONE link');
- for (const file of [sidebar, mobile]) assert.match(file, /<BrandLogo[^>]*href=\{teacherMode \? teacherHomeHref : undefined\}/, 'a link for staff only');
+ assert.match(logo, /aria-label=\{t\('navigation\.logo_home'\)\}/); assert.match(logo, /d-logo/);
+ assert.equal((logo.match(/<Link\b/g) || []).length, 1, 'mark and wordmark sit inside ONE link');
+ assert.match(sidebar, /<BrandLogo \/>/); assert.match(mobile, /<BrandLogo size="phone" \/>/);
+ assert.equal((frame.match(/<BrandLogo href=\{teacherHomeHref\}/g) || []).length, 2, 'the sidebar and the phone header');
  assert.equal(home.teacherHomeHref, '/home'); assert.equal(home.teacherNav.find(n => n.key === 'home').href, home.teacherHomeHref, 'the logo and the Home menu item share one href');
  for (const id of ['en', 'ar']) assert.match(read(`frontend/locales/${id}.ts`), /"navigation\.logo_home":/);
+});
+
+// ------------------------------------------------------------------ Home numbers
+test('summary: active Groups come from the Group read and students from the existing staff counts; a number that is not known is null, so its tile is left out', () => {
+ const metrics = ok({ totalStudents: 41, pendingWaitlistCount: 3 });
+ const full = build({ metrics });
+ assert.equal(full.summary.activeGroups, 2); assert.equal(full.summary.students, 41); assert.equal(full.waiting.state, 'ready'); assert.equal(full.waiting.data.count, 3);
+ assert.equal(build({ metrics: bad(503) }).summary.students, null); assert.equal(build({ metrics: bad(403) }).waiting.status, 403);
+ assert.equal(build().waiting.state, 'unavailable');
+ assert.equal(build({ groups: ok({ rows: [group(1)], page: 0, hasMore: true }) }).summary.activeGroups, null, 'a cut-off Group list is not a count');
+ assert.equal(build({ groups: bad(500) }).summary.activeGroups, null);
+ const server = read('server/services/teacher-home.ts');
+ assert.match(server, /studentAdministration<HomeMetrics>\('metrics', \{\}\)/, 'the existing read');
+ assert.doesNotMatch(server, /pendingHomework/, 'homework counts stay off Home');
+});
+
+test('sessions today: on the Cairo date, finished ones included, cancelled and other Groups out; any incomplete read means no number', () => {
+ // 2030-03-04 10:00 UTC is 12:00 in Cairo (UTC+2)
+ const rows = [session(1, 1, 30), session(2, 2, 120), session(3, 1, 13 * 60), session(4, 1, 60, { cancelled: true }), session(5, 9, 60)];
+ const past = session(6, 1, -120), older = session(7, 1, -3 * 1440);
+ const base = { upcoming: ok({ rows, page: 0 }), unsaved: ok([{ groupId: uuid(1), rows: [past, session(1, 1, 30), older], more: false }, { groupId: uuid(2), rows: [], more: false }]) };
+ assert.equal(build(base).sessionsToday, 3, 'two coming, one finished; the 23:00-UTC one is tomorrow in Cairo');
+ assert.equal(build({ ...base, upcoming: ok({ rows, page: 0, hasMore: true }) }).sessionsToday, null);
+ assert.equal(build({ ...base, unsaved: bad(500) }).sessionsToday, null);
+ assert.equal(build({ ...base, unsaved: undefined }).sessionsToday, null);
+ assert.equal(build({ ...base, groups: ok({ rows: [group(1), group(2)], page: 0, hasMore: true }) }).sessionsToday, null);
+ assert.equal(build({ ...base, unsaved: ok([{ groupId: uuid(1), rows: [past], more: true }]) }).sessionsToday, null, 'a cut-off page that did not reach before today');
+ assert.equal(build({ ...base, unsaved: ok([{ groupId: uuid(1), rows: [past, older], more: true }]) }).sessionsToday, 3, 'one that did still answers for today');
+ assert.equal(home.greetingKey(9), 'morning'); assert.equal(home.greetingKey(14), 'afternoon'); assert.equal(home.greetingKey(20), 'evening');
+ assert.equal(home.cairoHour(NOW), 12);
+ assert.equal(home.sessionsTodayKey(0), 'th.home.sessions_none'); assert.equal(home.sessionsTodayKey(1), 'th.home.sessions_one'); assert.equal(home.sessionsTodayKey(4), 'th.home.sessions_many');
 });

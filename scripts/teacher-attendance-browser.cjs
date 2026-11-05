@@ -33,8 +33,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LanguageProvider } from '@/frontend/components/language-provider';
 import { ThemeProvider } from '@/frontend/components/theme-provider';
-import Sidebar from '@/frontend/components/sidebar';
-import MobileSidebar from '@/frontend/features/dashboard/mobile-sidebar';
+import { TeacherFrame } from '@/frontend/features/teacher-frame/teacher-frame';
+import { DesignSettings } from '@/frontend/features/teacher-settings/design-settings';
 import { TeacherGroupsList } from '@/frontend/features/teacher-groups/list-view';
 import { TeacherGroupView } from '@/frontend/features/teacher-groups/group-view';
 import { TeacherAttendanceView } from '@/frontend/features/teacher-attendance/attendance-view';
@@ -54,6 +54,7 @@ let lang = 'en'; try { lang = localStorage.getItem('edulabs-lms-language') === '
 document.documentElement.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
 const section = pathname.split('/')[3] || '';
 function Body() {
+ if (pathname === '/teacher/courses') return <TeacherCoursesView courses={courses} targets={targets} />;
  if (pathname === '/teacher/groups') return <TeacherGroupsList />;
  const at = /^\\/teacher\\/groups\\/([0-9a-f-]{36})\\/attendance\\/([0-9a-f-]{36})$/.exec(pathname); if (at) return <TeacherAttendanceView groupId={at[1]} sessionId={at[2]} />;
  const m = /^\\/teacher\\/groups\\/([0-9a-f-]{36})$/.exec(pathname); if (m) return <TeacherGroupView groupId={m[1]} />;
@@ -63,20 +64,16 @@ function Settings() {
  return <TeacherSettingsShell>
   {pathname === '/teacher/settings' ? <SettingsIndex />
    : section === 'account' ? <TeacherAccountSection />
-   : section === 'courses' ? <TeacherCoursesView courses={courses} targets={targets} />
-   : section === 'language' ? <div data-settings-language className="space-y-6"><LanguageSettings /><AppearanceSettings /></div>
+   : section === 'language' ? <div data-settings-language className="space-y-6"><LanguageSettings /><AppearanceSettings /><DesignSettings /></div>
    : section === 'notifications' ? <TeacherNotificationsSection /> : <p>Harness page</p>}
  </TeacherSettingsShell>;
 }
 const isSettings = pathname === '/teacher/settings' || pathname.startsWith('/teacher/settings/');
+document.documentElement.dataset.design = new URLSearchParams(location.search).get('design') === 'new' ? 'new' : 'classic';
 createRoot(document.getElementById('root')).render(
  <LanguageProvider initialLanguage={lang}>
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-   {isSettings ? <Settings /> : <div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
-    <MobileSidebar />
-    <aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50"><Sidebar /></aside>
-    <main className="md:ps-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between"><div className="flex-1 w-full p-4 sm:p-6 md:p-8"><Body /></div></main>
-   </div>}
+   <TeacherFrame>{isSettings ? <Settings /> : <Body />}</TeacherFrame>
   </ThemeProvider>
  </LanguageProvider>);
 `;
@@ -185,7 +182,7 @@ function command(body) {
   'next/link': 'import React from "react"; export default function Link({ href, children, onClick, ...rest }) { return React.createElement("a", { ...rest, href, onClick: e => { onClick && onClick(e); if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); location.assign(href); } }, children); }',
   'next/image': 'import React from "react"; export default function Image({ unoptimized, fill, priority, ...p }) { return React.createElement("img", p); }',
   '@/shared/auth-config': 'export const isFirebaseStaging = () => true;',
-  '@/frontend/components/providers/application-auth-provider': 'export const useApplicationAuth = () => ({ user: { fullName: "Synthetic Teacher", email: "synthetic.teacher@example.test", imageUrl: null, id: "u" }, openUserProfile() { window.__profileOpened = true; }, signOut: async () => { window.__signedOut = true; }, accountStatus: { loading: false } }); export const useWebsiteNavigation = () => ({ viewer: { id: "v" }, organizations: [], staffOrganizationIds: ["00000000-0000-4000-8000-000000000050"] }); export const WebsiteNavigationProvider = ({ children }) => children;',
+  '@/frontend/components/providers/application-auth-provider': 'export const useApplicationAuth = () => ({ user: { fullName: "Synthetic Teacher", email: "synthetic.teacher@example.test", imageUrl: null, id: "u" }, openUserProfile() { window.__profileOpened = true; }, signOut: async () => { window.__signedOut = true; }, accountStatus: { loading: false } }); export const useWebsiteNavigation = () => ({ viewer: { id: "v", displayName: "Synthetic Viewer" }, organizations: [{ id: "00000000-0000-4000-8000-000000000050", name: "Synthetic space" }], staffOrganizationIds: ["00000000-0000-4000-8000-000000000050"] }); export const WebsiteNavigationProvider = ({ children }) => children;',
   '@/frontend/components/providers/v2-identity': 'import React from "react"; export const useUser = () => ({ user: { fullName: "Synthetic Teacher" } }); export const useClerk = () => ({ signOut() {} }); export const UserButton = () => React.createElement("span", { className: "h-9 w-9 rounded-full border-2 border-black" });',
  };
  const resolveAlias = p => { for (const c of [p + '.tsx', p + '.ts', path.join(p, 'index.tsx'), path.join(p, 'index.ts')]) if (fs.existsSync(c) && fs.statSync(c).isFile()) return c; return p; };

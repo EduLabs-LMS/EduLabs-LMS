@@ -271,7 +271,7 @@ test('Home label: the Home loader answers with demo=false on any failure, and th
  assert.match(loader, /const demo = demoLabel\(/); assert.match(loader, /demo: demoShown/);
  const view = read('frontend/features/teacher-home/home-view.tsx');
  assert.equal((view.match(/<DemoLabel \/>/g) || []).length, 2, 'Home and first visit only');
- for (const m of view.matchAll(/<DemoLabel \/>/g)) assert.match(view.slice(Math.max(0, m.index - 20), m.index), /data\.demo && $/, 'always behind data.demo');
+ for (const m of view.matchAll(/<DemoLabel \/>/g)) assert.match(view.slice(Math.max(0, m.index - 20), m.index), /data\.demo (?:&&|\?) $/, 'always behind data.demo');
  assert.doesNotMatch(view, /demo\s*\|\|\s*true|demo: true|data\.demo\s*=/);
 });
 

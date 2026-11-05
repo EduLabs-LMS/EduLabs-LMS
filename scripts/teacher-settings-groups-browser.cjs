@@ -33,8 +33,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LanguageProvider } from '@/frontend/components/language-provider';
 import { ThemeProvider } from '@/frontend/components/theme-provider';
-import Sidebar from '@/frontend/components/sidebar';
-import MobileSidebar from '@/frontend/features/dashboard/mobile-sidebar';
+import { TeacherFrame } from '@/frontend/features/teacher-frame/teacher-frame';
+import { DesignSettings } from '@/frontend/features/teacher-settings/design-settings';
 import { TeacherGroupsList } from '@/frontend/features/teacher-groups/list-view';
 import { TeacherGroupView } from '@/frontend/features/teacher-groups/group-view';
 import { CreateGroupView } from '@/frontend/features/teacher-groups/group-form';
@@ -54,6 +54,7 @@ let lang = 'en'; try { lang = localStorage.getItem('edulabs-lms-language') === '
 document.documentElement.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
 const section = pathname.split('/')[3] || '';
 function Body() {
+ if (pathname === '/teacher/courses') return <TeacherCoursesView courses={courses} targets={targets} />;
  if (pathname === '/teacher/groups') return <TeacherGroupsList />;
  if (pathname === '/teacher/groups/new') { const c = new URLSearchParams(location.search).get('courses'); return <CreateGroupView courses={c === 'none' ? { ok: true, value: [] } : c === 'fail' ? { ok: false, status: 503 } : { ok: true, value: [{ courseId: uuid(10), title: 'Synthetic Physics', runId: uuid(101) }, { courseId: uuid(11), title: 'Synthetic Chemistry', runId: null }] }} />; }
  const m = /^\\/teacher\\/groups\\/([0-9a-f-]{36})$/.exec(pathname); if (m) return <TeacherGroupView groupId={m[1]} />;
@@ -63,20 +64,16 @@ function Settings() {
  return <TeacherSettingsShell>
   {pathname === '/teacher/settings' ? <SettingsIndex />
    : section === 'account' ? <TeacherAccountSection />
-   : section === 'courses' ? <TeacherCoursesView courses={courses} targets={targets} />
-   : section === 'language' ? <div data-settings-language className="space-y-6"><LanguageSettings /><AppearanceSettings /></div>
+   : section === 'language' ? <div data-settings-language className="space-y-6"><LanguageSettings /><AppearanceSettings /><DesignSettings /></div>
    : section === 'notifications' ? <TeacherNotificationsSection /> : <p>Harness page</p>}
  </TeacherSettingsShell>;
 }
 const isSettings = pathname === '/teacher/settings' || pathname.startsWith('/teacher/settings/');
+document.documentElement.dataset.design = new URLSearchParams(location.search).get('design') === 'new' ? 'new' : 'classic';
 createRoot(document.getElementById('root')).render(
  <LanguageProvider initialLanguage={lang}>
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-   {isSettings ? <Settings /> : <div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
-    <MobileSidebar />
-    <aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50"><Sidebar /></aside>
-    <main className="md:ps-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between"><div className="flex-1 w-full p-4 sm:p-6 md:p-8"><Body /></div></main>
-   </div>}
+   <TeacherFrame>{isSettings ? <Settings /> : <Body />}</TeacherFrame>
   </ThemeProvider>
  </LanguageProvider>);
 `;
@@ -170,7 +167,7 @@ function command(body) {
   'next/link': 'import React from "react"; export default function Link({ href, children, onClick, ...rest }) { return React.createElement("a", { ...rest, href, onClick: e => { onClick && onClick(e); if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); location.assign(href); } }, children); }',
   'next/image': 'import React from "react"; export default function Image({ unoptimized, fill, priority, ...p }) { return React.createElement("img", p); }',
   '@/shared/auth-config': 'export const isFirebaseStaging = () => true;',
-  '@/frontend/components/providers/application-auth-provider': 'export const useApplicationAuth = () => ({ user: { fullName: "Synthetic Teacher", email: "synthetic.teacher@example.test", imageUrl: null, id: "u" }, openUserProfile() { window.__profileOpened = true; }, signOut: async () => { window.__signedOut = true; }, accountStatus: { loading: false } }); export const useWebsiteNavigation = () => ({ viewer: { id: "v" }, organizations: [], staffOrganizationIds: ["00000000-0000-4000-8000-000000000050"] }); export const WebsiteNavigationProvider = ({ children }) => children;',
+  '@/frontend/components/providers/application-auth-provider': 'export const useApplicationAuth = () => ({ user: { fullName: "Synthetic Teacher", email: "synthetic.teacher@example.test", imageUrl: null, id: "u" }, openUserProfile() { window.__profileOpened = true; }, signOut: async () => { window.__signedOut = true; }, accountStatus: { loading: false } }); export const useWebsiteNavigation = () => ({ viewer: { id: "v", displayName: "Synthetic Viewer" }, organizations: [{ id: "00000000-0000-4000-8000-000000000050", name: "Synthetic space" }], staffOrganizationIds: ["00000000-0000-4000-8000-000000000050"] }); export const WebsiteNavigationProvider = ({ children }) => children;',
   '@/frontend/components/providers/v2-identity': 'import React from "react"; export const useUser = () => ({ user: { fullName: "Synthetic Teacher" } }); export const useClerk = () => ({ signOut() {} }); export const UserButton = () => React.createElement("span", { className: "h-9 w-9 rounded-full border-2 border-black" });',
  };
  const resolveAlias = p => { for (const c of [p + '.tsx', p + '.ts', path.join(p, 'index.tsx'), path.join(p, 'index.ts')]) if (fs.existsSync(c) && fs.statSync(c).isFile()) return c; return p; };
@@ -267,7 +264,7 @@ function command(body) {
   const p = await phys.innerText(); assert.match(p, /مجموعة الفيزياء/); assert.match(p, /Online/); assert.match(p, /25\+ students/, 'a partial member read says so');
   assert.match(await alg.locator('[data-next-session]').innerText(), /\d/);
   assert.equal(await alg.locator('a').first().getAttribute('href'), '/teacher/groups/' + G.alg);
-  assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Groups & Classes');
+  assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Groups');
   assert.doesNotMatch(await main(page), forbidden);
   await shot(page, 'groups-list-en-1440');
   await page.locator('[data-groups-search]').fill('الفيزياء'); assert.equal(await page.locator('[data-group-card]').count(), 1);
@@ -326,7 +323,7 @@ function command(body) {
   const { page, context } = await open(desktop, '/teacher/groups/' + G.alg);
   await page.locator('[data-group-sessions]').waitFor();
   assert.equal(await page.locator('h1').innerText(), 'Synthetic Algebra Group'); assert.match(await page.locator('[data-teacher-group]').innerText(), /Synthetic Maths/); assert.equal(await page.locator('[data-status]').innerText(), 'Active');
-  assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['Sessions', 'Students', 'Details']); assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Groups & Classes');
+  assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['Sessions', 'Students', 'Details']); assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Groups');
   assert.equal(await page.locator('[data-session][data-state="upcoming"]').count(), 3); assert.equal(await page.locator('[data-session][data-state="cancelled"]').count(), 1, 'a cancelled upcoming Session is shown as Cancelled');
   assert.equal(await page.locator('[data-session]').count(), 4 + 3, 'four upcoming/cancelled plus the three most recent earlier Sessions');
   const earlier = page.locator('[data-session][data-state="completed"]');
@@ -427,24 +424,24 @@ function command(body) {
  });
 
  // ------------------------------------------------------------------ Settings
- await step('Settings, English desktop: own frame, the root goes to My account, four sections from the one list, Back to EduLabs, no main sidebar', async () => {
+ await step('Settings, English desktop: inside the main frame, the root goes to My account, three sections from the one list in underline tabs', async () => {
   const { page, context } = await open(desktop, '/teacher/settings');
   await page.waitForURL('**/teacher/settings/account'); await page.locator('[data-settings-account]').waitFor();
-  assert.equal(await page.locator('[data-teacher-nav]').count(), 0, 'not inside the main teacher layout');
+  assert.equal(await page.locator('[data-teacher-nav]').count(), 1, 'inside the main teacher frame'); assert.equal(await page.locator('[data-nav="settings"]').getAttribute('aria-current'), 'page');
   assert.equal(await page.locator('h1:visible').count(), 1, 'one visible page heading'); assert.equal(await page.locator('h1:visible').innerText(), 'Settings');
-  assert.deepEqual(await page.locator('[data-settings-sidebar] [data-settings-section]').allInnerTexts(), ['My account', 'Courses', 'Language and appearance', 'Notifications']);
-  const back = page.locator('[data-settings-back]'); assert.equal(await back.getAttribute('href'), '/home'); assert.match(await back.innerText(), /Back to EduLabs/);
+  assert.deepEqual(await page.locator('[data-settings-sidebar] [data-settings-section]').allInnerTexts(), ['My account', 'Language and appearance', 'Notifications']);
   assert.equal(await page.locator('[data-settings-section="account"]').getAttribute('aria-current'), 'page');
   const t = await main(page); assert.match(t, /Synthetic Teacher/); assert.match(t, /synthetic\.teacher@example\.test/);
-  const w = await page.locator('main > div').evaluate(e => e.getBoundingClientRect().width); assert.ok(w <= 880.5, 'content is at most 880px wide (' + w + ')');
+  const w = await page.locator('main .d-settings').evaluate(e => e.getBoundingClientRect().width); assert.ok(w <= 880.5, 'content is at most 880px wide (' + w + ')');
   await shot(page, 'settings-account-en-1440');
-  for (const [key, expect] of [['courses', /Synthetic Physics/], ['language', /Arabic|العربية/], ['notifications', /notifications/i]]) {
+  for (const [key, expect] of [['language', /Arabic|العربية/], ['notifications', /notifications/i]]) {
    await page.locator(`[data-settings-sidebar] [data-settings-section="${key}"]`).click(); await page.waitForURL('**/teacher/settings/' + key);
    await page.locator('main').waitFor(); assert.match(await main(page), expect); assert.equal(await page.locator(`[data-settings-section="${key}"]`).getAttribute('aria-current'), 'page');
    await shot(page, `settings-${key}-en-1440`);
   }
   assert.equal(await page.locator('main a[href="/notifications"]').count(), 1, 'Notifications opens the existing preferences screen');
-  await page.locator('[data-settings-section="courses"]').click(); await page.waitForURL('**/teacher/settings/courses'); assert.equal(await page.locator('[data-course]').count(), 2); assert.equal(await page.locator('main [data-create-course]').count(), 1);
+  await page.locator('[data-teacher-nav] [data-nav="courses"]').click(); await page.waitForURL('**/teacher/courses'); assert.equal(await page.locator('[data-course]').count(), 2); assert.equal(await page.locator('main [data-create-course]').count(), 1);
+  assert.equal(await page.locator('[data-nav="courses"]').getAttribute('aria-current'), 'page'); await shot(page, 'courses-en-1440');
   assert.doesNotMatch(await main(page), forbidden);
   await context.close();
  });
@@ -453,10 +450,10 @@ function command(body) {
    const { page, context } = await open(phone, '/teacher/settings', { lang });
    await page.locator('[data-settings-list]').waitFor(); assert.equal(await page.url().endsWith('/teacher/settings'), true, 'a phone stays on the list');
    assert.equal(await page.locator('h1:visible').count(), 1, 'one visible page heading on a phone');
-   assert.equal(await page.locator('[data-settings-list] [data-settings-section]').count(), 4); assert.ok(await overflow(page)); assert.deepEqual(await tinyTargets(page), []);
+   assert.equal(await page.locator('[data-settings-list] [data-settings-section]').count(), 3); assert.ok(await overflow(page)); assert.deepEqual(await tinyTargets(page), []);
    assert.equal(await page.locator('[data-settings-sidebar]').isVisible(), false);
    const heights = await page.locator('[data-settings-list] [data-settings-section]').evaluateAll(n => n.map(e => e.getBoundingClientRect().height)); assert.ok(heights.every(h => h >= 64), 'big rows');
-   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); assert.match(await page.locator('body').innerText(), /الإعدادات/); assert.match(await page.locator('[data-settings-list]').innerText(), /حسابي[\s\S]*الدورات[\s\S]*اللغة والمظهر[\s\S]*الإشعارات/); }
+   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); assert.match(await page.locator('body').innerText(), /الإعدادات/); assert.match(await page.locator('[data-settings-list]').innerText(), /حسابي[\s\S]*اللغة والمظهر[\s\S]*الإشعارات/); }
    await shot(page, `settings-list-${lang}-390`);
    await page.locator('[data-settings-list] [data-settings-section="language"]').click(); await page.waitForURL('**/teacher/settings/language'); await page.locator('[data-settings-language]').waitFor();
    assert.ok(await overflow(page), 'no overflow on the section page'); const arrow = page.locator('[data-settings-phone-back]'); assert.equal(await arrow.getAttribute('href'), '/teacher/settings'); const b = await arrow.boundingBox(); assert.ok(b.width >= 44 && b.height >= 44);
@@ -466,20 +463,20 @@ function command(body) {
    await context.close();
   }
   const arD = await open(desktop, '/teacher/settings/account', { lang: 'ar' }); await arD.page.locator('[data-settings-account]').waitFor();
-  const sb = await arD.page.locator('[data-settings-sidebar]').evaluate(e => e.getBoundingClientRect()), mn = await arD.page.locator('main').evaluate(e => e.getBoundingClientRect()); assert.ok(sb.left > mn.left, 'the Settings sidebar is on the right in RTL'); await shot(arD.page, 'settings-account-ar-1440'); await arD.context.close();
+  const tabOne = await arD.page.locator('[data-settings-section="account"]').evaluate(e => e.getBoundingClientRect()), tabTwo = await arD.page.locator('[data-settings-section="language"]').evaluate(e => e.getBoundingClientRect()); assert.ok(tabOne.left > tabTwo.left, 'the Settings tabs read from the right in RTL'); await shot(arD.page, 'settings-account-ar-1440'); await arD.context.close();
   const dk = await open(desktop, '/teacher/settings/account', { theme: 'dark' }); await dk.page.locator('[data-settings-account]').waitFor(); await dk.page.waitForFunction(() => document.documentElement.classList.contains('dark'));
   await shot(dk.page, 'settings-account-dark-1440'); await dk.context.close();
  });
- await step('Settings keyboard: the sidebar sections are reachable with Tab and open with Enter; focus is visible', async () => {
+ await step('Settings keyboard: the section tabs are reachable with Tab and open with Enter', async () => {
   const { page, context } = await open(desktop, '/teacher/settings/account'); await page.locator('[data-settings-account]').waitFor();
-  await page.locator('[data-settings-back]').focus(); await page.keyboard.press('Tab'); assert.equal(await page.evaluate(() => document.activeElement.dataset.settingsSection), 'account'); await page.keyboard.press('Tab'); await page.keyboard.press('Enter');
-  await page.waitForURL('**/teacher/settings/courses'); await context.close();
+  await page.locator('[data-settings-sidebar] [data-settings-section="account"]').focus(); await page.keyboard.press('Tab'); assert.equal(await page.evaluate(() => document.activeElement.dataset.settingsSection), 'language'); await page.keyboard.press('Enter');
+  await page.waitForURL('**/teacher/settings/language'); await context.close();
  });
- await step('Teacher menu and profile in the real shell: six items, Reports disabled, cog opens Settings, Courses and Settings are not menu items', async () => {
+ await step('Teacher menu in the real frame: four items, Settings at the bottom opens Settings', async () => {
   const { page, context } = await open(desktop, '/teacher/groups'); await page.locator('[data-teacher-nav]').waitFor();
-  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'students', 'groups', 'homework', 'exams', 'reports']);
-  assert.equal(await page.locator('[data-teacher-nav] [data-nav="reports"]').evaluate(e => e.tagName), 'SPAN'); assert.equal(await page.locator('[data-teacher-nav] a[href="/teacher/courses"], [data-teacher-nav] a[href*="settings"], [data-teacher-nav] a[href*="analytics"]').count(), 0);
-  await page.getByRole('link', { name: 'Settings' }).click(); await page.waitForURL('**/teacher/settings/account'); await page.locator('[data-settings-account]').waitFor(); await context.close();
+  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses']);
+  assert.equal(await page.locator('[data-teacher-nav] a[href*="settings"], [data-teacher-nav] a[href*="analytics"]').count(), 0);
+  await page.locator('[data-nav="settings"]').click(); await page.waitForURL('**/teacher/settings/account'); await page.locator('[data-settings-account]').waitFor(); await context.close();
  });
 
 

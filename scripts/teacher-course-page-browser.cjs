@@ -42,7 +42,7 @@ function Page() {
   const [load, setLoad] = useState(null);
   const read = () => fetch('/__load/' + location.pathname.split('/').pop()).then(r => r.json()).then(setLoad);
   useEffect(() => { read(); window.addEventListener('harness-refresh', read); return () => window.removeEventListener('harness-refresh', read); }, []);
-  return load ? <TeacherSettingsShell><TeacherCourseView load={load} /></TeacherSettingsShell> : null;
+  return load ? <main><TeacherSettingsShell><TeacherCourseView load={load} /></TeacherSettingsShell></main> : null;
 }
 createRoot(document.getElementById('root')).render(
  <LanguageProvider initialLanguage={lang}>
@@ -62,6 +62,7 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
  const stubs = {
   '@/frontend/components/providers/use-loading-router': 'export const useLoadingRouter = () => ({ push(p) { location.assign(p); }, replace(p) { location.replace(p); }, refresh() { window.__refreshes = (window.__refreshes || 0) + 1; window.dispatchEvent(new Event("harness-refresh")); } });',
   'next/navigation': 'export const usePathname = () => location.pathname; export const useRouter = () => ({ push(p) { location.assign(p); }, replace(p) { location.replace(p); }, refresh() { window.__refreshes = (window.__refreshes || 0) + 1; window.dispatchEvent(new Event("harness-refresh")); } });',
+  'next/image': 'import React from "react"; export default function Image({ unoptimized, fill, priority, ...p }) { return React.createElement("img", p); }',
   'next/link': 'import React from "react"; export default function Link({ href, children, onClick, ...rest }) { return React.createElement("a", { ...rest, href, onClick: e => { onClick && onClick(e); if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); location.assign(href); } }, children); }',
  };
  const resolveAlias = p => { for (const c of [p + '.tsx', p + '.ts', path.join(p, 'index.tsx'), path.join(p, 'index.ts')]) if (fs.existsSync(c) && fs.statSync(c).isFile()) return c; return p; };
@@ -164,8 +165,8 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
   assert.match(await page.locator('[data-lessons-soon]').innerText(), /lesson editor is coming/i);
   assert.equal(await page.locator('[data-section="lessons"] li, [data-section="lessons"] ul').count(), 0, 'no list of lessons');
   assert.equal(await page.locator('[data-course-space]').count(), 0, 'one space: the space is not named');
-  assert.equal(await page.locator('[data-settings-section="courses"][aria-current="page"]').count(), 1, 'Courses stays active in the Settings sidebar');
-  assert.equal(await page.locator('[data-course-back]').getAttribute('href'), '/teacher/settings/courses');
+  assert.equal(await page.locator('[data-settings-section]').count(), 0, 'a course page has no Settings sub-navigation: it belongs to Courses');
+  assert.equal(await page.locator('[data-course-back]').getAttribute('href'), '/teacher/courses');
   for (const t of ['course-system', 'course-grade', 'course-status', 'course-publish', 'course-lessons']) assert.equal(await page.locator(`[data-tour="${t}"]`).count(), 1, t);
   await clean(page, 'desktop'); await shot(page, 'desktop-draft'); await context.close();
  });
@@ -188,10 +189,10 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
   await context.close();
  });
 
- await step('Phone: one calm column, large targets, readable text, the back arrow goes to the course list', async () => {
+ await step('Phone: one calm column, large targets, readable text, the back link goes to the course list', async () => {
   const { page, context } = await open(phone); await page.locator('[data-teacher-course]').waitFor(); await settled(page);
   await clean(page, 'phone'); await shot(page, 'phone-draft');
-  assert.equal(await page.locator('[data-settings-phone-back]').getAttribute('href'), '/teacher/settings/courses');
+  assert.equal(await page.locator('[data-course-back]').getAttribute('href'), '/teacher/courses');
   await page.locator('[data-course-publish]').click(); await page.locator('[data-confirm]').waitFor(); await clean(page, 'phone confirm'); await shot(page, 'phone-confirm');
   await context.close();
  });

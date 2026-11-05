@@ -17,11 +17,11 @@ function load(file, deps = {}) {
 // ------------------------------------------------------------------ Settings area
 test('settings: one array of sections; each has a page, a label and a hint in English and Arabic, and the root is not a section', () => {
  const sections = [...settings.teacherSettingsSections];
- assert.deepEqual(sections.map(s => s.key), ['account', 'courses', 'language', 'notifications']);
+ assert.deepEqual(sections.map(s => s.key), ['account', 'language', 'notifications']);
  assert.equal(new Set(sections.map(s => s.href)).size, sections.length);
  for (const s of sections) {
   assert.equal(s.href, settings.teacherSettingsRoot + '/' + s.key);
-  assert.ok(exists(`app/teacher/settings/${s.key}/page.tsx`), s.key + ' has a page');
+  assert.ok(exists(`app/(dashboard)/(routes)/teacher/settings/${s.key}/page.tsx`), s.key + ' has a page');
   for (const part of ['title', 'hint']) for (const lang of ['en', 'ar']) assert.ok(messages[lang][`ts.${s.key}.${part}`], `${lang} ts.${s.key}.${part}`);
  }
  assert.deepEqual([...settings.teacherSettingsPaths], ['/teacher/settings', ...sections.map(s => s.href)]);
@@ -31,14 +31,14 @@ test('settings: one array of sections; each has a page, a label and a hint in En
  assert.equal((shell.match(/teacherSettingsSections\.map/g) ?? []).length, 2, 'sidebar and phone list both map the one array');
  assert.doesNotMatch(shell, /href="\/teacher\/settings\//, 'no section address is written out in the shell');
 });
-test('settings: its own frame outside the main teacher layout, every page repeats the staff check', () => {
- assert.equal(exists('app/teacher/settings/layout.tsx'), true);
- assert.match(read('app/teacher/settings/layout.tsx'), /await staffContext\(\);\s*return <TeacherSettingsShell>/);
- for (const f of ['page', 'account/page', 'language/page', 'notifications/page']) assert.match(read(`app/teacher/settings/${f}.tsx`), /await staffContext\(\)/, f);
- assert.match(read('app/teacher/settings/courses/page.tsx'), /TeacherCoursesPage/);
+test('settings: inside the main teacher frame, with its own sub-navigation; every page repeats the staff check', () => {
+ assert.equal(exists('app/(dashboard)/(routes)/teacher/settings/layout.tsx'), true);
+ assert.match(read('app/(dashboard)/(routes)/teacher/settings/layout.tsx'), /await staffContext\(\);\s*return <TeacherSettingsShell>/);
+ for (const f of ['page', 'account/page', 'language/page', 'notifications/page']) assert.match(read(`app/(dashboard)/(routes)/teacher/settings/${f}.tsx`), /await staffContext\(\)/, f);
+ assert.match(read('app/(dashboard)/(routes)/teacher/settings/courses/page.tsx'), /redirect\('\/teacher\/courses'\)/, 'the old list address redirects');
  assert.match(read('app/(dashboard)/_components/teacher-home-pages.tsx'), /export async function TeacherCoursesPage\(\) \{\s*const \{ courses, createTargets \} = await loadTeacherCourses\(await staffContext\(\)\)/);
- assert.equal(exists('app/(dashboard)/(routes)/teacher/settings'), false, 'not inside the dashboard layout');
- assert.match(read('app/(dashboard)/(routes)/teacher/courses/page.tsx'), /redirect\('\/teacher\/settings\/courses'\)/, 'the old list route redirects');
+ assert.equal(exists('app/teacher'), false, 'nothing is left outside the dashboard layout');
+ assert.match(read('app/(dashboard)/(routes)/teacher/courses/page.tsx'), /if \(isFirebaseStaging\(\)\) return <TeacherCoursesPage \/>/, 'the course list has its own address');
  assert.ok(exists('app/(dashboard)/(routes)/teacher/courses/[courseId]/page.tsx'), 'course editors stay where they are');
 });
 test('settings: the desktop root goes to the first section, a phone gets the list', () => {
@@ -47,7 +47,7 @@ test('settings: the desktop root goes to the first section, a phone gets the lis
  assert.match(read('frontend/features/teacher-settings/shell.tsx'), /<ul data-settings-list className="[^"]*md:hidden"/);
 });
 test('settings: language and appearance reuse the existing components; student Settings is untouched', { skip: hasGit ? false : 'requires Git history' }, () => {
- const page = read('app/teacher/settings/language/page.tsx');
+ const page = read('app/(dashboard)/(routes)/teacher/settings/language/page.tsx');
  assert.match(page, /import \{ AppearanceSettings \} from '@\/frontend\/features\/personalization\/appearance-settings'/); assert.match(page, /import \{ LanguageSettings \} from '@\/frontend\/features\/personalization\/language-settings'/);
  const changed = cp.execFileSync('git', ['diff', '--name-only', '0c17a42441b42b18ed546e06b72a5f34efa40c08', '--', 'frontend/features/personalization', 'app/(dashboard)/(routes)/settings', 'app/(dashboard)/(routes)/personalization'], { encoding: 'utf8' }).trim();
  assert.equal(changed, '', 'student Settings files are unchanged');
@@ -140,7 +140,7 @@ test('middleware: with Firebase staging on, exactly the Settings and Group pages
 test('middleware: the allowed page list in the source is exactly the Settings array plus the two Group pages and the attendance page', () => {
  const source = read('middleware.ts');
  const literal = [...source.matchAll(/path === '(\/teacher\/settings[^']*)'/g)].map(m => m[1]);
- assert.deepEqual(literal.sort(), [...settings.teacherSettingsPaths].sort());
+ assert.deepEqual(literal.sort(), [...settings.teacherSettingsPaths, '/teacher/settings/courses'].sort(), 'the sections, and the old course list address that redirects');
  assert.match(source, /path === '\/teacher\/groups' \|\| path === '\/teacher\/groups\/new' \|\| \/\^\\\/teacher\\\/groups\\\/\[0-9a-f-\]\{36\}\(\\\/attendance\\\/\[0-9a-f-\]\{36\}\)\?\$\/\.test\(path\)/);
  assert.doesNotMatch(source + read('shared/website-routes.ts'), /teacher\/analytics/);
 });

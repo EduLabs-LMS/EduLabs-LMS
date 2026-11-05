@@ -2,8 +2,8 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
 function load(file,deps={},globals={}){const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}}).outputText,{module,exports:module.exports,require:n=>n==='@/frontend/components/language-provider'?require('./localization-test-loader.cjs').language():n in deps?deps[n]:require(n),console,...globals});return module.exports;}
 const link=({children,...props})=>React.createElement('a',props,children);
-test('Firebase sidebar labels contextual students/staff and places its only bell beside the account',()=>{
- for(const staff of[false,true]){
+test('the student sidebar labels the student and places its only bell beside the account (staff have the teacher frame)',()=>{
+ for(const staff of[false]){
   const Sidebar=load('frontend/components/sidebar.tsx',{
    'next/link':link,'next/navigation':{usePathname:()=>'/home'},'@/shared/auth-config':{isFirebaseStaging:()=>true},
    '@/frontend/components/providers/application-auth-provider':{useWebsiteNavigation:()=>({staffOrganizationIds:staff?['org']:[]})},

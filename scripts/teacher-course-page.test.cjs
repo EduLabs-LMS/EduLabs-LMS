@@ -30,10 +30,10 @@ test('loader: reads one course as the signed-in teacher, decides canEdit with th
  assert.match(src, /state: 'missing'/); assert.match(src, /state: 'error'/);
 });
 test('page: staff only, the id comes from the route, nothing is decided on the client', () => {
- const p = read('app/teacher/settings/courses/[courseId]/page.tsx');
+ const p = read('app/(dashboard)/(routes)/teacher/settings/courses/[courseId]/page.tsx');
  assert.match(p, /await staffContext\(\)/); assert.match(p, /loadCoursePage\(context, courseId\)/);
  // The route's own fallback draws the page's layout; it carries no overlay signal (the overlay is first-load only).
- assert.match(read('app/teacher/settings/courses/[courseId]/loading.tsx'), /CourseLoading/); assert.doesNotMatch(read('app/teacher/settings/courses/[courseId]/loading.tsx'), /RouteLoadingSignal|usePageLoadingSignal/);
+ assert.match(read('app/(dashboard)/(routes)/teacher/settings/courses/[courseId]/loading.tsx'), /CourseLoading/); assert.doesNotMatch(read('app/(dashboard)/(routes)/teacher/settings/courses/[courseId]/loading.tsx'), /RouteLoadingSignal|usePageLoadingSignal/);
 });
 test('view: publishing uses the existing PATCH with the version it read; it asks first; it calls no other write endpoint', () => {
  const v = read('frontend/features/teacher-course/course-view.tsx');
@@ -42,10 +42,10 @@ test('view: publishing uses the existing PATCH with the version it read; it asks
  assert.deepEqual([...new Set([...v.matchAll(/['"`](\/api\/[^'"`?$]*)/g)].map(m => m[1]))].sort(), ['/api/teacher/academics', '/api/teacher/courses/']);
  assert.doesNotMatch(v, /usePageLoadingSignal/); assert.doesNotMatch(v.replace(/organizationId/g, ''), /organization/i);
 });
-test('links: course rows, the Invite panel and the Settings shell all lead to the course page', () => {
+test('links: course rows and the Invite panel lead to the course page, and the Settings shell lets it through', () => {
  assert.equal((read('frontend/features/teacher-home/parts.tsx').match(/coursePagePath\(c\.id\)/g) ?? []).length, 2);
  assert.match(read('frontend/features/teacher-students/invite.tsx'), /<Link href=\{coursePagePath\(c\.courseId\)\} data-draft-link/);
- const shell = read('frontend/features/teacher-settings/shell.tsx'); assert.match(shell, /coursePagePattern\.test\(pathname\)/); assert.match(shell, /onCourse && s\.key === 'courses'/);
+ const shell = read('frontend/features/teacher-settings/shell.tsx'); assert.match(shell, /coursePagePattern\.test\(pathname\)\) return <>\{children\}<\/>/, 'a course page is shown without the Settings sub-navigation');
  assert.match(read('middleware.ts'), /teacher\\\/settings\\\/courses\\\/\[0-9a-f\]\{8\}/);
 });
 test('locales: every tc.* text exists in English and Arabic with the same placeholders; the course page names no tenant vocabulary', () => {

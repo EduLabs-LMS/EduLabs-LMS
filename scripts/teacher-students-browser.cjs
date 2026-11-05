@@ -34,8 +34,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { LanguageProvider } from '@/frontend/components/language-provider';
 import { ThemeProvider } from '@/frontend/components/theme-provider';
-import Sidebar from '@/frontend/components/sidebar';
-import MobileSidebar from '@/frontend/features/dashboard/mobile-sidebar';
+import { TeacherFrame } from '@/frontend/features/teacher-frame/teacher-frame';
 import { TeacherStudentsView } from '@/frontend/features/teacher-students/students-view';
 import { StudentDetailView } from '@/frontend/features/teacher-students/student-view';
 import { StudentAccess } from '@/frontend/features/admin/users/student-access';
@@ -58,14 +57,11 @@ function Body() {
   const j = /^\\/join\\/([A-Za-z0-9_-]{43})$/.exec(pathname); if (j) return <StudentAccess token={j[1]} />;
   return <p>Harness page {pathname}</p>;
 }
+document.documentElement.dataset.design = new URLSearchParams(location.search).get('design') === 'new' ? 'new' : 'classic';
 createRoot(document.getElementById('root')).render(
  <LanguageProvider initialLanguage={lang}>
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
-   <div data-lms-shell className="min-h-screen bg-slate-50 w-full relative">
-    <MobileSidebar />
-    <aside className="hidden md:block fixed start-4 top-4 bottom-4 w-64 z-50"><Sidebar /></aside>
-    <main className="md:ps-72 pt-2 md:pt-4 min-h-screen bg-slate-50 flex flex-col justify-between"><div className="flex-1 w-full p-4 sm:p-6 md:p-8"><Body /></div></main>
-   </div>
+   <TeacherFrame><Body /></TeacherFrame>
   </ThemeProvider>
  </LanguageProvider>);
 `;
@@ -212,7 +208,7 @@ function groupsCommand(body) {
   'next/link': 'import React from "react"; export default function Link({ href, children, onClick, ...rest }) { return React.createElement("a", { ...rest, href, onClick: e => { onClick && onClick(e); if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); location.assign(href); } }, children); }',
   'next/image': 'import React from "react"; export default function Image({ unoptimized, fill, priority, ...p }) { return React.createElement("img", p); }',
   '@/shared/auth-config': 'export const isFirebaseStaging = () => true;',
-  '@/frontend/components/providers/application-auth-provider': 'export const useApplicationAuth = () => ({ user: { fullName: "Synthetic Teacher", email: "synthetic.teacher@example.test", imageUrl: null, id: "u" }, openUserProfile() { window.__profileOpened = true; }, signOut: async () => { window.__signedOut = true; }, accountStatus: { loading: false } }); export const useWebsiteNavigation = () => ({ viewer: { id: "v" }, organizations: [], staffOrganizationIds: ["00000000-0000-4000-8000-000000000050"] }); export const WebsiteNavigationProvider = ({ children }) => children;',
+  '@/frontend/components/providers/application-auth-provider': 'export const useApplicationAuth = () => ({ user: { fullName: "Synthetic Teacher", email: "synthetic.teacher@example.test", imageUrl: null, id: "u" }, openUserProfile() { window.__profileOpened = true; }, signOut: async () => { window.__signedOut = true; }, accountStatus: { loading: false } }); export const useWebsiteNavigation = () => ({ viewer: { id: "v", displayName: "Synthetic Viewer" }, organizations: [{ id: "00000000-0000-4000-8000-000000000050", name: "Synthetic space" }], staffOrganizationIds: ["00000000-0000-4000-8000-000000000050"] }); export const WebsiteNavigationProvider = ({ children }) => children;',
   '@/frontend/components/providers/v2-identity': 'import React from "react"; export const useUser = () => ({ user: { fullName: "Synthetic Teacher" } }); export const useClerk = () => ({ signOut() {} }); export const UserButton = () => React.createElement("span", { className: "h-9 w-9 rounded-full border-2 border-black" });',
  };
  const resolveAlias = p => { for (const c of [p + '.tsx', p + '.ts', path.join(p, 'index.tsx'), path.join(p, 'index.ts')]) if (fs.existsSync(c) && fs.statSync(c).isFile()) return c; return p; };

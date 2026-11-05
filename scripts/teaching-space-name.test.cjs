@@ -69,7 +69,7 @@ test('screens: Rename only for an owner; the picker is hidden for one space; no 
  for (const line of en.split('\n').filter(l => /^\s+"ts\.space\./.test(l))) assert.doesNotMatch(line.split('": ')[1], /organi[sz]ation|tenant|slug/i);
  const ar = read('frontend/locales/ar.ts');
  for (const k of [...en.matchAll(/"((?:ts\.space|pa\.(?:field\.space|draft\.space|review\.space|col\.space|portal\.space|activity\.rename))[\w.]*)"/g)].map(m => m[1])) assert.ok(ar.includes(`"${k}"`), 'Arabic text for ' + k);
- assert.match(read('app/teacher/settings/account/page.tsx'), /owner: m\.role === 'owner'/);
+ assert.match(read('app/(dashboard)/(routes)/teacher/settings/account/page.tsx'), /owner: m\.role === 'owner'/);
 });
 test('middleware: the rename route is reachable', () => {
  assert.match(read('middleware.ts'), /teacher\\\/\(website\|academics\|organizations\|space\|courses/);
