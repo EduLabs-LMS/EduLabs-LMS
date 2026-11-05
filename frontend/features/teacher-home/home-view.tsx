@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { CalendarClock, MapPin, Video } from 'lucide-react';
-import { L, LocalDate } from '@/frontend/components/language-provider';
+import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { eventLabels } from '@/shared/contracts/communications';
 import { cn } from '@/shared/utils';
 import type { HomeSession, HomeUnsaved, TeacherHomeLoad } from '@/shared/teacher-home';
@@ -44,8 +44,9 @@ function NextSession({ data, retry, slot, hero = true }: { data: HomeData['sessi
         <p className="flex items-center gap-2 text-base">{next.mode === 'online' ? <Video aria-hidden className="h-5 w-5 shrink-0" /> : <MapPin aria-hidden className="h-5 w-5 shrink-0" />}
           {next.mode === 'online' ? <L id="th.next.online" /> : <><L id="th.next.center" />{next.location && <> · <bdi dir="auto">{next.location}</bdi></>}</>}</p>
         <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
-          <Link href={`/teacher/groups/${next.groupId}`} className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.open" /></Link>
-          {now && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={cn(plainButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.attendance" /></Link>}
+          {/* During a live class, taking attendance is the main thing to do: it is first and dark, and opening the Group is the quiet second button. */}
+          {now && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.attendance" /></Link>}
+          <Link href={`/teacher/groups/${next.groupId}`} data-open-group className={cn(now ? plainButton : inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.open" /></Link>
         </div>
         {data.data.partial && <p className="text-base text-slate-800"><L id="th.next.partial" /></p>}
       </div>}
@@ -70,8 +71,9 @@ function Updates({ data, retry, slot }: { data: HomeData['updates']; retry: Retr
   </Section>;
 }
 
-/** A finished session still waiting for attendance: date, Group, the plain reason and one yellow "Finish" button that opens its attendance. */
+/** A finished session still waiting for attendance: date, Group, the plain reason and one yellow "Take attendance" button that opens it. */
 function UnsavedRow({ s }: { s: HomeUnsaved }) {
+  const { t } = useLanguage();
   return <li className="flex items-center gap-3 border-t-2 border-black/15 py-3 first:border-t-0" data-unsaved-session={s.id}>
     <span aria-hidden className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-black bg-amber-100 font-bold leading-tight text-black">
       <span className="text-base"><LocalDate value={s.startsAt} options={{ ...zone, month: 'short' }} /></span>
@@ -82,7 +84,7 @@ function UnsavedRow({ s }: { s: HomeUnsaved }) {
       <span className="text-base text-slate-700"><LocalDate value={s.startsAt} options={{ ...zone, weekday: 'long', hour: 'numeric', minute: '2-digit' }} /></span>
       <span className="text-base font-bold text-slate-800"><L id="th.coming.unsaved" /></span>
     </span>
-    <Link href={attendanceHref(s.groupId, s.id)} data-unsaved-finish className="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-2xl border-2 border-black bg-amber-300 px-4 text-base font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"><L id="th.coming.finish" /></Link>
+    <Link href={attendanceHref(s.groupId, s.id)} data-unsaved-finish aria-label={t('th.coming.take_for', { group: s.groupName })} className="inline-flex min-h-[48px] shrink-0 items-center justify-center rounded-2xl border-2 border-black bg-amber-300 px-4 text-base font-bold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"><L id="th.next.attendance" /></Link>
   </li>;
 }
 

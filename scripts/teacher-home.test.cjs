@@ -189,14 +189,15 @@ test('happening now: only a started, not cancelled next session can take attenda
 });
 const plain = v => JSON.parse(JSON.stringify(v));
 const past = (n, groupN, endedMinAgo, state = 'draft', extra = {}) => session(n, groupN, -endedMinAgo - 60, { attendance_state: state, ...extra });
-test('unsaved attendance: the latest finished session of a Group the teacher manages, unless finalized; newest first; at most three', () => {
+test('unsaved attendance: every finished session of a Group the teacher manages that is not finalized (not only the latest one); newest first; at most three', () => {
  const rows = (g, list) => ({ groupId: uuid(g), rows: list });
  const out = build({ unsaved: ok([rows(1, [past(10, 1, 3000), past(11, 1, 600)]), rows(2, [past(12, 2, 120, 'finalized')]), rows(3, [past(13, 3, 90)])]),
   groups: ok({ rows: [group(1), group(2), group(3), group(4)], page: 0, hasMore: false }) }).unsaved;
  assert.equal(out.state, 'ready');
- assert.deepEqual(out.data.map(u => u.id), [uuid(211), uuid(213)].sort((a, b) => b === uuid(213) ? 1 : -1), 'only the latest finished session per Group; a finalized one is not listed');
+ assert.deepEqual(out.data.map(u => u.id), [uuid(213), uuid(211), uuid(210)], 'both unsaved classes of Group 1 are listed (the reviewer saw one of two), a finalized one is not, newest first');
  assert.deepEqual(Object.keys(out.data[0]).sort(), ['endsAt', 'groupId', 'groupName', 'id', 'startsAt', 'title']);
- assert.equal(out.data[0].groupName, 'Synthetic Group 3', 'newest first (ended 90 minutes ago, before the other one ended 600 ago)');
+ assert.equal(out.data[0].groupName, 'Synthetic Group 3', 'newest first (ended 90 minutes ago, before the others ended 600 and 3000 ago)');
+ assert.deepEqual(plain(out.data.filter(u => u.groupId === uuid(1)).map(u => u.id)), [uuid(211), uuid(210)]);
  const many = build({ unsaved: ok([1, 2, 3, 4].map(g => rows(g, [past(20 + g, g, 100 * g)]))), groups: ok({ rows: [group(1), group(2), group(3), group(4)], page: 0, hasMore: false }) }).unsaved;
  assert.equal(many.data.length, home.UNSAVED_LIMIT); assert.equal(home.UNSAVED_LIMIT, 3);
  assert.deepEqual(many.data.map(u => u.groupId), [uuid(1), uuid(2), uuid(3)], 'the three most recent');
@@ -217,14 +218,17 @@ test('unsaved attendance: a failed read is an error, never "all clear"; without 
 });
 test('Home view: Take attendance and the unsaved rows, with their tour targets and 48px buttons', () => {
  const view = read('frontend/features/teacher-home/home-view.tsx');
- assert.match(view, /\{now && <Link href=\{attendanceHref\(next\.groupId, next\.id\)\} data-tour="take-attendance"/);
+ assert.match(view, /\{now && <Link href=\{attendanceHref\(next\.groupId, next\.id\)\} data-tour="take-attendance" data-take-attendance className=\{cn\(inkButton,/, 'during a live class Take attendance is the primary, dark button');
+ assert.match(view, /data-open-group className=\{cn\(now \? plainButton : inkButton,/, 'and Open this Group is the secondary one');
+ assert.ok(view.indexOf('data-take-attendance') < view.indexOf('data-open-group'), 'Take attendance comes first');
  assert.match(view, /const now = Boolean\(next\?\.happening\)/); assert.match(view, /id=\{now \? 'th\.next\.now' : 'th\.next\.title'\}/);
  assert.match(view, /data-tour="next-session"/); assert.match(view, /data-tour="unsaved-attendance"/);
- assert.match(view, /<Link href=\{attendanceHref\(s\.groupId, s\.id\)\} data-unsaved-finish className="[^"]*min-h-\[48px\][^"]*bg-amber-300/);
+ assert.match(view, /<Link href=\{attendanceHref\(s\.groupId, s\.id\)\} data-unsaved-finish aria-label=\{t\([^\n]*?\)\} className="[^"]*min-h-\[48px\][^"]*bg-amber-300/);
  assert.match(view, /<ul data-tour="unsaved-attendance"[^>]*>\{rows\.map/, 'at the top of Coming up, before the upcoming sessions');
  assert.ok(view.indexOf('data-unsaved-list') < view.indexOf('data.data.comingUp.map'));
- for (const k of ['th.next.now', 'th.next.attendance', 'th.coming.unsaved', 'th.coming.finish']) { assert.ok(messages.en[k] && messages.ar[k], k); assert.match(messages.ar[k], /[؀-ۿ]/); }
- assert.equal(messages.en['th.next.attendance'], 'Take attendance'); assert.equal(messages.en['th.coming.finish'], 'Finish');
+ for (const k of ['th.next.now', 'th.next.attendance', 'th.coming.unsaved', 'th.coming.take_for']) { assert.ok(messages.en[k] && messages.ar[k], k); assert.match(messages.ar[k], /[؀-ۿ]/); }
+ assert.equal(messages.en['th.next.attendance'], 'Take attendance'); assert.ok(!('th.coming.finish' in messages.en), 'a past class with unsaved attendance says Take attendance, not Finish');
+ assert.match(view, /data-unsaved-finish aria-label=\{t\('th\.coming\.take_for', \{ group: s\.groupName \}\)\}[^>]*><L id="th\.next\.attendance" \/>/);
  const server = read('server/services/teacher-home.ts');
  assert.match(server, /service\.view<GroupSession>\(groupId, 'sessions'\)/, 'the existing per-Group sessions read, like a Group card');
  assert.match(server, /UNSAVED_GROUP_LIMIT/);

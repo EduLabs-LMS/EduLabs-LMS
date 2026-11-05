@@ -61,7 +61,7 @@ html.dark[data-lms-appearance] :is(.border-slate-100, .border-slate-200, .border
 
 html.dark[data-lms-appearance] :is(.divide-slate-100, .divide-slate-200):not(:where([data-appearance-island], [data-appearance-island] *)) > :not([hidden]) ~ :not([hidden]) { --tw-divide-opacity: 1; border-color: hsl(var(--border)); }
 
-html.dark[data-lms-appearance] :is(.bg-primary, .bg-physics-cyan, .bg-sky-400, .bg-sky-500, .bg-cyan-400, .bg-cyan-500):not(:where([data-appearance-island], [data-appearance-island] *)) { --lms-text: 0 0% 0%; --lms-muted: 100 25% 13%; --lms-outline: 100 20% 7%; --lms-focus: 100 25% 9%; color: hsl(var(--lms-text)); }
+html.dark[data-lms-appearance] :is(.bg-primary, .bg-physics-cyan, .bg-sky-400, .bg-sky-500, .bg-cyan-400, .bg-cyan-500, .bg-amber-300, .bg-amber-400):not(:where([data-appearance-island], [data-appearance-island] *)) { --lms-text: 0 0% 0%; --lms-muted: 100 25% 13%; --lms-outline: 100 20% 7%; --lms-focus: 100 25% 9%; color: hsl(var(--lms-text)); }
 
 html.dark[data-lms-appearance] :is(.bg-sky-50, .bg-sky-100, .bg-sky-200, .bg-cyan-50, .bg-cyan-100, .bg-cyan-200, .bg-blue-50, .bg-blue-100, .bg-blue-200):not(:where([data-appearance-island], [data-appearance-island] *)) { background-color: hsl(175 24% 17%); --lms-text: var(--foreground); --lms-muted: var(--muted-foreground); --lms-outline: 100 15% 55%; --lms-focus: var(--ring); color: hsl(var(--lms-text)); }
 

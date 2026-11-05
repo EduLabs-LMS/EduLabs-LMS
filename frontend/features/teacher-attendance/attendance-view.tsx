@@ -1,29 +1,43 @@
 'use client';
 import Link from 'next/link';
 import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
+import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { cn } from '@/shared/utils';
 import { inkButton, linkClass, plainButton, sessionTime } from '@/frontend/features/teacher-home/parts';
 import { HelpButton } from '@/frontend/features/teacher-helper/help-button';
-import { GroupCallError, groupCall, isAbort } from '@/frontend/features/teacher-groups/api';
+import { GroupCallError, groupCall, groupSave, isAbort } from '@/frontend/features/teacher-groups/api';
 import { GroupError, Loading, ModeLabel } from '@/frontend/features/teacher-groups/parts';
 import type { GroupPage, GroupRow, GroupSession, StudyGroup } from '@/shared/contracts/groups';
+import { studentsByName } from '@/shared/teacher-groups';
 import {
-  MARKS_PER_SAVE, NUMBER_PAGES, ROSTER_PAGES, ROSTER_PAGE_SIZE, allPresent, changedMarks, countMarks, marksOf, reasonValid, sessionNumber, toggled,
+  AUTO_RETRIES, MARKS_PER_SAVE, PENDING_NOTE_MS, ROSTER_PAGES, ROSTER_PAGE_SIZE, SEARCH_FROM, changedMarks, countMarks, markRestPresent, marksOf, matchesSearch, reasonValid, retryDelay, retryable, toggled,
   type Mark, type Marks,
 } from '@/shared/teacher-attendance';
+import { LeaveQuestion, useLeaveGuard } from './leave-guard';
 
 type Detail = { group: StudyGroup; serverNow: string };
 type Sheet = { session: GroupSession; rows: GroupRow[]; complete: boolean };
 type Load<T> = { state: 'loading' } | { state: 'error'; error: GroupCallError } | { state: 'ready'; value: T };
-type Saving = 'idle' | 'saving' | 'saved' | 'error';
+type Saving = 'idle' | 'saving' | 'retrying' | 'saved' | 'error';
 type Busy = null | 'finalize' | 'reopen';
 type Failure = GroupCallError;
 const asError = (e: unknown) => e instanceof GroupCallError ? e : new GroupCallError(null);
 const bigButton = 'min-h-[48px] w-full lg:w-auto lg:min-w-[260px]';
 const pill = 'inline-flex min-h-[48px] w-[5.5rem] items-center justify-center rounded-full border-2 px-3 text-base font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:opacity-60';
+
+/** A note that a save was running, kept only for this tab and this Session, so a reload during a save can say so instead of looking like lost work. */
+const noteKey = (sessionId: string) => `lms-attendance-saving:${sessionId}`;
+function writeNote(sessionId: string, on: boolean) {
+  try { if (on) window.sessionStorage.setItem(noteKey(sessionId), String(Date.now())); else window.sessionStorage.removeItem(noteKey(sessionId)); } catch { /* no storage: the page still shows the server's state */ }
+}
+function readNote(sessionId: string) {
+  try { const at = Number(window.sessionStorage.getItem(noteKey(sessionId))); return Boolean(at) && Date.now() - at < PENDING_NOTE_MS; } catch { return false; }
+}
+/** After a reload during a save: how long to wait before asking the server again. The save may still be finishing. */
+const RECHECKS = [1500, 3500, 7000];
 
 /** One Session's list, every page of it. The database decides who may read it; a failure is an error, never an empty list. */
 async function readSheet(groupId: string, sessionId: string, signal?: AbortSignal): Promise<Sheet> {
@@ -41,12 +55,16 @@ async function readSheet(groupId: string, sessionId: string, signal?: AbortSigna
   return { session, rows, complete: !hasMore };
 }
 
-/** Every tap is saved by a single queue: one call after another, each with the Session version the database holds now. A mark is never dropped; it stays on screen until it is saved. */
+/**
+ * Every tap is saved at once by a single queue: one call carries everything that differs from what is saved (up to the 100 the database takes
+ * atomically), and the next call uses the Session version the previous reply returned. A mark is never dropped: it stays on screen until the
+ * database has accepted it, a failure that can pass is retried by itself with a growing wait, and the page always renders what the server holds.
+ */
 export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string; sessionId: string }) {
   const { t } = useLanguage();
+  const router = useLoadingRouter();
   const [detail, setDetail] = useState<Load<Detail>>({ state: 'loading' });
   const [sheet, setSheet] = useState<Load<Sheet>>({ state: 'loading' });
-  const [number, setNumber] = useState<number | null>(null);
   const [marks, setMarks] = useState<Marks>({});
   const [saving, setSaving] = useState<Saving>('idle');
   const [pending, setPending] = useState(false);
@@ -56,6 +74,8 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
   const [reason, setReason] = useState('');
   const [reasonProblem, setReasonProblem] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [query, setQuery] = useState('');
+  const [recheck, setRecheck] = useState<'none' | 'checking' | 'done'>('none');
   usePageLoadingSignal(sheet.state === 'loading' || detail.state === 'loading');
   const [detailRevision, setDetailRevision] = useState(0);
   const alive = useRef(true);
@@ -63,7 +83,11 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
   const savedRef = useRef<Marks>({});
   const sessionRef = useRef<GroupSession | null>(null);
   const running = useRef(false);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const attempts = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noted = useRef(false);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; if (timer.current) clearTimeout(timer.current); }; }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -73,86 +97,114 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
     return () => controller.abort();
   }, [groupId, detailRevision]);
 
-  // "Session N" is cosmetic: if its read fails or is too long to count, the title is just the Session's own name.
-  useEffect(() => {
-    const controller = new AbortController();
-    (async () => {
-      const rows: GroupSession[] = [];
-      let hasMore = true;
-      for (let page = 0; page < NUMBER_PAGES && hasMore; page++) {
-        const r = await groupCall<GroupPage<GroupSession>>('view', groupId, { section: 'sessions', page, search: '' }, null, controller.signal);
-        rows.push(...r.rows); hasMore = Boolean(r.hasMore);
-      }
-      setNumber(sessionNumber(rows, !hasMore, sessionId));
-    })().catch(() => { if (!controller.signal.aborted) setNumber(null); });
-    return () => controller.abort();
-  }, [groupId, sessionId]);
-
   const load = useCallback(async (signal?: AbortSignal) => {
     const value = await readSheet(groupId, sessionId, signal);
     const saved = marksOf(value.rows);
     savedRef.current = saved; marksRef.current = saved; sessionRef.current = value.session;
     setSheet({ state: 'ready', value }); setMarks(saved); setSaving('idle'); setPending(false);
+    return value;
   }, [groupId, sessionId]);
+  // A load always shows what the server holds. When the page was left while a save was running, the server may still be finishing it, so it is asked again a few times.
   useEffect(() => {
     const controller = new AbortController();
-    setSheet({ state: 'loading' });
-    load(controller.signal).catch(e => { if (!isAbort(e)) setSheet({ state: 'error', error: asError(e) }); });
-    return () => controller.abort();
-  }, [load, revision]);
-
-  useEffect(() => {
-    if (!pending && saving !== 'error') return;
-    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [pending, saving]);
+    let stopped = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const reload = readNote(sessionId);
+    setSheet({ state: 'loading' }); setRecheck('none');
+    load(controller.signal).then(first => {
+      if (!reload || stopped) return;
+      setRecheck('checking');
+      let last = JSON.stringify(marksOf(first.rows));
+      RECHECKS.forEach((wait, i) => timers.push(setTimeout(async () => {
+        if (stopped || running.current || changedMarks(savedRef.current, marksRef.current).length > 0) return;
+        try {
+          const rows = await readSheet(groupId, sessionId, controller.signal);
+          const now = JSON.stringify(marksOf(rows.rows));
+          if (stopped || running.current || changedMarks(savedRef.current, marksRef.current).length > 0) return;
+          if (now !== last) { last = now; await load(controller.signal); }
+        } catch (e) { if (isAbort(e)) return; }
+        if (i === RECHECKS.length - 1 && !stopped) { writeNote(sessionId, false); setRecheck('done'); }
+      }, wait)));
+    }).catch(e => { if (!isAbort(e)) setSheet({ state: 'error', error: asError(e) }); });
+    return () => { stopped = true; timers.forEach(clearTimeout); controller.abort(); };
+  }, [load, groupId, sessionId, revision]);
 
   const counts = useMemo(() => countMarks(marks), [marks]);
   const value = sheet.state === 'ready' ? sheet.value : null;
   const group = detail.state === 'ready' ? detail.value.group : null;
   const instructor = Boolean(group?.instructor);
+  const ordered = useMemo(() => studentsByName(value?.rows ?? []), [value]);
+  const shown = useMemo(() => ordered.filter(r => matchesSearch(r.display_name ?? '', query)), [ordered, query]);
 
-  /** Re-reads the Session version (every save changes it). */
+  const guarded = pending || saving === 'saving' || saving === 'retrying' || saving === 'error';
+  const guard = useLeaveGuard(guarded, href => router.push(href));
+
+  /** Re-reads the Session version. Only needed after a refused or unanswered save: a successful save returns the new version itself. */
   async function refreshSession() {
     const head = await groupCall<GroupPage<GroupRow>>('view', groupId, { section: sessionId, page: 0, search: '' });
     if (!head.session) throw new GroupCallError(null);
     sessionRef.current = head.session;
     if (alive.current) setSheet(prev => prev.state === 'ready' ? { state: 'ready', value: { ...prev.value, session: head.session as GroupSession } } : prev);
+    return head.session;
+  }
+
+  function settle() {
+    const dirty = changedMarks(savedRef.current, marksRef.current).length > 0;
+    if (!alive.current) return;
+    setPending(dirty);
+    if (!dirty) { setSaving('saved'); if (noted.current) { noted.current = false; writeNote(sessionId, false); } }
+  }
+
+  /** What to do about a failed save: retry by itself (growing wait) when the reason can pass, otherwise stop and say so. */
+  async function failed(error: GroupCallError) {
+    let retry = retryable(error.status);
+    if (error.status === 409) {
+      // "Stale session": someone saved in between, or the sheet was finished. Take the current version and look.
+      try { const head = await refreshSession(); retry = head.attendance_state !== 'finalized' && !head.cancelled; } catch { retry = true; }
+    }
+    if (!alive.current) return;
+    if (retry && attempts.current < AUTO_RETRIES) {
+      attempts.current++;
+      setSaving('retrying'); setPending(true); setFailure(null);
+      timer.current = setTimeout(() => { timer.current = null; void drain(); }, retryDelay(attempts.current));
+      return;
+    }
+    setFailure(error); setSaving('error'); setPending(changedMarks(savedRef.current, marksRef.current).length > 0);
   }
 
   /** The queue. Runs until nothing differs from what is saved; taps made meanwhile are picked up by the same loop. */
   async function drain() {
     if (running.current) return;
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
     running.current = true;
     if (alive.current) { setSaving('saving'); setFailure(null); }
-    let failed = false;
+    let problem: GroupCallError | null = null;
     try {
       for (;;) {
         const part = changedMarks(savedRef.current, marksRef.current).slice(0, MARKS_PER_SAVE);
         if (part.length === 0) break;
         const session = sessionRef.current;
         if (!session) throw new GroupCallError(null);
-        await groupCall('attendance', groupId, { sessionId, sessionVersion: session.version, marks: part });
+        // The reply is the Session row after the save (group_command returns it for attendance), so its version is the next one to send.
+        const reply = await groupSave<{ id?: string; version?: number }>('attendance', groupId, { sessionId, sessionVersion: session.version, marks: part });
         savedRef.current = { ...savedRef.current, ...Object.fromEntries(part.map(m => [m.userId, m.status])) };
-        await refreshSession();
+        attempts.current = 0;
+        if (reply.id === sessionId && typeof reply.version === 'number') sessionRef.current = { ...session, version: reply.version };
+        else await refreshSession();
       }
-    } catch (e) {
-      failed = true;
-      if (alive.current) { setFailure(asError(e)); setSaving('error'); }
-    } finally {
-      running.current = false;
-      if (alive.current) { setPending(changedMarks(savedRef.current, marksRef.current).length > 0); if (!failed) setSaving('saved'); }
-    }
+    } catch (e) { problem = asError(e); } finally { running.current = false; }
+    if (problem) await failed(problem); else settle();
   }
 
   function mark(next: Marks) {
-    marksRef.current = next; setMarks(next); setPending(true); setConfirming(null);
+    marksRef.current = next; setMarks(next); setPending(true); setConfirming(null); setRecheck(r => r === 'checking' ? 'done' : r);
+    if (!noted.current) { noted.current = true; writeNote(sessionId, true); }
+    attempts.current = 0;
     void drain();
   }
   /** Retry first takes the version the database holds now, so a stale one cannot keep failing. */
   async function retry() {
-    setFailure(null); setSaving('saving');
+    attempts.current = 0; setFailure(null); setSaving('saving');
     try { await refreshSession(); } catch (e) { setFailure(asError(e)); setSaving('error'); return; }
     void drain();
   }
@@ -174,12 +226,22 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
 
   const reloadAll = () => { setFailure(null); setConfirming(null); setRevision(v => v + 1); };
   const sessionTitle = value?.session.title?.trim();
-  const title = number ? t('ta.title', { number, title: sessionTitle ?? '' }).replace(/ · $/, '') : sessionTitle || t('ta.title_plain');
+  const title = sessionTitle || t('ta.title_plain');
   const locked = value?.session.attendance_state === 'finalized';
   const cancelled = Boolean(value?.session.cancelled);
   const editable = Boolean(value) && !locked && !cancelled;
   const saveFailed = saving === 'error';
-  const finishBlocked = Boolean(busy) || pending || saving === 'saving' || saveFailed || !value?.complete || value?.rows.length === 0;
+  const finishBlocked = Boolean(busy) || pending || saving === 'saving' || saving === 'retrying' || saveFailed || !value?.complete || value?.rows.length === 0;
+  const searching = (value?.rows.length ?? 0) > SEARCH_FROM;
+
+  // "Edit attendance" opens the reason form at the bottom of a long page: bring it into view and put the cursor in it.
+  useEffect(() => {
+    if (confirming !== 'reopen') return;
+    const field = reasonRef.current; if (!field) return;
+    const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    field.scrollIntoView({ block: 'center', behavior: calm ? 'auto' : 'smooth' });
+    field.focus({ preventScroll: true });
+  }, [confirming]);
 
   return <div data-teacher-attendance className="w-full space-y-4 pb-44 lg:pb-0">
     <div className="flex items-center justify-between gap-3">
@@ -188,11 +250,13 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
     </div>
     <header className="space-y-1">
       <h1 data-attendance-title className="break-words font-display text-3xl leading-tight lg:text-4xl"><bdi dir="auto">{title}</bdi></h1>
-      {value && <p data-session-subtitle className="text-base text-slate-700"><LocalDate value={value.session.starts_at} options={sessionTime} /> · <span className="font-bold"><ModeLabel mode={value.session.mode} /></span>{value.session.mode === 'center' && value.session.location && <span className="break-words"> · {value.session.location}</span>}</p>}
+      {value && <p data-session-subtitle className="text-base text-slate-700"><LocalDate value={value.session.starts_at} options={sessionTime} /> · <span className="font-bold"><ModeLabel mode={value.session.mode} /></span>{value.session.mode === 'center' && value.session.location && <span className="break-words"> · <bdi dir="auto">{value.session.location}</bdi></span>}</p>}
     </header>
     {detail.state === 'error' && <div data-detail-error className="space-y-2"><p className="text-base text-slate-800"><L id="ta.error.group" /></p><GroupError kind={detail.error.kind} onRetry={() => setDetailRevision(v => v + 1)} /></div>}
     {sheet.state === 'loading' && <Loading label="ta.loading" className="h-40" />}
     {sheet.state === 'error' && <GroupError kind={sheet.error.kind} onRetry={() => setRevision(v => v + 1)} />}
+    {value && recheck === 'checking' && <p role="status" data-rechecking className="text-base text-slate-800"><L id="ta.checking" /></p>}
+    {value && recheck === 'done' && <p role="status" data-reload-note className="text-base text-slate-800"><L id="ta.reload_note" /></p>}
     {value && cancelled && <div data-state="cancelled" role="status"><p className="text-base text-slate-800"><L id="ta.cancelled" /></p></div>}
     {value && !cancelled && <>
       <div data-tour="status-bar" data-sheet-state={value.session.attendance_state} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b-2 border-black/15 pb-3">
@@ -202,15 +266,22 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
           <span data-count="absent"><L id="ta.count.absent" values={{ count: counts.absent }} /></span>
           {(!locked || counts.not_marked > 0) && <><span aria-hidden>·</span><span data-count="not_marked"><L id="ta.count.not_marked" values={{ count: counts.not_marked }} /></span></>}
         </p>
-        {editable && value.rows.length > 0 && <button type="button" data-tour="mark-all" data-mark-all disabled={Boolean(busy)} onClick={() => mark(allPresent(marksRef.current))} className={cn(linkClass, 'min-h-[48px]')}><L id="ta.all_present" /></button>}
+        {editable && counts.not_marked > 0 && <button type="button" data-tour="mark-all" data-mark-all disabled={Boolean(busy)} onClick={() => mark(markRestPresent(marksRef.current))} className={cn(linkClass, 'min-h-[48px]')}><L id="ta.mark_rest" /></button>}
       </div>
       {!value.complete && <p data-truncated className="text-base text-slate-800"><L id="ta.truncated" values={{ count: ROSTER_PAGES * ROSTER_PAGE_SIZE }} /></p>}
+      {searching && <label className="relative block" data-tour="student-search"><span className="sr-only"><L id="ta.search" /></span>
+        <Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-600" />
+        <input type="search" data-student-search value={query} onChange={e => setQuery(e.target.value)} placeholder={t('ta.search')} autoComplete="off" dir="auto"
+          className="min-h-[48px] w-full rounded-2xl border-2 border-black bg-white ps-10 pe-3 text-base text-black" /></label>}
       {value.rows.length === 0
         ? <div data-state="empty"><p className="text-base text-slate-800"><L id="ta.empty" /></p></div>
-        : <ul data-tour="student-rows" data-student-list className="divide-y divide-black/15">
-          {value.rows.map(r => <StudentRow key={r.user_id} row={r} mark={marks[r.user_id] ?? 'not_marked'} editable={editable} onMark={m => mark({ ...marksRef.current, [r.user_id]: m })} />)}
-        </ul>}
+        : shown.length === 0
+          ? <p data-search-empty className="text-base text-slate-800"><L id="ta.search_none" /></p>
+          : <ul data-tour="student-rows" data-student-list className="divide-y divide-black/15">
+            {shown.map(r => <StudentRow key={r.user_id} row={r} mark={marks[r.user_id] ?? 'not_marked'} editable={editable} onMark={m => mark({ ...marksRef.current, [r.user_id]: m })} />)}
+          </ul>}
       <div data-tour="save-actions" data-actions className="fixed inset-x-0 bottom-0 z-30 space-y-2 border-t-2 border-black bg-white p-4 lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:pt-2">
+        {guard.asking && <LeaveQuestion stay={guard.stay} leave={guard.leave} />}
         {failure && !saveFailed && <GroupError kind={failure.kind} unknownOutcome={failure.status === null} onRetry={failure.kind === 'changed' || failure.status === null ? reloadAll : undefined} retryLabel="tg.reload" />}
         {confirming === 'finalize' && <div role="group" data-confirm-finalize aria-label={t('ta.finish')} className="space-y-2">
           <p className="text-base"><L id="ta.finalize.confirm" /></p>
@@ -222,7 +293,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
         </div>}
         {confirming === 'reopen' && <div role="group" data-confirm-reopen aria-label={t('ta.edit')} className="space-y-2">
           <label className="block space-y-1"><span className="font-bold"><L id="ta.reopen.reason" /></span>
-            <textarea data-reopen-reason value={reason} maxLength={1000} rows={2} aria-invalid={reasonProblem} onChange={e => { setReason(e.target.value); setReasonProblem(false); }} className="min-h-[48px] w-full rounded-xl border-2 border-black bg-white px-3 py-2 text-base text-black" />
+            <textarea ref={reasonRef} data-reopen-reason value={reason} maxLength={1000} rows={2} aria-invalid={reasonProblem} onChange={e => { setReason(e.target.value); setReasonProblem(false); }} className="min-h-[48px] w-full rounded-xl border-2 border-black bg-white px-3 py-2 text-base text-black" />
           </label>
           <p className={`text-base ${reasonProblem ? 'font-bold text-rose-800' : 'text-slate-700'}`} role={reasonProblem ? 'alert' : undefined}><L id={reasonProblem ? 'ta.reopen.reason_required' : 'ta.reopen.hint'} /></p>
           <div className="flex flex-col gap-2 lg:flex-row">
@@ -235,6 +306,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
         {!confirming && <div data-save-line role="status" aria-live="polite" className="flex min-h-[24px] flex-wrap items-center gap-x-3 text-base text-slate-700">
           {locked ? (instructor && <span><L id="ta.edit_needs_reason" /></span>)
             : saveFailed ? <><span data-save-state="error" className="font-bold text-rose-800"><L id="ta.save_failed" /></span><button type="button" data-save-retry onClick={() => void retry()} className={cn(linkClass, 'min-h-[48px]')}><L id="ta.save_retry" /></button></>
+            : saving === 'retrying' ? <span data-save-state="retrying" className="inline-flex items-center gap-1 font-bold"><Loader2 aria-hidden className="h-3 w-3 animate-spin" /><L id="ta.retrying" /></span>
             : saving === 'saving' ? <span data-save-state="saving" className="inline-flex items-center gap-1"><Loader2 aria-hidden className="h-3 w-3 animate-spin" /><L id="ta.saving" /></span>
             : saving === 'saved' ? <span data-save-state="saved"><L id="ta.saved_now" /></span>
             : <span data-save-state="idle"><L id="ta.saved_as_you_tap" /></span>}
@@ -248,19 +320,17 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
 function StudentRow({ row, mark, editable, onMark }: { row: GroupRow; mark: Mark; editable: boolean; onMark: (m: Mark) => void }) {
   const on = (m: 'attended' | 'absent') => m === 'attended' ? 'border-green-800 bg-green-700 text-white' : 'border-red-800 bg-red-700 text-white';
   const off = 'border-black/40 bg-white text-black';
-  return <li data-student={row.user_id} data-mark={mark} className="flex min-h-[64px] items-center justify-between gap-3 py-2">
+  return <li data-student={row.user_id} data-mark={mark} className="flex min-h-[65px] items-center justify-between gap-3 py-2">
     <p className="min-w-0 flex-1 break-words text-base font-bold"><bdi dir="auto">{row.display_name}</bdi></p>
     {editable
       ? <div role="group" aria-label={row.display_name} className="flex shrink-0 gap-2">
         <button type="button" data-mark-button="attended" aria-pressed={mark === 'attended'} onClick={() => onMark(toggled(mark, 'attended'))} className={`${pill} ${mark === 'attended' ? on('attended') : off}`}><L id="ta.present" /></button>
         <button type="button" data-mark-button="absent" aria-pressed={mark === 'absent'} onClick={() => onMark(toggled(mark, 'absent'))} className={`${pill} ${mark === 'absent' ? on('absent') : off}`}><L id="ta.absent" /></button>
       </div>
-      : mark === 'not_marked'
-        ? <p data-mark-text className="shrink-0 text-base text-slate-700"><L id="ta.not_marked" /></p>
-        : <div className="flex shrink-0 gap-2">
-          {mark === 'absent' && <span aria-hidden className="w-[5.5rem]" />}
-          <span data-mark-text={mark} className={`${pill} ${on(mark)}`}><L id={mark === 'attended' ? 'ta.present' : 'ta.absent'} /></span>
-          {mark === 'attended' && <span aria-hidden className="w-[5.5rem]" />}
-        </div>}
+      /* Finished: a flat label, a coloured dot and plain text. No button shape, border or shadow, so it cannot be mistaken for something to press. */
+      : <p data-mark-text={mark} className={cn('flex shrink-0 items-center gap-2 text-base', mark === 'not_marked' ? 'text-slate-700' : 'font-semibold text-slate-900')}>
+        {mark !== 'not_marked' && <span aria-hidden className={cn('h-2.5 w-2.5 rounded-full', mark === 'attended' ? 'bg-green-700' : 'bg-red-700')} />}
+        <L id={mark === 'attended' ? 'ta.present' : mark === 'absent' ? 'ta.absent' : 'ta.not_marked'} />
+      </p>}
   </li>;
 }

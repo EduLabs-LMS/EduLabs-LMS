@@ -173,7 +173,7 @@ function command(body) {
    if (!g.instructor) throw new Fail(403);
    if (s.attendance_state !== 'finalized' || !data.reason || data.reason.trim().length < 3) throw new Fail(400); s.attendance_state = 'reopened';
   }
-  s.version++; g.version++; return { id: groupId, version: g.version, sessionId: s.id };
+  s.version++; g.version++; return action === 'attendance' && S.reply === 'group' ? { id: groupId, version: g.version, sessionId: s.id } : { ...s };
  }
  throw new Fail(404);
 }
@@ -228,15 +228,17 @@ function command(body) {
  const origin = 'http://127.0.0.1:' + server.address().port;
  const ctl = body => fetch(origin + '/__ctl', { method: 'POST', body: JSON.stringify(body) }).then(r => r.json());
  const browser = await chromium.launch({ headless: true, executablePath: process.env.LMS_CHROMIUM_EXECUTABLE });
- const errors = [], results = [], external = [];
+ const errors = [], results = [], external = [], dialogs = [];
  const phone = { width: 390, height: 844 }, desktop = { width: 1440, height: 900 };
- const open = async (viewport, pathAndQuery, { lang = 'en', theme = 'light' } = {}) => {
+ const open = async (viewport, pathAndQuery, { lang = 'en', theme = 'light', clock = false } = {}) => {
   const context = await browser.newContext({ viewport, locale: lang });
   await context.addInitScript(([l, t]) => { try { localStorage.setItem('edulabs-lms-language', l); localStorage.setItem('edulabs-lms-appearance', t); } catch {} }, [lang, theme]);
   const page = await context.newPage();
   page.on('pageerror', e => { errors.push(e.message); console.error('PAGEERROR', e.message.slice(0, 300)); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
+  page.on('dialog', d => { dialogs.push(d.type()); d.accept().catch(() => {}); });
   await page.route('**/*', r => { if (r.request().url().startsWith(origin)) return r.continue(); external.push(r.request().url()); return r.abort(); });
+  if (clock) await page.clock.install();
   await page.goto(origin + pathAndQuery);
   return { page, context };
  };
@@ -275,17 +277,19 @@ function command(body) {
  const attPosts = async () => (await posts()).filter(x => x.action === 'attendance');
  const saved = page => page.locator('[data-save-state="saved"]').waitFor();
  const saveLine = page => page.locator('[data-save-line]').innerText().then(t => t.replace(/\s+/g, ' ').trim());
+ // With the fake clock: let every automatic retry come due until the sheet gives up and shows Retry.
+ const giveUp = async page => { for (let i = 0; i < 9; i++) { if (await page.locator('[data-save-state="error"]').count()) return; await page.clock.fastForward(16000); await new Promise(r => setTimeout(r, 150)); } await page.locator('[data-save-state="error"]').waitFor(); };
+ const guarded = page => page.evaluate(() => { const e = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; });
  const waitPosts = async n => { for (let i = 0; i < 200 && (await attPosts()).length < n; i++) await new Promise(r => setTimeout(r, 25)); assert.ok((await attPosts()).length >= n, 'expected ' + n + ' save calls'); };
- const geometry = page => page.evaluate(() => [...document.querySelectorAll('[data-student]')].map(li => { const r = li.getBoundingClientRect(), n = li.querySelector('p').getBoundingClientRect(); return [Math.round(r.top + scrollY), Math.round(r.height), Math.round(n.left), Math.round(n.right)]; }));
+ const geometry = page => page.evaluate(() => [...document.querySelectorAll('[data-student]')].map(li => { const r = li.getBoundingClientRect(), n = li.querySelector('p').getBoundingClientRect(); return [Math.round(r.top + scrollY), Math.round(r.height), Math.round(n.left)]; }));
  await step('Desktop English: flat sheet, every tap saved by itself in order, Finish, the finished view is the same screen read-only, Edit asks for a reason', async () => {
   const { page, context } = await open(desktop, at(G.alg, sid.draft)); await rows(page).first().waitFor();
-  assert.equal(await page.locator('h1').innerText(), 'Session 40 · Synthetic lesson 10');
+  assert.equal(await page.locator('h1').innerText(), 'Synthetic lesson 10', 'the class title, no "Session N"');
   assert.equal(await page.locator('[data-back]').getAttribute('href'), '/teacher/groups/' + G.alg); assert.match(await page.locator('[data-back]').innerText(), /Back to Synthetic Algebra Group/);
   assert.match(await page.locator('[data-session-subtitle]').innerText(), /\d[\s\S]*Online/);
-  const help = page.locator('[data-tour="help"]'); assert.equal(await help.getAttribute('aria-disabled'), 'true'); assert.equal(await help.getAttribute('aria-label'), 'Help');
-  const hb = await help.boundingBox(), bb = await page.locator('[data-back]').boundingBox(); assert.ok(Math.abs(hb.y + hb.height / 2 - (bb.y + bb.height / 2)) < 30 && hb.x > bb.x, 'the "?" is in the header bar, beside the back link');
+  const help = page.locator('[data-tour="help"]'); assert.equal(await help.count(), 1, 'the tour target stays in the page'); assert.equal(await help.isVisible(), false, 'the "?" is hidden until the Helper exists'); assert.equal(await page.locator('main button:has-text("?")').count(), 0);
   for (const t of ['status-bar', 'mark-all', 'student-rows', 'save-actions']) assert.equal(await page.locator(`[data-tour="${t}"]`).count(), 1, t);
-  assert.equal(await counts(page), '0 present · 0 absent · 12 not marked'); assert.equal(await page.locator('[data-mark-all]').innerText(), 'All present');
+  assert.equal(await counts(page), '0 present · 0 absent · 12 not marked'); assert.equal(await page.locator('[data-mark-all]').innerText(), 'Mark the rest present');
   assert.equal(await page.locator('[data-save-draft]').count(), 0, 'no Save draft'); assert.equal(await page.locator('[data-sheet-badge]').count(), 0, 'no status bar');
   assert.equal(await page.locator('[data-finalize]').innerText(), 'Finish attendance'); assert.equal(await saveLine(page), 'Saved as you tap');
   assert.equal(await rows(page).count(), 12); assert.equal(await page.locator('[data-mark-button]').count(), 24, 'Present and Absent only');
@@ -307,10 +311,9 @@ function command(body) {
   const sent = new Map(); for (const x of p) for (const m of x.data.marks) sent.set(m.userId, m.status);
   assert.deepEqual([sent.get(uuid(6002)), sent.get(uuid(6003)), sent.get(uuid(6004))], ['attended', 'attended', 'absent'], 'every fast tap reached the database');
   const again = await open(desktop, at(G.alg, sid.draft)); await rows(again.page).first().waitFor(); assert.equal(await counts(again.page), '2 present · 2 absent · 8 not marked', 'what is on screen is what was saved'); await again.context.close();
-  await page.locator('[data-mark-all]').click(); assert.equal(await counts(page), '12 present · 0 absent · 0 not marked'); await tap(page, 2, 'absent'); assert.equal(await counts(page), '11 present · 1 absent · 0 not marked'); await saved(page);
+  await page.locator('[data-mark-all]').click(); assert.equal(await counts(page), '10 present · 2 absent · 0 not marked', 'only the 8 unmarked students became present; the 2 absent marks stayed'); assert.equal(await page.locator('[data-mark-all]').count(), 0, 'nothing left to mark'); await tap(page, 2, 'absent'); assert.equal(await counts(page), '9 present · 3 absent · 0 not marked'); await saved(page);
   await shot(page, 'attendance-draft-en-1440');
-  const editable = await geometry(page), pillX = async sel => (await page.locator(sel).boundingBox()).x;
-  const px = [await pillX('[data-student]:nth-child(1) [data-mark-button="attended"]'), await pillX('[data-student]:nth-child(3) [data-mark-button="absent"]')];
+  const editable = await geometry(page);
   // Finish: asks first, then sends the version the last save produced.
   const lastVersion = (await attPosts()).at(-1).data.sessionVersion;
   await page.locator('[data-finalize]').click(); await page.locator('[data-confirm-finalize]').waitFor(); assert.match(await page.locator('[data-confirm-finalize]').innerText(), /Finish attendance\? The list is locked until you edit it again\./);
@@ -318,15 +321,17 @@ function command(body) {
   await page.locator('[data-confirm-finalize-yes]').click(); await page.locator('[data-finished]').waitFor();
   p = (await posts()).filter(x => x.action === 'finalize'); assert.equal(p.length, 1); assert.equal(p[0].data.sessionVersion, lastVersion + 1);
   // The finished view: the same screen, read-only, in the same positions.
-  assert.equal(await counts(page), 'Finished · 11 present · 1 absent'); assert.equal(await page.locator('[data-mark-button]').count(), 0, 'the list is locked'); assert.equal(await page.locator('[data-mark-all]').count(), 0);
+  assert.equal(await counts(page), 'Finished · 9 present · 3 absent'); assert.equal(await page.locator('[data-mark-button]').count(), 0, 'the list is locked'); assert.equal(await page.locator('[data-mark-all]').count(), 0);
   assert.deepEqual(await geometry(page), editable, 'same rows in the same positions');
-  assert.deepEqual([await pillX('[data-student]:nth-child(1) [data-mark-text="attended"]'), await pillX('[data-student]:nth-child(3) [data-mark-text="absent"]')], px, 'each result sits where its button was');
+  const flatLabel = await rows(page).nth(2).locator('[data-mark-text]').evaluate(e => { const s = getComputedStyle(e), r = e.getBoundingClientRect(); return { border: s.borderTopWidth, shadow: s.boxShadow, bg: s.backgroundColor, radius: s.borderTopLeftRadius, height: Math.round(r.height), size: s.fontSize }; });
+  assert.deepEqual([flatLabel.border, flatLabel.shadow, flatLabel.bg, flatLabel.radius], ['0px', 'none', 'rgba(0, 0, 0, 0)', '0px'], 'a finished result is flat: no border, shadow, fill or button shape'); assert.ok(flatLabel.height < 40, 'smaller than the 48px buttons it replaces: ' + flatLabel.height); assert.ok(parseFloat(flatLabel.size) >= 16);
   assert.equal(await rows(page).nth(2).locator('[data-mark-text]').innerText(), 'Absent'); assert.equal(await rows(page).nth(0).locator('[data-mark-text]').innerText(), 'Present');
   assert.equal(await page.locator('[data-finalize]').count(), 0); assert.equal(await page.locator('[data-reopen]').innerText(), 'Edit attendance'); assert.equal(await saveLine(page), 'Editing asks for a short reason');
   const edit = await page.locator('[data-reopen]').evaluate(e => getComputedStyle(e).backgroundColor); assert.ok(lum(edit) > 0.85, 'outlined and light, not filled: ' + edit); assert.equal(await page.locator('[data-reopen]').evaluate(e => getComputedStyle(e).borderTopWidth), '2px');
   await shot(page, 'attendance-finished-en-1440');
   // Edit needs a reason.
   await page.locator('[data-reopen]').click(); await page.locator('[data-reopen-reason]').waitFor();
+  await page.waitForFunction(() => document.activeElement?.hasAttribute('data-reopen-reason')); const inView = await page.locator('[data-reopen-reason]').evaluate(e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }); assert.ok(inView, 'the reason field is in view and focused');
   await page.locator('[data-confirm-reopen-yes]').click(); assert.match(await page.locator('[data-confirm-reopen] [role="alert"]').innerText(), /at least 3 characters/); assert.equal((await posts()).filter(x => x.action === 'reopen').length, 0, 'nothing is sent without a reason');
   await page.locator('[data-reopen-reason]').fill('Wrong list'); await page.locator('[data-confirm-reopen-yes]').click(); await page.locator('[data-mark-button]').first().waitFor();
   p = (await posts()).filter(x => x.action === 'reopen'); assert.equal(p.length, 1); assert.equal(p[0].data.reason, 'Wrong list'); assert.equal(p[0].data.sessionVersion, lastVersion + 2);
@@ -372,20 +377,21 @@ function command(body) {
   assert.match(await page.locator('[data-detail-error]').innerText(), /finalizing is not available yet/); assert.equal(await page.locator('[data-finalize]').count(), 0); assert.equal(await page.locator('[data-mark-button]').count(), 24, 'tapping still works');
   await page.locator('[data-detail-error]').getByRole('button', { name: 'Try again' }).click(); await page.locator('[data-finalize]').waitFor(); await context.close();
   // 409: the sheet changed. The mark stays on screen, the line says it was not saved, Finish stays off.
-  ({ page, context } = await open(desktop, at(G.alg, sid.draft))); await rows(page).first().waitFor();
+  ({ page, context } = await open(desktop, at(G.alg, sid.draft), { clock: true })); await rows(page).first().waitFor();
   await ctl({ cmd: 'changed' }); await tap(page, 0, 'attended');
-  await page.locator('[data-save-state="error"]').waitFor(); assert.equal(await saveLine(page), "Couldn't save. Retry"); assert.equal(await counts(page), '1 present · 0 absent · 11 not marked', 'the mark is still there');
+  await page.locator('[data-save-state="retrying"]').waitFor(); assert.equal(await saveLine(page), "Couldn't save. Trying again…", 'it retries by itself and says so'); assert.equal(await guarded(page), true, 'leaving is still guarded while it retries');
+  await giveUp(page); assert.equal(await saveLine(page), "Couldn't save. Retry"); assert.equal(await counts(page), '1 present · 0 absent · 11 not marked', 'the mark is still there');
   assert.equal(await page.locator('[data-finalize]').isDisabled(), true); assert.equal(await page.locator('[data-save-state="saved"]').count(), 0, 'not reported as saved');
-  await page.locator('[data-save-retry]').click(); await page.locator('[data-save-state="error"]').waitFor();
+  await page.locator('[data-save-retry]').click(); await giveUp(page);
   // Lost reply, then denied: the mark is kept and Retry stays.
-  await ctl({ cmd: 'lost' }); await tap(page, 1, 'absent'); await page.locator('[data-save-state="error"]').waitFor(); assert.equal(await counts(page), '1 present · 1 absent · 10 not marked');
+  await ctl({ cmd: 'lost' }); await tap(page, 1, 'absent'); await giveUp(page); assert.equal(await counts(page), '1 present · 1 absent · 10 not marked');
   await ctl({ cmd: 'denied' }); await page.locator('[data-save-retry]').click(); await page.locator('[data-save-state="error"]').waitFor();
   // It recovers: Retry saves everything that was waiting, with the current version.
   await ctl({ cmd: 'ok' }); await page.locator('[data-save-retry]').click(); await saved(page);
   const sent = new Map(); for (const x of await attPosts()) for (const m of x.data.marks) sent.set(m.userId, m.status);
   assert.deepEqual([sent.get(uuid(6000)), sent.get(uuid(6001))], ['attended', 'absent'], 'both marks were saved after the failures'); assert.equal(await page.locator('[data-finalize]').isDisabled(), false);
   // A flaky database: one failed save, then Retry works.
-  await ctl({ fail: { save: 1 } }); await tap(page, 5, 'attended'); await page.locator('[data-save-state="error"]').waitFor(); await page.locator('[data-save-retry]').click(); await saved(page);
+  await ctl({ fail: { save: 1 } }); await tap(page, 5, 'attended'); await page.locator('[data-save-state="retrying"]').waitFor(); await page.clock.fastForward(1500); await saved(page); assert.equal(await page.locator('[data-save-retry]').count(), 0, 'the database recovered: no Retry needed');
   // Finishing can fail too: the marks stay, the message says reload.
   await ctl({ cmd: 'changed' }); await page.locator('[data-finalize]').click(); await page.locator('[data-confirm-finalize-yes]').click();
   await page.locator('[data-actions] [role="alert"]').waitFor(); assert.match(await page.locator('[data-actions] [role="alert"]').innerText(), /changed while you were looking at it/); assert.equal(await counts(page), '2 present · 1 absent · 9 not marked', 'the marks are still there');
@@ -406,6 +412,79 @@ function command(body) {
   assert.equal(await list.page.locator(`[data-group-card="${G.alg}"] [data-attendance-unsaved]`).getAttribute('href'), at(G.alg, sid.draft)); assert.equal(await list.page.locator(`[data-group-card="${G.alg}"] [data-attendance-unsaved]`).evaluate(e => e.tagName), 'A');
   await list.page.locator(`[data-group-card="${G.alg}"] [data-attendance-unsaved]`).click(); await list.page.waitForURL('**' + at(G.alg, sid.draft)); await list.context.close();
  });
+ await step('Mark the rest present never overwrites: absent stays absent, present stays present, only the unmarked are sent, and a reload shows the same', async () => {
+  const { page, context } = await open(desktop, at(G.alg, sid.draft)); await rows(page).first().waitFor();
+  await tap(page, 0, 'absent'); await tap(page, 1, 'attended'); await saved(page);
+  const before = (await attPosts()).length;
+  await page.locator('[data-mark-all]').click();
+  assert.equal(await counts(page), '11 present · 1 absent · 0 not marked'); assert.equal(await rows(page).nth(0).getAttribute('data-mark'), 'absent', 'the absent mark is still absent');
+  await waitPosts(before + 1); await saved(page);
+  const last = (await attPosts()).at(-1);
+  assert.equal(last.data.marks.length, 10); assert.ok(last.data.marks.every(m => m.status === 'attended'));
+  assert.ok(!last.data.marks.some(m => m.userId === uuid(6000) || m.userId === uuid(6001)), 'the marks already set were not sent again');
+  assert.equal(await page.locator('[data-mark-all]').count(), 0, 'nothing is left to mark');
+  await page.reload(); await rows(page).first().waitFor(); assert.equal(await counts(page), '11 present · 1 absent · 0 not marked', 'the server holds what the screen showed');
+  await context.close();
+ });
+ await step('Reload while a save is running: the browser is asked to warn; the first view is what the server held; the save still lands and the page then shows it', async () => {
+  await ctl({ delay: 1600 }); // the save takes 1.6 s, as measured on staging
+  const { page, context } = await open(desktop, at(G.alg, sid.draft)); await rows(page).first().waitFor();
+  await page.locator('[data-mark-all]').click(); assert.equal(await counts(page), '12 present · 0 absent · 0 not marked'); await waitPosts(1);
+  assert.equal(await saveLine(page), 'Saving…'); assert.equal(await guarded(page), true, 'closing or reloading now asks first');
+  await new Promise(r => setTimeout(r, 1000));
+  await page.reload(); await rows(page).first().waitFor();
+  assert.equal(await counts(page), '0 present · 0 absent · 12 not marked', 'the reported symptom: the reload reads the database before the save has landed');
+  await page.locator('[data-rechecking]').waitFor(); assert.equal(await guarded(page), false, 'a load has nothing pending');
+  await page.waitForFunction(() => /^12 present/.test(document.querySelector('[data-counts]').textContent.trim()), null, { timeout: 12000 });
+  assert.equal(await counts(page), '12 present · 0 absent · 0 not marked', 'the save landed and the page shows it, not the old state');
+  await page.locator('[data-reload-note]').waitFor({ timeout: 12000 }); assert.match(await page.locator('[data-reload-note]').innerText(), /shows what is saved now/);
+  const again = await open(desktop, at(G.alg, sid.draft)); await rows(again.page).first().waitFor(); assert.equal(await counts(again.page), '12 present · 0 absent · 0 not marked'); assert.equal(await again.page.locator('[data-rechecking], [data-reload-note]').count(), 0, 'no note once the note has been dealt with, in a new tab');
+  await again.context.close(); await context.close();
+ });
+ await step('Leaving while a save is pending asks first (a link, the menu, Back); Stay keeps everything; Leave anyway goes; nothing is asked once it is saved', async () => {
+  await ctl({ delay: 4000 });
+  const { page, context } = await open(desktop, '/teacher/groups'); await page.locator('[data-group-card]').first().waitFor();
+  await page.goto(origin + at(G.alg, sid.draft)); await rows(page).first().waitFor();
+  const here = () => new URL(page.url()).pathname;
+  await tap(page, 0, 'attended'); await waitPosts(1);
+  await page.locator('[data-back]').click(); await page.locator('[data-leave-question]').waitFor();
+  assert.equal(here(), at(G.alg, sid.draft), 'the link did not navigate'); assert.match(await page.locator('[data-leave-question]').innerText(), /Your marks are still saving/);
+  assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-leave-stay')), true, 'Stay is the focused choice');
+  await page.locator('[data-leave-stay]').click(); assert.equal(await page.locator('[data-leave-question]').count(), 0); assert.equal(await counts(page), '1 present · 0 absent · 11 not marked');
+  await page.locator('aside a[href^="/"]').first().click(); await page.locator('[data-leave-question]').waitFor(); assert.equal(here(), at(G.alg, sid.draft), 'the menu and the logo are guarded too'); await page.locator('[data-leave-stay]').click();
+  await page.goBack(); await page.locator('[data-leave-question]').waitFor(); assert.equal(here(), at(G.alg, sid.draft), 'Back is guarded'); await page.locator('[data-leave-stay]').click();
+  await saved(page); assert.equal(await guarded(page), false, 'once saved, leaving is not asked about');
+  await page.locator('[data-back]').click(); await page.waitForURL('**/teacher/groups/' + G.alg); await context.close();
+  // Leave anyway, by a link and by Back
+  const link = await open(desktop, at(G.alg, sid.draft)); await rows(link.page).first().waitFor(); await tap(link.page, 1, 'absent'); await waitPosts(2);
+  await link.page.locator('[data-back]').click(); await link.page.locator('[data-leave-go]').click(); await link.page.waitForURL('**/teacher/groups/' + G.alg); await link.context.close();
+  const back = await open(desktop, '/teacher/groups'); await back.page.locator('[data-group-card]').first().waitFor(); await back.page.goto(origin + at(G.alg, sid.draft)); await rows(back.page).first().waitFor();
+  await tap(back.page, 2, 'attended'); await back.page.goBack(); await back.page.locator('[data-leave-question]').waitFor(); await back.page.locator('[data-leave-go]').click(); await back.page.waitForURL('**/teacher/groups'); await back.context.close();
+ });
+ await step('The list is alphabetical (Latin and Arabic names), and a search box appears only above 15 students', async () => {
+  const small = await open(desktop, at(G.alg, sid.draft)); await rows(small.page).first().waitFor();
+  assert.equal(await small.page.locator('[data-student-search]').count(), 0, '12 students: no search box');
+  assert.deepEqual(await small.page.locator('[data-student] p').allInnerTexts(), Array.from({ length: 12 }, (_, i) => 'Synthetic student ' + (i + 1)), 'in name order, numbers in natural order'); await small.context.close();
+  const { page, context } = await open(desktop, at(G.phys, sid.phys)); await rows(page).first().waitFor();
+  const names = await page.locator('[data-student] p').allInnerTexts();
+  assert.deepEqual(names, [...names].sort((a, b) => new Intl.Collator(['ar', 'en'], { sensitivity: 'base', numeric: true }).compare(a, b)), 'the on-screen order is the collation order');
+  assert.equal(names[0], 'طالب تجريبي', 'Arabic names sort before Latin ones, each script in its own alphabetical order'); assert.equal(names[1], 'Synthetic pupil 2'); assert.equal(names.at(-1), 'Synthetic pupil 30'); assert.equal(names.length, 30);
+  const box = page.locator('[data-student-search]'); await box.waitFor(); assert.equal((await box.boundingBox()).height >= 47.5, true);
+  await box.fill('pupil 2'); assert.equal(await rows(page).count(), 11, '2 and 20 to 29'); await box.fill('ZZZ'); await page.locator('[data-search-empty]').waitFor(); assert.equal(await rows(page).count(), 0);
+  await box.fill('طالب'); assert.equal(await rows(page).count(), 1); await box.fill('pupil 7'); await tap(page, 0, 'absent'); await box.fill(''); assert.equal(await rows(page).count(), 30);
+  assert.equal(await counts(page), '0 present · 1 absent · 29 not marked', 'marking works while filtered and counts cover everyone'); await saved(page);
+  await page.locator('[data-mark-all]').click(); assert.equal(await counts(page), '29 present · 1 absent · 0 not marked', 'the rest means every unmarked student, not only the ones shown');
+  assert.ok(await overflow(page)); assert.deepEqual(await tinyTargets(page), []); await shot(page, 'attendance-search-en-1440'); await context.close();
+  const ph = await open(phone, at(G.phys, sid.phys)); await rows(ph.page).first().waitFor(); assert.ok(await overflow(ph.page)); assert.deepEqual(await tinyTargets(ph.page), []); await ph.context.close();
+ });
+ await step('Phone: Edit attendance brings the reason field into view with the cursor in it; the finished labels are flat', async () => {
+  const { page, context } = await open(phone, at(G.alg, sid.finalized)); await rows(page).first().waitFor();
+  await page.locator('[data-reopen]').click(); await page.locator('[data-reopen-reason]').waitFor();
+  await page.waitForFunction(() => document.activeElement?.hasAttribute('data-reopen-reason'));
+  const box = await page.locator('[data-reopen-reason]').boundingBox(); assert.ok(box.y >= 0 && box.y + box.height <= 844, 'the field is on screen: ' + JSON.stringify(box));
+  const bad = await page.locator('[data-mark-text]').evaluateAll(els => els.filter(e => { const s = getComputedStyle(e); return s.boxShadow !== 'none' || s.borderTopWidth !== '0px' || s.backgroundColor !== 'rgba(0, 0, 0, 0)'; }).length); assert.equal(bad, 0, 'no shadow, border or fill on a result');
+  assert.ok(await overflow(page)); await context.close();
+ });
  await step('Keyboard: Present and Absent are real buttons that toggle with Enter and Space, and Escape does nothing harmful', async () => {
   const { page, context } = await open(desktop, at(G.alg, sid.draft)); await rows(page).first().waitFor();
   const present = rows(page).nth(0).locator('[data-mark-button="attended"]'); await present.focus(); await page.keyboard.press('Enter'); assert.equal(await present.getAttribute('aria-pressed'), 'true');
@@ -423,10 +502,9 @@ function command(body) {
   const bar = await page.locator('[data-actions]').boundingBox(); assert.ok(Math.abs(bar.y + bar.height - 844) <= 1, 'the bar sits at the bottom of the screen'); assert.ok(bar.width >= 389);
   const fin = await page.locator('[data-finalize]').boundingBox(); assert.ok(fin.height >= 47.5 && fin.width > 300, 'Finish is one wide 48px+ button');
   assert.equal(await page.locator('[data-save-line]').innerText(), 'Saved as you tap'); const lb = await page.locator('[data-save-line]').boundingBox(); assert.ok(lb.y > fin.y + fin.height - 1, 'the small line sits under the button');
-  for (const sel of ['[data-mark-all]', '[data-mark-button]', '[data-tour="help"]']) for (const box of await page.locator(sel).evaluateAll(n => n.map(e => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }))) assert.ok(box[0] >= 47.5 && box[1] >= 47.5, sel + ' is 48px+: ' + box);
+  for (const sel of ['[data-mark-all]', '[data-mark-button]']) for (const box of await page.locator(sel).evaluateAll(n => n.map(e => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }))) assert.ok(box[0] >= 47.5 && box[1] >= 47.5, sel + ' is 48px+: ' + box);
   assert.deepEqual(await tinyTargets(page), [], 'every target is at least 44px');
   const list = await page.locator('[data-student-list]').evaluate(e => { const s = getComputedStyle(e.parentElement); return { radius: s.borderRadius, width: s.borderTopWidth, shadow: s.boxShadow }; }); assert.equal(list.width, '0px', 'no box around the list'); assert.equal(list.shadow, 'none');
-  const help = await page.locator('[data-tour="help"]').boundingBox(), back = await page.locator('[data-back]').boundingBox(); assert.ok(help.x + help.width <= 390 && Math.abs(help.y - back.y) < 40, 'the "?" is in the header bar');
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); const last = await rows(page).last().boundingBox(), bar2 = await page.locator('[data-actions]').boundingBox(); assert.ok(last.y + last.height <= bar2.y + 1, 'the last student is not hidden behind the bar');
   await tap(page, 0, 'attended'); await tap(page, 1, 'absent'); await saved(page);
   await shot(page, 'attendance-draft-en-390', false);
@@ -441,11 +519,10 @@ function command(body) {
   for (const [name, viewport] of [['1440', desktop], ['390', phone]]) {
    await ctl({ reset: true });
    const { page, context } = await open(viewport, at(G.alg, sid.draft), { lang: 'ar' }); await rows(page).first().waitFor();
-   assert.equal(await page.evaluate(() => document.documentElement.dir), 'rtl'); assert.match(await page.locator('h1').innerText(), /^الحصة 40 · /);
+   assert.equal(await page.evaluate(() => document.documentElement.dir), 'rtl'); assert.equal(await page.locator('h1').innerText(), 'Synthetic lesson 10', 'the class title only; a Latin title inside Arabic stays isolated'); assert.equal(await page.locator('h1 bdi').getAttribute('dir'), 'auto');
    assert.equal(await counts(page), '0 حاضر · 0 غائب · 12 بلا تحديد');
-   assert.equal(await page.locator('[data-mark-all]').innerText(), 'الجميع حاضرون'); assert.equal(await page.locator('[data-finalize]').innerText(), 'إنهاء الحضور'); assert.equal(await saveLine(page), 'يُحفظ مع كل ضغطة');
+   assert.equal(await page.locator('[data-mark-all]').innerText(), 'تسجيل الباقين حاضرين'); assert.equal(await page.locator('[data-finalize]').innerText(), 'إنهاء الحضور'); assert.equal(await saveLine(page), 'يُحفظ مع كل ضغطة');
    assert.match(await page.locator('[data-back]').innerText(), /العودة إلى/); assert.notEqual(await page.locator('[data-back] svg').evaluate(e => getComputedStyle(e).transform), 'none', 'the arrow is mirrored');
-   const hb = await page.locator('[data-tour="help"]').boundingBox(), bb = await page.locator('[data-back]').boundingBox(); assert.ok(hb.x < bb.x, 'the "?" moves to the other side in Arabic');
    const row = rows(page).nth(0), nameBox = await row.locator('p').boundingBox(), pillBox = await row.locator('[data-mark-button="attended"]').boundingBox(); assert.ok(nameBox.x > pillBox.x, 'the name is on the right, the buttons on the left');
    assert.ok(await overflow(page), 'no sideways scroll ' + name); assert.deepEqual(await smallText(page), [], 'text ' + name);
    assert.doesNotMatch(await main(page), forbidden);

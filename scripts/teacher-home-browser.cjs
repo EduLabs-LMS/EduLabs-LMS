@@ -42,7 +42,7 @@ const scenarios = {
  first: { courses: ok([]), groups: ok({ rows: [], page: 0, hasMore: false }), upcoming: ok({ rows: [], page: 0 }), notifications: ok({ rows: [], page: 0, unread: 0 }) },
  attention: { courses: ok(courses), groups: ok({ rows: [group(1, 'Synthetic Group Alpha'), group(2, 'مجموعة الصف العاشر'), group(3, 'Synthetic Group Gamma'), group(4, 'Synthetic Group Delta')], page: 0, hasMore: false }),
   upcoming: ok({ rows: [session(1, 1, 'Synthetic Group Alpha', -20), session(2, 2, 'مجموعة الصف العاشر', 1500), session(3, 1, 'Synthetic Group Alpha', 3000)], page: 0 }), notifications: notesFull,
-  unsaved: ok([{ groupId: uuid(1), rows: [session(11, 1, 'Synthetic Group Alpha', -1500), session(12, 1, 'Synthetic Group Alpha', -9000, { attendance_state: 'finalized' })] }, { groupId: uuid(2), rows: [session(13, 2, 'مجموعة الصف العاشر', -600, { attendance_state: 'reopened' })] },
+  unsaved: ok([{ groupId: uuid(1), rows: [session(11, 1, 'Synthetic Group Alpha', -1500), session(12, 1, 'Synthetic Group Alpha', -9000, { attendance_state: 'finalized' })] }, { groupId: uuid(2), rows: [session(13, 2, 'مجموعة الصف العاشر', -600, { attendance_state: 'reopened' }), session(16, 2, 'مجموعة الصف العاشر', -2500)] },
    { groupId: uuid(3), rows: [session(14, 3, 'Synthetic Group Gamma', -4000)] }, { groupId: uuid(4), rows: [session(15, 4, 'Synthetic Group Delta', -20000)] }]) },
  plain: { courses: ok(courses), groups: groupsFull, upcoming: upcomingFull, notifications: notesFull, unsaved: ok([]) },
  unsavederror: { courses: ok(courses), groups: groupsFull, upcoming: upcomingFull, notifications: notesFull, unsaved: bad(503) },
@@ -236,6 +236,14 @@ createRoot(document.getElementById('root')).render(
   await page.screenshot({ path: path.join(shots, 'home-dark-1440.png'), fullPage: true });
   const light = await open(desktop, 'view=home&s=full'); await light.page.locator('[data-teacher-home]').waitFor();
   const lightLow = await light.page.evaluate(() => 0); await light.context.close();
+  // The attention state: the live-class buttons and the yellow unsaved-class buttons, in dark mode, at WCAG AA (4.5:1).
+  const att = await open(desktop, 'view=home&s=attention&theme=dark'); await att.page.locator('[data-teacher-home]').waitFor(); await att.page.waitForFunction(() => document.documentElement.classList.contains('dark'));
+  const buttons = await att.page.evaluate(() => [...document.querySelectorAll('[data-take-attendance], [data-open-group], [data-unsaved-finish]')].map(e => ({ t: e.textContent.trim().slice(0, 24), color: getComputedStyle(e).color, back: getComputedStyle(e).backgroundColor })));
+  assert.ok(buttons.length >= 5, 'the live-class pair and three unsaved rows are on screen: ' + buttons.length);
+  const weak = buttons.filter(b => ratio(b.color, b.back) < 4.5).map(b => `${b.t} ${b.color} on ${b.back}`); assert.deepEqual(weak, [], 'button text is at least 4.5:1 in dark mode');
+  const tk = att.page.locator('[data-take-attendance]'), op = att.page.locator('[data-open-group]');
+  assert.ok(lum(await tk.evaluate(e => getComputedStyle(e).backgroundColor)) !== lum(await op.evaluate(e => getComputedStyle(e).backgroundColor)), 'the two live-class buttons still look different in dark mode');
+  await att.page.screenshot({ path: path.join(shots, 'home-attention-dark-1440.png'), fullPage: true }); await att.context.close();
   await context.close();
  });
  await step('Quiet Home: honest empty cards for no session, no updates and no further sessions; courses still shown', async () => {
@@ -348,7 +356,7 @@ createRoot(document.getElementById('root')).render(
   await first.context.close();
  });
 
- await step('Attendance on Home: HAPPENING NOW with Take attendance, "attendance not saved" rows with Finish (max 3, newest first), nothing changes otherwise', async () => {
+ await step('Attendance on Home: HAPPENING NOW with Take attendance as the primary button, "attendance not saved" rows say Take attendance (max 3 across all Groups, newest first), nothing changes otherwise', async () => {
   const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0'); const href = (g, n) => `/teacher/groups/${uuid(g)}/attendance/${uuid(200 + n)}`;
   const lumOf = c => { const m = c.match(/\d+(\.\d+)?/g).map(Number).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; };
   for (const [vp, tag] of [[desktop, 'en-1440'], [phone, 'en-390']]) {
@@ -356,14 +364,15 @@ createRoot(document.getElementById('root')).render(
    const next = page.locator('[data-section="th-next"]'); assert.match(await next.locator('h2').innerText(), /happening now/i); assert.doesNotMatch(await next.locator('h2').innerText(), /next session/i);
    const open1 = next.getByRole('link', { name: 'Open this Group' }), take = next.locator('[data-take-attendance]');
    assert.equal(await take.innerText(), 'Take attendance'); assert.equal(await take.getAttribute('href'), href(1, 1)); assert.equal(await open1.getAttribute('href'), '/teacher/groups/' + uuid(1));
+   assert.notEqual(await next.locator('a').first().getAttribute('data-take-attendance'), null, 'Take attendance comes first in the page');
    const ob = await open1.boundingBox(), tb = await take.boundingBox();
-   if (vp === desktop) assert.ok(Math.abs(ob.y - tb.y) < 6 && tb.x > ob.x, 'beside Open this Group on a desktop'); else assert.ok(tb.y >= ob.y + ob.height - 1 && tb.width > 300, 'below Open this Group, full width, on a phone');
-   assert.ok(tb.height >= 43.5, 'a real button size'); assert.equal(await open1.evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(0, 0, 0)', 'Open this Group stays the dark button');
-   assert.ok(lumOf(await take.evaluate(e => getComputedStyle(e).backgroundColor)) > 0.85, 'Take attendance is the light outlined button');
+   if (vp === desktop) assert.ok(Math.abs(ob.y - tb.y) < 6 && tb.x < ob.x, 'Take attendance is first, beside Open this Group, on a desktop'); else assert.ok(ob.y >= tb.y + tb.height - 1 && tb.width > 300, 'Take attendance is on top, full width, on a phone');
+   assert.ok(tb.height >= 43.5, 'a real button size'); assert.equal(await take.evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(0, 0, 0)', 'Take attendance is the primary, dark button');
+   assert.ok(lumOf(await open1.evaluate(e => getComputedStyle(e).backgroundColor)) > 0.85, 'Open this Group is the secondary, light button');
    for (const t of ['next-session', 'take-attendance', 'unsaved-attendance']) assert.equal(await page.locator(`[data-tour="${t}"]`).count(), 1, t);
    const rows = page.locator('[data-unsaved-session]'); assert.equal(await rows.count(), 3, 'at most three');
-   assert.deepEqual(await rows.evaluateAll(n => n.map(e => e.dataset.unsavedSession)), [uuid(213), uuid(211), uuid(214)], 'newest first: one row per Group, the latest finished Session, finalized ones left out');
-   for (let i = 0; i < 3; i++) { const row = rows.nth(i), finish = row.locator('[data-unsaved-finish]'); assert.match(await row.innerText(), /attendance not saved/); assert.equal(await finish.innerText(), 'Finish'); const fb = await finish.boundingBox(); assert.ok(fb.height >= 47.5 && fb.width >= 47.5, 'Finish is 48px+'); assert.equal(await finish.evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(252, 211, 77)', 'yellow'); }
+   assert.deepEqual(await rows.evaluateAll(n => n.map(e => e.dataset.unsavedSession)), [uuid(213), uuid(211), uuid(216)], 'newest first across all Groups: Group 2 shows both of its unsaved classes (the 3rd row is its older one), finalized ones left out');
+   for (let i = 0; i < 3; i++) { const row = rows.nth(i), finish = row.locator('[data-unsaved-finish]'); assert.match(await row.innerText(), /attendance not saved/); assert.equal(await finish.innerText(), 'Take attendance'); assert.match(await finish.getAttribute('aria-label'), /Take attendance/); const fb = await finish.boundingBox(); assert.ok(fb.height >= 47.5 && fb.width >= 47.5, 'the button is 48px+'); assert.equal(await finish.evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(252, 211, 77)', 'yellow'); }
    assert.equal(await rows.nth(0).locator('[data-unsaved-finish]').getAttribute('href'), href(2, 13)); assert.equal(await rows.nth(1).locator('[data-unsaved-finish]').getAttribute('href'), href(1, 11)); assert.match(await rows.nth(0).innerText(), /مجموعة الصف العاشر/);
    const topUnsaved = (await page.locator('[data-unsaved-list]').boundingBox()).y, firstUpcoming = (await page.locator('[data-section="th-coming"] [data-session]').first().boundingBox()).y; assert.ok(topUnsaved < firstUpcoming, 'at the top of Coming up');
    assert.equal(await page.locator('[data-section="th-coming"] [data-session]').count(), 2, 'the upcoming sessions follow'); assert.equal(await page.locator('[data-section]').count(), 3, 'no new section (next, updates, coming up)');
@@ -373,8 +382,8 @@ createRoot(document.getElementById('root')).render(
    await page.screenshot({ path: path.join(shots, `home-attention-${tag}.png`), fullPage: true }); await context.close();
   }
   const ar = await open(desktop, 'view=home&s=attention&lang=ar'); await ar.page.locator('[data-teacher-home]').waitFor();
-  assert.match(await ar.page.locator('[data-section="th-next"] h2').innerText(), /تجري الآن/); assert.equal(await ar.page.locator('[data-take-attendance]').innerText(), 'تسجيل الحضور'); assert.match(await ar.page.locator('[data-unsaved-session]').first().innerText(), /لم يُحفظ الحضور/); assert.equal(await ar.page.locator('[data-unsaved-finish]').first().innerText(), 'إنهاء');
-  const aob = await ar.page.locator('[data-section="th-next"]').getByRole('link').first().boundingBox(), atb = await ar.page.locator('[data-take-attendance]').boundingBox(); assert.ok(atb.x < aob.x, 'mirrored: Take attendance sits to the left of Open this Group in RTL');
+  assert.match(await ar.page.locator('[data-section="th-next"] h2').innerText(), /تجري الآن/); assert.equal(await ar.page.locator('[data-take-attendance]').innerText(), 'تسجيل الحضور'); assert.match(await ar.page.locator('[data-unsaved-session]').first().innerText(), /لم يُحفظ الحضور/); assert.equal(await ar.page.locator('[data-unsaved-finish]').first().innerText(), 'تسجيل الحضور');
+  const aob = await ar.page.locator('[data-section="th-next"] [data-open-group]').boundingBox(), atb = await ar.page.locator('[data-take-attendance]').boundingBox(); assert.ok(atb.x > aob.x, 'mirrored: Take attendance, first, sits to the right of Open this Group in RTL');
   assert.ok(await overflow(ar.page)); await ar.page.screenshot({ path: path.join(shots, 'home-attention-ar-1440.png'), fullPage: true }); await ar.context.close();
   for (const sc of ['full', 'plain']) {
    const { page, context } = await open(desktop, 'view=home&s=' + sc); await page.locator('[data-teacher-home]').waitFor();

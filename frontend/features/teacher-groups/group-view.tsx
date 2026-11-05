@@ -7,7 +7,7 @@ import { L, LocalDate, useLanguage } from '@/frontend/components/language-provid
 import { card, inkButton, linkClass, plainButton, primaryButton, sessionTime } from '@/frontend/features/teacher-home/parts';
 import { cairoWallTime, sessionDefinition, sessionState, type GroupPage, type GroupRow, type GroupSession, type StudyGroup } from '@/shared/contracts/groups';
 import { attendanceHref, canTakeAttendance } from '@/shared/teacher-attendance';
-import { RECENT_PAST, attendanceSummary, currentMembers, partitionSessions, type WeeklyTime } from '@/shared/teacher-groups';
+import { RECENT_PAST, attendanceSummary, currentMembers, partitionSessions, studentsByName, type WeeklyTime } from '@/shared/teacher-groups';
 import { GroupCallError, groupCall, isAbort } from './api';
 import { EditGroup } from './group-form';
 import { GroupError, Loading, ModeLabel, WeeklyTimes, asError, stateTone, useCommand } from './parts';
@@ -258,7 +258,7 @@ function StudentsPanel({ group, onVersion, onStale }: { group: StudyGroup; onVer
   const [adding, setAdding] = useState(false);
   if (data.state === 'loading') return <Loading label="tg.loading_students" className="h-32" />;
   if (data.state === 'error') return <GroupError kind={data.error.kind} onRetry={retry} />;
-  const students = currentMembers(data.rows);
+  const students = studentsByName(currentMembers(data.rows));
   const canChange = group.status === 'active' && group.staff;
   const changed = (version: number) => { onVersion(version); refresh(); };
   const full = group.capacity !== null && !data.hasMore && students.length >= group.capacity;

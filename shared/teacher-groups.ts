@@ -55,7 +55,25 @@ export function lastUnsavedSession(rows: readonly GroupSession[], now: number): 
   const done = rows.filter(s => !s.cancelled && Date.parse(s.ends_at) <= now).sort((a, b) => Date.parse(b.ends_at) - Date.parse(a.ends_at));
   return done.length > 0 && done[0].attendance_state !== 'finalized' ? done[0] : null;
 }
+/**
+ * Every finished, non-cancelled session whose attendance was not finalized, newest first. `lastUnsavedSession` only ever names the latest
+ * finished one, so an earlier class left unsaved was invisible on Home.
+ */
+export function unsavedSessions(rows: readonly GroupSession[], now: number): GroupSession[] {
+  return rows.filter(s => !s.cancelled && Date.parse(s.ends_at) <= now && s.attendance_state !== 'finalized')
+    .sort((a, b) => Date.parse(b.ends_at) - Date.parse(a.ends_at) || a.id.localeCompare(b.id));
+}
 export const lastAttendanceUnsaved = (rows: readonly GroupSession[], now: number) => lastUnsavedSession(rows, now) !== null;
+
+const nameCollator = new Intl.Collator(['ar', 'en'], { sensitivity: 'base', numeric: true });
+/**
+ * The one order for students on screen: alphabetical by name, Arabic and Latin names each in their own alphabetical order, ties by id.
+ * The Take attendance list and the Group's Students tab both use it. (The database pages the Students tab by join date, so a Group with more
+ * than one page of students is alphabetical within the pages shown.)
+ */
+export function studentsByName<T extends { display_name: string; user_id: string }>(rows: readonly T[]): T[] {
+  return [...rows].sort((a, b) => nameCollator.compare(a.display_name ?? '', b.display_name ?? '') || a.user_id.localeCompare(b.user_id));
+}
 
 export const nextOf = (rows: readonly GroupSession[], now: number) => nextSession([...rows], now);
 

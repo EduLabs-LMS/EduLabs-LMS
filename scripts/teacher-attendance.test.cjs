@@ -24,24 +24,39 @@ test('attendance: marks are exactly attended / absent / not_marked; an unknown v
  assert.deepEqual({ ...marks }, { a: 'attended', b: 'absent', c: 'not_marked', d: 'not_marked', e: 'not_marked', f: 'not_marked' });
  assert.deepEqual({ ...model.countMarks(marks) }, { attended: 1, absent: 1, not_marked: 4 });
 });
-test('attendance: only what changed is sent; pressing the same mark again takes it back to not marked; Mark everyone present marks all', () => {
+test('attendance: only what changed is sent; pressing the same mark again takes it back to not marked', () => {
  const saved = { a: 'attended', b: 'not_marked', c: 'absent' };
  assert.deepEqual(model.changedMarks(saved, { ...saved }).length, 0);
  assert.deepEqual([...model.changedMarks(saved, { a: 'attended', b: 'absent', c: 'attended' }).map(m => ({ ...m }))], [{ userId: 'b', status: 'absent' }, { userId: 'c', status: 'attended' }]);
  assert.equal(model.toggled('attended', 'attended'), 'not_marked'); assert.equal(model.toggled('absent', 'attended'), 'attended'); assert.equal(model.toggled('not_marked', 'absent'), 'absent');
- assert.deepEqual({ ...model.allPresent(saved) }, { a: 'attended', b: 'attended', c: 'attended' });
+});
+test('Mark the rest present: only students still not marked change; a present or absent mark is never overwritten', () => {
+ assert.deepEqual({ ...model.markRestPresent({ a: 'attended', b: 'absent', c: 'not_marked', d: 'not_marked' }) }, { a: 'attended', b: 'absent', c: 'attended', d: 'attended' });
+ const all = { a: 'absent', b: 'absent' };
+ assert.deepEqual({ ...model.markRestPresent(all) }, all, 'nothing is unmarked, so nothing changes');
+ const before = { a: 'absent', b: 'not_marked' };
+ assert.deepEqual([...model.changedMarks(before, model.markRestPresent(before)).map(m => ({ ...m }))], [{ userId: 'b', status: 'attended' }], 'only the unmarked student would be sent');
+ assert.deepEqual({ ...model.markRestPresent({}) }, {});
 });
 test('attendance: a save never carries more than the 100 marks the database accepts in one call', () => {
  assert.equal(model.MARKS_PER_SAVE, 100);
  const parts = model.chunk(Array.from({ length: 250 }, (_, i) => i), model.MARKS_PER_SAVE);
  assert.deepEqual([...parts.map(p => p.length)], [100, 100, 50]); assert.equal(model.chunk([], 100).length, 0);
 });
-test('attendance: Session N counts live Sessions in time order, and is left out when it cannot be known', () => {
- const rows = [sess('c', '2026-10-22T10:00:00Z', '2026-10-22T11:00:00Z'), sess('a', '2026-10-08T10:00:00Z', '2026-10-08T11:00:00Z'), sess('x', '2026-10-15T10:00:00Z', '2026-10-15T11:00:00Z', { cancelled: true }), sess('b', '2026-10-16T10:00:00Z', '2026-10-16T11:00:00Z')];
- assert.deepEqual(['a', 'b', 'c'].map(s => model.sessionNumber(rows, true, s)), [1, 2, 3]);
- assert.equal(model.sessionNumber(rows, true, 'x'), null, 'a cancelled Session has no number');
- assert.equal(model.sessionNumber(rows, false, 'b'), null, 'a partial read never invents a number');
- assert.equal(model.sessionNumber(rows, true, 'missing'), null);
+test('attendance: automatic retry waits 1, 2, 4, 8 then 15 seconds, and only a missing reply or server trouble is retried', () => {
+ assert.deepEqual([1, 2, 3, 4, 5, 6, 9].map(model.retryDelay), [1000, 2000, 4000, 8000, 15000, 15000, 15000]);
+ assert.equal(model.AUTO_RETRIES, 5);
+ assert.deepEqual([null, 500, 502, 503, 400, 401, 403, 404, 409, 413].map(model.retryable), [true, true, true, true, false, false, false, false, false, false]);
+});
+test('attendance: students are in alphabetical order, Arabic and Latin names each in their own alphabetical order, ties by id; the search folds case and accents', () => {
+ const rows = ['زياد', 'Omar', 'أحمد', 'ali', 'Émile', 'Adam', 'ali'].map((display_name, i) => ({ user_id: 'u' + i, display_name }));
+ const sorted = [...groups.studentsByName(rows).map(r => r.display_name)];
+ assert.deepEqual(sorted.filter(n => /^[A-Za-zÉ]/.test(n)), ['Adam', 'ali', 'ali', 'Émile', 'Omar'], 'Latin names: Adam, ali, ali, Emile, Omar');
+ assert.deepEqual(sorted.filter(n => /[؀-ۿ]/.test(n)), ['أحمد', 'زياد'], 'Arabic names in Arabic order');
+ assert.deepEqual([...groups.studentsByName(rows).filter(r => r.display_name === 'ali').map(r => r.user_id)], ['u3', 'u6'], 'a tie is broken by id, so the order never flickers');
+ const before = rows.map(r => r.user_id); groups.studentsByName(rows); assert.deepEqual(rows.map(r => r.user_id), before, 'the input is not reordered');
+ assert.equal(model.matchesSearch('Émile Haddad', 'emile'), true); assert.equal(model.matchesSearch('Omar', 'OMA'), true); assert.equal(model.matchesSearch('أحمد', 'احمد'), true, 'a hamza does not hide a name'); assert.equal(model.matchesSearch('Omar', 'z'), false); assert.equal(model.matchesSearch('Omar', '  '), true);
+ assert.equal(model.SEARCH_FROM, 15);
 });
 test('attendance: it opens once a Session has started; a cancelled Session has none; the reason to reopen needs 3 characters', () => {
  assert.equal(model.canTakeAttendance(sess('a', '2026-10-29T11:00:00Z', '2026-10-29T13:00:00Z'), NOW), true);
@@ -49,6 +64,12 @@ test('attendance: it opens once a Session has started; a cancelled Session has n
  assert.equal(model.canTakeAttendance(sess('a', '2026-10-28T11:00:00Z', '2026-10-28T12:00:00Z', { cancelled: true }), NOW), false);
  assert.deepEqual(['', ' ab ', 'abc', ' abc '].map(model.reasonValid), [false, false, true, true]);
  assert.equal(model.attendanceHref('g1', 's1'), '/teacher/groups/g1/attendance/s1');
+});
+test('attendance: Home lists every unsaved finished class, not only the latest of a Group', () => {
+ const a = sess('a', '2026-10-25T10:00:00Z', '2026-10-25T11:00:00Z'), b = sess('b', '2026-10-27T10:00:00Z', '2026-10-27T11:00:00Z'), c = sess('c', '2026-10-28T10:00:00Z', '2026-10-28T11:00:00Z', { attendance_state: 'finalized' });
+ const x = sess('x', '2026-10-26T10:00:00Z', '2026-10-26T11:00:00Z', { cancelled: true }), future = sess('f', '2026-10-30T10:00:00Z', '2026-10-30T11:00:00Z');
+ assert.deepEqual(groups.unsavedSessions([a, b, c, x, future], NOW).map(s => s.id), ['b', 'a'], 'newest first; finalized, cancelled and upcoming are not listed');
+ assert.equal(groups.lastUnsavedSession([a, b, c], NOW), null, 'the old rule saw only the latest (finalized) class and therefore listed nothing');
 });
 test('attendance: the "not saved" flag names the session it is about, so it can link to it', () => {
  const done = sess('d', '2026-10-27T10:00:00Z', '2026-10-27T11:00:00Z');
@@ -81,7 +102,8 @@ test('attendance: only the existing Groups endpoint and only the existing comman
  const files = view + read('frontend/features/teacher-groups/api.ts');
  assert.deepEqual([...new Set([...files.matchAll(/['"`](\/api\/[^'"`]*)['"`]/g)].map(m => m[1]))], ['/api/study-groups']);
  assert.doesNotMatch(view, /\bfetch\(/, 'every call goes through groupCall');
- assert.deepEqual([...new Set([...view.matchAll(/groupCall(?:<[^>]*>(?:\([^)]*\))?)?\('([a-z-]+)'/g)].map(m => m[1]))].sort(), ['attendance', 'finalize', 'reopen', 'view']);
+ assert.deepEqual([...new Set([...view.matchAll(/group(?:Call|Save)(?:<[^>]*>(?:\([^)]*\))?)?\('([a-z-]+)'/g)].map(m => m[1]))].sort(), ['attendance', 'finalize', 'reopen', 'view']);
+ assert.doesNotMatch(view, /'sessions'/, 'the Session list is no longer read just to number the title');
  assert.doesNotMatch(view, /'(late|excused)'/, 'only present and absent exist');
  assert.match(view, /sessionVersion: session\.version/, 'a save sends the Session version it read');
  assert.match(view, /MARKS_PER_SAVE/);
@@ -101,7 +123,7 @@ test('attendance: the Group page and the "not saved" flag link to it', () => {
 });
 test('attendance: the tour targets exist (not the tour itself)', () => {
  const all = view + read('frontend/features/teacher-helper/help-button.tsx');
- for (const target of ['help', 'status-bar', 'mark-all', 'student-rows', 'save-actions']) assert.ok(all.includes(`data-tour="${target}"`), target);
+ for (const target of ['help', 'status-bar', 'mark-all', 'student-rows', 'save-actions', 'student-search']) assert.ok(all.includes(`data-tour="${target}"`), target);
  assert.doesNotMatch(all, /driver\.js|intro\.js|shepherd|spotlight/i, 'the tour is not built here');
 });
 test('attendance: the controls are at least 48px tall', () => {
@@ -122,40 +144,92 @@ test('locales: every ta.* and helper.* string exists in English and Arabic with 
   assert.equal(holes(messages.en[k]), holes(messages.ar[k]), k);
   assert.match(messages.ar[k], /[؀-ۿ]/, 'Arabic text is Arabic: ' + k);
  }
- const want = { 'ta.present': 'Present', 'ta.absent': 'Absent', 'ta.not_marked': 'Not marked', 'ta.all_present': 'All present', 'ta.finish': 'Finish attendance', 'ta.edit': 'Edit attendance',
+ const want = { 'ta.present': 'Present', 'ta.absent': 'Absent', 'ta.not_marked': 'Not marked', 'ta.mark_rest': 'Mark the rest present', 'ta.finish': 'Finish attendance', 'ta.edit': 'Edit attendance',
   'ta.saved_as_you_tap': 'Saved as you tap', 'ta.edit_needs_reason': 'Editing asks for a short reason', 'ta.finished': 'Finished', 'ta.count.present': '{count} present', 'ta.count.absent': '{count} absent',
-  'ta.count.not_marked': '{count} not marked', 'ta.title': 'Session {number} · {title}', 'ta.save_failed': "Couldn't save." };
+  'ta.count.not_marked': '{count} not marked', 'ta.save_failed': "Couldn't save." };
  for (const [k, v] of Object.entries(want)) assert.equal(messages.en[k], v, k);
- for (const k of ['ta.save', 'ta.saved', 'ta.mark_all', 'ta.finalize', 'ta.reopen', 'ta.state.draft', 'ta.unsaved_changes', 'ta.sheet.label']) assert.ok(!(k in messages.en) && !(k in messages.ar), 'retired string ' + k);
+ for (const k of ['ta.all_present', 'ta.title', 'ta.save', 'ta.saved', 'ta.mark_all', 'ta.finalize', 'ta.reopen', 'ta.state.draft', 'ta.unsaved_changes', 'ta.sheet.label']) assert.ok(!(k in messages.en) && !(k in messages.ar), 'retired string ' + k);
 });
 test('wording: no tenant, program or studio vocabulary reaches a teacher on the attendance screen, in either language', () => {
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|\boffering|\brosters?\b|\benrol|\bmembership|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
  for (const k of Object.keys(messages.en).filter(k => k.startsWith('ta.') || k.startsWith('helper.'))) { assert.doesNotMatch(messages.en[k], forbidden, k); assert.doesNotMatch(messages.ar[k], forbidden, k); }
 });
 
-// ------------------------------------------------------------------ flat screen, saved as you tap
-test('autosave: no Save draft; every tap goes through one queue that always uses the latest Session version and never drops a mark', () => {
+// ------------------------------------------------------------------ flat screen, saved as you tap, and a save you can trust
+const guard = read('frontend/features/teacher-attendance/leave-guard.tsx');
+test('autosave: no Save draft; every tap goes at once through one queue that carries what differs, uses the version the last reply returned, and never drops a mark', () => {
  assert.doesNotMatch(view, /data-save-draft|ta\.save'|'ta\.saved'|Save draft/, 'there is no Save draft button');
  assert.match(view, /function mark\(next: Marks\) \{[\s\S]*?marksRef\.current = next;[\s\S]*?void drain\(\);/, 'a tap updates the screen at once and starts the queue');
  assert.match(view, /if \(running\.current\) return;/, 'only one save runs at a time; taps made meanwhile are picked up by the same loop');
  assert.match(view, /for \(;;\) \{\s*const part = changedMarks\(savedRef\.current, marksRef\.current\)\.slice\(0, MARKS_PER_SAVE\);\s*if \(part\.length === 0\) break;/);
- assert.match(view, /sessionVersion: session\.version/); assert.match(view, /sessionRef\.current = head\.session/, 'the version is re-read after every save');
+ assert.match(view, /groupSave<\{ id\?: string; version\?: number \}>\('attendance', groupId, \{ sessionId, sessionVersion: session\.version, marks: part \}\)/);
+ assert.match(view, /if \(reply\.id === sessionId && typeof reply\.version === 'number'\) sessionRef\.current = \{ \.\.\.session, version: reply\.version \};\s*else await refreshSession\(\);/, 'one call per save: the reply carries the new version, so no second read is needed');
  assert.match(view, /savedRef\.current = \{ \.\.\.savedRef\.current, \.\.\.Object\.fromEntries\(part\.map/, 'only what the database accepted counts as saved');
- assert.match(view, /catch \(e\) \{\s*failed = true;[\s\S]*?setSaving\('error'\)/, 'a failed save keeps the marks on screen and says so');
- assert.match(view, /async function retry\(\) \{[\s\S]*?await refreshSession\(\)[\s\S]*?void drain\(\)/, 'retry first takes the current version');
- assert.match(view, /const finishBlocked = Boolean\(busy\) \|\| pending \|\| saving === 'saving' \|\| saveFailed/, 'Finish waits for every save');
+ assert.match(view, /async function retry\(\) \{[\s\S]*?await refreshSession\(\)[\s\S]*?void drain\(\)/, 'manual retry first takes the current version');
+ assert.match(view, /const finishBlocked = Boolean\(busy\) \|\| pending \|\| saving === 'saving' \|\| saving === 'retrying' \|\| saveFailed/, 'Finish waits for every save');
  assert.match(view, /data-finalize disabled=\{finishBlocked\}/);
- assert.match(view, /addEventListener\('beforeunload'/, 'leaving with an unsaved mark asks first');
- for (const k of ['ta.saved_as_you_tap', 'ta.saving', 'ta.saved_now', 'ta.save_failed', 'ta.save_retry']) assert.ok(view.includes('"' + k + '"') || view.includes("'" + k + "'"), k);
+ for (const k of ['ta.saved_as_you_tap', 'ta.saving', 'ta.retrying', 'ta.saved_now', 'ta.save_failed', 'ta.save_retry']) assert.ok(view.includes('"' + k + '"') || view.includes("'" + k + "'"), k);
+ assert.match(view, /data-save-state="retrying"/); assert.match(view, /data-save-state="error"[\s\S]*?data-save-retry/);
 });
-test('finished view: the same screen, read-only; Edit attendance keeps the reason rule and stays instructor-only', () => {
+test('save: it uses a keepalive request so closing or reloading the tab does not cancel it, and only that save call does', () => {
+ const api = read('frontend/features/teacher-groups/api.ts');
+ assert.match(api, /export async function postJson<T>\(url: string, body: object, signal\?: AbortSignal, keepalive = false\)/); assert.match(api, /body: JSON\.stringify\(body\), signal, keepalive \}/);
+ assert.match(api, /export const groupSave = <T>\(action: string, groupId: string, data: object\) =>\s*postJson<T>\('\/api\/study-groups', \{ action, groupId, version: null, data \}, undefined, true\)/);
+ assert.doesNotMatch(view, /groupCall(?:<[^>]*>)?\('attendance'/, 'attendance is never sent without keepalive');
+ assert.equal(model.MARKS_PER_SAVE * 90 < 64 * 1024, true, 'a full save is far below the 64 KB keepalive limit (about 90 bytes a mark)');
+});
+test('save: a failure that can pass is retried by itself with backoff; a refusal or a finished sheet stops with Retry; a stale version is re-read first', () => {
+ assert.match(view, /let retry = retryable\(error\.status\);/);
+ assert.match(view, /if \(error\.status === 409\) \{[\s\S]*?retry = head\.attendance_state !== 'finalized' && !head\.cancelled;/);
+ assert.match(view, /if \(retry && attempts\.current < AUTO_RETRIES\) \{\s*attempts\.current\+\+;\s*setSaving\('retrying'\);[\s\S]*?setTimeout\(\(\) => \{ timer\.current = null; void drain\(\); \}, retryDelay\(attempts\.current\)\)/);
+ assert.match(view, /setFailure\(error\); setSaving\('error'\)/, 'after the automatic tries the teacher gets Retry');
+ assert.match(view, /attempts\.current = 0;\s*if \(reply\.id === sessionId/, 'a successful call resets the count');
+ assert.match(view, /if \(timer\.current\) \{ clearTimeout\(timer\.current\)/, 'a tap during the wait sends at once instead of waiting');
+});
+test('leaving: every way out is guarded while a save is pending, running, retrying or failed, and the page always renders what the server holds', () => {
+ assert.match(view, /const guarded = pending \|\| saving === 'saving' \|\| saving === 'retrying' \|\| saving === 'error';\s*const guard = useLeaveGuard\(guarded, href => router\.push\(href\)\)/);
+ assert.match(guard, /addEventListener\('beforeunload'/, 'closing or reloading the tab'); assert.match(guard, /document\.addEventListener\('click', click, true\)/, 'any link, the menu and the logo included');
+ assert.match(guard, /e\.stopImmediatePropagation\(\)/); assert.match(guard, /addEventListener\('popstate'/, 'the browser Back button');
+ assert.match(guard, /window\.history\.pushState\(window\.history\.state, '', window\.location\.href\)/, 'the router\'s own history state is kept');
+ assert.match(guard, /e\.metaKey \|\| e\.ctrlKey \|\| e\.shiftKey/, 'a new tab is the browser\'s business'); assert.match(guard, /url\.origin !== window\.location\.origin/);
+ assert.match(guard, /data-leave-stay/); assert.match(guard, /data-leave-go/); assert.match(guard, /role="alertdialog"/);
+ assert.match(view, /\{guard\.asking && <LeaveQuestion/);
+ // a load shows the server's state and, after a reload during a save, asks again a few times
+ assert.match(view, /const saved = marksOf\(value\.rows\);\s*savedRef\.current = saved; marksRef\.current = saved;/, 'a load renders the rows the server sent');
+ assert.match(view, /const RECHECKS = \[1500, 3500, 7000\]/); assert.match(view, /readNote\(sessionId\)/); assert.match(view, /window\.sessionStorage/);
+ assert.doesNotMatch(view, /localStorage/, 'the note lives for this tab only and holds a time, never a mark');
+});
+test('list: alphabetical (the same order function as the Group Students tab), search only above 15 students, the title has no Session number', () => {
+ assert.match(view, /const ordered = useMemo\(\(\) => studentsByName\(value\?\.rows \?\? \[\]\)/);
+ assert.match(read('frontend/features/teacher-groups/group-view.tsx'), /const students = studentsByName\(currentMembers\(data\.rows\)\)/);
+ assert.match(view, /const searching = \(value\?\.rows\.length \?\? 0\) > SEARCH_FROM/); assert.match(view, /\{searching && <label/);
+ assert.match(view, /const title = sessionTitle \|\| t\('ta\.title_plain'\)/); assert.doesNotMatch(view, /Session \{|ta\.title'|sessionNumber/);
+ assert.match(view, /<bdi dir="auto">\{title\}<\/bdi>/, 'a Latin title inside Arabic stays isolated');
+ assert.match(view, /<LocalDate value=\{value\.session\.starts_at\} options=\{sessionTime\} \/>/, 'the date is under the title');
+});
+test('Mark the rest present: shown only while someone is unmarked, and it applies markRestPresent, never a blanket mark', () => {
+ assert.match(view, /\{editable && counts\.not_marked > 0 && <button type="button" data-tour="mark-all" data-mark-all[^>]*onClick=\{\(\) => mark\(markRestPresent\(marksRef\.current\)\)\}/);
+ assert.doesNotMatch(view, /allPresent/);
+});
+test('Edit attendance: the reason form is scrolled into view and focused; the "?" is hidden but keeps its tour target', () => {
+ assert.match(view, /if \(confirming !== 'reopen'\) return;[\s\S]*?field\.scrollIntoView\(\{ block: 'center'[\s\S]*?field\.focus\(\{ preventScroll: true \}\)/);
+ assert.match(view, /prefers-reduced-motion/); assert.match(view, /<textarea ref=\{reasonRef\} data-reopen-reason/);
+ const help = read('frontend/features/teacher-helper/help-button.tsx');
+ assert.match(help, /return <span data-tour="help" hidden \/>;/); assert.doesNotMatch(help, /<button/);
+});
+test('finished view: the same screen, read-only; flat status labels; Edit attendance keeps the reason rule and stays instructor-only', () => {
  assert.match(view, /<StudentRow [^>]*editable=\{editable\}/, 'the same rows; only the controls change');
  assert.match(view, /const editable = Boolean\(value\) && !locked && !cancelled/);
- assert.match(view, /mark === 'not_marked'\s*\? <p data-mark-text[^>]*><L id="ta\.not_marked" \/>/, '"Not marked" is plain text');
+ assert.match(view, /: <p data-mark-text=\{mark\} className=\{cn\('flex shrink-0 items-center gap-2 text-base'/, 'a finished mark is a plain paragraph, not a pill');
+ const finished = view.slice(view.indexOf(': <p data-mark-text'));
+ assert.doesNotMatch(finished, /\$\{pill\}|border-2|shadow|rounded-full border|bg-green-700 text-white|bg-red-700 text-white/, 'no button shape, border, fill or shadow');
  assert.match(view, /\{locked && <><span data-finished>/, 'counts line starts with Finished');
  assert.match(view, /!confirming && locked && instructor && <button type="button" data-reopen/);
  assert.match(view, /groupCall\('reopen', groupId, \{ sessionId, sessionVersion: session\.version, reason: reason\.trim\(\) \}\)/);
  assert.match(view, /if \(kind === 'reopen' && !reasonValid\(reason\)\)/);
  assert.match(view, /data-confirm-finalize[\s\S]*?data-unmarked-warning/, 'Finish asks first and warns about unmarked students');
  assert.doesNotMatch(view, /bg-amber|border-\[2\.5px\]|shadow-hard|rounded-\[24px\]/, 'no boxed cards and no yellow status bar');
+});
+test('dark appearance: a yellow button keeps dark text', () => {
+ assert.match(read('frontend/styles/appearance.css'), /html\.dark\[data-lms-appearance\] :is\(\.bg-primary, [^)]*\.bg-amber-300, \.bg-amber-400\)/);
 });

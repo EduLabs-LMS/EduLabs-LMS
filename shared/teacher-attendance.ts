@@ -14,8 +14,12 @@ export const MARKS_PER_SAVE = 100;
 /** Pages of 25 read for one Session's list; a longer list is said to be cut off and cannot be finalized from here. */
 export const ROSTER_PAGES = 40;
 export const ROSTER_PAGE_SIZE = 25;
-/** Pages of Sessions read only to work out "Session N". If more remain, the number is left out rather than guessed. */
-export const NUMBER_PAGES = 8;
+/** A search box is offered above this many students. */
+export const SEARCH_FROM = 15;
+/** Automatic retries of a save that failed for a reason that can pass (no reply, server trouble); after these the teacher gets a Retry button. */
+export const AUTO_RETRIES = 5;
+/** A reload shortly after a save started is checked against the server again; the note of it expires after this long. */
+export const PENDING_NOTE_MS = 60_000;
 
 export const attendanceHref = (groupId: string, sessionId: string) => `/teacher/groups/${groupId}/attendance/${sessionId}`;
 
@@ -38,8 +42,9 @@ export function changedMarks(saved: Marks, current: Marks): MarkChange[] {
   return Object.keys(current).filter(id => current[id] !== saved[id]).map(userId => ({ userId, status: current[userId] }));
 }
 
-export function allPresent(marks: Marks): Marks {
-  return Object.fromEntries(Object.keys(marks).map(id => [id, 'attended' as const]));
+/** "Mark the rest present": only students still not marked change. A mark already set (present or absent) is never overwritten. */
+export function markRestPresent(marks: Marks): Marks {
+  return Object.fromEntries(Object.entries(marks).map(([id, mark]) => [id, mark === 'not_marked' ? 'attended' as const : mark]));
 }
 
 /** Pressing the mark a student already has takes it back to "not marked". */
@@ -53,12 +58,17 @@ export function chunk<T>(items: readonly T[], size: number): T[][] {
   return out;
 }
 
-/** The 1-based place of a Session among the Group's Sessions that took place or are planned (cancelled ones do not count). `null` when it cannot be known. */
-export function sessionNumber(rows: readonly GroupSession[], allRead: boolean, sessionId: string): number | null {
-  if (!allRead) return null;
-  const live = rows.filter(s => !s.cancelled).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at) || a.id.localeCompare(b.id));
-  const i = live.findIndex(s => s.id === sessionId);
-  return i < 0 ? null : i + 1;
+/** Waits before automatic retry number `attempt` (1-based): 1 s, 2 s, 4 s, 8 s, then 15 s. */
+export const retryDelay = (attempt: number) => Math.min(15_000, 1000 * 2 ** Math.max(0, attempt - 1));
+
+/** Only a missing reply or server trouble can pass by itself. A refusal (401, 403), an invalid request or a finished sheet will not. */
+export const retryable = (status: number | null) => status === null || status >= 500;
+
+/** Case- and accent-insensitive "contains", for the search box. An empty search matches everyone. */
+export function matchesSearch(name: string, query: string) {
+  const fold = (s: string) => s.normalize('NFKD').replace(/[\u0300-\u036f\u064b-\u065f\u0670]/g, '').toLocaleLowerCase();
+  const q = fold(query.trim());
+  return !q || fold(name).includes(q);
 }
 
 /** Attendance can be taken once the Session has started; a cancelled Session has none. */

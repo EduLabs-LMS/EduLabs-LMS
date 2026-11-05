@@ -1,6 +1,6 @@
 import type { GroupPage, GroupSession, StudyGroup } from '@/shared/contracts/groups';
 import type { NotificationEvent, NotificationPage } from '@/shared/contracts/communications';
-import { lastUnsavedSession } from '@/shared/teacher-groups';
+import { unsavedSessions } from '@/shared/teacher-groups';
 import { canTakeAttendance } from '@/shared/teacher-attendance';
 
 /** Pure mapping for the teacher Home and Courses pages. Every section carries its own state, so a failed read is never shown as an empty one. */
@@ -80,8 +80,7 @@ export function mapUnsaved(raw: RawInputs['unsaved'], staffIds: Map<string, stri
   if (!raw.ok) return fail(raw);
   const items = raw.value.flatMap(({ groupId, rows }): HomeUnsaved[] => {
     const name = staffIds.get(groupId);
-    const s = name === undefined ? null : lastUnsavedSession(rows.filter(r => r.group_id === groupId), now);
-    return s ? [{ id: s.id, groupId, groupName: name ?? '', title: s.title, startsAt: s.starts_at, endsAt: s.ends_at }] : [];
+    return name === undefined ? [] : unsavedSessions(rows.filter(r => r.group_id === groupId), now).map(s => ({ id: s.id, groupId, groupName: name, title: s.title, startsAt: s.starts_at, endsAt: s.ends_at }));
   }).sort((a, b) => Date.parse(b.endsAt) - Date.parse(a.endsAt) || a.id.localeCompare(b.id));
   return { state: 'ready', data: items.slice(0, UNSAVED_LIMIT) };
 }

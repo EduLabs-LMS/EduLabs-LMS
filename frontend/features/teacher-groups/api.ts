@@ -6,10 +6,10 @@ export class GroupCallError extends Error {
   get kind(): FailureKind { return failureKind(this.status); }
 }
 
-export async function postJson<T>(url: string, body: object, signal?: AbortSignal): Promise<T> {
+export async function postJson<T>(url: string, body: object, signal?: AbortSignal, keepalive = false): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal });
+    response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal, keepalive });
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e;
     throw new GroupCallError(null);
@@ -21,6 +21,10 @@ export async function postJson<T>(url: string, body: object, signal?: AbortSigna
 /** The one existing Groups endpoint. The database decides who may read or change what. */
 export const groupCall = <T>(action: string, groupId: string | null, data: object = {}, version: number | null = null, signal?: AbortSignal) =>
   postJson<T>('/api/study-groups', { action, groupId, version, data }, signal);
+
+/** A change the browser must finish even if the page is closed or reloaded meanwhile (`keepalive`; the body is far below its 64 KB limit). */
+export const groupSave = <T>(action: string, groupId: string, data: object) =>
+  postJson<T>('/api/study-groups', { action, groupId, version: null, data }, undefined, true);
 
 export const isAbort = (e: unknown) => e instanceof Error && e.name === 'AbortError';
 
