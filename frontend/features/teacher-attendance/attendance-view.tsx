@@ -2,7 +2,7 @@
 import { actionToast } from '@/frontend/lib/action-toast';
 import Link from 'next/link';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { cn } from '@/shared/utils';
@@ -28,6 +28,12 @@ type Failure = GroupCallError;
 const asError = (e: unknown) => e instanceof GroupCallError ? e : new GroupCallError(null);
 const bigButton = 'min-h-[48px] w-full lg:w-auto lg:min-w-[260px]';
 const pill = 'inline-flex min-h-[48px] w-[5.5rem] items-center justify-center rounded-full border-2 px-3 text-base font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:opacity-60';
+
+/** Below the frame's sidebar breakpoint. The sheet is read on the client only, so nothing the server painted depends on it. */
+const PHONE = '(max-width: 767px)';
+function usePhone() {
+  return useSyncExternalStore(change => { const list = window.matchMedia(PHONE); list.addEventListener('change', change); return () => list.removeEventListener('change', change); }, () => window.matchMedia(PHONE).matches, () => false);
+}
 
 /** A note that a save was running, kept only for this tab and this Session, so a reload during a save can say so instead of looking like lost work. */
 const noteKey = (sessionId: string) => `lms-attendance-saving:${sessionId}`;
@@ -88,6 +94,9 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
   const noted = useRef(false);
   const serverViews = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
+  const editRef = useRef<HTMLButtonElement>(null);
+  const editHint = useId();
+  const phone = usePhone();
   useEffect(() => { alive.current = true; return () => { alive.current = false; if (timer.current) clearTimeout(timer.current); }; }, []);
 
   useEffect(() => {
@@ -249,6 +258,11 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
   const finishBlocked = Boolean(busy) || pending || saving === 'saving' || saving === 'retrying' || saveFailed || !value?.complete || value?.rows.length === 0;
   const searching = (value?.rows.length ?? 0) > SEARCH_FROM;
 
+  const canEdit = Boolean(locked && instructor);
+  const openReopen = () => { setFailure(null); setConfirming('reopen'); };
+  // Keeping the sheet as it was: back to the button that opened the form, so the keyboard does not lose its place.
+  const keepFinished = () => { setConfirming(null); setReasonProblem(false); requestAnimationFrame(() => editRef.current?.focus()); };
+
   // "Edit attendance" opens the reason form at the bottom of a long page: bring it into view and put the cursor in it.
   useEffect(() => {
     if (confirming !== 'reopen') return;
@@ -258,14 +272,21 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
     field.focus({ preventScroll: true });
   }, [confirming]);
 
-  return <div data-teacher-attendance className="w-full space-y-4 pb-44 lg:pb-0">
+  return <div data-teacher-attendance className={cn('w-full space-y-4', locked ? (canEdit ? 'pb-40 md:pb-0' : '') : 'pb-44 lg:pb-0')}>
     <div className="flex items-center justify-between gap-3">
       <Link href={`/teacher/groups/${groupId}`} data-back className={linkClass}><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /><span className="ms-2">{group ? <L id="ta.back" values={{ name: group.name }} /> : <L id="ta.back_plain" />}</span></Link>
       <HelpButton />
     </div>
-    <header className="space-y-1">
-      <h1 data-attendance-title className="break-words font-display text-3xl leading-tight lg:text-4xl"><bdi dir="auto">{title}</bdi></h1>
-      {value && <p data-session-subtitle className="text-base text-slate-700"><LocalDate value={value.session.starts_at} options={sessionTime} /> · <span className="font-bold"><ModeLabel mode={value.session.mode} /></span>{value.session.mode === 'center' && value.session.location && <span className="break-words"> · <bdi dir="auto">{value.session.location}</bdi></span>}</p>}
+    <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+      <div className="min-w-0 flex-1 basis-64 space-y-1">
+        <h1 data-attendance-title className="break-words font-display text-3xl leading-tight lg:text-4xl"><bdi dir="auto">{title}</bdi></h1>
+        {value && <p data-session-subtitle className="text-base text-slate-700"><LocalDate value={value.session.starts_at} options={sessionTime} /> · <span className="font-bold"><ModeLabel mode={value.session.mode} /></span>{value.session.mode === 'center' && value.session.location && <span className="break-words"> · <bdi dir="auto">{value.session.location}</bdi></span>}</p>}
+      </div>
+      {/* The finished sheet on a desktop: its one action is a page action, with its hint under it. Tablets have no hover, so the hint is on the page and not only in a tooltip. */}
+      {canEdit && !phone && !cancelled && !confirming && <div data-header-actions className="flex flex-wrap-reverse items-center justify-end gap-x-3 gap-y-1">
+        <p id={editHint} data-edit-hint className="text-base text-slate-700"><L id="ta.edit_needs_reason" /></p>
+        <button ref={editRef} type="button" data-reopen aria-describedby={editHint} title={t('ta.edit_needs_reason')} disabled={Boolean(busy)} onClick={openReopen} className={`${plainButton} ${bigButton}`}><L id="ta.edit" /></button>
+      </div>}
     </header>
     {detail.state === 'error' && <div data-detail-error className="space-y-2"><p className="text-base text-slate-800"><L id="ta.error.group" /></p><GroupError kind={detail.error.kind} onRetry={() => setDetailRevision(v => v + 1)} /></div>}
     {sheet.state === 'loading' && <div role="status" data-state="loading"><AttendanceSheetSkeleton /><span className="sr-only"><L id="ta.loading" /></span></div>}
@@ -295,7 +316,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
           : <ul data-tour="student-rows" data-student-list className="divide-y divide-black/15">
             {shown.map(r => <StudentRow key={r.user_id} row={r} mark={marks[r.user_id] ?? 'not_marked'} editable={editable} onMark={m => mark({ ...marksRef.current, [r.user_id]: m })} />)}
           </ul>}
-      <div data-tour="save-actions" data-actions className="fixed inset-x-0 bottom-0 z-30 space-y-2 border-t-2 border-black bg-white p-4 md:start-[var(--d-sidebar-width)] lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:pt-2">
+      <div data-tour="save-actions" data-actions className={locked ? (canEdit && phone ? 'd-float-bar' : 'space-y-2 pt-2') : 'fixed inset-x-0 bottom-0 z-30 space-y-2 border-t-2 border-black bg-white p-4 md:start-[var(--d-sidebar-width)] lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:pt-2'}>
         {guard.asking && <LeaveQuestion stay={guard.stay} leave={guard.leave} />}
         {failure && !saveFailed && <GroupError kind={failure.kind} unknownOutcome={failure.status === null} onRetry={failure.kind === 'changed' || failure.status === null ? reloadAll : undefined} retryLabel="tg.reload" />}
         {confirming === 'finalize' && <div role="group" data-confirm-finalize aria-label={t('ta.finish')} className="space-y-2">
@@ -313,13 +334,13 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
           <p className={`text-base ${reasonProblem ? 'font-bold text-rose-800' : 'text-slate-700'}`} role={reasonProblem ? 'alert' : undefined}><L id={reasonProblem ? 'ta.reopen.reason_required' : 'ta.reopen.hint'} /></p>
           <div className="flex flex-col gap-2 lg:flex-row">
             <button type="button" data-confirm-reopen-yes disabled={Boolean(busy)} onClick={() => void command('reopen')} className={`${inkButton} ${bigButton}`}>{busy === 'reopen' && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ta.reopen.yes" /></button>
-            <button type="button" disabled={Boolean(busy)} onClick={() => { setConfirming(null); setReasonProblem(false); }} className={`${plainButton} ${bigButton}`}><L id="ta.reopen.keep" /></button>
+            <button type="button" disabled={Boolean(busy)} onClick={keepFinished} className={`${plainButton} ${bigButton}`}><L id="ta.reopen.keep" /></button>
           </div>
         </div>}
         {!confirming && editable && instructor && <button type="button" data-finalize disabled={finishBlocked} onClick={() => { setFailure(null); setConfirming('finalize'); }} className={`${inkButton} ${bigButton}`}><L id="ta.finish" /></button>}
-        {!confirming && locked && instructor && <button type="button" data-reopen disabled={Boolean(busy)} onClick={() => { setFailure(null); setConfirming('reopen'); }} className={`${plainButton} ${bigButton}`}><L id="ta.edit" /></button>}
-        {!confirming && <div data-save-line role="status" aria-live="polite" className="flex min-h-[24px] flex-wrap items-center gap-x-3 text-base text-slate-700">
-          {locked ? (instructor && <span><L id="ta.edit_needs_reason" /></span>)
+        {!confirming && canEdit && phone && <button ref={editRef} type="button" data-reopen disabled={Boolean(busy)} onClick={openReopen} className={`${plainButton} ${bigButton}`}><L id="ta.edit" /></button>}
+        {!confirming && (!locked || (canEdit && phone)) && <div data-save-line role="status" aria-live="polite" className="flex min-h-[24px] flex-wrap items-center gap-x-3 text-base text-slate-700">
+          {locked ? <span><L id="ta.edit_needs_reason" /></span>
             : saveFailed ? <><span data-save-state="error" className="font-bold text-rose-800"><L id="ta.save_failed" /></span><button type="button" data-save-retry onClick={() => void retry()} className={cn(linkClass, 'min-h-[48px]')}><L id="ta.save_retry" /></button></>
             : saving === 'retrying' ? <span data-save-state="retrying" className="inline-flex items-center gap-1 font-bold"><Loader2 aria-hidden className="h-3 w-3 animate-spin" /><L id="ta.retrying" /></span>
             : saving === 'saving' ? <span data-save-state="saving" className="inline-flex items-center gap-1"><Loader2 aria-hidden className="h-3 w-3 animate-spin" /><L id="ta.saving" /></span>
