@@ -18,7 +18,8 @@ import { ThemeProvider } from '@/frontend/components/theme-provider';
 import FacebookMessenger from '@/frontend/components/facebook-messenger';
 import { isTeacher } from '@/server/services/teacher';
 import { LoadingProvider } from '@/frontend/components/providers/loading-provider';
-import IntroSplash from '@/frontend/components/intro-splash';
+import FirstOpenCurtain from '@/frontend/components/first-open-curtain';
+import { firstOpenScript } from '@/frontend/lib/first-load';
 import ScrollToTop from '@/frontend/components/scroll-to-top';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { FirebaseAuthProvider } from '@/frontend/components/providers/firebase-auth-provider';
@@ -53,6 +54,10 @@ export default async function RootLayout({
 	return (
 		<AuthProvider {...(firebase ? {} : { afterSignOutUrl: '/', appearance: { options: { showOptionalFields: true } } })}>
 			<html lang={language} dir={languageDirection(language)} data-lms-appearance data-design={design} suppressHydrationWarning>
+				<head>
+					{/* Before anything paints: is this a fresh opening of the site in this tab? See frontend/lib/first-load.ts. A constant string: nothing from the request goes in it. */}
+					<script dangerouslySetInnerHTML={{ __html: firstOpenScript }} />
+				</head>
 				<body className={`${figtree.variable} ${caprasimo.variable} ${cairo.variable} ${lalezar.variable} font-sans`}>
 					<LanguageProvider initialLanguage={language}><ThemeProvider
 						attribute="class"
@@ -60,7 +65,7 @@ export default async function RootLayout({
 						enableSystem
 						disableTransitionOnChange
 					>
-						<ApplicationAuthProvider><LoadingProvider><IntroSplash />
+						<ApplicationAuthProvider><LoadingProvider>
 							<ScrollToTop />
 
 							<ToastProvider />
@@ -70,6 +75,7 @@ export default async function RootLayout({
 							{!firebase && !isStaff && <FacebookMessenger />}
 						</LoadingProvider></ApplicationAuthProvider>
 					</ThemeProvider></LanguageProvider>
+					<FirstOpenCurtain />
 				</body>
 			</html>
 		</AuthProvider>

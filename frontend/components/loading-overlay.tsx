@@ -27,7 +27,7 @@ interface LoadingOverlayProps {
  * The logo after sign-in: the tree grows and the word's letters follow one by one, all in CSS, so "the end" is what the browser reports and not a guess.
  * Reduced motion shows the still logo for a moment. If the browser never reports an end, a fallback timer moves on, so sign-in can never hang here.
  */
-const FirstLoadLogo = ({ onPlayed }: { onPlayed?: () => void }) => {
+export const FirstLoadLogo = ({ onPlayed }: { onPlayed?: () => void }) => {
 	const ref = useRef<HTMLDivElement>(null);
 	const played = useRef(onPlayed);
 	played.current = onPlayed;
@@ -40,6 +40,7 @@ const FirstLoadLogo = ({ onPlayed }: { onPlayed?: () => void }) => {
 		}
 		const fallback = window.setTimeout(finish, FIRST_LOAD_PLAY_FALLBACK_MS);
 		const frame = window.requestAnimationFrame(() => {
+			// An animation that has already ended is still listed and already finished, so a page that hydrates late moves on at once.
 			const running = ref.current?.getAnimations?.({ subtree: true }) ?? [];
 			if (running.length) void Promise.all(running.map((a) => a.finished)).then(finish, finish);
 		});

@@ -1,6 +1,8 @@
 /**
- * "First load after sign-in": the one moment the EduLabs logo animation plays, to its full end, before the page shows (owner decision, DECISIONS.md; it replaces
- * the earlier "under one second"). Everything after it is the app frame with a skeleton of the page in the content area.
+ * The EduLabs logo animation plays to its full end at two moments (owner decisions, DECISIONS.md), and everything after it is the app frame with a skeleton of the page:
+ *
+ * 1. A fresh opening of the site, on any route: the first full page load in a browser tab. See "The opening" at the end of this file.
+ * 2. "First load after sign-in", below.
  *
  * The sign-in code marks the moment; the loading provider plays the overlay once and clears the mark. The mark lives in sessionStorage only so a
  * full page load in the middle of signing in (the Google redirect) still counts; a later reload, a new tab or a restored session never replays it,
@@ -37,5 +39,20 @@ export const FIRST_LOAD_PLAY_FALLBACK_MS = 3000;
 export const FIRST_LOAD_REDUCED_MS = 600;
 /** A last moment on the finished logo before the overlay fades (its fade is another 250 ms). */
 export const FIRST_LOAD_FINISH_MS = 50;
+/**
+ * The opening. A small script in the <head> of the root layout decides before anything paints. Once a tab has been opened the word stays in sessionStorage, so a reload
+ * or in-app navigation in that tab never plays it again, and a new tab does. The value holds no personal data. With storage blocked or JavaScript off the script
+ * cannot tell, and the logo is skipped rather than repeated. The flag is written here and not when the animation ends, so a page that breaks can never replay it forever.
+ */
+export const FIRST_OPEN_KEY = 'edulabs-opened';
+export const FIRST_OPEN_ATTRIBUTE = 'data-first-open';
+/** Announced on window when the opening logo starts to fade: the page's own entry can begin. */
+export const FIRST_OPEN_DONE_EVENT = 'edulabs:first-open-done';
+/** The fade at the end, the same as the CSS in app/globals.css. */
+export const FIRST_OPEN_FADE_MS = 250;
+export const firstOpenScript = `(function(){try{var s=window.sessionStorage;if(s.getItem('${FIRST_OPEN_KEY}'))return;s.setItem('${FIRST_OPEN_KEY}','1');document.documentElement.setAttribute('${FIRST_OPEN_ATTRIBUTE}','1')}catch(e){}})();`;
+/** True from the first byte until the opening logo starts to fade. */
+export const firstOpenActive = () => typeof document !== 'undefined' && document.documentElement.getAttribute(FIRST_OPEN_ATTRIBUTE) === '1';
+
 /** The sign-in pages the first load starts from: the first page has arrived once the address has left them. */
 export const firstLoadWaitsForAddress = (path: string) => path === '/' || path === '/sign-in' || path.startsWith('/sign-in/') || path === '/sign-up' || path.startsWith('/sign-up/');
