@@ -1,12 +1,16 @@
 import { cookies } from 'next/headers';
 import { LanguageProvider } from '@/frontend/components/language-provider';
 import { isLanguage, languageCookieKey, languageDirection } from '@/shared/language';
+import { designCookieKey, designFromCookie } from '@/shared/design';
 import { ApplicationAuthProvider } from '@/frontend/components/providers/application-auth-provider';
 import { ClerkProvider } from '@clerk/nextjs';
 import { auth } from '@clerk/nextjs/server';
 import './globals.css';
 import '@/frontend/styles/appearance.css';
 import '@/frontend/styles/language.css';
+import '@/frontend/styles/design-tokens.css';
+import '@/frontend/styles/design-components.css';
+import '@/frontend/styles/design-bridge.css';
 import type { Metadata } from 'next';
 import { Figtree, Caprasimo, Cairo, Lalezar } from 'next/font/google';
 import { ToastProvider } from '@/frontend/components/providers/toast-provider';
@@ -36,7 +40,10 @@ export default async function RootLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	const savedLanguage = (await cookies()).get(languageCookieKey)?.value;
+	const cookieStore = await cookies();
+	const savedLanguage = cookieStore.get(languageCookieKey)?.value;
+	// Set by the server, so the page never flashes the other look. An unknown value is the default.
+	const design = designFromCookie(cookieStore.get(designCookieKey)?.value);
  const language = isLanguage(savedLanguage) ? savedLanguage : 'en';
  const firebase = isFirebaseStaging();
 	const session = firebase ? null : await auth();
@@ -45,7 +52,7 @@ export default async function RootLayout({
 
 	return (
 		<AuthProvider {...(firebase ? {} : { afterSignOutUrl: '/', appearance: { options: { showOptionalFields: true } } })}>
-			<html lang={language} dir={languageDirection(language)} data-lms-appearance suppressHydrationWarning>
+			<html lang={language} dir={languageDirection(language)} data-lms-appearance data-design={design} suppressHydrationWarning>
 				<body className={`${figtree.variable} ${caprasimo.variable} ${cairo.variable} ${lalezar.variable} font-sans`}>
 					<LanguageProvider initialLanguage={language}><ThemeProvider
 						attribute="class"

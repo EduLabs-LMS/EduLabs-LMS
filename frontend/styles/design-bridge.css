@@ -1,0 +1,52 @@
+/*
+ * New look only, teacher app only: makes the existing teacher screens (Groups, Students, Attendance, Courses, Settings sections) calm until each one is rebuilt with
+ * the design components. It maps the utilities those screens use to the New tokens, the same technique as appearance.css. No black outlines, no hard black shadows.
+ *
+ * Every rule starts with `html[data-design="new"]:has([data-teacher-shell])`, for two reasons:
+ *  - a student or a signed-out page has no teacher shell, so it is never touched, even in a browser whose cookie says New;
+ *  - dialogs and menus render in a portal outside the shell, and they are still covered because the condition is on <html>.
+ * Classic never matches any of this. Delete this file with the losing look.
+ */
+
+html[data-design="new"]:has([data-teacher-shell]) body { background-color: var(--d-canvas); }
+html[data-design="new"]:has([data-teacher-shell])[lang="ar"] [data-teacher-shell] { line-height: 1.6; }
+
+/* Surfaces */
+html[data-design="new"]:has([data-teacher-shell]) :is(.bg-slate-50) { background-color: var(--d-canvas); }
+html[data-design="new"]:has([data-teacher-shell]) :is(.bg-white, .bg-card, .bg-popover) { background-color: var(--d-surface); }
+html[data-design="new"]:has([data-teacher-shell]) :is(.bg-primary\/30) { background-color: var(--d-tint); }
+html[data-design="new"]:has([data-teacher-shell]) :is(.bg-slate-200) { background-color: var(--d-skeleton); }
+
+/* Outlines become thin lines */
+html[data-design="new"]:has([data-teacher-shell]) :is(.border-black, .border-input) { border-color: var(--d-line); }
+html[data-design="new"]:has([data-teacher-shell]) :is(.border-2, .border-\[2\.5px\]).border-black { border-width: 1px; }
+html[data-design="new"]:has([data-teacher-shell]) :is(.border-b-2, .border-b-\[2\.5px\]).border-black { border-bottom-width: 1px; }
+html[data-design="new"]:has([data-teacher-shell]) :is(.border-t-2, .border-t-\[2\.5px\]).border-black { border-top-width: 1px; }
+html[data-design="new"]:has([data-teacher-shell]) :is(.border-e-2, .border-e-\[2\.5px\]).border-black { border-inline-end-width: 1px; }
+html[data-design="new"]:has([data-teacher-shell]) :is(.border-black\/15) { border-color: var(--d-divider); }
+html[data-design="new"]:has([data-teacher-shell]) :is(input, select, textarea).border-black { border-color: var(--d-field-line); }
+
+/* Hard black shadows become bottom edges */
+html[data-design="new"]:has([data-teacher-shell]) :is(.shadow-hard, .shadow-hard-lg, .hover\:shadow-hard:hover, .hover\:shadow-hard-lg:hover) { box-shadow: var(--d-card-shadow); }
+html[data-design="new"]:has([data-teacher-shell]) :is(.shadow-hard-sm) { box-shadow: var(--d-control-shadow); }
+html[data-design="new"]:has([data-teacher-shell]) :is(.hover\:-translate-x-0\.5:hover, .hover\:-translate-y-0\.5:hover, .hover\:-translate-y-px:hover, .active\:translate-x-0\.5:active) { --tw-translate-x: 0; --tw-translate-y: 0; }
+
+/* The dark button of today is the one lime primary of New */
+html[data-design="new"]:has([data-teacher-shell]) .bg-black.text-white { background-color: var(--d-primary); color: var(--d-on-primary); border-color: var(--d-primary-border); box-shadow: var(--d-primary-shadow); }
+html[data-design="new"]:has([data-teacher-shell]) .\!bg-black.\!text-white { background-color: var(--d-tint) !important; color: var(--d-deep) !important; border-color: var(--d-line); }
+html[data-design="new"]:has([data-teacher-shell]) .bg-primary { background-color: var(--d-primary); border-color: var(--d-primary-border); color: var(--d-on-primary); }
+html[data-design="new"]:has([data-teacher-shell]) .bg-primary.shadow-hard-sm { box-shadow: var(--d-primary-shadow); }
+
+/* The first visit's welcome card is the hero's tint, not a lime block: lime is for the primary button only. */
+html[data-design="new"]:has([data-teacher-shell]) [data-first-hero] { background: var(--d-hero-bg); color: var(--d-ink); border-color: var(--d-hero-border); box-shadow: var(--d-hero-shadow); border-width: 1px; border-radius: var(--d-radius-hero); }
+
+/* Keyboard focus */
+html[data-design="new"]:has([data-teacher-shell]) .focus-visible\:outline-black:focus-visible { outline-color: var(--d-focus); outline-offset: 2px; }
+html[data-design="new"]:has([data-teacher-shell]) :is(a, button, input, select, textarea, [tabindex]):focus-visible { outline-color: var(--d-focus); }
+
+/* Caprasimo (Lalezar) is for page titles only. Beats the language.css heading rule, which matches the same elements. */
+html[data-design="new"]:has([data-teacher-shell])[lang] h1.font-display { font-size: var(--d-title-phone); line-height: var(--d-title-phone-lh); font-weight: 400; }
+@media (min-width: 768px) { html[data-design="new"]:has([data-teacher-shell])[lang] h1.font-display { font-size: var(--d-title-md); line-height: var(--d-title-md-lh); } }
+html[data-design="new"]:has([data-teacher-shell])[lang] [data-teacher-shell] :is(h2, h3):not(.d-section):not(.d-title),
+html[data-design="new"]:has([data-teacher-shell])[lang] [data-teacher-shell] .font-display:not(h1):not(.d-title):not(.d-logo-word) { font-family: var(--d-font-body); font-weight: 700; font-size: var(--d-section-size); line-height: var(--d-section-lh); }
+html[data-design="new"]:has([data-teacher-shell])[lang="ar"] [data-teacher-shell] :is(h2, h3):not(.d-title) { font-family: var(--d-font-body); }

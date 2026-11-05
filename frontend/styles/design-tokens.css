@@ -1,0 +1,397 @@
+/*
+ * Design tokens for the teacher app: one set per look, selected by <html data-design="classic|new">, each with light and dark.
+ * The server sets the attribute from a preference cookie, so the first paint is already right (shared/design.ts, app/layout.tsx).
+ *
+ * Classic reproduces today's EduLabs values exactly. They are copied from what the existing utilities resolve to (tailwind.config.js, app/globals.css,
+ * frontend/styles/appearance.css, the classes of frontend/features/teacher-home/parts.tsx); scripts/design-foundation.test.cjs compares them.
+ * New is design v2 (docs/design/teacher-ui-v2/). Contrast of every text and fill pair: scripts/design-foundation.test.cjs.
+ *
+ * These tokens are only read by the design components (design-components.css) and, in the New look, the teacher-screen bridge (design-bridge.css).
+ * Student pages use neither, so this file cannot change them.
+ */
+
+/* ---- Shared by both looks ---- */
+:root {
+  --d-space-1: 4px; --d-space-2: 8px; --d-space-3: 12px; --d-space-4: 16px; --d-space-5: 24px; --d-space-6: 32px; --d-space-7: 48px;
+  --d-sidebar-width: 240px;
+  --d-header-height: 56px;
+  --d-tabs-height: 60px;
+  --d-target: 44px;
+}
+/* next/font declares its variables on <body>, so a token that reads one has to be declared there too: on <html> it would resolve to nothing. */
+body {
+  --d-font-title: var(--font-display), 'Cooper Black', Georgia, serif;
+  --d-font-body: var(--font-body), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --d-section-font: var(--d-font-title);
+}
+html[lang="ar"] body {
+  --d-font-title: var(--font-arabic-display), var(--font-arabic-body), sans-serif;
+  --d-font-body: var(--font-arabic-body), system-ui, sans-serif;
+}
+html[data-design="new"] body { --d-section-font: var(--d-font-body); }
+
+/* ---- Classic, light: today's values ---- */
+:root, html[data-design="classic"] {
+  /* surfaces */
+  --d-canvas: #e9eee4;              /* bg-slate-50 */
+  --d-surface: #f6f9f2;             /* bg-white */
+  --d-sidebar: #f6f9f2;             /* bg-white */
+  --d-phone-bar: #f6f9f2;           /* bg-white */
+  --d-field: #f6f9f2;               /* bg-white */
+  --d-raised: #f6f9f2;              /* bg-white */
+  --d-hover: #dde6d5;               /* hover:bg-slate-100 */
+  /* text */
+  --d-ink: hsl(100 20% 12%);        /* --foreground: what the old pages inherited from <body>, and the shell now sets */
+  --d-text-2: #33402d;              /* text-slate-700 */
+  --d-meta: #33402d;                /* text-slate-700: Classic has no lighter meta on Home */
+  --d-nav-text: #33402d;            /* text-slate-700 */
+  --d-link: #000000;                /* underlined black links */
+  /* lines */
+  --d-line: #000000;                /* border-black */
+  --d-divider: rgb(0 0 0 / 0.15);   /* border-black/15 */
+  --d-field-line: #000000;
+  --d-card-border-width: 2.5px;
+  --d-control-border-width: 2px;
+  --d-divider-width: 2px;
+  --d-frame-border-width: 2.5px;
+  /* depth */
+  --d-card-shadow: 4px 4px 0 #000;  /* shadow-hard */
+  --d-control-shadow: 3px 3px 0 #000; /* shadow-hard-sm */
+  --d-field-shadow: none;
+  --d-sidebar-shadow: none;
+  --d-sticky-shadow: none;
+  --d-menu-shadow: 4px 4px 0 #000;
+  --d-hover-transform: translate(-2px, -2px);
+  --d-active-transform: translate(2px, 2px);
+  --d-active-shadow: none;
+  /* brand */
+  --d-primary: #000000;             /* bg-black: on Home the primary action is the dark button (DECISIONS.md) */
+  --d-on-primary: #f6f9f2;          /* text-white */
+  --d-primary-border: #000000;
+  --d-primary-shadow: 3px 3px 0 #000;
+  --d-tint: hsl(102 63% 60% / 0.3); /* bg-primary/30 */
+  --d-accent: hsl(102 63% 60%);     /* bg-primary */
+  --d-on-accent: #000000;
+  --d-deep: #000000;
+  --d-focus: #000000;
+  --d-focus-offset: 4px;
+  /* destructive */
+  --d-danger-bg: #f6f9f2;
+  --d-danger-border: #000000;
+  --d-danger-text: #9f1239;         /* text-rose-800 */
+  --d-danger-shadow: 3px 3px 0 #000;
+  /* radii */
+  --d-radius-control: 16px;         /* rounded-2xl */
+  --d-radius-field: 12px;           /* rounded-xl */
+  --d-radius-card: 24px;            /* rounded-[24px] */
+  --d-radius-hero: 24px;
+  --d-radius-nav: 16px;
+  --d-radius-badge: 12px;
+  /* type */
+  --d-title-phone: 30px; --d-title-phone-lh: 36px;       /* text-3xl */
+  --d-title-md: 30px; --d-title-md-lh: 36px;
+  --d-title-lg: 36px; --d-title-lg-lh: 40px;             /* lg:text-4xl */
+  --d-section-size: 24px; --d-section-lh: 28.8px; --d-section-weight: 400;  /* font-display text-2xl leading-tight */
+  --d-body-size: 16px; --d-body-lh: 24px;                /* text-base */
+  --d-label-size: 16px; --d-label-lh: 24px; --d-label-weight: 700;
+  --d-meta-size: 16px; --d-meta-lh: 24px;
+  --d-data-size: 16px; --d-data-weight: 700;
+  --d-hero-title-size: 20px; --d-hero-title-lh: 28px; --d-hero-title-weight: 700; /* text-xl font-bold */
+  --d-button-size: 16px; --d-button-weight: 700;
+  --d-tertiary-decoration: underline;
+  /* navigation */
+  --d-nav-size: 15px; --d-nav-weight: 500; --d-nav-active-weight: 600;
+  --d-nav-height: 48px;
+  --d-nav-active-bg: hsl(102 63% 60%);
+  --d-nav-active-text: #000000;
+  --d-nav-active-border: #000000;
+  --d-nav-active-shadow: 3px 3px 0 #000;
+  --d-nav-active-bar: transparent;
+  --d-nav-active-icon: #000000;
+  --d-tab-active: #000000;
+  --d-tab-inactive: #33402d;
+  --d-tab-active-bg: hsl(102 63% 60%);
+  /* hero */
+  --d-attention-bg: #fcd34d; --d-attention-text: #000000; --d-attention-border: #000000; --d-attention-shadow: none; /* bg-amber-300 border-black text-black */
+  --d-hero-bg: hsl(102 63% 60% / 0.3);
+  --d-hero-border: #000000;
+  --d-hero-shadow: 4px 4px 0 #000;
+  --d-hero-actions-dir: row;
+  --d-sidebar-pad-top: 20px; --d-sidebar-logo-pad: var(--d-space-1) var(--d-space-3) 18px; --d-tile-band-case: none;
+  --d-hero-circle-a: transparent;
+  --d-hero-circle-b: transparent;
+  --d-hero-pill-bg: #f6f9f2;
+  --d-hero-pill-text: #000000;
+  --d-hero-pill-shadow: none;
+  --d-hero-pill-border: 2px solid #000000;
+  --d-ring-track: #f6f9f2;
+  --d-ring-fill: #000000;
+  --d-ring-center: #f6f9f2;
+  --d-ring-text: #000000;
+  /* logo */
+  --d-logo-mark-bg: transparent;
+  --d-logo-mark-shadow: none;
+  --d-logo-tree: #7ed957;
+  --d-logo-tree-shadow: inline;
+  --d-logo-word: #000000;
+  /* status pills */
+  --d-pill-height: 28px; --d-pill-size: 16px; --d-pill-weight: 700; --d-pill-border: 2px solid #000000;
+  --d-pill-success: #000000; --d-pill-success-bg: hsl(102 63% 60%);  /* bg-primary */
+  --d-pill-info: #000000; --d-pill-info-bg: #e0f5d1;                 /* bg-sky-100 */
+  --d-pill-warning: #000000; --d-pill-warning-bg: #fef3c7;           /* bg-amber-100 */
+  --d-pill-danger: #000000; --d-pill-danger-bg: #ffe4e6;             /* bg-rose-100 */
+  --d-pill-neutral: #000000; --d-pill-neutral-bg: #c9d6bd;           /* bg-slate-200 */
+  /* date tile */
+  --d-tile-width: 64px; --d-tile-height: 72px;
+  --d-tile-bg: #f6f9f2; --d-tile-border: 2px solid #000000; --d-tile-shadow: none;
+  --d-tile-band: hsl(102 63% 60%); --d-tile-band-text: #000000; --d-tile-band-size: 16px;
+  --d-tile-day-size: 20px; --d-tile-day: #000000;
+  /* avatar */
+  --d-avatar-border: 2px solid #000000; --d-avatar-shadow: none; --d-avatar-text: #000000;
+  --d-avatar-1: hsl(102 63% 60% / 0.3); --d-avatar-2: #e0f5d1; --d-avatar-3: #fef3c7; --d-avatar-4: #ffe4e6; --d-avatar-5: #c9d6bd; --d-avatar-6: #ede9fe;
+  --d-avatar-1-text: #000000; --d-avatar-2-text: #000000; --d-avatar-3-text: #000000; --d-avatar-4-text: #000000; --d-avatar-5-text: #000000; --d-avatar-6-text: #000000;
+  /* skeleton */
+  --d-skeleton: #c9d6bd;            /* bg-slate-200 */
+  /* notification count */
+  --d-count-dot: #000000;
+}
+
+/* ---- Classic, dark: what appearance.css makes those same classes today ---- */
+html.dark:not([data-design="new"]) {
+  --d-canvas: hsl(140 14% 13%);     /* .bg-slate-50 -> --card */
+  --d-surface: hsl(140 14% 13%);    /* .bg-white -> --card */
+  --d-sidebar: hsl(140 14% 13%);
+  --d-phone-bar: hsl(140 14% 13%);
+  --d-field: hsl(140 14% 13%);
+  --d-raised: hsl(140 14% 13%);
+  --d-hover: hsl(115 19% 23%);      /* hover:bg-slate-100 -> --accent */
+  --d-ink: hsl(90 25% 93%);         /* --foreground */
+  --d-text-2: hsl(90 25% 93%);      /* .text-slate-700 -> --lms-text */
+  --d-meta: hsl(90 25% 93%);
+  --d-nav-text: hsl(90 25% 93%);
+  --d-link: hsl(90 25% 93%);
+  --d-line: hsl(100 15% 55%);       /* .border-black -> --lms-outline */
+  --d-divider: rgb(0 0 0 / 0.15);
+  --d-field-line: hsl(100 15% 55%);
+  --d-primary-border: hsl(100 15% 55%);
+  --d-focus: hsl(102 63% 65%);      /* --ring */
+  --d-focus-offset: 3px;
+  --d-danger-bg: hsl(140 14% 13%);
+  --d-danger-border: hsl(100 15% 55%);
+  --d-danger-text: hsl(8 100% 82%);
+  --d-deep: hsl(90 25% 93%);
+  --d-nav-active-border: hsl(100 20% 7%);
+  --d-tab-active: hsl(90 25% 93%);
+  --d-tab-inactive: hsl(90 14% 75%);
+  --d-tab-active-bg: hsl(102 63% 60%);
+  --d-hero-border: hsl(100 15% 55%);
+  --d-hero-pill-bg: hsl(140 14% 13%);
+  --d-hero-pill-text: hsl(90 25% 93%);
+  --d-hero-pill-border: 2px solid hsl(100 15% 55%);
+  --d-ring-track: hsl(140 14% 13%);
+  --d-ring-fill: #7ed957;
+  --d-ring-center: hsl(140 14% 13%);
+  --d-ring-text: hsl(90 25% 93%);
+  --d-logo-word: hsl(90 25% 93%);
+  --d-pill-border: 2px solid hsl(100 15% 55%);
+  --d-pill-success: #000000; --d-pill-success-bg: hsl(102 63% 60%);
+  --d-pill-info: hsl(90 25% 93%); --d-pill-info-bg: hsl(175 24% 17%);
+  --d-pill-warning: hsl(90 25% 93%); --d-pill-warning-bg: hsl(38 42% 16%);
+  --d-pill-danger: hsl(90 25% 93%); --d-pill-danger-bg: hsl(5 35% 17%);
+  --d-pill-neutral: hsl(90 25% 93%); --d-pill-neutral-bg: hsl(140 12% 21%);
+  --d-tile-bg: hsl(140 14% 13%); --d-tile-border: 2px solid hsl(100 15% 55%); --d-tile-day: hsl(90 25% 93%);
+  --d-avatar-border: 2px solid hsl(100 15% 55%);
+  --d-avatar-1-text: hsl(90 25% 93%); --d-avatar-2-text: hsl(90 25% 93%); --d-avatar-3-text: hsl(90 25% 93%); --d-avatar-4-text: hsl(90 25% 93%); --d-avatar-5-text: hsl(90 25% 93%); --d-avatar-6-text: hsl(90 25% 93%);
+  --d-avatar-2: hsl(175 24% 17%); --d-avatar-3: hsl(38 42% 16%); --d-avatar-4: hsl(5 35% 17%); --d-avatar-5: hsl(140 12% 21%); --d-avatar-6: hsl(260 23% 20%);
+  --d-skeleton: hsl(140 12% 21%);   /* .bg-slate-200 -> --secondary */
+  --d-count-dot: #7ed957;
+}
+
+/* ---- New, light: design v2 ---- */
+html[data-design="new"] {
+  --d-canvas: #EDF1E8;
+  --d-surface: #FBFDF8;
+  --d-sidebar: #F3F7EE;
+  --d-phone-bar: #F6F9F2;
+  --d-field: #FFFFFF;
+  --d-raised: #FFFFFF;
+  --d-hover: #E6EDDF;
+  --d-ink: #1D2518;
+  --d-text-2: #44523D;
+  --d-meta: #5C6E51;
+  --d-nav-text: #44523D;
+  --d-link: #2B6416;
+  --d-line: #D3DEC9;
+  --d-divider: #D3DEC9;
+  --d-field-line: #B7C6AA;
+  --d-card-border-width: 1px;
+  --d-control-border-width: 1px;
+  --d-divider-width: 1px;
+  --d-frame-border-width: 1px;
+  --d-card-shadow: 0 3px 0 #D3DEC9, 0 14px 28px -18px rgba(29, 37, 24, 0.28);
+  --d-control-shadow: 0 2px 0 #D3DEC9;
+  --d-field-shadow: inset 0 2px 0 rgba(29, 37, 24, 0.04);
+  --d-sidebar-shadow: 4px 0 18px -14px rgba(29, 37, 24, 0.3);
+  --d-sticky-shadow: 0 -10px 24px -18px rgba(29, 37, 24, 0.35);
+  --d-menu-shadow: 0 3px 0 #D3DEC9, 0 14px 28px -18px rgba(29, 37, 24, 0.28);
+  --d-hover-transform: none;
+  --d-active-transform: translateY(1px);
+  --d-active-shadow: 0 1px 0 #D3DEC9;
+  --d-primary: #7FD959;
+  --d-on-primary: #14301A;
+  --d-primary-border: #5DB33B;
+  --d-primary-shadow: 0 3px 0 #3F8F22;
+  --d-tint: #E3F3DA;
+  --d-accent: #7FD959;
+  --d-on-accent: #14301A;
+  --d-deep: #2B6416;
+  --d-focus: #2B6416;
+  --d-focus-offset: 2px;
+  --d-danger-bg: #FFFFFF;
+  --d-danger-border: #E7A3A3;
+  --d-danger-text: #B91C1C;
+  --d-danger-shadow: 0 2px 0 #F3CFCF;
+  --d-radius-control: 12px;
+  --d-radius-field: 12px;
+  --d-radius-card: 18px;
+  --d-radius-hero: 20px;
+  --d-radius-nav: 10px;
+  --d-radius-badge: 11px;
+  --d-title-phone: 24px; --d-title-phone-lh: 30px;
+  --d-title-md: 28px; --d-title-md-lh: 34px;
+  --d-title-lg: 28px; --d-title-lg-lh: 34px;
+  --d-section-size: 18px; --d-section-lh: 26px; --d-section-weight: 700;
+  --d-body-size: 15px; --d-body-lh: 22px;
+  --d-label-size: 14px; --d-label-lh: 20px; --d-label-weight: 600;
+  --d-meta-size: 13px; --d-meta-lh: 18px;
+  --d-data-size: 14px; --d-data-weight: 600;
+  --d-hero-title-size: 24px; --d-hero-title-lh: 30px; --d-hero-title-weight: 700;
+  --d-button-size: 14px; --d-button-weight: 600;
+  --d-tertiary-decoration: none;
+  --d-nav-size: 14px; --d-nav-weight: 500; --d-nav-active-weight: 600;
+  --d-nav-height: 44px;
+  --d-nav-active-bg: #FFFFFF;
+  --d-nav-active-text: #1D2518;
+  --d-nav-active-border: #D3DEC9;
+  --d-nav-active-shadow: 0 2px 0 #D3DEC9;
+  --d-nav-active-bar: #2B6416;
+  --d-nav-active-icon: #2B6416;
+  --d-tab-active: #2B6416;
+  --d-tab-inactive: #5C6E51;
+  --d-tab-active-bg: transparent;
+  --d-attention-bg: var(--d-raised); --d-attention-text: var(--d-ink); --d-attention-border: var(--d-field-line); --d-attention-shadow: var(--d-control-shadow);
+  --d-hero-bg: linear-gradient(135deg, #E3F3DA 0%, #D3EEC4 100%);
+  --d-hero-border: #BFE0A9;
+  --d-hero-shadow: 0 4px 0 #BFE0A9, 0 18px 34px -20px rgba(43, 100, 22, 0.45);
+  --d-hero-actions-dir: row-reverse;  /* the boards keep the main action at the trailing edge on a desktop */
+  --d-sidebar-pad-top: 14px; --d-sidebar-logo-pad: var(--d-space-1) var(--d-space-3) 10px; --d-tile-band-case: uppercase;
+  --d-hero-circle-a: rgba(127, 217, 89, 0.22);
+  --d-hero-circle-b: rgba(255, 255, 255, 0.35);
+  --d-hero-pill-bg: #FFFFFF;
+  --d-hero-pill-text: #2B6416;
+  --d-hero-pill-shadow: 0 2px 0 #BFE0A9;
+  --d-hero-pill-border: 0 solid transparent;
+  --d-ring-track: #FFFFFF;
+  --d-ring-fill: #2B6416;
+  --d-ring-center: #E3F3DA;
+  --d-ring-text: #1D2518;
+  --d-logo-mark-bg: #7FD959;
+  --d-logo-mark-shadow: 0 3px 0 #3F8F22;
+  --d-logo-tree: #14301A;
+  --d-logo-tree-shadow: none;
+  --d-logo-word: #1D2518;
+  --d-pill-height: 24px; --d-pill-size: 13px; --d-pill-weight: 600; --d-pill-border: 0 solid transparent;
+  --d-pill-success: #2B6416; --d-pill-success-bg: #E3F3DA;
+  --d-pill-info: #1F5A6B; --d-pill-info-bg: #E0F0F3;
+  --d-pill-warning: #7A4F00; --d-pill-warning-bg: #FEF3C7;
+  --d-pill-danger: #A61B1B; --d-pill-danger-bg: #FBE9E9;
+  --d-pill-neutral: #44523D; --d-pill-neutral-bg: #E3E9DC;
+  --d-tile-width: 46px; --d-tile-height: 48px;
+  --d-tile-bg: #FFFFFF; --d-tile-border: 1px solid #D3DEC9; --d-tile-shadow: 0 2px 0 #D3DEC9;
+  --d-tile-band: #2B6416; --d-tile-band-text: #FFFFFF; --d-tile-band-size: 10px;
+  --d-tile-day-size: 18px; --d-tile-day: #1D2518;
+  --d-avatar-border: 0 solid transparent; --d-avatar-shadow: inset 0 0 0 2px #FFFFFF, 0 0 0 1px #D3DEC9; --d-avatar-text: #2B6416;
+  --d-avatar-1: #E3F3DA; --d-avatar-2: #E0F0F3; --d-avatar-3: #FEF3C7; --d-avatar-4: #FBE9E9; --d-avatar-5: #E3E9DC; --d-avatar-6: #EDE9FE;
+  --d-avatar-1-text: #2B6416; --d-avatar-2-text: #1F5A6B; --d-avatar-3-text: #7A4F00; --d-avatar-4-text: #A61B1B; --d-avatar-5-text: #44523D; --d-avatar-6-text: #4C3A8F;
+  --d-skeleton: #E3E9DC;
+  --d-count-dot: #A61B1B;
+}
+
+/* ---- New, dark: the same roles. Depth comes from lighter surfaces, not shadows. ---- */
+html.dark[data-design="new"] {
+  --d-canvas: #111813;
+  --d-surface: #1C2620;
+  --d-sidebar: #161F19;
+  --d-phone-bar: #161F19;
+  --d-field: #161F19;
+  --d-raised: #25312A;
+  --d-hover: #25312A;
+  --d-ink: #EDF2E9;
+  --d-text-2: #C5D0BE;
+  --d-meta: #A5B39B;
+  --d-nav-text: #C5D0BE;
+  --d-link: #A6E08A;
+  --d-line: #33423A;
+  --d-divider: #33423A;
+  --d-field-line: #4F6155;
+  --d-card-shadow: 0 3px 0 #33423A;
+  --d-control-shadow: 0 2px 0 #33423A;
+  --d-field-shadow: none;
+  --d-sidebar-shadow: none;
+  --d-sticky-shadow: none;
+  --d-menu-shadow: 0 3px 0 #33423A;
+  --d-active-shadow: 0 1px 0 #33423A;
+  --d-tint: #25381F;
+  --d-deep: #A6E08A;
+  --d-focus: #A6E08A;
+  --d-danger-bg: #25312A;
+  --d-danger-border: #7A3A3A;
+  --d-danger-text: #F7B8B8;
+  --d-danger-shadow: 0 2px 0 #4A2626;
+  --d-nav-active-bg: #25312A;
+  --d-nav-active-text: #EDF2E9;
+  --d-nav-active-border: #33423A;
+  --d-nav-active-shadow: 0 2px 0 #33423A;
+  --d-nav-active-bar: #A6E08A;
+  --d-nav-active-icon: #A6E08A;
+  --d-tab-active: #A6E08A;
+  --d-tab-inactive: #A5B39B;
+  --d-hero-bg: linear-gradient(135deg, #25381F 0%, #1F3019 100%);
+  --d-hero-border: #3A5430;
+  --d-hero-shadow: 0 4px 0 #3A5430;
+  --d-hero-circle-a: rgba(127, 217, 89, 0.1);
+  --d-hero-circle-b: rgba(255, 255, 255, 0.04);
+  --d-hero-pill-bg: #1C2620;
+  --d-hero-pill-text: #A6E08A;
+  --d-hero-pill-shadow: 0 2px 0 #3A5430;
+  --d-ring-track: #1C2620;
+  --d-ring-fill: #A6E08A;
+  --d-ring-center: #25381F;
+  --d-ring-text: #EDF2E9;
+  --d-logo-word: #EDF2E9;
+  --d-pill-success: #B4E89E; --d-pill-success-bg: #25381F;
+  --d-pill-info: #A8DCE8; --d-pill-info-bg: #17343D;
+  --d-pill-warning: #F6D98B; --d-pill-warning-bg: #3A2D0B;
+  --d-pill-danger: #F7B8B8; --d-pill-danger-bg: #431F1F;
+  --d-pill-neutral: #C5D0BE; --d-pill-neutral-bg: #2A352E;
+  --d-tile-bg: #25312A; --d-tile-border: 1px solid #33423A; --d-tile-shadow: 0 2px 0 #33423A;
+  --d-tile-band: #2B6416; --d-tile-band-text: #FFFFFF;
+  --d-tile-day: #EDF2E9;
+  --d-avatar-shadow: inset 0 0 0 2px #25312A, 0 0 0 1px #33423A;
+  --d-avatar-1: #25381F; --d-avatar-2: #17343D; --d-avatar-3: #3A2D0B; --d-avatar-4: #431F1F; --d-avatar-5: #2A352E; --d-avatar-6: #2B2547;
+  --d-avatar-1-text: #B4E89E; --d-avatar-2-text: #A8DCE8; --d-avatar-3-text: #F6D98B; --d-avatar-4-text: #F7B8B8; --d-avatar-5-text: #C5D0BE; --d-avatar-6-text: #CFC5F7;
+  --d-skeleton: #2A352E;
+  --d-count-dot: #F7B8B8;
+}
+
+/* Arabic body line height in the New look. */
+html[data-design="new"][lang="ar"] {
+  --d-body-lh: 1.6;
+  --d-label-lh: 1.6;
+  --d-meta-lh: 1.6;
+  --d-section-lh: 1.45;
+  --d-title-phone-lh: 1.35;
+  --d-title-md-lh: 1.35;
+  --d-title-lg-lh: 1.35;
+  --d-hero-title-lh: 1.35;
+}
