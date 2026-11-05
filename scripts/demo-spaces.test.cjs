@@ -25,13 +25,14 @@ test('migration: the reviewed demo-spaces SQL is byte-identical to the approved 
  assert.equal(hash(raw) === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c' || lf === 'e8638ca13c9b5bbc1ec84894928479d8e3301924a3ca49a2bb4b76b37d3bfa4c', true);
  assert.match(read('.gitattributes'), /supabase\/migrations\/20261027120000_demo_spaces\.sql -text/);
  const names = fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
- assert.equal(names[names.length - 7], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration; only the six follow-ups come after it');
- assert.equal(names[names.length - 6], '20261029120000_demo_clear_robust.sql');
- assert.equal(names[names.length - 5], '20261030120000_demo_students.sql');
- assert.equal(names[names.length - 4], '20261031120000_demo_notifications.sql');
- assert.equal(names[names.length - 3], '20261104120000_demo_students_screen.sql');
- assert.equal(names[names.length - 2], '20261105120000_group_summary_performance.sql');
- assert.equal(names[names.length - 1], '20261105130000_teaching_space_name.sql');
+ assert.equal(names[names.length - 8], '20261027120000_demo_spaces.sql', 'it sorts after every earlier migration; only the seven follow-ups come after it');
+ assert.equal(names[names.length - 7], '20261029120000_demo_clear_robust.sql');
+ assert.equal(names[names.length - 6], '20261030120000_demo_students.sql');
+ assert.equal(names[names.length - 5], '20261031120000_demo_notifications.sql');
+ assert.equal(names[names.length - 4], '20261104120000_demo_students_screen.sql');
+ assert.equal(names[names.length - 3], '20261105120000_group_summary_performance.sql');
+ assert.equal(names[names.length - 2], '20261105130000_teaching_space_name.sql');
+ assert.equal(names[names.length - 1], '20261106120000_listing_performance.sql');
 });
 test('migration: demo_clear_core is replaced (not edited in 34), keeps its signature and grants, and removes what a teacher added inside the Groups and courses', () => {
  const sql = read('supabase/migrations/20261029120000_demo_clear_robust.sql'), code = sql.replace(/--.*$/gm, '');
@@ -267,7 +268,7 @@ test('Home label: the database check never throws or shows an error to the teach
 test('Home label: the Home loader answers with demo=false on any failure, and the view renders the label only when the server said so', () => {
  const loader = read('server/services/teacher-home.ts');
  assert.match(loader, /async function demoLabel[\s\S]*catch \{ return false; \}/);
- assert.match(loader, /demo: await demoLabel\(/);
+ assert.match(loader, /const demo = demoLabel\(/); assert.match(loader, /demo: demoShown/);
  const view = read('frontend/features/teacher-home/home-view.tsx');
  assert.equal((view.match(/<DemoLabel \/>/g) || []).length, 2, 'Home and first visit only');
  for (const m of view.matchAll(/<DemoLabel \/>/g)) assert.match(view.slice(Math.max(0, m.index - 20), m.index), /data\.demo && $/, 'always behind data.demo');
