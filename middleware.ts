@@ -36,6 +36,8 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (path === '/teacher-invitation') {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');response.headers.set('X-Robots-Tag','noindex, nofollow');return response;}
   // Teacher Settings and Groups & Classes: EXACT pages only, nothing underneath them (scripts/teacher-settings-groups.test.cjs runs this function and keeps the list in step with shared/teacher-settings.ts).
   if (path === '/teacher/settings' || path === '/teacher/settings/account' || path === '/teacher/settings/courses' || path === '/teacher/settings/language' || path === '/teacher/settings/notifications') return NextResponse.next();
+  // One course page: exactly /teacher/settings/courses/<uuid>. The names a teacher gave are on it, so it stays out of caches and referrers.
+  if (/^\/teacher\/settings\/courses\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   if (path === '/teacher/groups' || path === '/teacher/groups/new' || /^\/teacher\/groups\/[0-9a-f-]{36}(\/attendance\/[0-9a-f-]{36})?$/.test(path)) return NextResponse.next();
   // Students: the list and one student page, exact paths only. Names are on these pages, so they are kept out of caches and referrers.
   if (path === '/teacher/students' || /^\/teacher\/students\/[0-9a-f-]{36}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}

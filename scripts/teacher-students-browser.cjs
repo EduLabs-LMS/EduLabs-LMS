@@ -536,8 +536,8 @@ function groupsCommand(body) {
   const options = await page.locator('[data-invite-course] option').evaluateAll(os => os.map(o => [o.textContent, o.disabled]));
   assert.deepEqual(options, [['Synthetic Maths', false], ['Synthetic Physics', false], ['Synthetic History (draft)', true]], 'drafts are listed, last and disabled');
   const draft = page.locator(`[data-draft-course="${uuid(12)}"]`); await draft.waitFor();
-  assert.match(await draft.innerText(), /Publish this course in Settings → Courses before inviting students\./);
-  assert.equal(await draft.locator('[data-draft-link]').getAttribute('href'), '/teacher/settings/courses');
+  assert.match(await draft.innerText(), /Publish this course before inviting students\./);
+  assert.match(await draft.locator('[data-draft-link]').getAttribute('href'), /^\/teacher\/settings\/courses\/[0-9a-f-]{36}$/);
   await checkClean(page, 'invite drafts desktop'); await shot(page, 'students-invite-drafts-en-1440');
   // Even if the page were made to select the draft, no link is asked for.
   await page.evaluate(id => { const sel = document.querySelector('[data-invite-course]'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(sel, id); sel.dispatchEvent(new Event('change', { bubbles: true })); }, uuid(12));
@@ -546,7 +546,7 @@ function groupsCommand(body) {
   const s = await posts(); assert.equal(s.admin.filter(a => a.action === 'link').length, 0); assert.equal(s.posts.filter(p => p.action === 'course-run').length, 0, 'no run is made for a draft');
   await context.close();
   const only = await open(phone, '/teacher/students?courses=drafts', { lang: 'ar' }); await waitSettled(only.page); await only.page.locator('[data-invite-students]').click(); await only.page.locator('[data-no-published]').waitFor();
-  assert.equal(await only.page.locator('[data-create-link]').isVisible(), false); assert.match(await main(only.page), /انشر هذه الدورة من الإعدادات ← الدورات قبل دعوة الطلاب/);
+  assert.equal(await only.page.locator('[data-create-link]').isVisible(), false); assert.match(await main(only.page), /انشر هذه الدورة قبل دعوة الطلاب/);
   await checkClean(only.page, 'invite drafts phone ar'); await shot(only.page, 'students-invite-drafts-ar-390'); await only.context.close();
  });
  await step('Student join page failure: one human sentence in English and Arabic that does not say which reason applied; an outage keeps its own message', async () => {

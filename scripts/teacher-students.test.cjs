@@ -198,12 +198,12 @@ test('invite: only published courses can be chosen, a draft is disabled with the
  assert.match(inv, /const open = courses\.filter\(c => c\.published\), drafts = courses\.filter\(c => !c\.published\)/);
  assert.match(inv, /const choice = open\.find\(c => c\.courseId === courseId\)/, 'a draft can never be the chosen course');
  assert.match(inv, /if \(!choice \|\| !choice\.published\) return;/, 'refused before the API');
- assert.match(inv, /value=\{c\.courseId\} disabled>/); assert.match(inv, /href="\/teacher\/settings\/courses"/);
+ assert.match(inv, /value=\{c\.courseId\} disabled>/); assert.match(inv, /<Link href=\{coursePagePath\(c\.courseId\)\} data-draft-link/);
  assert.doesNotMatch(inv, /ts\.invite\.unpublished/);
  // the course-run route and the link call both come after that guard
  assert.ok(inv.indexOf('if (!choice || !choice.published) return;') < inv.indexOf("'/api/study-groups/course-run'"));
  assert.ok(inv.indexOf('if (!choice || !choice.published) return;') < inv.indexOf("adminCall('link'"));
- assert.equal(messages.en['ts.invite.draft_line'], 'Publish this course in Settings → Courses before inviting students.');
+ assert.equal(messages.en['ts.invite.draft_line'], 'Publish this course before inviting students.');
  for (const k of ['ts.invite.draft_option', 'ts.invite.draft_line', 'ts.invite.draft_link', 'ts.invite.none_published', 'join.link_failed']) assert.ok(messages.en[k] && messages.ar[k], k);
  assert.equal(messages.en['ts.invite.unpublished'], undefined);
 });

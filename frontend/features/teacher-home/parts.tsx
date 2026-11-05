@@ -6,6 +6,7 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { L } from '@/frontend/components/language-provider';
 import { cn } from '@/shared/utils';
 import type { CourseStatus } from '@/shared/teacher-home';
+import { coursePagePath } from '@/shared/teacher-course-page';
 
 export const card = 'rounded-[24px] border-[2.5px] border-black bg-white p-5 shadow-hard';
 export const button = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border-2 border-black px-4 py-2 text-base font-bold shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black disabled:opacity-60';
@@ -54,13 +55,13 @@ export const sessionTime: Intl.DateTimeFormatOptions = { timeZone: 'Africa/Cairo
 
 export function CourseCards({ items, compact = false }: { items: { id: string; title: string; status: CourseStatus }[]; compact?: boolean }) {
   if (compact) return <ul>{items.map(c => <li key={c.id} className="border-t-2 border-black/15 first:border-t-0">
-    <Link href={`/teacher/courses/${c.id}`} data-course={c.id} className="flex min-h-[48px] items-center justify-between gap-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
+    <Link href={coursePagePath(c.id)} data-course={c.id} className="flex min-h-[48px] items-center justify-between gap-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
       <span className="min-w-0 break-words text-base font-bold"><bdi dir="auto">{c.title}</bdi></span>
       <StatusBadge status={c.status} />
     </Link>
   </li>)}</ul>;
   return <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map(c => <li key={c.id}>
-    <Link href={`/teacher/courses/${c.id}`} data-course={c.id} className="flex min-h-[88px] flex-col justify-between gap-3 rounded-2xl border-2 border-black bg-white p-4 shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black">
+    <Link href={coursePagePath(c.id)} data-course={c.id} className="flex min-h-[88px] flex-col justify-between gap-3 rounded-2xl border-2 border-black bg-white p-4 shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black">
       <span className="break-words text-lg font-bold leading-snug"><bdi dir="auto">{c.title}</bdi></span>
       <StatusBadge status={c.status} />
     </Link>

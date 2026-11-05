@@ -122,7 +122,7 @@ test('groups: pages are staff-only, validate the id, and the list route sits nex
 
 // ------------------------------------------------------------------ real middleware
 test('middleware: with Firebase staging on, exactly the Settings and Group pages pass; lookalikes, legacy paths and APIs stay behind the catch-all', () => {
- class NextResponse { constructor(kind, status) { this.kind = kind; this.status = status; } static next() { return new NextResponse('next', 200); } static json(_, o) { return new NextResponse('json', o.status); } static redirect(u) { return new NextResponse('redirect:' + u.pathname, 307); } }
+ class NextResponse { constructor(kind, status) { this.kind = kind; this.status = status; this.headers = new Map(); } static next() { return new NextResponse('next', 200); } static json(_, o) { return new NextResponse('json', o.status); } static redirect(u) { return new NextResponse('redirect:' + u.pathname, 307); } }
  const middleware = load('middleware.ts', {
   '@/shared/public-website': load('shared/public-website.ts', { zod: require('zod') }), '@/shared/website-routes': load('shared/website-routes.ts'),
   '@clerk/nextjs/server': { clerkMiddleware: () => () => assert.fail('the legacy handler must not run in Firebase staging'), createRouteMatcher: () => () => false },
@@ -130,8 +130,8 @@ test('middleware: with Firebase staging on, exactly the Settings and Group pages
  }).default;
  const run = path => middleware({ nextUrl: new URL('https://platform.example' + path), url: 'https://platform.example' + path }, {});
  const id = '1234abcd-0000-4000-8000-00000000000f';
- for (const ok of [...settings.teacherSettingsPaths, '/teacher/groups', '/teacher/groups/new', '/teacher/groups/' + id, '/teacher/groups/' + id + '/attendance/' + id]) assert.equal(run(ok).kind, 'next', ok + ' passes through');
- const refusedPages = ['/teacher/groups/new/', '/teacher/groups/new/x', '/teacher/groups/New', '/teacher/groups/news', '/teacher/settings/', '/teacher/settings/account/', '/teacher/settings/other', '/teacher/settings/account/extra', '/teacher/settings//account', '/teacher/settings/Account', '/teacher/settings/courses.json', '/teacher/groups/', '/teacher/groups/not-a-uuid', '/teacher/groups/' + id + '/', '/teacher/groups/' + id + '/sessions', '/teacher/groups/' + id.toUpperCase(), '/teacher/groups/' + id.slice(1), '/teacher/groups//' + id, '/teacher/analytics', '/teacher/settings/notifications/preferences'];
+ for (const ok of [...settings.teacherSettingsPaths, '/teacher/settings/courses/' + id, '/teacher/settings/courses/' + id.toUpperCase(), '/teacher/groups', '/teacher/groups/new', '/teacher/groups/' + id, '/teacher/groups/' + id + '/attendance/' + id]) assert.equal(run(ok).kind, 'next', ok + ' passes through');
+ const refusedPages = ['/teacher/groups/new/', '/teacher/groups/new/x', '/teacher/groups/New', '/teacher/groups/news', '/teacher/settings/', '/teacher/settings/account/', '/teacher/settings/other', '/teacher/settings/account/extra', '/teacher/settings//account', '/teacher/settings/Account', '/teacher/settings/courses.json', '/teacher/groups/', '/teacher/groups/not-a-uuid', '/teacher/groups/' + id + '/', '/teacher/groups/' + id + '/sessions', '/teacher/groups/' + id.toUpperCase(), '/teacher/groups/' + id.slice(1), '/teacher/groups//' + id, '/teacher/analytics', '/teacher/settings/notifications/preferences', '/teacher/settings/courses/' + id + '/', '/teacher/settings/courses/' + id + '/lessons', '/teacher/settings/courses/not-a-uuid', '/teacher/settings/courses/' + id.slice(1), '/teacher/settings/courses//' + id, '/teacher/settings/courses/' + id + '.json', '/teacher/settings/account/' + id];
  for (const path of refusedPages) { const r = run(path); assert.equal(r.kind, 'redirect:/unavailable', path + ' is not reachable'); }
  for (const path of ['/api/teacher/settings', '/api/teacher/groups', '/api/teacher/groups/' + id, '/api/settings/teacher', '/api/groups']) { const r = run(path); assert.equal(r.kind, 'json', path); assert.equal(r.status, 503, path); }
  assert.equal(run('/api/study-groups').kind, 'next', 'the Groups endpoint'); assert.equal(run('/api/study-groups/course-run').kind, 'next', 'the course-run route');
@@ -148,7 +148,7 @@ test('middleware: the allowed page list in the source is exactly the Settings ar
 // ------------------------------------------------------------------ wording and locales
 test('locales: every ts.* string exists in English and Arabic with the same placeholders', () => {
  assert.deepEqual(Object.keys(messages.en).sort(), Object.keys(messages.ar).sort());
- const keys = Object.keys(messages.en).filter(k => k.startsWith('ts.') || k.startsWith('tg.'));
+ const keys = Object.keys(messages.en).filter(k => k.startsWith('ts.') || k.startsWith('tg.') || k.startsWith('tc.'));
  assert.ok(keys.length >= 15);
  for (const k of keys) {
   assert.ok(messages.en[k].trim() && messages.ar[k].trim(), k);
@@ -159,10 +159,10 @@ test('locales: every ts.* string exists in English and Arabic with the same plac
 });
 test('wording: no tenant, program or studio vocabulary reaches a teacher on these screens, in either language', () => {
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|\boffering|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
- for (const k of Object.keys(messages.en).filter(k => k.startsWith('ts.') || k.startsWith('tg.'))) { assert.doesNotMatch(messages.en[k], forbidden, k); assert.doesNotMatch(messages.ar[k], forbidden, k); }
+ for (const k of Object.keys(messages.en).filter(k => k.startsWith('ts.') || k.startsWith('tg.') || k.startsWith('tc.'))) { assert.doesNotMatch(messages.en[k], forbidden, k); assert.doesNotMatch(messages.ar[k], forbidden, k); }
 });
 test('middleware: the Notifications page that Home and Settings > Notifications link to passes in Firebase staging, with its one API, and nothing underneath it', () => {
- class NextResponse { constructor(kind, status) { this.kind = kind; this.status = status; } static next() { return new NextResponse('next', 200); } static json(_, o) { return new NextResponse('json', o.status); } static redirect(u) { return new NextResponse('redirect:' + u.pathname, 307); } }
+ class NextResponse { constructor(kind, status) { this.kind = kind; this.status = status; this.headers = new Map(); } static next() { return new NextResponse('next', 200); } static json(_, o) { return new NextResponse('json', o.status); } static redirect(u) { return new NextResponse('redirect:' + u.pathname, 307); } }
  const middleware = load('middleware.ts', {
   '@/shared/public-website': load('shared/public-website.ts', { zod: require('zod') }), '@/shared/website-routes': load('shared/website-routes.ts'),
   '@clerk/nextjs/server': { clerkMiddleware: () => () => assert.fail('the legacy handler must not run in Firebase staging'), createRouteMatcher: () => () => false },
