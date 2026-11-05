@@ -240,7 +240,8 @@ function command(body) {
  };
  const overflow = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
  const step = async (name, fn) => { try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
- const shot = (page, name, full = true) => page.screenshot({ path: path.join(shots, name + '.png'), fullPage: full });
+ // New's rows arrive one after another: a picture is of the page at rest, not of that.
+ const shot = async (page, name, full = true) => { await page.evaluate(() => document.getAnimations().forEach(a => { try { a.finish(); } catch { /* an endless pulse */ } })); await page.screenshot({ path: path.join(shots, name + '.png'), fullPage: full }); };
  const lum = c => { const m = c.match(/\d+(\.\d+)?/g).map(Number).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; };
  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
  const contrast = page => page.evaluate(() => { const parse = c => { const m = c.match(/[0-9.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }; }; const effective = el => { const layers = []; for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor); if (c.a > 0) layers.push(c); if (c.a === 1) break; } let base = { r: 255, g: 255, b: 255 }; for (const l of layers.reverse()) base = { r: l.r * l.a + base.r * (1 - l.a), g: l.g * l.a + base.g * (1 - l.a), b: l.b * l.a + base.b * (1 - l.a) }; return 'rgb(' + base.r + ', ' + base.g + ', ' + base.b + ')'; }; return [...document.querySelectorAll('main p, main h1, main h2, main a, main span, main button, main dt, main dd, main li, main label')].filter(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())).map(e => ({ t: e.textContent.trim().slice(0, 24), color: getComputedStyle(e).color, back: effective(e) })); }).then(pairs => pairs.filter(p => ratio(p.color, p.back) < 4.5).map(p => `${p.t} ${p.color} on ${p.back}`));
@@ -324,12 +325,12 @@ function command(body) {
   const flatLabel = await rows(page).nth(2).locator('[data-mark-text]').evaluate(e => { const s = getComputedStyle(e), r = e.getBoundingClientRect(); return { border: s.borderTopWidth, shadow: s.boxShadow, bg: s.backgroundColor, radius: s.borderTopLeftRadius, height: Math.round(r.height), size: s.fontSize }; });
   assert.deepEqual([flatLabel.border, flatLabel.shadow, flatLabel.bg, flatLabel.radius], ['0px', 'none', 'rgba(0, 0, 0, 0)', '0px'], 'a finished result is flat: no border, shadow, fill or button shape'); assert.ok(flatLabel.height < 40, 'smaller than the 48px buttons it replaces: ' + flatLabel.height); assert.ok(parseFloat(flatLabel.size) >= 16);
   assert.equal(await rows(page).nth(2).locator('[data-mark-text]').innerText(), 'Absent'); assert.equal(await rows(page).nth(0).locator('[data-mark-text]').innerText(), 'Present');
-  assert.equal(await page.locator('[data-finalize]').count(), 0); assert.equal(await page.locator('[data-reopen]').innerText(), 'Edit attendance'); assert.equal(await saveLine(page), 'Editing asks for a short reason');
+  assert.equal(await page.locator('[data-finalize]').count(), 0); assert.equal(await page.locator('[data-reopen]').innerText(), 'Edit attendance'); assert.equal(await page.locator('[data-edit-hint]').innerText(), 'Editing asks for a short reason'); assert.equal(await page.locator('[data-save-line]').count(), 0, 'the hint moved up with the button');
   const edit = await page.locator('[data-reopen]').evaluate(e => getComputedStyle(e).backgroundColor); assert.ok(lum(edit) > 0.85, 'outlined and light, not filled: ' + edit); assert.equal(await page.locator('[data-reopen]').evaluate(e => getComputedStyle(e).borderTopWidth), '2px');
   await shot(page, 'attendance-finished-en-1440');
   // Edit needs a reason.
   await page.locator('[data-reopen]').click(); await page.locator('[data-reopen-reason]').waitFor();
-  await page.waitForFunction(() => document.activeElement?.hasAttribute('data-reopen-reason')); const inView = await page.locator('[data-reopen-reason]').evaluate(e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }); assert.ok(inView, 'the reason field is in view and focused');
+  await page.waitForFunction(() => document.activeElement?.hasAttribute('data-reopen-reason')); await page.waitForFunction(() => { const r = document.querySelector('[data-reopen-reason]').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }, null, { timeout: 3000 }); // the page scrolls down to it from the button at the top
   await page.locator('[data-confirm-reopen-yes]').click(); assert.match(await page.locator('[data-confirm-reopen] [role="alert"]').innerText(), /at least 3 characters/); assert.equal((await posts()).filter(x => x.action === 'reopen').length, 0, 'nothing is sent without a reason');
   await page.locator('[data-reopen-reason]').fill('Wrong list'); await page.locator('[data-confirm-reopen-yes]').click(); await page.locator('[data-mark-button]').first().waitFor();
   p = (await posts()).filter(x => x.action === 'reopen'); assert.equal(p.length, 1); assert.equal(p[0].data.reason, 'Wrong list'); assert.equal(p[0].data.sessionVersion, lastVersion + 2);
@@ -513,6 +514,35 @@ function command(body) {
   const eb = await done.page.locator('[data-reopen]').boundingBox(); assert.ok(eb.height >= 47.5 && eb.width > 300); assert.equal(await done.page.locator('[data-mark-button]').count(), 0);
   await shot(done.page, 'attendance-finished-en-390', false); await done.context.close();
  });
+ await step('The finished sheet: a secondary action in the page header on a desktop with no bar at the bottom; a floating bar with one full-width button on a phone; both looks, both themes, both directions', async () => {
+  for (const look of ['classic', 'new']) for (const theme of ['light', 'dark']) for (const lang of ['en', 'ar']) {
+   const wide = await open(desktop, at(G.alg, sid.finalized), { lang, theme }); await wide.page.evaluate(l => { document.documentElement.dataset.design = l; }, look); await rows(wide.page).first().waitFor();
+   const where = [look, theme, lang].join(' ');
+   assert.equal(await wide.page.locator('[data-header-actions] [data-reopen]').count(), 1, 'in the header: ' + where);
+   const describedBy = await wide.page.locator('[data-reopen]').getAttribute('aria-describedby'); assert.ok(describedBy && await wide.page.locator('[id="' + describedBy + '"]').count() === 1, 'the hint is tied to the button');
+   const title = await wide.page.locator('[data-reopen]').getAttribute('title'); assert.equal(title, await wide.page.locator('[data-edit-hint]').innerText(), 'and is its tooltip too');
+   const actions = await wide.page.locator('[data-actions]').evaluate(e => { const s = getComputedStyle(e), r = e.getBoundingClientRect(); return { position: s.position, background: s.backgroundColor, height: r.height, top: s.borderTopWidth }; });
+   assert.equal(actions.position, 'static', 'no sticky bar: ' + where); assert.equal(actions.background, 'rgba(0, 0, 0, 0)', 'no band: ' + where); assert.ok(actions.height <= 9, 'nothing left at the bottom: ' + actions.height); assert.equal(actions.top, '0px');
+   const header = await wide.page.locator('[data-attendance-title]').boundingBox(), button = await wide.page.locator('[data-reopen]').boundingBox();
+   assert.ok(button.y < header.y + header.height, 'beside the title'); if (lang === 'ar') assert.ok(button.x < header.x, 'on the left in Arabic'); else assert.ok(button.x > header.x + 100, 'on the right in English');
+   if (look === 'new' && theme === 'light') await shot(wide.page, 'attendance-finished-new-light-' + lang + '-1440');
+   if (look === 'new' && theme === 'dark') await shot(wide.page, 'attendance-finished-new-dark-' + lang + '-1440');
+   // The form opens, the keyboard goes there, and comes back to the button when it is left alone.
+   await wide.page.locator('[data-reopen]').click(); await wide.page.waitForFunction(() => document.activeElement?.hasAttribute('data-reopen-reason'));
+   await wide.page.locator('[data-confirm-reopen] button').last().click(); await wide.page.waitForFunction(() => document.activeElement?.hasAttribute('data-reopen'));
+   await wide.context.close();
+   const small = await open(phone, at(G.alg, sid.finalized), { lang, theme }); await small.page.evaluate(l => { document.documentElement.dataset.design = l; }, look); await rows(small.page).first().waitFor();
+   assert.equal(await small.page.locator('[data-header-actions]').count(), 0, 'not in the header on a phone');
+   const bar = await small.page.locator('[data-actions]').evaluate(e => { const s = getComputedStyle(e), r = e.getBoundingClientRect(); return { position: s.position, left: r.left, right: innerWidth - r.right, bottom: innerHeight - r.bottom, radius: parseFloat(s.borderTopLeftRadius) }; });
+   assert.equal(bar.position, 'fixed'); assert.ok(bar.left === 12 && bar.right === 12 && bar.bottom === 12, 'floats clear of the edges: ' + JSON.stringify(bar)); assert.ok(bar.radius >= 16, 'rounded');
+   assert.match(await small.page.locator('[data-actions]').evaluate(e => e.className), /d-float-bar/);
+   const eb = await small.page.locator('[data-reopen]').boundingBox(); assert.ok(eb.width >= 300 && eb.height >= 47.5, 'one full-width button');
+   if (look === 'new') await shot(small.page, 'attendance-finished-new-' + theme + '-' + lang + '-390', false);
+   await small.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); const last = await rows(small.page).last().boundingBox(), bar2 = await small.page.locator('[data-actions]').boundingBox(); assert.ok(last.y + last.height <= bar2.y + 1, 'the last student is not hidden behind the bar');
+   if (look === 'new') await shot(small.page, 'attendance-finished-new-' + theme + '-' + lang + '-390-end', false);
+   await small.context.close();
+  }
+ });
  await step('Arabic: right-to-left, translated, no forbidden words, mirrored back arrow, desktop and phone, editing and finished', async () => {
   for (const [name, viewport] of [['1440', desktop], ['390', phone]]) {
    await ctl({ reset: true });
@@ -529,7 +559,7 @@ function command(body) {
    assert.match(await page.locator('[data-confirm-finalize]').innerText(), /هل تنهي الحضور/); assert.match(await page.locator('[data-confirm-finalize]').innerText(), /11/);
    await shot(page, `attendance-draft-ar-${name}`, false); await context.close();
    const done = await open(viewport, at(G.alg, sid.finalized), { lang: 'ar' }); await rows(done.page).first().waitFor();
-   assert.match(await counts(done.page), /^تم الانتهاء · \d+ حاضر · \d+ غائب$/); assert.equal(await done.page.locator('[data-reopen]').innerText(), 'تعديل الحضور'); assert.equal(await saveLine(done.page), 'التعديل يتطلب سببًا قصيرًا');
+   assert.match(await counts(done.page), /^تم الانتهاء · \d+ حاضر · \d+ غائب$/); assert.equal(await done.page.locator('[data-reopen]').innerText(), 'تعديل الحضور'); assert.equal((await done.page.locator('[data-edit-hint]').count()) ? await done.page.locator('[data-edit-hint]').innerText() : await saveLine(done.page), 'التعديل يتطلب سببًا قصيرًا');
    assert.ok(await overflow(done.page)); assert.doesNotMatch(await main(done.page), forbidden);
    await shot(done.page, `attendance-finished-ar-${name}`, false); await done.context.close();
   }

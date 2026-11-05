@@ -2,30 +2,31 @@
 const assert = require('node:assert/strict');
 
 const LIME = 'rgb(127, 217, 89)', INK = 'rgb(20, 48, 26)', EDGE = 'rgb(43, 100, 22)';
-const TREE = 'rgb(126, 217, 87)';
+const TREE = { light: 'rgb(43, 100, 22)', dark: 'rgb(126, 217, 87)' };
 const SERVER_NOW = Date.UTC(2031, 2, 3, 9, 0, 0); // a fixed server clock, far from any real device clock
 
 module.exports = async ({ step, open, box, css1, desktop, phone, shot }) => {
   const settle = page => page.evaluate(() => { for (const a of document.getAnimations()) { try { a.finish(); } catch { /* endless */ } } });
+  /** In New, with motion on, the active pill is a layer of its own so that it can fade where it is. */
+  const layer = (page, selector, property) => page.locator(selector).first().evaluate((e, p) => getComputedStyle(e, '::before')[p], property);
   const moved = (page, selector) => page.locator(selector).first().evaluate(e => getComputedStyle(e).transform);
 
   await step('Active item: a lime rounded pill with a deep green edge in New, the black border and shadow in Classic; both themes, both directions, phone tabs too', async () => {
     for (const theme of ['light', 'dark']) for (const lang of ['en', 'ar']) {
       const wide = await open(desktop, `view=home&theme=${theme}&lang=${lang}`, 'new');
       const item = '[data-nav="home"]';
-      assert.equal(await css1(wide.page, item, 'backgroundColor'), LIME, theme);
+      assert.equal(await layer(wide.page, item, 'backgroundColor'), LIME, theme);
       assert.equal(await css1(wide.page, item, 'color'), INK, theme);
-      assert.equal(await css1(wide.page, item, 'boxShadow'), `${EDGE} 3px 3px 0px 0px`, 'about 3 px down and right, ' + theme + ' ' + lang);
-      assert.equal(await css1(wide.page, item, 'borderRadius'), '16px', "Classic's rounded shape");
+      assert.equal(await layer(wide.page, item, 'boxShadow'), `${EDGE} 3px 3px 0px 0px`, 'about 3 px down and right, ' + theme + ' ' + lang);
+      assert.equal(await layer(wide.page, item, 'borderTopLeftRadius'), '16px', "Classic's rounded shape");
       assert.equal(await css1(wide.page, item + ' svg', 'color'), INK, 'the icon');
-      assert.equal(await wide.page.locator(item).evaluate(e => getComputedStyle(e, '::before').content), 'none', 'no old side bar');
       const primary = await wide.page.locator('[data-take-attendance]').evaluate(e => { const s = getComputedStyle(e); return [s.backgroundColor, s.color, s.boxShadow, s.borderRadius]; });
       assert.deepEqual(primary, [LIME, INK, `${EDGE} 3px 3px 0px 0px`, '16px'], 'the primary button has the same lime and edge');
       await wide.context.close();
       const small = await open(phone, `view=home&theme=${theme}&lang=${lang}`, 'new');
       const pill = '[data-bottom-tab="home"] .d-bottom-tab-icon';
-      assert.equal(await css1(small.page, pill, 'backgroundColor'), LIME);
-      assert.equal(await css1(small.page, pill, 'boxShadow'), `${EDGE} 2px 2px 0px 0px`);
+      assert.equal(await layer(small.page, pill, 'backgroundColor'), LIME);
+      assert.equal(await layer(small.page, pill, 'boxShadow'), `${EDGE} 2px 2px 0px 0px`);
       assert.equal(await css1(small.page, pill, 'color'), INK);
       await small.context.close();
     }
@@ -45,7 +46,7 @@ module.exports = async ({ step, open, box, css1, desktop, phone, shot }) => {
       });
       const where = `${look} ${theme} ${viewport.width}`;
       assert.deepEqual([found.link, found.mark, found.svg], [true, true, true], 'nothing painted behind the logo: ' + where);
-      assert.equal(found.fill, TREE, 'the tree keeps its own colour: ' + where);
+      assert.equal(found.fill, TREE[theme], 'deep green on light, light green on dark: ' + where);
       assert.equal(found.label, 'EduLabs tree mark');
       assert.ok(Math.abs(found.ratio - 400 / 468.8) < 0.02, 'its natural shape: ' + found.ratio);
       assert.match(found.word, /Caprasimo/i, where);
@@ -109,29 +110,30 @@ module.exports = async ({ step, open, box, css1, desktop, phone, shot }) => {
     await classic.context.close();
   });
 
-  const slides = async (page, container, path) => page.evaluate(({ container, path }) => {
-    const parent = document.querySelector(container);
+  /** Everything that starts running in the menu when the address changes, read in the same task. */
+  const menuChange = (page, container, path) => page.evaluate(({ container, path }) => {
+    const parent = document.querySelector(container), tops = () => [...parent.querySelectorAll('a, button, span.d-nav')].map(e => Math.round(e.getBoundingClientRect().top));
+    const before = tops();
     window.__setPath(path);
-    const moving = parent.querySelector('.d-slider'), style = getComputedStyle(moving), running = moving.getAnimations();
-    return { sliding: parent.hasAttribute('data-sliding'), display: style.display, property: running[0]?.transitionProperty, duration: running[0]?.effect.getTiming().duration, easing: running[0]?.effect.getTiming().easing, from: running[0] && moving.style.transform };
+    const running = document.getAnimations().filter(a => parent.contains(a.effect.target)).map(a => ({ pseudo: a.effect.pseudoElement, property: a.transitionProperty, duration: a.effect.getTiming().duration, easing: a.effect.getTiming().easing, active: a.effect.target.getAttribute('aria-current') === 'page' || Boolean(a.effect.target.closest('[aria-current="page"]')) }));
+    return { running, stood: JSON.stringify(before) === JSON.stringify(tops()), stand_in: parent.querySelectorAll('.d-slider').length, sliding: parent.hasAttribute('data-sliding') };
   }, { container, path });
 
-  await step('Motion, the indicator: the menu pill and the tab pill slide to the new item in New, also in Arabic; the real pill is back afterwards; Classic jumps', async () => {
-    for (const lang of ['en', 'ar']) for (const [viewport, container, item] of [[desktop, '[data-teacher-sidebar]', '[data-nav="students"]'], [phone, '[data-teacher-tabs]', '[data-bottom-tab="students"] .d-bottom-tab-icon']]) {
+  await step('Motion, the menu: the new pill fades and scales in where it is, about 120 ms, the old one fades out, nothing travels, also in Arabic and on phone tabs; Classic changes at once; the tab underline still slides', async () => {
+    for (const lang of ['en', 'ar']) for (const [viewport, container] of [[desktop, '[data-teacher-sidebar]'], [phone, '[data-teacher-tabs]']]) {
       const { page, context } = await open(viewport, 'view=home&lang=' + lang, 'new');
-      const start = await page.evaluate(({ container }) => { const c = document.querySelector(container); return c.querySelector('[aria-current="page"]').getBoundingClientRect().top; }, { container });
-      const r = await slides(page, container, '/teacher/students');
-      assert.equal(r.sliding, true, 'sliding'); assert.equal(r.display, 'block'); assert.equal(r.property, 'transform', 'transform only');
-      assert.equal(r.duration, 220); assert.equal(r.easing, 'ease-out');
-      await page.waitForFunction(c => !document.querySelector(c).hasAttribute('data-sliding'), container, { timeout: 500 });
-      assert.equal(await page.locator(container + ' .d-slider').evaluate(e => getComputedStyle(e).display), 'none', 'the stand-in is gone');
-      assert.equal(await css1(page, item, 'backgroundColor'), LIME, 'the real pill is painted again');
-      assert.ok(start > 0);
+      const r = await menuChange(page, container, '/teacher/students');
+      assert.equal(r.stand_in, 0, 'no travelling stand-in'); assert.equal(r.sliding, false); assert.equal(r.stood, true, 'no item moved');
+      const pills = r.running.filter(a => a.pseudo === '::before');
+      assert.ok(pills.some(a => a.active && a.property === 'opacity'), 'the new pill fades in: ' + JSON.stringify(r.running));
+      assert.ok(pills.some(a => a.active && a.property === 'transform'), 'and scales very slightly');
+      assert.ok(pills.some(a => !a.active && a.property === 'opacity'), 'the old one fades out');
+      for (const a of pills) { assert.equal(a.duration, 120); assert.equal(a.easing, 'ease-out'); assert.ok(['opacity', 'transform'].includes(a.property), a.property); }
       await context.close();
     }
     const { page, context } = await open(desktop, 'view=home', 'classic');
-    assert.equal((await slides(page, '[data-teacher-sidebar]', '/teacher/students')).sliding, false, 'Classic jumps');
-    assert.equal(await css1(page, '[data-nav="students"]', 'backgroundColor') !== 'rgba(0, 0, 0, 0)', true);
+    const r = await menuChange(page, '[data-teacher-sidebar]', '/teacher/students');
+    assert.deepEqual(r.running, [], 'Classic changes at once'); assert.equal(await css1(page, '[data-nav="students"]', 'borderTopColor'), 'rgb(0, 0, 0)');
     await context.close();
     for (const lang of ['en', 'ar']) {
       const tabs = await open(desktop, 'view=gallery&lang=' + lang, 'new');
@@ -238,7 +240,8 @@ module.exports = async ({ step, open, box, css1, desktop, phone, shot }) => {
     for (const lang of ['en', 'ar']) {
       const home = await open(desktop, 'view=home&lang=' + lang, 'new', { reducedMotion: 'reduce' });
       await home.page.evaluate(() => { window.__counts = []; new MutationObserver(() => { const e = document.querySelector('[data-summary="students"] .d-kpi-value'); if (e) window.__counts.push(e.textContent); }).observe(document.body, { subtree: true, childList: true, characterData: true }); });
-      assert.equal((await slides(home.page, '[data-teacher-sidebar]', '/teacher/students')).sliding, false, 'no slide');
+      await home.page.evaluate(() => window.__setPath('/teacher/students'));
+      assert.equal(await css1(home.page, '[data-nav="students"]', 'backgroundColor'), LIME, 'the new pill is simply there, painted on the item itself');
       assert.deepEqual(await home.page.evaluate(() => document.getAnimations().map(a => a.animationName || a.transitionProperty)), [], 'nothing runs after a page change');
       await home.page.waitForTimeout(80);
       assert.equal(new Set(await home.page.evaluate(() => window.__counts)).size <= 1, true, 'no count');

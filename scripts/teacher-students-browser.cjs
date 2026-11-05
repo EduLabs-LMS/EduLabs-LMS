@@ -2,6 +2,8 @@
 // and fictional /api/student-administration and /api/study-groups services with synthetic data only. Not provider acceptance.
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME, a Firebase-mode `npm run build` (CSS, fonts) and optionally LMS_FRESH_CSS (a Tailwind compile of app/globals.css).
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
+const pick = async (select, value) => { await select.click(); await select.page().locator('[role="option"][data-value="' + value + '"]').click(); };
+const optionsOf = async select => { await select.click(); await select.page().waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); const rows = await select.page().locator('[role="option"]').evaluateAll(os => os.map(o => [o.textContent, o.getAttribute('aria-disabled') === 'true'])); await select.page().keyboard.press('Escape'); await select.page().locator('[role="listbox"]').waitFor({ state: 'detached' }); return rows; };
 const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
 const { chromium } = require(path.join(browserRuntime, 'playwright')), esbuild = require(path.join(esbuildRuntime, 'esbuild'));
@@ -317,12 +319,12 @@ function groupsCommand(body) {
   await page.locator('[data-students-search]').fill('طالب'); await page.waitForFunction(() => document.querySelectorAll('[data-student]').length === 1);
   await page.locator('[data-students-search]').fill('nobody at all'); await page.locator('[data-state="empty"]').waitFor(); assert.match(await main(page), /No student matches/);
   await page.locator('[data-students-search]').fill('');
-  await page.locator('[data-course-filter]').selectOption(O.science); await page.waitForFunction(() => document.querySelectorAll('[data-student]').length === 5);
-  await page.locator('[data-course-filter]').selectOption('all');
-  await page.locator('[data-status-filter]').selectOption('suspended'); await page.waitForFunction(() => document.querySelectorAll('[data-student]').length === 1);
-  await page.locator('[data-status-filter]').selectOption('expired'); await page.waitForFunction(() => document.querySelectorAll('[data-student]').length === 1);
-  await page.locator('[data-status-filter]').selectOption('active'); await page.waitForFunction(() => document.querySelectorAll('[data-student]').length === 25);
-  await page.locator('[data-status-filter]').selectOption('waiting'); await page.locator('[data-state="empty"]').waitFor(); assert.match(await main(page), /listed under Join requests/);
+  await pick(page.locator('[data-course-filter]'), O.science); await page.waitForFunction(() => document.querySelectorAll('[data-student]').length === 5);
+  await pick(page.locator('[data-course-filter]'), 'all');
+  await pick(page.locator('[data-status-filter]'), 'suspended'); await page.waitForFunction(() => document.querySelectorAll('[data-student]').length === 1);
+  await pick(page.locator('[data-status-filter]'), 'expired'); await page.waitForFunction(() => document.querySelectorAll('[data-student]').length === 1);
+  await pick(page.locator('[data-status-filter]'), 'active'); await page.waitForFunction(() => document.querySelectorAll('[data-student]').length === 25);
+  await pick(page.locator('[data-status-filter]'), 'waiting'); await page.locator('[data-state="empty"]').waitFor(); assert.match(await main(page), /listed under Join requests/);
   await context.close();
  });
  await step('Students, phone English and Arabic, dark theme: 48px targets, no sideways scroll, mirrored, Arabic copy', async () => {
@@ -353,7 +355,7 @@ function groupsCommand(body) {
   const viewOnly = page.locator(`[data-request="${uuid(3103)}"]`); assert.equal(await viewOnly.locator('[data-approve], [data-reject]').count(), 0); assert.match(await viewOnly.innerText(), /Only the teacher of this course/);
   await checkClean(page, 'requests desktop'); await shot(page, 'students-requests-en-1440');
   await oldest.locator('[data-approve]').click();
-  const options = await oldest.locator('[data-approve-group] option').allInnerTexts(); assert.deepEqual(options, ['No Group yet', 'Synthetic Algebra Group', 'Synthetic Evening Group'], 'active Groups of that course only, by name');
+  const options = (await optionsOf(oldest.locator('[data-approve-group]'))).map(o => o[0]); assert.deepEqual(options, ['No Group yet', 'Synthetic Algebra Group', 'Synthetic Evening Group'], 'active Groups of that course only, by name');
   await oldest.locator('[data-confirm-approve]').click(); await page.locator('[data-notice="approved"]').waitFor();
   assert.match(await page.locator('[data-notice]').first().innerText(), /Approved\./);
   await page.waitForFunction(() => document.querySelectorAll('[data-request]').length === 2);
@@ -363,7 +365,7 @@ function groupsCommand(body) {
  });
  await step('Approve into a Group: the student is approved, then added to the Group, and appears in the list under that Group', async () => {
   const { page, context } = await open(desktop, '/teacher/students'); await waitSettled(page); await page.locator('[data-request]').first().waitFor();
-  const req = page.locator('[data-request]').first(); await req.locator('[data-approve]').click(); await req.locator('[data-approve-group]').selectOption(G.alg); await req.locator('[data-confirm-approve]').click();
+  const req = page.locator('[data-request]').first(); await req.locator('[data-approve]').click(); await pick(req.locator('[data-approve-group]'), G.alg); await req.locator('[data-confirm-approve]').click();
   await page.locator('[data-notice="approved"]').waitFor(); assert.match(await page.locator('[data-notice]').first().innerText(), /added to Synthetic Algebra Group/);
   const s = await posts(); assert.deepEqual(s.admin.map(a => a.action), ['approve']); assert.deepEqual(s.posts.map(p => p.action), ['add']); assert.equal(s.posts[0].groupId, G.alg); assert.equal(s.posts[0].data.userId, uuid(3001)); assert.equal(s.posts[0].version, 3, 'the Group version it read');
   await page.waitForFunction(() => document.querySelectorAll('[data-request]').length === 2);
@@ -373,7 +375,7 @@ function groupsCommand(body) {
  await step('Approve into a Group when the Group step fails: approved, not added, said plainly, never retried silently and never rolled back', async () => {
   await ctl({ groupAdd: 'fail' });
   const { page, context } = await open(desktop, '/teacher/students'); await waitSettled(page); await page.locator('[data-request]').first().waitFor();
-  const req = page.locator('[data-request]').first(); await req.locator('[data-approve]').click(); await req.locator('[data-approve-group]').selectOption(G.alg); await req.locator('[data-confirm-approve]').click();
+  const req = page.locator('[data-request]').first(); await req.locator('[data-approve]').click(); await pick(req.locator('[data-approve-group]'), G.alg); await req.locator('[data-confirm-approve]').click();
   const note = page.locator('[data-notice="approved_not_added"]'); await note.waitFor();
   assert.match(await note.innerText(), /Approved, but not added to the Group\. Add them from the Group page\./);
   assert.match(await note.locator('a').getAttribute('href'), new RegExp('^/teacher/groups/' + G.alg + '$'));
@@ -385,7 +387,7 @@ function groupsCommand(body) {
   await page.locator('[data-notice="approved_not_added"] [data-dismiss-notice]').click(); assert.equal(await page.locator('[data-notice="approved_not_added"]').count(), 0);
   await context.close();
   const ar = await open(phone, '/teacher/students', { lang: 'ar' }); await waitSettled(ar.page); await ar.page.locator('[data-request]').first().waitFor();
-  const r = ar.page.locator('[data-request]').first(); await r.locator('[data-approve]').click(); await r.locator('[data-approve-group]').selectOption(G.eve); await r.locator('[data-confirm-approve]').click();
+  const r = ar.page.locator('[data-request]').first(); await r.locator('[data-approve]').click(); await pick(r.locator('[data-approve-group]'), G.eve); await r.locator('[data-confirm-approve]').click();
   await ar.page.locator('[data-notice="approved_not_added"]').waitFor(); assert.match(await ar.page.locator('[data-notice="approved_not_added"]').innerText(), /تم القبول، لكن لم تتم إضافته إلى المجموعة/);
   await checkClean(ar.page, 'not-added phone ar'); await shot(ar.page, 'students-approve-not-added-ar-390'); await ar.context.close();
  });
@@ -444,7 +446,7 @@ function groupsCommand(body) {
   await page.evaluate(() => { window.__copied = null; window.__shared = null; Object.defineProperty(navigator, 'clipboard', { value: { writeText: async t => { window.__copied = t; } }, configurable: true }); navigator.share = async d => { window.__shared = d; }; });
   const urls = []; page.on('framenavigated', f => urls.push(f.url())); const logs = []; page.on('console', m => logs.push(m.text()));
   await page.locator('[data-invite-students]').click(); await page.locator('[data-invite-panel]').waitFor();
-  assert.equal(await page.locator('[data-invite-days]').inputValue(), '7', 'seven days by default'); assert.equal(await page.locator('[data-invite-course]').inputValue(), uuid(10));
+  assert.equal(await page.locator('[data-invite-days]').getAttribute('data-value'), '7', 'seven days by default'); assert.equal(await page.locator('[data-invite-course]').getAttribute('data-value'), uuid(10));
   await page.locator('[data-active-links] [data-link]').first().waitFor(); assert.equal(await page.locator('[data-active-links] [data-link]').count(), 1, 'one active link; the expired one is not listed');
   await shot(page, 'students-invite-en-1440');
   await page.locator('[data-create-link]').click(); await page.locator('[data-made-link]').waitFor();
@@ -472,9 +474,9 @@ function groupsCommand(body) {
  });
  await step('Invite students: a published course with no run yet gets one through the existing course-run route first', async () => {
   const { page, context } = await open(desktop, '/teacher/students?invite=' + O.maths); await waitSettled(page);
-  await page.locator('[data-invite-panel]').waitFor(); assert.equal(await page.locator('[data-invite-course]').inputValue(), uuid(10), 'opened from the empty Group with its course chosen');
-  await page.locator('[data-invite-course]').selectOption(uuid(13));
-  await page.locator('[data-invite-days]').selectOption('3'); await page.locator('[data-create-link]').click(); await page.locator('[data-made-link]').waitFor();
+  await page.locator('[data-invite-panel]').waitFor(); assert.equal(await page.locator('[data-invite-course]').getAttribute('data-value'), uuid(10), 'opened from the empty Group with its course chosen');
+  await pick(page.locator('[data-invite-course]'), uuid(13));
+  await pick(page.locator('[data-invite-days]'), '3'); await page.locator('[data-create-link]').click(); await page.locator('[data-made-link]').waitFor();
   const s = await posts(); assert.deepEqual(s.posts.map(p => p.action), ['course-run']); assert.equal(s.posts[0].data.courseId, uuid(13));
   const sent = s.admin.find(a => a.action === 'link'); assert.equal(sent.offeringId, O.history, 'the link is for the run the route returned');
   await checkClean(page, 'invite desktop'); await context.close();
@@ -528,16 +530,16 @@ function groupsCommand(body) {
 
  await step('Invite students and draft courses: only published courses can be chosen; a draft is shown disabled with how to publish it; nothing is sent for a draft; with none published there is no Create link', async () => {
   const { page, context } = await open(desktop, '/teacher/students'); await waitSettled(page); await page.locator('[data-invite-students]').click(); await page.locator('[data-invite-panel]').waitFor();
-  const options = await page.locator('[data-invite-course] option').evaluateAll(os => os.map(o => [o.textContent, o.disabled]));
+  const options = await optionsOf(page.locator('[data-invite-course]'));
   assert.deepEqual(options, [['Synthetic Maths', false], ['Synthetic Physics', false], ['Synthetic History (draft)', true]], 'drafts are listed, last and disabled');
   const draft = page.locator(`[data-draft-course="${uuid(12)}"]`); await draft.waitFor();
   assert.match(await draft.innerText(), /Publish this course before inviting students\./);
   assert.match(await draft.locator('[data-draft-link]').getAttribute('href'), /^\/teacher\/settings\/courses\/[0-9a-f-]{36}$/);
   await checkClean(page, 'invite drafts desktop'); await shot(page, 'students-invite-drafts-en-1440');
-  // Even if the page were made to select the draft, no link is asked for.
-  await page.evaluate(id => { const sel = document.querySelector('[data-invite-course]'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(sel, id); sel.dispatchEvent(new Event('change', { bubbles: true })); }, uuid(12));
-  assert.equal(await page.locator('[data-create-link]').isDisabled(), true, 'Create link is off for a draft');
-  await page.locator('[data-create-link]').click({ force: true, timeout: 1000 }).catch(() => {});
+  // A draft in the list cannot be chosen, so no link can be asked for it.
+  const chosenBefore = await page.locator('[data-invite-course]').getAttribute('data-value');
+  await page.locator('[data-invite-course]').click(); await page.locator('[role="option"][data-value="' + uuid(12) + '"]').click({ force: true });
+  assert.equal(await page.locator('[data-invite-course]').getAttribute('data-value'), chosenBefore, 'choosing the draft changes nothing'); await page.keyboard.press('Escape');
   const s = await posts(); assert.equal(s.admin.filter(a => a.action === 'link').length, 0); assert.equal(s.posts.filter(p => p.action === 'course-run').length, 0, 'no run is made for a draft');
   await context.close();
   const only = await open(phone, '/teacher/students?courses=drafts', { lang: 'ar' }); await waitSettled(only.page); await only.page.locator('[data-invite-students]').click(); await only.page.locator('[data-no-published]').waitFor();

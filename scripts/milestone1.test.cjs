@@ -25,7 +25,7 @@ test('the student sidebar labels the student and places its only bell beside the
 test('shared tree mark defaults to its existing black offset shadow and retains explicit opt-out',()=>{
  const Mark=load('frontend/components/edulabs-mark.tsx').default;
  const html=renderToStaticMarkup(React.createElement(Mark,{grow:true}));
- assert.match(html,/translate\(12 12\)/);assert.match(html,/fill="#000000"/);assert.match(html,/fill="#7ed957"/);assert.match(html,/tree-grow/);
+ assert.match(html,/translate\(12 12\)/);assert.match(html,/fill="#000000"/);assert.match(html,/fill="var\(--d-logo-tree, #2b6416\)"/);assert.match(html,/tree-grow/);
  const plain=renderToStaticMarkup(React.createElement(Mark,{shadow:false}));assert.doesNotMatch(plain,/fill="#000000"/);
 });
 test('notification transport carries cancellation without changing scoped command or permitting recipient fields',async()=>{

@@ -224,7 +224,7 @@ test('finished view: the same screen, read-only; flat status labels; Edit attend
  const finished = view.slice(view.indexOf(': <p data-mark-text'));
  assert.doesNotMatch(finished, /\$\{pill\}|border-2|shadow|rounded-full border|bg-green-700 text-white|bg-red-700 text-white/, 'no button shape, border, fill or shadow');
  assert.match(view, /\{locked && <><span data-finished>/, 'counts line starts with Finished');
- assert.match(view, /!confirming && locked && instructor && <button type="button" data-reopen/);
+ assert.match(view, /!confirming && canEdit && phone && <button ref=\{editRef\} type="button" data-reopen/); assert.match(view, /canEdit && !phone && !cancelled && !confirming && <div data-header-actions/);
  assert.match(view, /groupCall\('reopen', groupId, \{ sessionId, sessionVersion: session\.version, reason: reason\.trim\(\) \}\)/);
  assert.match(view, /if \(kind === 'reopen' && !reasonValid\(reason\)\)/);
  assert.match(view, /data-confirm-finalize[\s\S]*?data-unmarked-warning/, 'Finish asks first and warns about unmarked students');

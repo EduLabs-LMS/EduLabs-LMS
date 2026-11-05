@@ -199,7 +199,7 @@ test('invite: only published courses can be chosen, a draft is disabled with the
  assert.match(inv, /const open = courses\.filter\(c => c\.published\), drafts = courses\.filter\(c => !c\.published\)/);
  assert.match(inv, /const choice = open\.find\(c => c\.courseId === courseId\)/, 'a draft can never be the chosen course');
  assert.match(inv, /if \(!choice \|\| !choice\.published\) return;/, 'refused before the API');
- assert.match(inv, /value=\{c\.courseId\} disabled>/); assert.match(inv, /<Link href=\{coursePagePath\(c\.courseId\)\} data-draft-link/);
+ assert.match(inv, /drafts\.map\(c => \(\{ value: c\.courseId, label: t\('ts\.invite\.draft_option', \{ title: c\.title \}\), disabled: true \}\)\)/); assert.match(inv, /<Link href=\{coursePagePath\(c\.courseId\)\} data-draft-link/);
  assert.doesNotMatch(inv, /ts\.invite\.unpublished/);
  // the course-run route and the link call both come after that guard
  assert.ok(inv.indexOf('if (!choice || !choice.published) return;') < inv.indexOf("'/api/study-groups/course-run'"));

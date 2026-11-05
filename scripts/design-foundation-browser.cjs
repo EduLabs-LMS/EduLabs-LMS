@@ -28,9 +28,13 @@ import { TeacherSettingsShell } from '@/frontend/features/teacher-settings/shell
 import { DesignSettings } from '@/frontend/features/teacher-settings/design-settings';
 import { LeaveQuestion, useLeaveGuard } from '@/frontend/features/teacher-attendance/leave-guard';
 import { buildTeacherHome, createTargets } from '@/shared/teacher-home';
-import { Avatar, Button, buttonClass, Card, CardHead, DateTile, DesignSkeleton, Dialog, Field, Icon, IconBadge, ListRow, PageHeader, SearchField, SegmentedControl, StatusPill, Tabs } from '@/frontend/components/design';
+import { Avatar, Button, buttonClass, Card, CardHead, ChoiceGroup, DateTile, DesignSkeleton, Dialog, Field, Icon, IconBadge, ListRow, PageHeader, SearchField, SegmentedControl, Select, StatusPill, Switch, Tabs } from '@/frontend/components/design';
+import { FirstLoadLogo } from '@/frontend/components/loading-overlay';
+import { NotificationsView } from '@/frontend/features/notifications/notifications-view';
+import { LanguageSettings } from '@/frontend/features/personalization/language-settings';
+import { AppearanceSettings } from '@/frontend/features/personalization/appearance-settings';
 const q = new URLSearchParams(location.search), view = q.get('view') || 'home';
-window.__pathname = q.get('path') || ({ home: '/home', settings: '/teacher/settings/language', gallery: '/teacher/groups', guard: '/teacher/groups/g/attendance/s' })[view];
+window.__pathname = q.get('path') || ({ home: '/home', settings: '/teacher/settings/language', gallery: '/teacher/groups', controls: '/teacher/groups', notifications: '/notifications', language: '/teacher/settings/language', logo: '/home', guard: '/teacher/groups/g/attendance/s' })[view];
 // The server's clock can be given, to prove the screen does not read the device's.
 const NOW = Number(q.get('serverNow')) || Date.now(), at = m => new Date(NOW + m * 60000).toISOString();
 const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
@@ -68,6 +72,20 @@ function Gallery() {
   <Dialog data-gallery-dialog open={dialog} onOpenChange={setDialog} title="A dialog" description="A question to confirm." footer={<><Button variant="secondary" onClick={() => setDialog(false)}>Cancel</Button><Button variant="primary" onClick={() => setDialog(false)}>Confirm</Button></>} />
  </div>;
 }
+function Controls() {
+ const [on, setOn] = useState(false), [pick, setPick] = useState('a'), [value, setValue] = useState('two'), [inDialog, setInDialog] = useState(false), [dialogValue, setDialogValue] = useState('one');
+ const list = [{ value: 'one', label: 'One option' }, { value: 'two', label: 'Two option' }, { value: 'locked', label: 'Locked option', disabled: true }, { value: 'three', label: 'Three option' }];
+ return <div data-gallery-controls className="grid gap-4">
+  <Switch data-switch="plain" checked={on} onChange={setOn} label="Plain switch" />
+  <Switch data-switch="named" aria-label="A full spoken name" checked={on} onChange={setOn} label="Short" />
+  <Switch data-switch="off" checked={false} onChange={() => { window.__wrong = true; }} disabled reason="Synthetic reason it is off" label="Disabled switch" />
+  <ChoiceGroup data-choices="plain" label="Pick one" value={pick} onChange={setPick} columns={3} options={[{ value: 'a', label: 'First', description: 'First line' }, { value: 'b', label: 'Second', description: 'Second line' }, { value: 'c', label: 'Third', description: 'Third line' }]} />
+  <ChoiceGroup data-choices="off" label="Cannot pick" value="a" onChange={() => { window.__wrong = true; }} disabled reason="Synthetic reason the choice is off" options={[{ value: 'a', label: 'First' }, { value: 'b', label: 'Second' }]} />
+  <label className="block space-y-1" data-select-label><span>Synthetic list</span><Select data-select="plain" value={value} onChange={setValue} options={list} /></label>
+  <Button data-open-select-dialog variant="secondary" onClick={() => setInDialog(true)}>Select in a dialog</Button>
+  <Dialog open={inDialog} onOpenChange={setInDialog} title="A dialog with a list"><label className="block space-y-1"><span>In a dialog</span><Select data-select="dialog" value={dialogValue} onChange={setDialogValue} options={list} /></label></Dialog>
+ </div>;
+}
 function GuardPage() {
  const guard = useLeaveGuard(true, href => { window.__left = href; });
  return <div data-guard-page><h1 className="d-title">Attendance</h1>{guard.asking && <LeaveQuestion stay={guard.stay} leave={guard.leave} />}</div>;
@@ -75,6 +93,10 @@ function GuardPage() {
 function Body() {
  if (view === 'settings') return <TeacherSettingsShell><DesignSettings initial={document.documentElement.dataset.design} /></TeacherSettingsShell>;
  if (view === 'gallery') return <><Gallery /><DesignSkeleton className="h-6 w-40" /></>;
+ if (view === 'controls') return <Controls />;
+ if (view === 'notifications') return <NotificationsView />;
+ if (view === 'language') return <div className="space-y-6"><LanguageSettings /><AppearanceSettings /><DesignSettings initial={document.documentElement.dataset.design} /></div>;
+ if (view === 'logo') return <div data-logo-panel className="bg-background"><FirstLoadLogo /></div>;
  if (view === 'guard') return <GuardPage />;
  return <TeacherHomeView data={home} />;
 }
@@ -100,6 +122,7 @@ const helpers = () => {
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
   const visible = e => { const s = getComputedStyle(e), r = e.getBoundingClientRect(); return s.display !== 'none' && s.visibility !== 'hidden' && +s.opacity > 0 && r.width > 0 && r.height > 0; };
   window.__h = {
+    contrast: ratio,
     /** The colours behind an element: every stop of a gradient counts, translucent layers composite on what is under them. */
     behind(element) {
       const chain = []; for (let e = element; e; e = e.parentElement) chain.push(e);
@@ -108,6 +131,8 @@ const helpers = () => {
         const s = getComputedStyle(e), image = s.backgroundImage;
         const fill = parse(s.backgroundColor);
         if (fill && fill.a > 0) under = under.map(u => over(fill, u));
+        // In New with motion on, the active menu pill is a layer of its own (design-components.css).
+        if (e.matches('.d-nav, .d-bottom-tab-icon')) { const layer = getComputedStyle(e, '::before'), pill = parse(layer.backgroundColor); if (layer.content !== 'none' && pill && pill.a > 0 && +layer.opacity > 0) under = under.map(u => over(pill, u)); }
         if (image && image.includes('gradient')) { const stops = [...image.matchAll(/rgba?\([^)]+\)/g)].map(m => parse(m[0])); under = stops.flatMap(stop => under.map(u => over(stop, u))); }
       }
       return under;
@@ -328,7 +353,7 @@ const helpers = () => {
   for (const bad of ['NEW', '%22%3E%3Cscript%3E', 'admin', '']) assert.match(await raw(`${designCookieKey}=${bad}`), /data-design="classic"/, bad);
   const { page, context } = await open(desktop, 'view=settings');
   assert.equal(await page.evaluate(() => document.documentElement.dataset.design), 'classic');
-  assert.equal(await page.locator('[data-design-option="classic"] input').isChecked(), true); assert.equal(await page.locator('[data-design-option="new"] input').isChecked(), false);
+  assert.equal(await page.locator('[data-design-option="classic"]').getAttribute('aria-checked'), 'true'); assert.equal(await page.locator('[data-design-option="new"]').getAttribute('aria-checked'), 'false');
   assert.equal((await context.cookies()).length, 0, 'choosing nothing stores nothing');
   await context.close();
  });
@@ -355,11 +380,11 @@ const helpers = () => {
   await page.reload();
   await page.locator('[data-design-switch]').waitFor();
   assert.deepEqual(await page.evaluate(() => window.__designs.filter(Boolean)), ['new'], 'one value, the right one, from the start');
-  assert.equal(await page.locator('[data-design-option="new"] input').isChecked(), true);
+  assert.equal(await page.locator('[data-design-option="new"]').getAttribute('aria-checked'), 'true');
   assert.equal(String(await page.evaluate(() => window.__firstPaint)).toUpperCase(), '#EDF1E8', 'the tokens of the first frame are already the New ones');
   assert.match(cookiesSeen.at(-1), new RegExp(`^${designCookieKey}=new$`), 'the only cookie the page sent');
-  // And back: Classic is one click away, and the keyboard works it (real radio buttons).
-  await page.locator('[data-design-option="new"] input').focus(); await page.keyboard.press('ArrowLeft');
+  // And back: Classic is one click away, and the keyboard works it.
+  await page.locator('[data-design-option="new"]').focus(); await page.keyboard.press('ArrowLeft');
   assert.equal(await page.evaluate(() => document.documentElement.dataset.design), 'classic');
   await page.reload(); await page.locator('[data-design-switch]').waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.dataset.design), 'classic');
@@ -517,6 +542,7 @@ const helpers = () => {
  });
 
  await require('./design-feedback-checks.cjs')({ step, open, box, css1, desktop, phone, shot });
+ await require('./design-controls-checks.cjs')({ step, open, box, css1, desktop, phone, shot });
 
  assert.deepEqual(errors, [], 'no page errors or console errors');
  assert.deepEqual(external, [], 'nothing left the loopback');

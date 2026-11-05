@@ -335,7 +335,7 @@ createRoot(document.getElementById('root')).render(
   await context.close();
   const two = await open(phone, 'view=courses&s=empty&spaces=2'); await two.page.locator('[data-teacher-courses]').waitFor();
   await two.page.locator('header [data-create-course]').click(); await two.page.getByLabel('Teaching space').waitFor();
-  assert.equal(await two.page.getByLabel('Teaching space').locator('option').count(), 2);
+  await two.page.getByLabel('Teaching space').click(); await two.page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); assert.equal(await two.page.getByRole('option').count(), 2); await two.page.keyboard.press('Escape'); await two.page.getByRole('listbox').waitFor({ state: 'detached' });
   await two.page.screenshot({ path: path.join(shots, 'create-dialog-en-390.png') }); await two.context.close();
   const ar = await open(phone, 'view=courses&s=empty&lang=ar'); await ar.page.locator('[data-teacher-courses]').waitFor(); await ar.page.locator('header [data-create-course]').click(); await ar.page.getByRole('dialog').waitFor();
   await ar.page.screenshot({ path: path.join(shots, 'create-dialog-ar-390.png') }); await ar.context.close();

@@ -46,11 +46,11 @@ test('settings: the desktop root goes to the first section, a phone gets the lis
  assert.match(index, /matchMedia\('\(min-width: 768px\)'\)/); assert.match(index, /router\.replace\(teacherSettingsSections\[0\]\.href\)/); assert.match(index, /return <SettingsList \/>/);
  assert.match(read('frontend/features/teacher-settings/shell.tsx'), /<ul data-settings-list className="[^"]*md:hidden"/);
 });
-test('settings: language and appearance reuse the existing components; student Settings is untouched', { skip: hasGit ? false : 'requires Git history' }, () => {
+test('settings: language and appearance reuse the existing components; student Settings is untouched apart from the custom controls the owner asked for', { skip: hasGit ? false : 'requires Git history' }, () => {
  const page = read('app/(dashboard)/(routes)/teacher/settings/language/page.tsx');
  assert.match(page, /import \{ AppearanceSettings \} from '@\/frontend\/features\/personalization\/appearance-settings'/); assert.match(page, /import \{ LanguageSettings \} from '@\/frontend\/features\/personalization\/language-settings'/);
  const changed = cp.execFileSync('git', ['diff', '--name-only', '0c17a42441b42b18ed546e06b72a5f34efa40c08', '--', 'frontend/features/personalization', 'app/(dashboard)/(routes)/settings', 'app/(dashboard)/(routes)/personalization'], { encoding: 'utf8' }).trim();
- assert.equal(changed, '', 'student Settings files are unchanged');
+ assert.deepEqual(changed.split(String.fromCharCode(10)).map(line => line.trim()).filter(Boolean).sort(), ['frontend/features/personalization/appearance-settings.tsx', 'frontend/features/personalization/language-settings.tsx'], 'only the two shared forms, for their controls (DECISIONS.md, "Owner feedback after testing New")');
 });
 test('settings: notifications only links to the existing preferences screen; account changes nothing by itself', () => {
  const n = read('frontend/features/teacher-settings/notifications-section.tsx');

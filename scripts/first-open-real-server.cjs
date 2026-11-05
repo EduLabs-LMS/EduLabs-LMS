@@ -82,6 +82,33 @@ const ok = (name, fn) => fn().then(() => console.log('PASS ' + name));
     console.log('      /t/synthetic-site answered', response.status, policy ? 'with its strict policy' : 'without a policy header');
   });
 
+  await ok('the logo stands out at 3:1 or more on sign-in and on the opening logo, in both looks and both themes', async () => {
+    const lum = rgb => { const [r, g, b] = rgb.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    // The first opaque background going up from the mark.
+    const measure = (page, selector) => page.locator(selector).first().evaluate(mark => {
+      const rgb = c => { const m = /rgba?\(([^)]+)\)/.exec(c).slice(1)[0].split(/[\s,/]+/).map(Number); return { rgb: m.slice(0, 3), a: m[3] === undefined ? 1 : m[3] }; };
+      let back = [255, 255, 255];
+      for (let e = mark; e; e = e.parentElement) { const fill = rgb(getComputedStyle(e).backgroundColor); if (fill.a === 1) { back = fill.rgb; break; } }
+      return { tree: rgb(getComputedStyle(mark.querySelector('g:last-child path')).fill).rgb, back };
+    });
+    for (const look of ['classic', 'new']) for (const theme of ['light', 'dark']) {
+      const { context, page } = await fresh();
+      await context.addCookies([{ name: 'edulabs_design', value: look, url: base }]);
+      await context.addInitScript(t => { try { localStorage.setItem('edulabs-lms-appearance', t); } catch { /* the page still paints */ } }, theme);
+      await page.goto(base + '/sign-in', { waitUntil: 'domcontentloaded' });
+      const opening = await measure(page, CURTAIN + ' svg');
+      assert.ok(ratio(opening.tree, opening.back) >= 3, `opening logo ${look} ${theme}: ${ratio(opening.tree, opening.back).toFixed(2)}`);
+      await gone(page);
+      await page.locator('svg[aria-label="EduLabs tree mark"]:visible').first().waitFor();
+      const signIn = await measure(page, 'svg[aria-label="EduLabs tree mark"]:visible');
+      assert.ok(ratio(signIn.tree, signIn.back) >= 3, `sign-in ${look} ${theme}: ${ratio(signIn.tree, signIn.back).toFixed(2)}`);
+      console.log(`      ${look} ${theme}: opening ${ratio(opening.tree, opening.back).toFixed(2)}, sign-in ${ratio(signIn.tree, signIn.back).toFixed(2)}`);
+      if (process.env.LMS_FIRST_OPEN_SHOTS) await page.screenshot({ path: require('path').join(process.env.LMS_FIRST_OPEN_SHOTS, `signin-${look}-${theme}.png`) });
+      await context.close();
+    }
+  });
+
   assert.deepEqual(problems, [], 'no hydration problems and no page errors');
   await browser.close();
   console.log('Opening logo against a real Next server: passed (public pages only, placeholder configuration, not provider E2E).');

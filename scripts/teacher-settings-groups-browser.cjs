@@ -2,6 +2,8 @@
 // the real built CSS and fonts, and a fictional /api/study-groups with synthetic data only. Not provider acceptance.
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME, a Firebase-mode `npm run build` (CSS, fonts) and optionally LMS_FRESH_CSS (a Tailwind compile of app/globals.css).
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
+const pick = async (select, value) => { await select.click(); await select.page().locator('[role="option"][data-value="' + value + '"]').click(); };
+const optionsOf = async select => { await select.click(); await select.page().waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); const rows = await select.page().locator('[role="option"]').evaluateAll(os => os.map(o => [o.textContent, o.getAttribute('aria-disabled') === 'true'])); await select.page().keyboard.press('Escape'); await select.page().locator('[role="listbox"]').waitFor({ state: 'detached' }); return rows; };
 const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
 const { chromium } = require(path.join(browserRuntime, 'playwright')), esbuild = require(path.join(esbuildRuntime, 'esbuild'));
@@ -493,13 +495,13 @@ function command(body) {
  await step('Create from the list, English desktop: names every problem, saves with the course run out of sight, opens the new Group', async () => {
   const { page, context } = await open(desktop, '/teacher/groups');
   await page.locator('[data-group-card]').first().waitFor(); await page.locator('[data-create-group]').click(); await page.waitForURL('**' + NEW); await page.locator('[data-create-group-form]').waitFor();
-  assert.deepEqual(await page.locator('[data-group-course] option').allInnerTexts(), ['Synthetic Physics', 'Synthetic Chemistry']);
+  assert.deepEqual((await optionsOf(page.locator('[data-group-course]'))).map(o => o[0]), ['Synthetic Physics', 'Synthetic Chemistry']);
   await page.locator('[data-save-group]').click();
   assert.deepEqual(await page.locator('[data-problem]').evaluateAll(n => n.map(e => e.dataset.problem)), ['name', 'location', 'time'], 'empty fields are named');
   assert.equal((await posts()).length, 0, 'nothing is sent');
   await fillCentre(page); await page.locator('[data-group-capacity]').fill('0'); await page.locator('[data-save-group]').click();
   assert.deepEqual(await page.locator('[data-problem]').evaluateAll(n => n.map(e => e.dataset.problem)), ['capacity']);
-  await page.locator('[data-group-capacity]').fill('15'); await page.locator('[data-time-length]').first().selectOption('90');
+  await page.locator('[data-group-capacity]').fill('15'); await pick(page.locator('[data-time-length]').first(), '90');
   assert.doesNotMatch(await main(page), forbidden); await shot(page, 'group-create-en-1440');
   await page.locator('[data-save-group]').click(); await page.waitForURL('**/teacher/groups/' + uuid(900));
   const sent = await posts(); assert.equal(sent.length, 1, 'a course with a current run needs only one call'); assert.equal(sent[0].action, 'create'); assert.equal(sent[0].groupId, null);
@@ -509,13 +511,13 @@ function command(body) {
  });
  await step('Create in a course with no current run: it gets one first; online Group with two weekly times; a bad link and a repeated time are named', async () => {
   const { page, context } = await open(phone, NEW); await page.locator('[data-create-group-form]').waitFor();
-  await page.locator('[data-group-course]').selectOption(uuid(11)); await page.locator('[data-mode="online"]').click();
+  await pick(page.locator('[data-group-course]'), uuid(11)); await page.locator('[data-mode="online"]').click();
   assert.equal(await page.locator('[data-mode="online"]').getAttribute('aria-pressed'), 'true'); assert.equal(await page.locator('[data-group-location]').count(), 0);
   await page.locator('[data-group-name]').fill('Synthetic online'); await page.locator('[data-group-join]').fill('http://meet.example.test/room');
   await page.locator('[data-time-start]').first().fill('18:00'); await page.locator('[data-time-add]').click(); await page.locator('[data-time-start]').nth(1).fill('18:00');
   await page.locator('[data-save-group]').click();
   assert.deepEqual(await page.locator('[data-problem]').evaluateAll(n => n.map(e => e.dataset.problem)), ['join', 'times_duplicate']);
-  await page.locator('[data-group-join]').fill('https://meet.example.test/room'); await page.locator('[data-time-day]').nth(1).selectOption('3');
+  await page.locator('[data-group-join]').fill('https://meet.example.test/room'); await pick(page.locator('[data-time-day]').nth(1), '3');
   await page.locator('[data-save-group]').click(); await page.waitForURL('**/teacher/groups/' + uuid(900));
   const sent = await posts(); assert.deepEqual(sent.map(p => p.action), ['course-run', 'create']); assert.deepEqual(sent[0].data, { courseId: uuid(11) }); assert.equal(sent[1].data.offeringId, uuid(990));
   assert.equal(sent[1].data.definition.location, ''); assert.equal(sent[1].data.definition.capacity, null); assert.equal(sent[1].data.definition.schedules.length, 2);

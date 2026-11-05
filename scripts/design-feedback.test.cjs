@@ -95,7 +95,7 @@ test('the opening logo: in the root layout on every route, outside the keyed app
 
 test('the logo: no box anywhere, the placeholder tokens are gone, sign-in has no green panel behind it', () => {
   const tokens = read('frontend/styles/design-tokens.css'), components = read('frontend/styles/design-components.css');
-  for (const gone of ['--d-logo-mark-bg', '--d-logo-mark-shadow', '--d-logo-tree:', '--d-nav-active-bar']) { assert.doesNotMatch(tokens, new RegExp(gone), gone); assert.doesNotMatch(components, new RegExp(gone), gone); }
+  for (const gone of ['--d-logo-mark-bg', '--d-logo-mark-shadow', '--d-nav-active-bar']) { assert.doesNotMatch(tokens, new RegExp(gone), gone); assert.doesNotMatch(components, new RegExp(gone), gone); }
   const mark = components.match(/\.d-logo-mark \{[^}]*\}/)[0];
   assert.doesNotMatch(mark, /background|box-shadow|border-radius/);
   const form = read('frontend/features/auth/firebase-form.tsx');
