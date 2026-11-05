@@ -90,3 +90,9 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `supabase/tests/group-summary-performance.sql` runs in the local PostgreSQL suite: the previous `group_view` is installed as `group_view_before` and compared with the new one for 35 person/group cases plus the independent counts.
 - `node scripts/exam-sql-local.cjs --postgres --bench` also runs `group-summary-performance-benchmark.sql` (20,400 attendance rows in six extra spaces, EXPLAIN ANALYZE before and after). It is slow because the old function is slow; it is not part of `npm run test:exam-sql:postgres`.
 - `node scripts/teacher-students-browser.cjs` covers the Invite panel with draft courses and the `/join` failure text in English and Arabic.
+
+## Course page and teaching space name (`claude/course-page-space-name`)
+
+- `node --test scripts/teaching-space-name.test.cjs scripts/teacher-course-page.test.cjs`: the name contract, the migration's shape (LF, pinned as text, last, only the provisioning function and the two read models replaced, never `auth.uid()`), the owner-rename route, the course page helpers, loader, links and Arabic/English text.
+- `supabase/tests/teaching-space-name.sql` (58 checks, rolled back, every identity a Firebase subject through `onboard_firebase_profile`) runs in the local PostgreSQL suite (`npm run test:exam-sql:postgres`) on a disposable server only; it has NOT been run against any provider database.
+- `node scripts/teacher-course-page-browser.cjs` (same environment as the other teacher browser harnesses: `source .local/pa-env.sh`, `LMS_FRESH_CSS`): the real middleware, desktop, phone, Arabic/RTL, Publish and Unpublish with confirmation, a stale version (409), a refused change, a failed change, a lost reply, the grade read failing on its own, no edit rights, archived, missing and server error. Fictional services, synthetic data.
