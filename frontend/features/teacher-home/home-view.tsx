@@ -8,6 +8,9 @@ import { eventLabels } from '@/shared/contracts/communications';
 import { cn } from '@/shared/utils';
 import { cairoHour, greetingKey, sessionsTodayKey, type HomeSession, type HomeUnsaved, type TeacherHomeLoad } from '@/shared/teacher-home';
 import { attendanceHref } from '@/shared/teacher-attendance';
+import { countdownParts, formatCountdown } from '@/shared/home-countdown';
+import { useCountUp } from '@/frontend/lib/page-entry';
+import { useServerNow } from './use-server-now';
 import { CreateCourse } from './create-course';
 import { SectionError, plainButton, sessionTime, useRetry } from './parts';
 
@@ -43,7 +46,8 @@ function HomeMeta({ now, today }: { now: string; today: number | null }) {
 /** One small number with its icon. A tile whose number is not known is left out, never guessed. */
 function Tile({ name, value, label, tone }: { name: 'groups' | 'students'; value: number; label: 'th.summary.groups' | 'th.summary.students'; tone: 'success' | 'info' }) {
   const { number } = useLanguage();
-  return <div data-summary={name} className="d-card d-kpi"><IconBadge name={name} tone={tone} /><span className="min-w-0"><span className="d-kpi-value">{number(value)}</span><span className="d-meta"><L id={label} /></span></span></div>;
+  const shown = useCountUp(value);
+  return <div data-summary={name} className="d-card d-kpi"><IconBadge name={name} tone={tone} /><span className="min-w-0"><span className="d-kpi-value">{number(shown)}</span><span className="d-meta"><L id={label} /></span></span></div>;
 }
 
 function Summary({ data }: { data: HomeData['summary'] }) {
@@ -76,8 +80,14 @@ function Facts({ next, facts }: { next: HomeSession; facts: HomeData['nextFacts'
   </p>;
 }
 
+/** How long until it starts: a calm line that changes once a minute, in the server's time. */
+function Countdown({ startsAt, now, as: Tag = 'span' }: { startsAt: string; now: number; as?: 'span' | 'p' }) {
+  const { language, number } = useLanguage();
+  return <Tag data-countdown className="d-countdown"><bdi>{formatCountdown(countdownParts(Date.parse(startsAt), now), language, number)}</bdi></Tag>;
+}
+
 /** The one heavy thing on the screen: the class happening now, or the next one. */
-function NextSession({ data, facts, retry, emptyId = 'th.next.empty' }: { data: HomeData['sessions']; facts: HomeData['nextFacts']; retry: Retry; emptyId?: 'th.next.empty' | 'th.first.next' }) {
+function NextSession({ data, facts, retry, now: clock, emptyId = 'th.next.empty' }: { data: HomeData['sessions']; facts: HomeData['nextFacts']; retry: Retry; now: number; emptyId?: 'th.next.empty' | 'th.first.next' }) {
   const next = data.state === 'ready' ? data.data.next : null;
   if (data.state === 'unavailable') return null;
   if (!next) return <Card list aria-labelledby="th-next" data-section="th-next">
@@ -96,6 +106,7 @@ function NextSession({ data, facts, retry, emptyId = 'th.next.empty' }: { data: 
         <p className="d-hero-title"><bdi dir="auto">{next.groupName}</bdi></p>
         <p className="d-body"><bdi dir="auto">{next.title}</bdi></p>
         <Facts next={next} facts={facts} />
+        {!now && <Countdown as="p" startsAt={next.startsAt} now={clock} />}
         {data.state === 'ready' && data.data.partial && <p className="d-meta"><L id="th.next.partial" /></p>}
       </div>
     </div>
@@ -139,7 +150,7 @@ function NeedsAttention({ unsaved, waiting, retry }: { unsaved: HomeData['unsave
   </Card>;
 }
 
-function ComingUp({ data, retry }: { data: HomeData['sessions']; retry: Retry }) {
+function ComingUp({ data, retry, now }: { data: HomeData['sessions']; retry: Retry; now: number }) {
   if (data.state === 'unavailable') return null;
   return <Card list aria-labelledby="th-coming" data-section="th-coming">
     <CardHead id="th-coming" title={<L id="th.coming.title" />} />
@@ -147,7 +158,7 @@ function ComingUp({ data, retry }: { data: HomeData['sessions']; retry: Retry })
       : !data.data.comingUp.length ? <Quiet id="th.coming.empty" />
       : <ul className="d-list">{data.data.comingUp.map(s => <ListRow key={s.id} data-session={s.id} href={`/teacher/groups/${s.groupId}`} leading={<DateTile value={s.startsAt} />}
         title={<bdi dir="auto">{s.groupName}</bdi>}
-        meta={<><bdi dir="auto">{s.title}</bdi> · <LocalDate value={s.startsAt} options={shortDayAndTime} /></>} />)}</ul>}
+        meta={<><bdi dir="auto">{s.title}</bdi> · <LocalDate value={s.startsAt} options={shortDayAndTime} /><Countdown startsAt={s.startsAt} now={now} /></>} />)}</ul>}
   </Card>;
 }
 
@@ -171,6 +182,7 @@ function DemoLabel() {
 /** Calm first visit: no tour, no steps, no numbers. Shown only when both reads succeeded and found nothing. */
 function FirstVisit({ data }: { data: HomeData }) {
   const retry = useRetry();
+  const now = useServerNow(data.now);
   const [how, setHow] = useState(false);
   return <div data-first-visit className="d-page">
     <PageHeader title={<L id="th.first.title" />} pill={data.demo ? <DemoLabel /> : undefined} meta={<L id="th.first.intro" />} />
@@ -187,7 +199,7 @@ function FirstVisit({ data }: { data: HomeData }) {
       </div>
     </section>
     <div className="grid gap-5 md:grid-cols-2">
-      <NextSession data={data.sessions} facts={data.nextFacts} retry={retry} emptyId="th.first.next" />
+      <NextSession data={data.sessions} facts={data.nextFacts} retry={retry} now={now} emptyId="th.first.next" />
       <Updates data={data.updates} retry={retry} />
     </div>
     <p className="d-body"><L id="th.first.help" /> <Link href="/support" className="d-focus font-bold underline underline-offset-4"><L id="th.first.help_link" /></Link>. <L id="th.first.help_end" /></p>
@@ -199,16 +211,21 @@ function FirstVisit({ data }: { data: HomeData }) {
  * Homework to correct returns here with the Homework build. Courses are not on Home: they have their own menu item.
  */
 export function TeacherHomeView({ data }: { data: HomeData }) {
-  const retry = useRetry();
   if (data.firstVisit) return <FirstVisit data={data} />;
+  return <ReturningHome data={data} />;
+}
+
+function ReturningHome({ data }: { data: HomeData }) {
+  const retry = useRetry();
+  const now = useServerNow(data.now);
   return <div data-teacher-home className="d-page">
     <PageHeader title={<Greeting now={data.now} />} pill={data.demo ? <DemoLabel /> : undefined} meta={<HomeMeta now={data.now} today={data.sessionsToday} />} />
     <Summary data={data.summary} />
-    <NextSession data={data.sessions} facts={data.nextFacts} retry={retry} />
+    <NextSession data={data.sessions} facts={data.nextFacts} retry={retry} now={now} />
     <div className="d-home-grid">
       <div className="d-home-col">
         <NeedsAttention unsaved={data.unsaved} waiting={data.waiting} retry={retry} />
-        <ComingUp data={data.sessions} retry={retry} />
+        <ComingUp data={data.sessions} retry={retry} now={now} />
       </div>
       <div className="d-home-col"><Updates data={data.updates} retry={retry} /></div>
     </div>
