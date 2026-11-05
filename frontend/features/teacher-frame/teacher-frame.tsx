@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { BrandLogo } from '@/frontend/components/brand-logo';
-import { Avatar, Dialog, Icon, useSlidingIndicator, type IconName } from '@/frontend/components/design';
-import Footer from '@/frontend/components/footer';
+import { Avatar, Dialog, Icon, type IconName } from '@/frontend/components/design';
+import Footer, { FooterCredits } from '@/frontend/components/footer';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import { useApplicationAuth, useWebsiteNavigation } from '@/frontend/components/providers/application-auth-provider';
 import { TeacherNav } from '@/frontend/features/teacher-home/teacher-nav';
@@ -54,9 +54,7 @@ function ProfileMenu() {
 function DesktopSidebar({ pathname }: { pathname: string }) {
   const { t, number } = useLanguage();
   const unread = useUnread();
-  const slide = useSlidingIndicator<HTMLElement>('.d-nav[aria-current="page"]', pathname);
-  return <aside ref={slide.container} data-teacher-sidebar className="d-sidebar">
-    <span ref={slide.slider} aria-hidden="true" className="d-slider d-slider--pill" />
+  return <aside data-teacher-sidebar className="d-sidebar">
     <div className="d-sidebar-logo"><BrandLogo href={teacherHomeHref} /></div>
     <TeacherNav />
     <div className="d-sidebar-spacer" />
@@ -84,7 +82,6 @@ function PhoneHeader() {
 }
 
 const tabIcon: Record<(typeof teacherNav)[number]['key'], IconName> = { home: 'home', groups: 'groups', students: 'students', courses: 'courses' };
-const TAB_ICON = '.d-bottom-tab[aria-current="page"] .d-bottom-tab-icon, .d-bottom-tab[data-active="true"] .d-bottom-tab-icon';
 
 /** Phone: Home, Groups, Students, and More for the rest. Courses is a menu item on a desktop and lives in More on a phone. */
 function BottomTabs({ pathname }: { pathname: string }) {
@@ -93,10 +90,8 @@ function BottomTabs({ pathname }: { pathname: string }) {
   const signOut = useSignOut();
   const inMore = teacherCoursesActive(pathname) || teacherSettingsActive(pathname) || pathname === HELP || pathname.startsWith(`${HELP}/`);
   const close = () => setMore(false);
-  const slide = useSlidingIndicator<HTMLElement>(TAB_ICON, pathname);
   return <>
-    <nav ref={slide.container} aria-label={t('th.nav.label')} data-teacher-tabs className="d-bottom-tabs">
-      <span ref={slide.slider} aria-hidden="true" className="d-slider d-slider--tab" />
+    <nav aria-label={t('th.nav.label')} data-teacher-tabs className="d-bottom-tabs">
       {teacherNav.filter(item => item.key !== 'courses').map(item => <Link key={item.key} href={item.href} aria-current={item.match(pathname) ? 'page' : undefined} data-bottom-tab={item.key} className="d-bottom-tab">
         <span className="d-bottom-tab-icon"><Icon name={tabIcon[item.key]} size={22} /></span><L id={`th.nav.${item.key}`} />
       </Link>)}
@@ -132,8 +127,8 @@ export function TeacherFrame({ children }: { children: React.ReactNode }) {
       <DesktopSidebar pathname={pathname} />
       <div className="d-main">
         <main ref={main} data-enter="" className="d-main-inner">{children}</main>
-        <div className="hidden md:block"><Footer /></div>
-        <p data-teacher-phone-footer className="d-phone-footer"><L id="common.made_by" /> Mohamed Ahmed Yehia &amp; Mohamed Tamer Mohamed</p>
+        <div className="hidden md:block"><Footer audience="teacher" /></div>
+        <p data-teacher-phone-footer className="d-phone-footer"><FooterCredits /></p>
       </div>
       {!noTabs && <BottomTabs pathname={pathname} />}
     </div>

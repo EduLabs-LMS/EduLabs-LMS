@@ -134,6 +134,13 @@ html[data-design="new"] body { --d-section-font: var(--d-font-body); }
   --d-ring-text: #000000;
   /* logo */
   --d-logo-tree-shadow: inline;
+  --d-logo-tree: #2B6416;
+  /* footer credits */
+  --d-credit-1: #33402D; --d-credit-2: #5C6E51;
+  /* switch and choice */
+  --d-switch-on: hsl(102 63% 60%); --d-switch-on-thumb: #000000; --d-switch-on-border: #000000;
+  --d-switch-off: #F6F9F2; --d-switch-off-thumb: #000000; --d-switch-off-border: #000000;
+  --d-choice-on-bg: hsl(102 63% 60%); --d-choice-on-text: #000000; --d-choice-on-border: #000000; --d-choice-on-shadow: 3px 3px 0 #000; --d-choice-mark: #000000;
   --d-logo-word: #000000;
   /* status pills */
   --d-pill-height: 28px; --d-pill-size: 16px; --d-pill-weight: 700; --d-pill-border: 2px solid #000000;
@@ -194,6 +201,13 @@ html.dark:not([data-design="new"]) {
   --d-ring-center: hsl(140 14% 13%);
   --d-ring-text: hsl(90 25% 93%);
   --d-logo-word: hsl(90 25% 93%);
+  --d-logo-tree: #7ED957;
+  /* footer credits */
+  --d-credit-1: #EBF0E6; --d-credit-2: #A5B39B;
+  /* switch and choice */
+  --d-switch-on: hsl(102 63% 60%); --d-switch-on-thumb: #000000; --d-switch-on-border: hsl(102 63% 60%);
+  --d-switch-off: #1C2620; --d-switch-off-thumb: #A5B39B; --d-switch-off-border: #A5B39B;
+  --d-choice-on-bg: hsl(102 63% 60%); --d-choice-on-text: #000000; --d-choice-on-border: #000000; --d-choice-on-shadow: 3px 3px 0 #000; --d-choice-mark: #000000;
   --d-pill-border: 2px solid hsl(100 15% 55%);
   --d-pill-success: #000000; --d-pill-success-bg: hsl(102 63% 60%);
   --d-pill-info: hsl(90 25% 93%); --d-pill-info-bg: hsl(175 24% 17%);
@@ -301,6 +315,13 @@ html[data-design="new"] {
   --d-ring-center: #E3F3DA;
   --d-ring-text: #1D2518;
   --d-logo-tree-shadow: none;
+  --d-logo-tree: #2B6416;
+  /* footer credits */
+  --d-credit-1: #44523D; --d-credit-2: #5C6E51;
+  /* switch and choice */
+  --d-switch-on: #2B6416; --d-switch-on-thumb: #FFFFFF; --d-switch-on-border: #2B6416;
+  --d-switch-off: #FBFDF8; --d-switch-off-thumb: #6F8264; --d-switch-off-border: #6F8264;
+  --d-choice-on-bg: #E3F3DA; --d-choice-on-text: #1D2518; --d-choice-on-border: #2B6416; --d-choice-on-shadow: none; --d-choice-mark: #2B6416;
   --d-logo-word: #1D2518;
   --d-pill-height: 24px; --d-pill-size: 13px; --d-pill-weight: 600; --d-pill-border: 0 solid transparent;
   --d-pill-success: #2B6416; --d-pill-success-bg: #E3F3DA;
@@ -371,6 +392,13 @@ html.dark[data-design="new"] {
   --d-ring-center: #25381F;
   --d-ring-text: #EDF2E9;
   --d-logo-word: #EDF2E9;
+  --d-logo-tree: #7ED957;
+  /* footer credits */
+  --d-credit-1: #D5DECF; --d-credit-2: #A5B39B;
+  /* switch and choice */
+  --d-switch-on: #A6E08A; --d-switch-on-thumb: #14301A; --d-switch-on-border: #A6E08A;
+  --d-switch-off: #1C2620; --d-switch-off-thumb: #8A9A80; --d-switch-off-border: #8A9A80;
+  --d-choice-on-bg: #25381F; --d-choice-on-text: #EDF2E9; --d-choice-on-border: #A6E08A; --d-choice-on-shadow: none; --d-choice-mark: #A6E08A;
   --d-pill-success: #B4E89E; --d-pill-success-bg: #25381F;
   --d-pill-info: #A8DCE8; --d-pill-info-bg: #17343D;
   --d-pill-warning: #F6D98B; --d-pill-warning-bg: #3A2D0B;

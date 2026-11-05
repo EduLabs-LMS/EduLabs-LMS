@@ -5,7 +5,7 @@ const PATHS: [string, number, number, number][] = [["M199.8 300Q194.4 300 194.2 
 
 interface EduLabsMarkProps {
 	className?: string;
-	/** Original brand green or contrasting black for green backgrounds. */
+	/** The brand tree in the colour that stands out on the page (--d-logo-tree: deep green on light, light green on dark), or black for green backgrounds. */
 	tone?: 'brand' | 'ink';
 	/** Play the growing animation: the middle grows first, then both branches follow. */
 	grow?: boolean;
@@ -45,7 +45,7 @@ const EduLabsMark = ({ className, grow = false, shadow = true, stagger, tone = '
 					{pieces('#000000')}
 				</g>
 			) : null}
-			<g>{pieces(tone === 'ink' ? '#000000' : '#7ed957')}</g>
+			<g>{pieces(tone === 'ink' ? '#000000' : 'var(--d-logo-tree, #2b6416)')}</g>
 		</svg>
 	);
 };
