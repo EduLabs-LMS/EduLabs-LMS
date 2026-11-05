@@ -1,4 +1,5 @@
 'use client';
+import { actionToast } from '@/frontend/lib/action-toast';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
@@ -18,6 +19,7 @@ const tall = '!min-h-[48px]';
 function RequestItem({ item, groups, groupsError, label, onDone, onStale, onNotice }: {
   item: PendingRequest; groups: readonly StudyGroup[]; groupsError: boolean; label: string; onDone: () => void; onStale: () => void; onNotice: (n: Notice) => void;
 }) {
+  const { t } = useLanguage();
   const { request, offering } = item;
   const date = useDate();
   const [mode, setMode] = useState<'idle' | 'approve' | 'reject'>('idle');
@@ -44,6 +46,8 @@ function RequestItem({ item, groups, groupsError, label, onDone, onStale, onNoti
       } catch { added = false; }
     }
     onNotice({ id: request.id, outcome: approveOutcome(true, added), name: request.display_name, groupId: group?.id, groupName: group?.name });
+    // "Approved, but not added" is not finished: it stays on the page and asks for something, so it gets no toast.
+    if (added || !group) actionToast(group ? t('ts.requests.approved_in', { group: group.name }) : t('ts.requests.approved'));
   });
   const reject = () => {
     if (!reason.trim()) { setNeedReason(true); return; }
@@ -52,6 +56,7 @@ function RequestItem({ item, groups, groupsError, label, onDone, onStale, onNoti
       await adminCall('reject', { reason: reason.trim() }, { offeringId: offering.id, subjectId: request.user_id, version: request.version, requestId });
       attempt.current = null;
       onNotice({ id: request.id, outcome: 'rejected', name: request.display_name });
+      actionToast(t('ts.requests.rejected'));
     });
   };
 

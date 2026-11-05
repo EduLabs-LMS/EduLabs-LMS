@@ -1,3 +1,4 @@
+export { useSlidingIndicator } from './use-sliding-indicator';
 export { Avatar } from './avatar';
 export { Button, buttonClass, type ButtonVariant } from './button';
 export { Card, CardHead, IconBadge, ListRow } from './card';

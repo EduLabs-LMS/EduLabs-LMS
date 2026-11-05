@@ -1,4 +1,5 @@
 'use client';
+import { actionToast } from '@/frontend/lib/action-toast';
 import Link from 'next/link';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -229,6 +230,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
     try {
       if (kind === 'reopen') await groupCall('reopen', groupId, { sessionId, sessionVersion: session.version, reason: reason.trim() });
       else await groupCall('finalize', groupId, { sessionId, sessionVersion: session.version });
+      if (kind === 'finalize') actionToast(t('ta.finished'));
       refreshServerViews(true);
       setConfirming(null); setReason(''); setReasonProblem(false);
       await load();

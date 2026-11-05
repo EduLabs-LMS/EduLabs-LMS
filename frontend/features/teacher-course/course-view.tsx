@@ -1,4 +1,5 @@
 'use client';
+import { actionToast } from '@/frontend/lib/action-toast';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
@@ -103,6 +104,7 @@ function Status({ course }: { course: CoursePageData }) {
       if (!response.ok) throw Object.assign(new Error('status'), { status: response.status });
       setAsking(false);
       setReloading(true);
+      actionToast(t(target === 'published' ? 'tc.status.published' : 'tc.status.draft'));
       router.refresh(); // the page reads the new version; the key restarts this component
     } catch (failure) {
       sent.current = false;

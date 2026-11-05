@@ -200,13 +200,16 @@ export const teacherHomeHref = '/home';
 /** A course's own page keeps its address under Settings (/teacher/settings/courses/<id>) but belongs to the Courses menu item. */
 export const teacherCoursesActive = (p: string) => p === '/teacher/courses' || p.startsWith('/teacher/courses/') || p.startsWith('/teacher/settings/courses/');
 export const teacherSettingsActive = (p: string) => (p === '/teacher/settings' || p.startsWith('/teacher/settings/')) && !teacherCoursesActive(p);
-/** The main teacher menu. Homework, Exams and Reports stay hidden until they are built (owner decision, DECISIONS.md). Notifications and Settings sit at the bottom of the frame. */
+/** The main teacher menu. Notifications and Settings sit at the bottom of the frame. */
 export const teacherNav: readonly TeacherNavItem[] = [
   { key: 'home', href: teacherHomeHref, match: p => p === '/' || p === '/home' },
   { key: 'groups', href: '/teacher/groups', match: p => p === '/teacher/groups' || p.startsWith('/teacher/groups/') },
   { key: 'students', href: '/teacher/students', match: p => p === '/teacher/students' || p.startsWith('/teacher/students/') },
   { key: 'courses', href: '/teacher/courses', match: teacherCoursesActive },
 ];
+
+/** Visible but not usable yet: a "Soon" tag and no link (owner decision, DECISIONS.md). Each one moves to teacherNav when it is built. */
+export const teacherNavSoon = ['homework', 'exams', 'reports'] as const;
 
 /** Teacher navigation is for active staff of the Firebase/Supabase build only; students and the Clerk fallback keep their own navigation. */
 export const showTeacherNav = (firebase: boolean, staffOrganizationIds: readonly string[] | null | undefined) => firebase && Boolean(staffOrganizationIds?.length);

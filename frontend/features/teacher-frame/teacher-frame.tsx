@@ -2,16 +2,17 @@
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { BrandLogo } from '@/frontend/components/brand-logo';
-import { Avatar, Dialog, Icon, type IconName } from '@/frontend/components/design';
+import { Avatar, Dialog, Icon, useSlidingIndicator, type IconName } from '@/frontend/components/design';
 import Footer from '@/frontend/components/footer';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import { useApplicationAuth, useWebsiteNavigation } from '@/frontend/components/providers/application-auth-provider';
 import { TeacherNav } from '@/frontend/features/teacher-home/teacher-nav';
 import { requestGuardedAction } from '@/frontend/lib/guarded-action';
+import { notePageRender, usePageEntry } from '@/frontend/lib/page-entry';
 import { attendancePathPattern } from '@/shared/teacher-attendance';
-import { teacherCoursesActive, teacherHomeHref, teacherNav, teacherSettingsActive } from '@/shared/teacher-home';
+import { teacherCoursesActive, teacherHomeHref, teacherNav, teacherNavSoon, teacherSettingsActive } from '@/shared/teacher-home';
 import { UnreadProvider, useUnread } from './unread';
 
 const SETTINGS = '/teacher/settings';
@@ -53,7 +54,9 @@ function ProfileMenu() {
 function DesktopSidebar({ pathname }: { pathname: string }) {
   const { t, number } = useLanguage();
   const unread = useUnread();
-  return <aside data-teacher-sidebar className="d-sidebar">
+  const slide = useSlidingIndicator<HTMLElement>('.d-nav[aria-current="page"]', pathname);
+  return <aside ref={slide.container} data-teacher-sidebar className="d-sidebar">
+    <span ref={slide.slider} aria-hidden="true" className="d-slider d-slider--pill" />
     <div className="d-sidebar-logo"><BrandLogo href={teacherHomeHref} /></div>
     <TeacherNav />
     <div className="d-sidebar-spacer" />
@@ -81,6 +84,7 @@ function PhoneHeader() {
 }
 
 const tabIcon: Record<(typeof teacherNav)[number]['key'], IconName> = { home: 'home', groups: 'groups', students: 'students', courses: 'courses' };
+const TAB_ICON = '.d-bottom-tab[aria-current="page"] .d-bottom-tab-icon, .d-bottom-tab[data-active="true"] .d-bottom-tab-icon';
 
 /** Phone: Home, Groups, Students, and More for the rest. Courses is a menu item on a desktop and lives in More on a phone. */
 function BottomTabs({ pathname }: { pathname: string }) {
@@ -89,8 +93,10 @@ function BottomTabs({ pathname }: { pathname: string }) {
   const signOut = useSignOut();
   const inMore = teacherCoursesActive(pathname) || teacherSettingsActive(pathname) || pathname === HELP || pathname.startsWith(`${HELP}/`);
   const close = () => setMore(false);
+  const slide = useSlidingIndicator<HTMLElement>(TAB_ICON, pathname);
   return <>
-    <nav aria-label={t('th.nav.label')} data-teacher-tabs className="d-bottom-tabs">
+    <nav ref={slide.container} aria-label={t('th.nav.label')} data-teacher-tabs className="d-bottom-tabs">
+      <span ref={slide.slider} aria-hidden="true" className="d-slider d-slider--tab" />
       {teacherNav.filter(item => item.key !== 'courses').map(item => <Link key={item.key} href={item.href} aria-current={item.match(pathname) ? 'page' : undefined} data-bottom-tab={item.key} className="d-bottom-tab">
         <span className="d-bottom-tab-icon"><Icon name={tabIcon[item.key]} size={22} /></span><L id={`th.nav.${item.key}`} />
       </Link>)}
@@ -101,6 +107,7 @@ function BottomTabs({ pathname }: { pathname: string }) {
     <Dialog open={more} onOpenChange={setMore} title={<L id="th.nav.more" />} data-more-sheet>
       <div className="d-sheet-list">
         <Link href={COURSES} onClick={close} data-more-item="courses" className="d-sheet-item"><Icon name="courses" size={20} /><L id="th.nav.courses" /></Link>
+        {teacherNavSoon.map(key => <span key={key} role="link" aria-disabled="true" title={t('th.nav.coming_soon')} data-more-item={key} data-soon className="d-sheet-item d-sheet-item--soon"><Icon name={key} size={20} /><L id={`th.nav.${key}`} /><span className="d-soon"><L id="th.nav.soon" /></span></span>)}
         <Link href={SETTINGS} onClick={close} data-more-item="settings" className="d-sheet-item"><Icon name="settings" size={20} /><L id="th.nav.settings" /></Link>
         <a href={HELP} onClick={close} data-more-item="help" className="d-sheet-item"><Icon name="help" size={20} /><L id="th.nav.help" /></a>
         <button type="button" onClick={() => { close(); signOut(); }} data-more-item="signout" className="d-sheet-item d-sheet-item--danger"><Icon name="logout" size={20} /><L id="navigation.sign_out" /></button>
@@ -116,12 +123,15 @@ function BottomTabs({ pathname }: { pathname: string }) {
 export function TeacherFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
   const noTabs = attendancePathPattern.test(pathname);
+  const main = useRef<HTMLElement>(null);
+  notePageRender(pathname);
+  usePageEntry(main, pathname);
   return <UnreadProvider>
     <div data-lms-shell data-teacher-shell data-tabs={noTabs ? 'hidden' : undefined} className="d-shell">
       <PhoneHeader />
       <DesktopSidebar pathname={pathname} />
       <div className="d-main">
-        <main className="d-main-inner">{children}</main>
+        <main ref={main} data-enter="" className="d-main-inner">{children}</main>
         <div className="hidden md:block"><Footer /></div>
         <p data-teacher-phone-footer className="d-phone-footer"><L id="common.made_by" /> Mohamed Ahmed Yehia &amp; Mohamed Tamer Mohamed</p>
       </div>

@@ -1334,6 +1334,8 @@ export const ar: Record<keyof typeof en, string> = {
   "helper.button": "مساعدة",
   "helper.soon": "الجولة التعريفية غير متاحة بعد.",
   "th.nav.more": "المزيد",
+  "th.nav.soon": "قريبًا",
+  "th.nav.coming_soon": "سيتوفر قريبًا",
   "th.nav.help": "المساعدة",
   "th.profile.menu": "قائمة حسابك",
   "th.greet.morning": "صباح الخير، {name}",

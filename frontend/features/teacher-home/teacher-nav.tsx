@@ -3,11 +3,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Icon } from '@/frontend/components/design';
-import { L, Localized } from '@/frontend/components/language-provider';
-import { teacherNav } from '@/shared/teacher-home';
+import { L, Localized, useLanguage } from '@/frontend/components/language-provider';
+import { teacherNav, teacherNavSoon } from '@/shared/teacher-home';
 
 /** Shown to active staff only. Navigation is a convenience: the API and database decide what any destination may do. */
 export function TeacherNav() {
+  const { t } = useLanguage();
   const pathname = usePathname() ?? '';
   const router = useRouter();
   // The main-menu screens are fetched while the browser is idle, so choosing one shows its frame and skeleton at once. This only prepares the
@@ -25,5 +26,11 @@ export function TeacherNav() {
       <Icon name={item.key === 'home' ? 'home' : item.key} />
       <span><L id={`th.nav.${item.key}`} /></span>
     </Link>)}
+    {/* Not links yet, so there is nothing to focus or follow. The tag says it to everyone; the tooltip adds the words on hover. */}
+    {teacherNavSoon.map(key => <span key={key} role="link" aria-disabled="true" title={t('th.nav.coming_soon')} data-nav={key} data-soon className="d-nav d-nav--soon">
+      <Icon name={key} />
+      <span><L id={`th.nav.${key}`} /></span>
+      <span className="d-soon"><L id="th.nav.soon" /></span>
+    </span>)}
   </Localized>;
 }

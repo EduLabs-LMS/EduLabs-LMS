@@ -1,4 +1,5 @@
 'use client';
+import { actionToast } from '@/frontend/lib/action-toast';
 import { useId, useState } from 'react';
 import { Check, Copy, Loader2, Share2 } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
@@ -71,6 +72,7 @@ export function InvitePanel({ courses, initialOffering, onClose }: { courses: Co
       const expiresAt = linkExpiry(Date.now(), days);
       await adminCall('link', { token, kind: 'request', recipientId: null, expiresAt, enrollmentExpiresAt: null }, { offeringId, requestId: newRequestId() });
       setMade({ url: `${window.location.origin}${joinPath(token)}`, expiresAt, course: choice.title });
+      actionToast(t('ts.invite.ready'));
     });
   };
   const copy = async () => {

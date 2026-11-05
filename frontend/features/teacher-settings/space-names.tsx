@@ -1,4 +1,5 @@
 'use client';
+import { actionToast } from '@/frontend/lib/action-toast';
 import { useId, useRef, useState } from 'react';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
 import { Loader2 } from 'lucide-react';
@@ -16,6 +17,7 @@ const tall = '!min-h-[48px]';
  * (rename_my_teaching_space answers 403 to anyone else), so this only hides a button that would be refused.
  */
 export function SpaceNames({ spaces }: { spaces: SpaceRow[] }) {
+  const { t } = useLanguage();
   const router = useLoadingRouter();
   const [names, setNames] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export function SpaceNames({ spaces }: { spaces: SpaceRow[] }) {
     <ul className="mt-4 divide-y-2 divide-black/15 border-y-2 border-black/15">
       {spaces.map(s => <li key={s.id} data-space={s.id} className="py-3">
         {editing === s.id
-          ? <Editor space={s} current={names[s.id] ?? s.name} onCancel={() => setEditing(null)} onSaved={name => { setNames(n => ({ ...n, [s.id]: name })); setEditing(null); setSaved(s.id); router.refresh(); }} />
+          ? <Editor space={s} current={names[s.id] ?? s.name} onCancel={() => setEditing(null)} onSaved={name => { setNames(n => ({ ...n, [s.id]: name })); setEditing(null); setSaved(s.id); actionToast(t('ts.space.saved')); router.refresh(); }} />
           : <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p data-space-name className="break-words text-lg font-bold"><bdi dir="auto">{names[s.id] ?? s.name}</bdi></p>

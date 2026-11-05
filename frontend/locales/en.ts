@@ -1334,6 +1334,8 @@ export const en = {
   "helper.button": "Help",
   "helper.soon": "The walkthrough is not available yet.",
   "th.nav.more": "More",
+  "th.nav.soon": "Soon",
+  "th.nav.coming_soon": "Coming soon",
   "th.nav.help": "Help",
   "th.profile.menu": "Your account menu",
   "th.greet.morning": "Good morning, {name}",
