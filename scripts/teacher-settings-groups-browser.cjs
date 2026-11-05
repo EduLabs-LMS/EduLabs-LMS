@@ -10,7 +10,7 @@ fs.mkdirSync(shots, { recursive: true });
 for (const f of fs.readdirSync(shots)) if (f.endsWith('.png')) fs.unlinkSync(path.join(shots, f));
 const cssDir = path.resolve('.next/static/css'), mediaDir = path.resolve('.next/static/media');
 if (!fs.existsSync(cssDir)) throw Error('Run the Firebase-mode `npm run build` first: the real CSS and fonts are needed');
-const css = fs.readdirSync(cssDir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(path.join(cssDir, f), 'utf8')).concat(process.env.LMS_FRESH_CSS ? [fs.readFileSync(process.env.LMS_FRESH_CSS, 'utf8')] : []).join('\n');
+const css = fs.readdirSync(cssDir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(path.join(cssDir, f), 'utf8')).concat([require('./harness-css.cjs')()]).join('\n');
 const fontVars = (css.match(/\.__variable_[a-z0-9]+\{[^}]*\}/g) || []).map(v => v.match(/^\.([^{]+)\{/)[1]).join(' ');
 
 // ---- the real middleware.ts, run with Firebase staging on (same loader approach as scripts/teacher-settings-groups.test.cjs)
@@ -371,8 +371,8 @@ function command(body) {
  });
  await step('One Group: cleared demo shows honest empty Sessions and Students; failures show errors with retry; forbidden has no retry', async () => {
   await ctl({ scenario: 'cleared' });
-  const { page, context } = await open(desktop, '/teacher/groups/' + G.alg); await page.locator('[data-state="empty"]').waitFor(); assert.match(await page.locator('[data-state="empty"]').innerText(), /No Sessions yet/);
-  await page.locator('[data-tab="students"]').click(); await page.locator('[data-state="empty"]').waitFor(); assert.match(await page.locator('[data-state="empty"]').innerText(), /No students in this Group yet/); assert.equal(await page.locator('[role="alert"]').count(), 0);
+  const { page, context } = await open(desktop, '/teacher/groups/' + G.alg); await page.locator('[data-state="empty"]:visible').waitFor(); assert.match(await page.locator('[data-state="empty"]:visible').innerText(), /No Sessions yet/);
+  await page.locator('[data-tab="students"]').click(); await page.locator('[data-state="empty"]:visible').waitFor(); assert.match(await page.locator('[data-state="empty"]:visible').innerText(), /No students in this Group yet/); assert.equal(await page.locator('[role="alert"]').count(), 0);
   await shot(page, 'group-empty-en-1440'); await context.close();
   await ctl({ scenario: 'demo', fail: { ['sessions:' + G.alg]: 1, ['members:' + G.alg]: 1, ['detail:' + G.phys]: 1 } });
   const e = await open(desktop, '/teacher/groups/' + G.alg); await e.page.locator('[role="alert"]').waitFor(); assert.equal(await e.page.locator('[data-state="empty"]').count(), 0);

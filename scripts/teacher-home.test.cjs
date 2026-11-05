@@ -187,6 +187,23 @@ test('happening now: only a started, not cancelled next session can take attenda
  assert.equal(build({ upcoming: ok({ rows: [session(1, 1, -10, { cancelled: true })], page: 0 }) }).sessions.data.next, null, 'a cancelled session is never next, so never happening now');
  assert.equal(build().sessions.data.comingUp.every(s => s.happening === false), true);
 });
+test('happening now: a finalized sheet is "taken" (edit link instead of Take attendance); a draft, even with marks, or a reopened one keeps Take attendance', () => {
+ const state = attendance_state => build({ upcoming: ok({ rows: [session(1, 1, -10, { attendance_state })], page: 0 }) }).sessions.data.next;
+ assert.equal(state('finalized').attendance, 'finalized'); assert.equal(state('finalized').happening, true);
+ assert.equal(state('draft').attendance, 'draft'); assert.equal(state('reopened').attendance, 'reopened');
+ const view = read('frontend/features/teacher-home/home-view.tsx');
+ assert.ok(view.includes("const taken = now && next?.attendance === 'finalized'"));
+ assert.ok(view.includes('{now && !taken && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance"'));
+ assert.ok(view.includes('{taken && <p data-attendance-taken') && view.includes('<L id="th.next.taken" />'));
+ assert.ok(view.includes('{taken && <Link href={attendanceHref(next.groupId, next.id)} data-edit-attendance') && view.includes('<L id="ta.edit" />'));
+ assert.equal(messages.en['th.next.taken'], 'Attendance taken'); assert.equal(messages.ar['th.next.taken'], 'تم تسجيل الحضور'); assert.equal(messages.en['ta.edit'], 'Edit attendance'); assert.equal(messages.ar['ta.edit'], 'تعديل الحضور');
+});
+test('attendance changes ask the server-rendered pages again: finishing or reopening refreshes at once, saves are grouped into one refresh', () => {
+ const code = read('frontend/features/teacher-attendance/attendance-view.tsx').replace(/\r\n/g, '\n');
+ assert.ok(code.includes('router.refresh()'));
+ assert.ok(/refreshServerViews\(true\);\n\s+setConfirming\(null\)/.test(code), 'finishing / reopening refreshes at once');
+ assert.ok(/if \(!dirty\) refreshServerViews\(\);\n\s+if \(!alive\.current\) return;/.test(code), 'a finished save refreshes, even when the screen was left');
+});
 const plain = v => JSON.parse(JSON.stringify(v));
 const past = (n, groupN, endedMinAgo, state = 'draft', extra = {}) => session(n, groupN, -endedMinAgo - 60, { attendance_state: state, ...extra });
 test('unsaved attendance: every finished session of a Group the teacher manages that is not finalized (not only the latest one); newest first; at most three', () => {
@@ -218,7 +235,7 @@ test('unsaved attendance: a failed read is an error, never "all clear"; without 
 });
 test('Home view: Take attendance and the unsaved rows, with their tour targets and 48px buttons', () => {
  const view = read('frontend/features/teacher-home/home-view.tsx');
- assert.match(view, /\{now && <Link href=\{attendanceHref\(next\.groupId, next\.id\)\} data-tour="take-attendance" data-take-attendance className=\{cn\(inkButton,/, 'during a live class Take attendance is the primary, dark button');
+ assert.match(view, /\{now && !taken && <Link href=\{attendanceHref\(next\.groupId, next\.id\)\} data-tour="take-attendance" data-take-attendance className=\{cn\(inkButton,/, 'during a live class Take attendance is the primary, dark button');
  assert.match(view, /data-open-group className=\{cn\(now \? plainButton : inkButton,/, 'and Open this Group is the secondary one');
  assert.ok(view.indexOf('data-take-attendance') < view.indexOf('data-open-group'), 'Take attendance comes first');
  assert.match(view, /const now = Boolean\(next\?\.happening\)/); assert.match(view, /id=\{now \? 'th\.next\.now' : 'th\.next\.title'\}/);

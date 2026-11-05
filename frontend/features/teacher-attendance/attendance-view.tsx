@@ -85,6 +85,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
   const attempts = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noted = useRef(false);
+  const serverViews = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; if (timer.current) clearTimeout(timer.current); }; }, []);
 
@@ -147,8 +148,20 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
     return head.session;
   }
 
+  /**
+   * Home, the Groups and the Group page are rendered by the server and kept by the browser's router cache. After attendance changes, ask for them
+   * again so the next visit shows what the server holds now (router.refresh drops every cached page, prefetched ones included). Saves are grouped
+   * into one refresh; finishing or reopening refreshes at once. The screen being left does not cancel it.
+   */
+  function refreshServerViews(now = false) {
+    if (serverViews.current) clearTimeout(serverViews.current);
+    const run = () => { serverViews.current = null; try { router.refresh(); } catch { /* the next navigation reads fresh data anyway */ } };
+    if (now) run(); else serverViews.current = setTimeout(run, 1200);
+  }
+
   function settle() {
     const dirty = changedMarks(savedRef.current, marksRef.current).length > 0;
+    if (!dirty) refreshServerViews();
     if (!alive.current) return;
     setPending(dirty);
     if (!dirty) { setSaving('saved'); if (noted.current) { noted.current = false; writeNote(sessionId, false); } }
@@ -216,6 +229,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
     try {
       if (kind === 'reopen') await groupCall('reopen', groupId, { sessionId, sessionVersion: session.version, reason: reason.trim() });
       else await groupCall('finalize', groupId, { sessionId, sessionVersion: session.version });
+      refreshServerViews(true);
       setConfirming(null); setReason(''); setReasonProblem(false);
       await load();
     } catch (e) {

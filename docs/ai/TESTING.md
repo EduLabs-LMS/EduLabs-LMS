@@ -72,8 +72,7 @@ Teacher Settings and Groups & Classes: scripts/teacher-settings-groups.test.cjs 
 middleware run through the REAL middleware.ts, pure Groups model, endpoint/command allow-list, EN/AR parity, wording) and
 scripts/teacher-settings-groups-browser.cjs (Chromium; every page and API request goes through the real middleware; fictional
 /api/study-groups; filled and cleared demo states, errors with retry, EN/AR, 390/1440, light/dark, 44px targets, keyboard).
-scripts/teacher-home-browser.cjs covers Home, the six-item menu and the profile footer. If .next is older than the sources, set
-LMS_FRESH_CSS to a Tailwind compile of app/globals.css (`npx tailwindcss -i app/globals.css -o <file>`) so new classes are present.
+scripts/teacher-home-browser.cjs covers Home, the six-item menu and the profile footer. The teacher browser harnesses compile their stylesheet from the current sources (`scripts/harness-css.cjs`: Tailwind compile of app/globals.css plus the CSS files app/layout.tsx imports); `.next` is only read for the font faces, so an old build can no longer make them fail (or pass) wrongly. `LMS_FRESH_CSS` is no longer used.
 These use synthetic data and are not provider acceptance.
 
 

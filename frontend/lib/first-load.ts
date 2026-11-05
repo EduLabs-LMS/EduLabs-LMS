@@ -11,8 +11,16 @@ const KEY = 'edulabs-first-load';
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 const store = (): Store | null => { try { return typeof window === 'undefined' ? null : window.sessionStorage; } catch { return null; } };
 
+/**
+ * Signing in changes the user, and the app tree is keyed on the user (FirebaseBridge), so the whole tree - the loading provider included - is
+ * mounted again in the middle of the sign-in handler. A handler that captured the old provider would then talk to a dead instance. The mark is
+ * therefore announced on `window`, and whichever provider is mounted at that moment starts the overlay.
+ */
+export const FIRST_LOAD_EVENT = 'edulabs:first-load';
+
 export function markFirstLoad(storage: Store | null = store()) {
   try { storage?.setItem(KEY, 'pending'); } catch { /* private mode: the overlay is then simply skipped */ }
+  try { if (typeof window !== 'undefined') window.dispatchEvent(new Event(FIRST_LOAD_EVENT)); } catch { /* no window: nothing is listening */ }
 }
 export function firstLoadPending(storage: Store | null = store()) {
   try { return storage?.getItem(KEY) === 'pending'; } catch { return false; }

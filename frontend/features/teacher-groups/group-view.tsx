@@ -144,6 +144,7 @@ function usePaged<T extends { id?: string; user_id?: string }>(groupId: string, 
 
 function SessionsPanel({ group, now, revision, onChanged }: { group: StudyGroup; now: number; revision: number; onChanged: () => void }) {
   const { data, retry, more } = usePaged<GroupSession>(group.id, 'sessions', revision);
+  // The list stays on screen while it is read again (no skeleton flash), so each row is keyed by the read it belongs to: Reload and every change start the rows afresh (no stale confirm question or failure message).
   const [older, setOlder] = useState(false);
   const parts = useMemo(() => data.state === 'ready' ? partitionSessions(data.rows, now) : null, [data, now]);
   if (data.state === 'loading') return <div role="status" data-state="loading"><PanelSkeleton /><span className="sr-only"><L id="tg.loading_sessions" /></span></div>;
@@ -158,10 +159,10 @@ function SessionsPanel({ group, now, revision, onChanged }: { group: StudyGroup;
   return <div data-group-sessions className="space-y-5">
     {data.catchingUp && <p role="status" className="text-base text-slate-700"><L id="tg.sessions.catching_up" /></p>}
     <section aria-labelledby={`up-${group.id}`} className="space-y-3"><h2 id={`up-${group.id}`} className="font-display text-xl"><L id="tg.sessions.upcoming" /></h2>
-      {upcoming.length ? <ul className="space-y-3">{upcoming.map(s => <SessionItem key={s.id} s={s} now={now} group={group} canCancel={canCancel} onChanged={onChanged} />)}</ul> : <p className="text-base text-slate-700"><L id="tg.sessions.none_upcoming" /></p>}
+      {upcoming.length ? <ul className="space-y-3">{upcoming.map(s => <SessionItem key={revision + ":" + s.id} s={s} now={now} group={group} canCancel={canCancel} onChanged={onChanged} />)}</ul> : <p className="text-base text-slate-700"><L id="tg.sessions.none_upcoming" /></p>}
     </section>
     {visibleEarlier.length > 0 && <section aria-labelledby={`past-${group.id}`} className="space-y-3"><h2 id={`past-${group.id}`} className="font-display text-xl"><L id="tg.sessions.earlier" /></h2>
-      <ul className="space-y-3">{visibleEarlier.map(s => <SessionItem key={s.id} s={s} now={now} group={group} canCancel={false} onChanged={onChanged} />)}</ul></section>}
+      <ul className="space-y-3">{visibleEarlier.map(s => <SessionItem key={revision + ":" + s.id} s={s} now={now} group={group} canCancel={false} onChanged={onChanged} />)}</ul></section>}
     {canOlder && <button type="button" data-see-older className={plainButton} onClick={() => { setOlder(true); if (data.hasMore && earlier.length <= RECENT_PAST) void more(); }}><L id="tg.sessions.see_older" /></button>}
     {older && data.hasMore && <button type="button" data-more-sessions className={plainButton} disabled={data.more === 'loading'} onClick={() => void more()}>{data.more === 'loading' && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="tg.sessions.more" /></button>}
     {data.more instanceof GroupCallError && <GroupError kind={data.more.kind} onRetry={() => void more()} />}

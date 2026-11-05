@@ -9,8 +9,8 @@ fs.mkdirSync(shots, { recursive: true });
 for (const f of fs.readdirSync(shots)) if (f.endsWith('.png')) fs.unlinkSync(path.join(shots, f));
 const cssDir = path.resolve('.next/static/css'), mediaDir = path.resolve('.next/static/media');
 if (!fs.existsSync(cssDir)) throw Error('Run the Firebase-mode `npm run build` first: the real CSS and fonts are needed');
-// LMS_FRESH_CSS (optional): a Tailwind compile of app/globals.css with the repository config, appended when .next is older than the sources.
-const css = fs.readdirSync(cssDir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(path.join(cssDir, f), 'utf8')).concat(process.env.LMS_FRESH_CSS ? [fs.readFileSync(process.env.LMS_FRESH_CSS, 'utf8')] : []).join('\n');
+// The stylesheet is compiled from the current sources (scripts/harness-css.cjs); .next is only read for the font faces.
+const css = fs.readdirSync(cssDir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(path.join(cssDir, f), 'utf8')).concat([require('./harness-css.cjs')()]).join('\n');
 const fontVars = (css.match(/\.__variable_[a-z0-9]+\{[^}]*\}/g) || []).map(v => v.match(/^\.([^{]+)\{/)[1]).join(' ');
 
 const entry = `
@@ -44,6 +44,10 @@ const scenarios = {
   upcoming: ok({ rows: [session(1, 1, 'Synthetic Group Alpha', -20), session(2, 2, 'مجموعة الصف العاشر', 1500), session(3, 1, 'Synthetic Group Alpha', 3000)], page: 0 }), notifications: notesFull,
   unsaved: ok([{ groupId: uuid(1), rows: [session(11, 1, 'Synthetic Group Alpha', -1500), session(12, 1, 'Synthetic Group Alpha', -9000, { attendance_state: 'finalized' })] }, { groupId: uuid(2), rows: [session(13, 2, 'مجموعة الصف العاشر', -600, { attendance_state: 'reopened' }), session(16, 2, 'مجموعة الصف العاشر', -2500)] },
    { groupId: uuid(3), rows: [session(14, 3, 'Synthetic Group Gamma', -4000)] }, { groupId: uuid(4), rows: [session(15, 4, 'Synthetic Group Delta', -20000)] }]) },
+ // The live class's attendance was finished (and an earlier class too): the card says so; a draft with marks and a reopened sheet keep Take attendance.
+ taken: { courses: ok(courses), groups: groupsFull, upcoming: ok({ rows: [session(1, 1, 'Synthetic Group Alpha', -20, { attendance_state: 'finalized' }), session(3, 1, 'Synthetic Group Alpha', 3000)], page: 0 }), notifications: notesFull,
+  unsaved: ok([{ groupId: uuid(1), rows: [session(11, 1, 'Synthetic Group Alpha', -1500, { attendance_state: 'finalized' }), session(12, 1, 'Synthetic Group Alpha', -9000)] }]) },
+ draft: { courses: ok(courses), groups: groupsFull, upcoming: ok({ rows: [session(1, 1, 'Synthetic Group Alpha', -20, { attendance_state: 'draft' }), session(3, 1, 'Synthetic Group Alpha', 3000)], page: 0 }), notifications: notesFull, unsaved: ok([]) },
  plain: { courses: ok(courses), groups: groupsFull, upcoming: upcomingFull, notifications: notesFull, unsaved: ok([]) },
  unsavederror: { courses: ok(courses), groups: groupsFull, upcoming: upcomingFull, notifications: notesFull, unsaved: bad(503) },
  errors: { courses: bad(503), groups: bad(503), upcoming: bad(503), notifications: bad(401) },
@@ -416,6 +420,22 @@ createRoot(document.getElementById('root')).render(
    }
    assert.ok(await overflow(page)); await page.screenshot({ path: path.join(shots, `logo-${tag}.png`) }); await context.close();
   }
+ });
+ await step('Attendance finished for the live class: "Attendance taken" with an Edit attendance link instead of Take attendance; a draft keeps Take attendance; the finalized past class is not listed as unsaved (English and Arabic)', async () => {
+  const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0'); const href = (g, n) => `/teacher/groups/${uuid(g)}/attendance/${uuid(200 + n)}`;
+  for (const [lang, taken, edit] of [['en', 'Attendance taken', 'Edit attendance'], ['ar', 'تم تسجيل الحضور', 'تعديل الحضور']]) {
+   const { page, context } = await open(desktop, 'view=home&s=taken&lang=' + lang); await page.locator('[data-teacher-home]').waitFor();
+   const next = page.locator('[data-section="th-next"]');
+   assert.equal(await next.locator('[data-take-attendance]').count(), 0, 'no Take attendance for a finalized live session (' + lang + ')');
+   assert.equal((await next.locator('[data-attendance-taken]').innerText()).trim(), taken);
+   const e = next.locator('[data-edit-attendance]'); assert.equal((await e.innerText()).trim(), edit); assert.equal(await e.getAttribute('href'), href(1, 1));
+   assert.equal(await next.locator('[data-open-group]').count(), 1, 'opening the Group is still there');
+   const rows = await page.locator('[data-unsaved-finish]').evaluateAll(n => n.map(x => x.getAttribute('href')));
+   assert.deepEqual(rows, [href(1, 12)], 'only the class that is still unsaved is listed; the finalized one is gone (' + lang + ')');
+   assert.ok(await overflow(page)); await context.close();
+  }
+  const d = await open(desktop, 'view=home&s=draft'); await d.page.locator('[data-teacher-home]').waitFor();
+  assert.equal(await d.page.locator('[data-section="th-next"] [data-take-attendance]').count(), 1, 'a draft still says Take attendance'); assert.equal(await d.page.locator('[data-attendance-taken]').count(), 0); await d.context.close();
  });
  await browser.close(); server.close();
  assert.deepEqual(errors, [], 'no uncaught or console errors');

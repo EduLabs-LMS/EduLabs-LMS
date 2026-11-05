@@ -16,6 +16,7 @@ import { AnimatePresence } from 'framer-motion';
 import LoadingOverlay from '@/frontend/components/loading-overlay';
 import {
 	FIRST_LOAD_CAP_MS,
+	FIRST_LOAD_EVENT,
 	FIRST_LOAD_FINISH_MS,
 	FIRST_LOAD_MIN_MS,
 	clearFirstLoad,
@@ -67,14 +68,21 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 		setManual(false);
 	}, []);
 
-	const beginFirstLoad = useCallback(() => {
-		markFirstLoad();
+	const startFirst = useCallback(() => {
 		setFirst((prev) => {
 			if (prev.phase !== 'idle') return prev;
 			firstStartedAt.current = performance.now();
 			return { phase: 'running', from: pathRef.current };
 		});
 	}, []);
+
+	// markFirstLoad announces itself on window, so the provider that is mounted now starts the overlay even when the caller holds an older one
+	// (signing in mounts the whole app tree again, see first-load.ts).
+	const beginFirstLoad = useCallback(() => markFirstLoad(), []);
+	useEffect(() => {
+		window.addEventListener(FIRST_LOAD_EVENT, startFirst);
+		return () => window.removeEventListener(FIRST_LOAD_EVENT, startFirst);
+	}, [startFirst]);
 
 	// A full page load in the middle of signing in (the Google redirect) still counts as the first load.
 	useEffect(() => {

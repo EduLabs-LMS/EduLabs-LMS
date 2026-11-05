@@ -77,6 +77,12 @@ function App() {
         <button id="push" onClick={() => router.push('/teacher/students?ms=700')}>push</button>
       </nav>
       <button id="signin" onClick={() => { beginFirstLoad(); router.replace('/teacher/home?ms=' + (window.__signinMs ?? 300)); }}>sign in</button>
+      <button id="signin-remount" onClick={async () => {
+        // What the real sign-in does: the handler holds the loading provider it was rendered under, then signing in changes the user, the app tree is
+        // keyed on the user (FirebaseBridge) and everything, the provider included, is mounted again before the handler reaches goHome(true).
+        const stale = beginFirstLoad; window.__setUid('uid-new');
+        await new Promise(r => setTimeout(r, 60)); stale(); softNavigate('/teacher/home?ms=' + (window.__signinMs ?? 300), true);
+      }}>sign in (user changes)</button>
       <button id="save" onClick={() => startLoading('Saving')}>save</button>
       <button id="saved" onClick={() => stopLoading()}>saved</button>
       <button id="login-a" onClick={() => { window.__who = 'a'; setSwrOwner('uid-a'); }}>a</button>
@@ -87,7 +93,11 @@ function App() {
   </div>;
 }
 window.__swrSize = swrSize;
-createRoot(document.getElementById('root')).render(<LoadingProvider><App /></LoadingProvider>);
+function Root() {
+  const [uid, setUid] = React.useState('signed-out'); window.__setUid = setUid;
+  return <React.Fragment key={uid}><LoadingProvider><App /></LoadingProvider></React.Fragment>;
+}
+createRoot(document.getElementById('root')).render(<Root />);
 `;
 
 const plugin = {
@@ -186,6 +196,12 @@ const plugin = {
     assert.ok(r.from <= 100, 'appears at once, no delay: ' + r.from);
     const total = r.until - r.from;
     assert.ok(total >= 250, 'long enough not to flash: ' + total); assert.ok(r.until < 1000, 'gone in under one second: ' + r.until);
+    assert.equal(r.finalPage, '/teacher/home');
+  });
+  await ok('sign-in plays the overlay even though the user change mounts the whole app tree (and the loading provider) again mid-handler', async () => {
+    const r = await action('/teacher/login', p => p.click('#signin-remount'), { wait: 2000 });
+    assert.equal(r.overlayShown, true, 'overlay shown after a sign-in that remounts the tree'); assert.equal(r.runs, 1, 'one run');
+    const total = r.until - r.from; assert.ok(total >= 250 && r.until < 1200, 'plays, and lifts in under about one second after the handler reached goHome: ' + r.from + '..' + r.until);
     assert.equal(r.finalPage, '/teacher/home');
   });
   await ok('a slow first page does not hold the overlay past the cap: the frame and a skeleton take over', async () => {

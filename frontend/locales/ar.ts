@@ -1103,6 +1103,7 @@ export const ar: Record<keyof typeof en, string> = {
   "ta.finished": "تم الانتهاء",
   "th.next.now": "تجري الآن",
   "th.next.attendance": "تسجيل الحضور",
+  "th.next.taken": "تم تسجيل الحضور",
   "th.coming.unsaved": "لم يُحفظ الحضور",
   "ta.count.present": "{count} حاضر",
   "ta.count.absent": "{count} غائب",

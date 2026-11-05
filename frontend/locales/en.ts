@@ -1103,6 +1103,7 @@ export const en = {
   "ta.finished": "Finished",
   "th.next.now": "Happening now",
   "th.next.attendance": "Take attendance",
+  "th.next.taken": "Attendance taken",
   "th.coming.unsaved": "attendance not saved",
   "ta.count.present": "{count} present",
   "ta.count.absent": "{count} absent",

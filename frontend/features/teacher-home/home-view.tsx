@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
-import { CalendarClock, MapPin, Video } from 'lucide-react';
+import { CalendarClock, Check, MapPin, Video } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { eventLabels } from '@/shared/contracts/communications';
 import { cn } from '@/shared/utils';
@@ -33,6 +33,8 @@ function SessionRow({ s }: { s: HomeSession }) {
 function NextSession({ data, retry, slot, hero = true }: { data: HomeData['sessions']; retry: Retry; slot?: string; hero?: boolean }) {
   const next = data.state === 'ready' ? data.data.next : null;
   const now = Boolean(next?.happening);
+  // The live class's attendance was finished: say so and offer to edit it, instead of asking for it again. A draft (even with marks) still says Take attendance and continues.
+  const taken = now && next?.attendance === 'finalized';
   return <Section id="th-next" eyebrow={hero} title={<L id={now ? 'th.next.now' : 'th.next.title'} />} className={cn(hero && 'bg-primary/30', slot)}>
     {data.state === 'error' ? <SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} />
       : data.state === 'unavailable' ? null
@@ -45,7 +47,9 @@ function NextSession({ data, retry, slot, hero = true }: { data: HomeData['sessi
           {next.mode === 'online' ? <L id="th.next.online" /> : <><L id="th.next.center" />{next.location && <> · <bdi dir="auto">{next.location}</bdi></>}</>}</p>
         <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
           {/* During a live class, taking attendance is the main thing to do: it is first and dark, and opening the Group is the quiet second button. */}
-          {now && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.attendance" /></Link>}
+          {now && !taken && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.attendance" /></Link>}
+          {taken && <p data-attendance-taken className="flex min-h-[48px] items-center gap-2 text-lg font-bold sm:min-h-[44px]"><Check aria-hidden className="h-5 w-5 shrink-0" /><L id="th.next.taken" /></p>}
+          {taken && <Link href={attendanceHref(next.groupId, next.id)} data-edit-attendance className={cn(inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="ta.edit" /></Link>}
           <Link href={`/teacher/groups/${next.groupId}`} data-open-group className={cn(now ? plainButton : inkButton, 'min-h-[48px] sm:min-h-[44px]')}><L id="th.next.open" /></Link>
         </div>
         {data.data.partial && <p className="text-base text-slate-800"><L id="th.next.partial" /></p>}
