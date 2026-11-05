@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { BarChart3, CheckSquare, FileText, GraduationCap, Home, Users } from 'lucide-react';
 import { L, Localized } from '@/frontend/components/language-provider';
 import { cn } from '@/shared/utils';
@@ -12,6 +13,17 @@ const row = 'relative flex items-center gap-3.5 px-4 py-3 min-h-[48px] text-[15p
 /** Shown to active staff only. Navigation is a convenience: the API and database decide what any destination may do. */
 export function TeacherNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname() ?? '';
+  const router = useRouter();
+  // The main-menu screens are fetched while the browser is idle, so choosing one shows its frame and skeleton at once. This only prepares the
+  // screen's loading shell (no data is read for it, and nothing about access is decided here): the page still reads and checks everything itself.
+  useEffect(() => {
+    const hrefs = teacherNav.flatMap(item => item.href !== null && item.href !== pathname ? [item.href] : []);
+    const start = () => hrefs.forEach(href => { try { router.prefetch(href); } catch { /* a missed prefetch only costs the head start */ } });
+    const idle = (window as { requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => number }).requestIdleCallback;
+    if (idle) { const handle = idle(start, { timeout: 2000 }); return () => (window as { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback?.(handle); }
+    const timer = window.setTimeout(start, 400);
+    return () => window.clearTimeout(timer);
+  }, [router, pathname]);
   return <Localized as="nav" labels={{ 'aria-label': 'th.nav.label' }} data-teacher-nav className="p-3 flex flex-col space-y-1.5 overflow-y-auto scrollbar-none flex-1">
     {teacherNav.map(item => {
       const Icon = icons[item.key];

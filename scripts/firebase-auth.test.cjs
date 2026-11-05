@@ -13,7 +13,7 @@ function load(file, deps, env = {}) {
 }
 const env = { NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'diagonproduction' };
 test('restored-session and form completion navigate home only once', async () => {
-  const effects = [], navigations = [];
+  const effects = [], navigations = [], firstLoads = [];
   let finishSync;
   const syncing = new Promise(resolve => { finishSync = resolve; });
   const user = { emailVerified: true };
@@ -38,6 +38,7 @@ test('restored-session and form completion navigate home only once', async () =>
     '@/frontend/lib/teacher-invitation-storage': { hasPendingInvitation: () => false },
     '@/shared/invitation-link': { invitationPagePath: '/teacher-invitation' },
     '@/shared/contracts/student-administration': load('shared/contracts/student-administration.ts',{zod:require('zod')}),
+    '@/frontend/components/providers/loading-provider': { useGlobalLoading: () => ({ beginFirstLoad() { firstLoads.push('first'); } }) },
     '@/frontend/components/providers/firebase-auth-provider': {
       useFirebaseAuth: () => ({ user, loading: false, error: null }),
       synchronizeFirebaseSession: () => syncing,
@@ -56,6 +57,7 @@ test('restored-session and form completion navigate home only once', async () =>
   finishSync();
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(navigations, ['/home']);
+  assert.deepEqual(firstLoads, ['first'], 'an explicit sign-in marks the first load once; the restored session is not a fresh sign-in');
 });
 const identity = () => ({ uid: 'firebase-string-uid', sub: 'firebase-string-uid', aud: 'diagonproduction', iss: 'https://securetoken.google.com/diagonproduction', exp: Date.now() / 1000 + 60 });
 function authService(admin, staging = true) {

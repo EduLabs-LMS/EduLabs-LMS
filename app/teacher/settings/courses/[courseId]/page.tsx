@@ -1,3 +1,4 @@
+import { ServerTimingMarker } from '@/app/(dashboard)/_components/server-timing-marker';
 import { staffContext } from '@/app/(dashboard)/_components/teacher-home-pages';
 import { TeacherCourseView } from '@/frontend/features/teacher-course/course-view';
 import { loadCoursePage } from '@/server/services/teacher-course-page';
@@ -6,5 +7,6 @@ import { loadCoursePage } from '@/server/services/teacher-course-page';
 export default async function Page({ params }: { params: Promise<{ courseId: string }> }) {
   const context = await staffContext();
   const { courseId } = await params;
-  return <TeacherCourseView load={await loadCoursePage(context, courseId)} />;
+  const load = await loadCoursePage(context, courseId);
+  return <><TeacherCourseView load={load} /><ServerTimingMarker /></>;
 }

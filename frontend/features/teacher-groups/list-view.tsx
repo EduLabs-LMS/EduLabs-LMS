@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useSwr } from '@/frontend/lib/use-swr';
 import { AlertTriangle, Search } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { card, linkClass, plainButton, primaryButton, sessionTime } from '@/frontend/features/teacher-home/parts';
@@ -9,9 +9,11 @@ import type { GroupPage, GroupRow, GroupSession, StudyGroup } from '@/shared/con
 import { attendanceHref } from '@/shared/teacher-attendance';
 import { LIST_PAGES, PAGE_SIZE, filterGroups, groupCounts, lastUnsavedSession, managed, nextOf, studentsCount, type GroupFilter, type WeeklyTime } from '@/shared/teacher-groups';
 import { GroupCallError, groupCall, isAbort, limited } from './api';
-import { GroupError, Loading, ModeLabel, WeeklyTimes } from './parts';
+import { GroupError, ModeLabel, WeeklyTimes } from './parts';
+import { GroupsListBodySkeleton } from './skeletons';
+import { Skeleton } from '@/frontend/components/skeleton';
 
-type Overview = { state: 'loading' } | { state: 'error'; error: GroupCallError } | { state: 'ready'; rows: StudyGroup[]; truncated: boolean };
+type Overview = { rows: StudyGroup[]; truncated: boolean };
 
 async function readOverview(signal: AbortSignal): Promise<Overview> {
   const rows: StudyGroup[] = [];
@@ -22,34 +24,24 @@ async function readOverview(signal: AbortSignal): Promise<Overview> {
     more = Boolean(result.hasMore);
     if (!more) break;
   }
-  return { state: 'ready', rows: managed(rows), truncated: more };
+  return { rows: managed(rows), truncated: more };
 }
+const asCallError = (e: unknown) => e instanceof GroupCallError ? e : new GroupCallError(null);
 
 export function TeacherGroupsList() {
   const { t } = useLanguage();
-  const [overview, setOverview] = useState<Overview>({ state: 'loading' });
+  // Stale-while-revalidate: a revisit shows the last list at once and refreshes it in the background (frontend/lib/swr-cache.ts).
+  const { data: overview, retry } = useSwr<Overview, GroupCallError>('groups:overview', readOverview, asCallError);
   const [filter, setFilter] = useState<GroupFilter>('active');
   const [query, setQuery] = useState('');
-  const [revision, setRevision] = useState(0);
-  // The first view is the list and its cards' facts; cards that appear later (filter, search) do not bring the screen back.
-  const firstView = useRef(true);
-  usePageLoadingSignal(overview.state === 'loading');
-  useEffect(() => { if (overview.state === 'ready') firstView.current = false; }, [overview.state]);
-  useEffect(() => {
-    const controller = new AbortController();
-    setOverview({ state: 'loading' });
-    readOverview(controller.signal).then(setOverview, e => { if (!isAbort(e)) setOverview({ state: 'error', error: e instanceof GroupCallError ? e : new GroupCallError(null) }); });
-    return () => controller.abort();
-  }, [revision]);
-  const retry = useCallback(() => setRevision(v => v + 1), []);
-  const rows = useMemo(() => overview.state === 'ready' ? overview.rows : [], [overview]);
+  const rows = useMemo(() => overview.state === 'ready' ? overview.value.rows : [], [overview]);
   const counts = useMemo(() => groupCounts(rows), [rows]);
   const shown = useMemo(() => filterGroups(rows, filter, query), [rows, filter, query]);
 
   return <div data-teacher-groups className="w-full space-y-5">
     <header className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="tg.title" /></h1><p className="text-base text-slate-700"><L id="tg.intro" /></p></div>
       <Link href="/teacher/groups/new" data-create-group data-tour="create-group" className={`${primaryButton} !min-h-[48px]`}><L id="tg.create.button" /></Link></header>
-    {overview.state === 'loading' && <Loading label="tg.loading" className="h-40" />}
+    {overview.state === 'loading' && <GroupsListBodySkeleton />}
     {overview.state === 'error' && <GroupError kind={overview.error.kind} onRetry={retry} />}
     {overview.state === 'ready' && <>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -63,52 +55,42 @@ export function TeacherGroupsList() {
             className="min-h-[44px] w-full rounded-2xl border-2 border-black bg-white ps-10 pe-3 text-base" />
         </label>
       </div>
-      {overview.truncated && <p data-truncated className="text-base text-slate-700"><L id="tg.truncated" values={{ count: LIST_PAGES * PAGE_SIZE }} /></p>}
+      {overview.value.truncated && <p data-truncated className="text-base text-slate-700"><L id="tg.truncated" values={{ count: LIST_PAGES * PAGE_SIZE }} /></p>}
       {shown.length === 0
         ? <div data-state="empty" className={`${card} space-y-3`}><p className="text-base text-slate-800"><L id={query.trim() ? 'tg.empty.search' : filter === 'active' ? 'tg.empty.active' : 'tg.empty.archived'} /></p>
           {!query.trim() && filter === 'active' && <Link href="/teacher/groups/new" data-create-group-empty className={`${primaryButton} !min-h-[48px]`}><L id="tg.create.button" /></Link>}</div>
-        : <ul className="grid gap-4 lg:grid-cols-2" data-group-list>{shown.map(g => <li key={g.id}><GroupCard group={g} track={firstView.current} /></li>)}</ul>}
+        : <ul className="grid gap-4 lg:grid-cols-2" data-group-list>{shown.map(g => <li key={g.id}><GroupCard group={g} /></li>)}</ul>}
     </>}
   </div>;
 }
 
-type Facts = { state: 'loading' } | { state: 'error'; error: GroupCallError }
-  | { state: 'ready'; schedules: WeeklyTime[]; sessions: GroupSession[]; serverNow: number; students: ReturnType<typeof studentsCount> };
+type Facts = { schedules: WeeklyTime[]; sessions: GroupSession[]; serverNow: number; students: ReturnType<typeof studentsCount> };
 
-/** One Group's card. Its details come from three reads that only run for the cards on screen, a few at a time; a failure here only affects this card. */
-function GroupCard({ group, track }: { group: StudyGroup; track: boolean }) {
-  const [facts, setFacts] = useState<Facts>({ state: 'loading' });
-  const [tracked] = useState(track);
-  usePageLoadingSignal(tracked && facts.state === 'loading');
-  const [revision, setRevision] = useState(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    setFacts({ state: 'loading' });
-    limited(async () => {
-      const [detail, sessions, members] = await Promise.all([
-        groupCall<{ schedules: WeeklyTime[]; serverNow: string }>('view', group.id, { section: 'detail' }, null, controller.signal),
-        groupCall<GroupPage<GroupSession>>('view', group.id, { section: 'sessions', page: 0 }, null, controller.signal),
-        groupCall<GroupPage<GroupRow>>('view', group.id, { section: 'members', page: 0, search: '' }, null, controller.signal),
-      ]);
-      return { state: 'ready', schedules: detail.schedules, sessions: sessions.rows, serverNow: Date.parse(sessions.serverNow ?? detail.serverNow), students: studentsCount(members.rows, members.hasMore, group.capacity) } as const;
-    }).then(setFacts, e => { if (!isAbort(e)) setFacts({ state: 'error', error: e instanceof GroupCallError ? e : new GroupCallError(null) }); });
-    return () => controller.abort();
-  }, [group.id, group.capacity, revision]);
+/** One Group's card. Its details come from three reads that only run for the cards on screen, a few at a time; a failure here only affects this card. A card seen before shows its last facts at once. */
+function GroupCard({ group }: { group: StudyGroup }) {
+  const { data: facts, retry } = useSwr<Facts, GroupCallError>(`group:${group.id}:facts:${group.capacity ?? ''}`, signal => limited(async () => {
+    const [detail, sessions, members] = await Promise.all([
+      groupCall<{ schedules: WeeklyTime[]; serverNow: string }>('view', group.id, { section: 'detail' }, null, signal),
+      groupCall<GroupPage<GroupSession>>('view', group.id, { section: 'sessions', page: 0 }, null, signal),
+      groupCall<GroupPage<GroupRow>>('view', group.id, { section: 'members', page: 0, search: '' }, null, signal),
+    ]);
+    return { schedules: detail.schedules, sessions: sessions.rows, serverNow: Date.parse(sessions.serverNow ?? detail.serverNow), students: studentsCount(members.rows, members.hasMore, group.capacity) };
+  }), asCallError);
 
-  const next = facts.state === 'ready' ? nextOf(facts.sessions, facts.serverNow) : null;
-  const unsaved = facts.state === 'ready' ? lastUnsavedSession(facts.sessions, facts.serverNow) : null;
+  const next = facts.state === 'ready' ? nextOf(facts.value.sessions, facts.value.serverNow) : null;
+  const unsaved = facts.state === 'ready' ? lastUnsavedSession(facts.value.sessions, facts.value.serverNow) : null;
   return <article data-group-card={group.id} className={`${card} flex h-full flex-col gap-3`}>
     <div className="min-w-0">
       <h2 className="font-display text-2xl leading-tight"><Link href={`/teacher/groups/${group.id}`} className="inline-flex min-h-[44px] items-center underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black">{group.name}</Link></h2>
       <p className="text-base text-slate-700">{group.offering_name}</p>
     </div>
     <p className="text-base font-bold"><ModeLabel mode={group.mode} /></p>
-    {facts.state === 'loading' && <Loading className="h-16" />}
-    {facts.state === 'error' && <GroupError kind={facts.error.kind} onRetry={() => setRevision(v => v + 1)} />}
+    {facts.state === 'loading' && <div aria-hidden="true" data-state="loading" className="space-y-2"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-5 w-2/3" /><Skeleton className="h-5 w-1/3" /></div>}
+    {facts.state === 'error' && <GroupError kind={facts.error.kind} onRetry={retry} />}
     {facts.state === 'ready' && <dl className="space-y-2 text-base">
       <div><dt className="font-bold"><L id="tg.card.next" /></dt><dd data-next-session>{next ? <LocalDate value={next.starts_at} options={sessionTime} /> : <L id="tg.card.no_next" />}</dd></div>
-      <div><dt className="font-bold"><L id="tg.card.weekly" /></dt><dd><WeeklyTimes items={facts.schedules} /></dd></div>
-      <div><dt className="font-bold"><L id="tg.tab.students" /></dt><dd data-students-count><Students value={facts.students} /></dd></div>
+      <div><dt className="font-bold"><L id="tg.card.weekly" /></dt><dd><WeeklyTimes items={facts.value.schedules} /></dd></div>
+      <div><dt className="font-bold"><L id="tg.tab.students" /></dt><dd data-students-count><Students value={facts.value.students} /></dd></div>
     </dl>}
     {unsaved && <Link href={attendanceHref(group.id, unsaved.id)} data-attendance-unsaved className="flex min-h-[48px] gap-2 rounded-xl border-2 border-black bg-amber-100 p-3 text-base font-bold underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black"><AlertTriangle aria-hidden className="mt-0.5 h-5 w-5 shrink-0" /><L id="tg.card.unsaved" /></Link>}
     <Link href={`/teacher/groups/${group.id}`} className={`${linkClass} mt-auto`}><L id="tg.card.open" /></Link>

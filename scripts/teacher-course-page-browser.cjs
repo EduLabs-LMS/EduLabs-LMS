@@ -60,7 +60,6 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
 
 (async () => {
  const stubs = {
-  '@/frontend/components/providers/use-page-loading-signal': 'import { useEffect } from "react"; export const usePageLoadingSignal = busy => { useEffect(() => { window.__loadingSignal = busy; (window.__signalTrail = window.__signalTrail || []).push(busy); }, [busy]); };',
   '@/frontend/components/providers/use-loading-router': 'export const useLoadingRouter = () => ({ push(p) { location.assign(p); }, replace(p) { location.replace(p); }, refresh() { window.__refreshes = (window.__refreshes || 0) + 1; window.dispatchEvent(new Event("harness-refresh")); } });',
   'next/navigation': 'export const usePathname = () => location.pathname; export const useRouter = () => ({ push(p) { location.assign(p); }, replace(p) { location.replace(p); }, refresh() { window.__refreshes = (window.__refreshes || 0) + 1; window.dispatchEvent(new Event("harness-refresh")); } });',
   'next/link': 'import React from "react"; export default function Link({ href, children, onClick, ...rest }) { return React.createElement("a", { ...rest, href, onClick: e => { onClick && onClick(e); if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); location.assign(href); } }, children); }',
@@ -140,7 +139,7 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
  const smallText = page => page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const s = parseFloat(getComputedStyle(n.parentElement).fontSize); if (s < 16) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|\boffering|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
  const main = page => page.locator('main').innerText();
- const settled = page => page.waitForFunction(() => window.__loadingSignal === false);
+ const settled = page => page.waitForFunction(() => !document.querySelector('[data-state="loading"],[data-skeleton]') && !document.querySelector('main').innerText.includes('…'));
  const clean = async (page, label) => {
   assert.ok(await overflow(page), 'no horizontal scroll ' + label); assert.deepEqual(await tinyTargets(page), [], '48px targets ' + label);
   assert.deepEqual(await smallText(page), [], 'text of 16px or more ' + label); assert.doesNotMatch(await main(page), forbidden, 'wording ' + label);
@@ -265,9 +264,9 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
   await ctl({ load: 'ready' }); await o.page.getByRole('button', { name: 'Try again' }).click(); await o.page.locator('[data-course-title]').waitFor(); await o.context.close();
  });
 
- await step('The first view signals loading until the grade has been read, then stops', async () => {
+ await step('The first view shows a placeholder for the grade until it has been read, and no loading overlay signal exists', async () => {
   const { page, context } = await open(desktop); await page.locator('[data-teacher-course]').waitFor(); await settled(page);
-  const trail = await page.evaluate(() => window.__signalTrail); assert.equal(trail[0], true); assert.equal(trail.at(-1), false); await context.close();
+  assert.equal(await page.evaluate(() => typeof window.__loadingSignal), 'undefined'); assert.equal(await page.locator('[data-state="loading"],[data-skeleton]').count(), 0); await context.close();
  });
 
  await browser.close(); server.close();

@@ -3,12 +3,18 @@ import { GroupCallError, groupCall, limited } from '@/frontend/features/teacher-
 import type { GroupPage, StudyGroup } from '@/shared/contracts/groups';
 import { LIST_PAGES } from '@/shared/teacher-groups';
 import type { AdminOffering } from '@/shared/contracts/student-administration';
+import { swrDropPrefix } from '@/frontend/lib/swr-cache';
+
+const READS = new Set(['offerings', 'roster', 'requests']);
 
 /** The existing student-administration endpoint. `status` is null when no reply arrived: for a change the outcome is then unknown and the same request id is reused. */
 export async function adminCall<T>(action: string, data: object = {}, extra: { offeringId?: string | null; subjectId?: string | null; version?: number | null; requestId?: string } = {}): Promise<T> {
   try { return await administer<T>(action, data, extra); } catch (e) {
     const status = (e as { status?: unknown }).status;
     throw new GroupCallError(typeof status === 'number' ? status : null);
+  } finally {
+    // An approval, an invitation or a change of access (or one whose outcome is unknown) makes the copies of the Students and Groups screens stale.
+    if (!READS.has(action)) { swrDropPrefix('students'); swrDropPrefix('group'); }
   }
 }
 /** Reads go through the shared limiter, so a long list never opens a connection per course. Changes are sent at once. */

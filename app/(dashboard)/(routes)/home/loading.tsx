@@ -1,3 +1,4 @@
-import RouteLoadingSignal from '@/frontend/components/route-loading-signal';
-import { LearningLoadState } from '@/frontend/features/self-learning/continue-learning';
-export default function Loading() { return <><RouteLoadingSignal /><LearningLoadState loading /></>; }
+import { HomeLoading } from '@/frontend/features/teacher-home/skeletons';
+
+/** In-app navigation keeps the app frame and shows this in the content area; the logo overlay is only for the first load after sign-in. */
+export default function Loading() { return <HomeLoading />; }

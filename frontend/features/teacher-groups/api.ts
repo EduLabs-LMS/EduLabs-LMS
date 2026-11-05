@@ -1,4 +1,5 @@
 import { failureKind, type FailureKind } from '@/shared/teacher-groups';
+import { swrDropPrefix } from '@/frontend/lib/swr-cache';
 
 /** `status` is null when no reply arrived: for a change, the outcome is then unknown and must not be retried blindly. */
 export class GroupCallError extends Error {
@@ -19,12 +20,17 @@ export async function postJson<T>(url: string, body: object, signal?: AbortSigna
 }
 
 /** The one existing Groups endpoint. The database decides who may read or change what. */
-export const groupCall = <T>(action: string, groupId: string | null, data: object = {}, version: number | null = null, signal?: AbortSignal) =>
-  postJson<T>('/api/study-groups', { action, groupId, version, data }, signal);
+export async function groupCall<T>(action: string, groupId: string | null, data: object = {}, version: number | null = null, signal?: AbortSignal): Promise<T> {
+  try { return await postJson<T>('/api/study-groups', { action, groupId, version, data }, signal); }
+  // A change (or one whose outcome is unknown) makes every copy of the Groups screens stale: they are read again, never shown as they were.
+  finally { if (action !== 'view') swrDropPrefix('group'); }
+}
 
 /** A change the browser must finish even if the page is closed or reloaded meanwhile (`keepalive`; the body is far below its 64 KB limit). */
-export const groupSave = <T>(action: string, groupId: string, data: object) =>
-  postJson<T>('/api/study-groups', { action, groupId, version: null, data }, undefined, true);
+export async function groupSave<T>(action: string, groupId: string, data: object): Promise<T> {
+  try { return await postJson<T>('/api/study-groups', { action, groupId, version: null, data }, undefined, true); }
+  finally { swrDropPrefix('group'); }
+}
 
 export const isAbort = (e: unknown) => e instanceof Error && e.name === 'AbortError';
 

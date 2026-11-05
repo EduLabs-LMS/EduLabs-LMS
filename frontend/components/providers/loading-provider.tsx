@@ -10,180 +10,109 @@ import {
 	useState,
 	type ReactNode,
 } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 import { AnimatePresence } from 'framer-motion';
 import LoadingOverlay from '@/frontend/components/loading-overlay';
+import {
+	FIRST_LOAD_CAP_MS,
+	FIRST_LOAD_FINISH_MS,
+	FIRST_LOAD_MIN_MS,
+	clearFirstLoad,
+	firstLoadPending,
+	markFirstLoad,
+} from '@/frontend/lib/first-load';
 
 const DEFAULT_MESSAGE = 'Loading page...';
-/** Very quick navigations never flash the overlay. */
+/** A blocking action (a save or an upload) never flashes the overlay for a very quick one. */
 const SHOW_DELAY_MS = 120;
-/** How long the overlay stays after the work ends, so the word can complete. */
+/** How long the overlay stays after the action ends, so the word can complete. */
 const FINISH_MS = 650;
-/** Only a safety net: never leave the overlay up forever if a navigation is cancelled. */
-const NAV_SAFETY_MS = 20000;
-/** A source may release and another register right after it (a fallback unmounting while its page mounts): not a finish. */
-const RELEASE_GRACE_MS = 60;
 
-type Sources = { manual: boolean; nav: boolean; held: number };
+type FirstLoad = { phase: 'idle' | 'running' | 'finishing'; from: string };
 
 interface LoadingContextValue {
+	/** True while a blocking action (startLoading) is in progress. */
 	isLoading: boolean;
 	message: string;
+	/** Blocking overlay for an action in progress (an upload, a save). Page navigation never uses it. */
 	startLoading: (customMessage?: string) => void;
 	stopLoading: () => void;
 	/**
-	 * Registers one more reason to keep the overlay up and returns the function that releases it (safe to call twice).
-	 * Every source counts separately, so the overlay only finishes once all of them have released.
-	 * `capMs` releases it by itself so a page can never keep the overlay up forever.
+	 * Called by sign-in code when the person has just signed in: the logo overlay plays once, for under a second, over the first page.
+	 * Safe to call twice. In-app navigation afterwards keeps the app frame and shows a skeleton of the page instead.
 	 */
-	acquireLoading: (capMs?: number) => () => void;
-	/** For router.push / router.replace, which the link-click listener cannot see. Use useLoadingRouter. */
-	startNavigation: (href: string) => void;
+	beginFirstLoad: () => void;
 }
 
 const LoadingContext = createContext<LoadingContextValue | null>(null);
 
 export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 	const pathname = usePathname();
-	const searchParams = useSearchParams();
 
-	const [active, setActive] = useState<Sources>({ manual: false, nav: false, held: 0 });
+	const [manual, setManual] = useState(false);
 	const [message, setMessage] = useState(DEFAULT_MESSAGE);
 	const [overlay, setOverlay] = useState({ visible: false, done: false });
-
-	const navTarget = useRef<string | null>(null);
-
-	const isLoading = active.manual || active.nav || active.held > 0;
+	const [first, setFirst] = useState<FirstLoad>({ phase: 'idle', from: '' });
+	const firstStartedAt = useRef(0);
+	const pathRef = useRef(pathname);
+	pathRef.current = pathname;
 
 	const startLoading = useCallback((customMessage = 'Saving changes...') => {
 		setMessage(customMessage);
-		setActive((prev) => ({ ...prev, manual: true }));
+		setManual(true);
 	}, []);
 
 	const stopLoading = useCallback(() => {
-		setActive((prev) => ({ ...prev, manual: false }));
+		setManual(false);
 	}, []);
 
-	const acquireLoading = useCallback((capMs?: number) => {
-		let released = false;
-		let cap: number | null = null;
-		const release = () => {
-			if (released) return;
-			released = true;
-			if (cap !== null) window.clearTimeout(cap);
-			setActive((prev) => ({ ...prev, held: Math.max(0, prev.held - 1) }));
-		};
-		setMessage(DEFAULT_MESSAGE);
-		setActive((prev) => ({ ...prev, held: prev.held + 1 }));
-		if (capMs) cap = window.setTimeout(release, capMs);
-		return release;
+	const beginFirstLoad = useCallback(() => {
+		markFirstLoad();
+		setFirst((prev) => {
+			if (prev.phase !== 'idle') return prev;
+			firstStartedAt.current = performance.now();
+			return { phase: 'running', from: pathRef.current };
+		});
 	}, []);
 
-	const startNavigation = useCallback((href: string) => {
-		let target: URL;
-		try {
-			target = new URL(href, window.location.href);
-		} catch {
-			return;
+	// A full page load in the middle of signing in (the Google redirect) still counts as the first load.
+	useEffect(() => {
+		if (firstLoadPending()) {
+			firstStartedAt.current = performance.now();
+			setFirst((prev) => (prev.phase === 'idle' ? { phase: 'running', from: pathRef.current } : prev));
 		}
-		if (target.origin !== window.location.origin) return;
-		const targetKey = target.pathname + target.search;
-		if (targetKey === window.location.pathname + window.location.search) return;
-		navTarget.current = targetKey;
-		setMessage(DEFAULT_MESSAGE);
-		setActive((prev) => ({ ...prev, nav: true }));
 	}, []);
 
-	// The navigation finished: the URL changed.
+	// Running: finish when the first page has taken over (the address changed) but not before the minimum, and never later than the cap.
 	useEffect(() => {
-		setActive((prev) => (prev.nav ? { ...prev, nav: false } : prev));
-	}, [pathname, searchParams]);
+		if (first.phase !== 'running') return;
+		const elapsed = performance.now() - firstStartedAt.current;
+		const arrived = pathname !== first.from;
+		const wait = arrived ? Math.max(0, FIRST_LOAD_MIN_MS - elapsed) : Math.max(0, FIRST_LOAD_CAP_MS - elapsed);
+		const timer = window.setTimeout(() => setFirst((prev) => (prev.phase === 'running' ? { ...prev, phase: 'finishing' } : prev)), wait);
+		return () => window.clearTimeout(timer);
+	}, [first, pathname]);
 
-	// Detect link navigations.
-	// We wait until Next.js has finished handling the click (it calls preventDefault() when it takes over
-	// a navigation) before showing anything, so the overlay can never get in the way of the click itself.
-	// A link whose own handler cancels the click and never navigates carries data-loading-ignore.
 	useEffect(() => {
-		const handleClick = (event: MouseEvent) => {
-			const anchor = (event.target as Element | null)?.closest?.('a');
-			if (!anchor) return;
+		if (first.phase !== 'finishing') return;
+		clearFirstLoad();
+		const timer = window.setTimeout(() => setFirst({ phase: 'idle', from: '' }), FIRST_LOAD_FINISH_MS);
+		return () => window.clearTimeout(timer);
+	}, [first.phase]);
 
-			const href = anchor.getAttribute('href');
-			if (
-				!href ||
-				anchor.hasAttribute('data-loading-ignore') ||
-				href.startsWith('#') ||
-				/^(mailto:|tel:|javascript:)/i.test(href) ||
-				(anchor.target && anchor.target !== '_self') ||
-				anchor.hasAttribute('download') ||
-				event.button !== 0 ||
-				event.metaKey ||
-				event.ctrlKey ||
-				event.shiftKey ||
-				event.altKey
-			) {
-				return;
-			}
-
-			let target: URL;
-			try {
-				target = new URL(href, window.location.href);
-			} catch {
-				return;
-			}
-			if (target.origin !== window.location.origin) return;
-
-			const targetKey = target.pathname + target.search;
-
-			window.setTimeout(() => {
-				if (!event.defaultPrevented) return;
-				const currentKey = window.location.pathname + window.location.search;
-				if (currentKey === targetKey) return;
-
-				navTarget.current = targetKey;
-				setMessage(DEFAULT_MESSAGE);
-				setActive((prev) => ({ ...prev, nav: true }));
-			}, 0);
-		};
-
-		document.addEventListener('click', handleClick, true);
-		return () => document.removeEventListener('click', handleClick, true);
-	}, []);
-
-	// While a navigation is pending: notice the URL change even if a re-render was missed, and keep a safety net.
+	// Blocking-action overlay lifecycle, one way only: hidden -> shown -> finishing -> hidden.
 	useEffect(() => {
-		if (!active.nav) return;
-
-		const poll = window.setInterval(() => {
-			const key = window.location.pathname + window.location.search;
-			if (navTarget.current && key === navTarget.current) {
-				setActive((prev) => ({ ...prev, nav: false }));
-			}
-		}, 150);
-		const safety = window.setTimeout(() => {
-			setActive((prev) => ({ ...prev, nav: false }));
-		}, NAV_SAFETY_MS);
-
-		return () => {
-			window.clearInterval(poll);
-			window.clearTimeout(safety);
-		};
-	}, [active.nav]);
-
-	// Overlay lifecycle, one way only: hidden -> shown -> finishing -> hidden. Work that starts while it is finishing
-	// does not rewind it; it begins a new cycle once the overlay is gone.
-	useEffect(() => {
-		if (isLoading) {
+		if (manual) {
 			if (overlay.visible) return;
 			const show = window.setTimeout(() => setOverlay({ visible: true, done: false }), SHOW_DELAY_MS);
 			return () => window.clearTimeout(show);
 		}
 		if (overlay.visible && !overlay.done) {
-			const finish = window.setTimeout(() => setOverlay({ visible: true, done: true }), RELEASE_GRACE_MS);
+			const finish = window.setTimeout(() => setOverlay({ visible: true, done: true }), 60);
 			return () => window.clearTimeout(finish);
 		}
-	}, [isLoading, overlay]);
+	}, [manual, overlay]);
 
 	useEffect(() => {
 		if (!overlay.done) return;
@@ -192,20 +121,23 @@ export const LoadingProvider = ({ children }: { children: ReactNode }) => {
 	}, [overlay.done]);
 
 	const value = useMemo(
-		() => ({ isLoading, message, startLoading, stopLoading, acquireLoading, startNavigation }),
-		[isLoading, message, startLoading, stopLoading, acquireLoading, startNavigation]
+		() => ({ isLoading: manual, message, startLoading, stopLoading, beginFirstLoad }),
+		[manual, message, startLoading, stopLoading, beginFirstLoad]
 	);
+
+	const showFirst = first.phase !== 'idle';
+	const visible = overlay.visible || showFirst;
 
 	return (
 		<LoadingContext.Provider value={value}>
 			{children}
 			<AnimatePresence>
-				{overlay.visible && (
+				{visible && (
 					<LoadingOverlay
 						key="global-loading-overlay"
-						message={message}
-						done={overlay.done}
-						blocking={active.manual}
+						message={overlay.visible ? message : DEFAULT_MESSAGE}
+						done={overlay.visible ? overlay.done : first.phase === 'finishing'}
+						blocking={manual}
 					/>
 				)}
 			</AnimatePresence>

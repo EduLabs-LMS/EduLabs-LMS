@@ -169,9 +169,10 @@ test('suspend, reactivate, revoke and reject ask first; approval keeps one reque
  assert.match(req, /approveOutcome/);
  assert.match(req, /ts\.requests\.not_added/);
 });
-test('the first view is complete when the loading overlay lifts, and every section has its own error state', () => {
+test('pages draw skeletons in place of the loading overlay, and every section has its own error state', () => {
  const v = src('students-view.tsx');
- assert.match(v, /usePageLoadingSignal\(!settled\)/); assert.match(src('student-view.tsx'), /usePageLoadingSignal/);
+ assert.doesNotMatch(v, /usePageLoadingSignal/); assert.doesNotMatch(src('student-view.tsx'), /usePageLoadingSignal/);
+ assert.match(v, /StudentRowsSkeleton/); assert.match(src('student-view.tsx'), /StudentBodySkeleton/);
  for (const a of ['data-groups-failed', 'data-courses-failed']) assert.ok(v.includes(a), a);
  assert.match(src('requests.tsx'), /ts\.requests\.load_failed/);
 });

@@ -2,16 +2,17 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
-import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import { plainButton, primaryButton } from '@/frontend/features/teacher-home/parts';
-import { GroupError, Loading } from '@/frontend/features/teacher-groups/parts';
+import { GroupError } from '@/frontend/features/teacher-groups/parts';
+import { Skeleton } from '@/frontend/components/skeleton';
 import type { MessageKey } from '@/frontend/locales/messages';
 import { failureKind, type CourseChoice } from '@/shared/teacher-groups';
 import { MAX_ROSTER_PAGES, ROSTER_PAGE, STATUS_FILTERS, displayStatus, type StatusFilter } from '@/shared/teacher-students';
 import { InvitePanel } from './invite';
 import { useGroupMembers, useGroups, useOfferings, usePendingRequests, useRosterList, type Entry } from './data';
 import { StatusPill, StudentName, courseLabels, fieldClass } from './parts';
+import { StudentRowsSkeleton } from './skeletons';
 import { RequestsSection, type Notice } from './requests';
 
 const statusLabel: Record<StatusFilter, MessageKey> = {
@@ -42,9 +43,11 @@ export function TeacherStudentsView({ courses, inviteOffering }: { courses: { ok
   const shownOfferings = useMemo(() => Array.from(new Set(roster.shown.map(e => e.offering.id))), [roster.shown]);
   const members = useGroupMembers(groupRows, shownOfferings, revision);
 
-  // The first view is complete when the list, the Groups beside each student and the waiting requests are all in (or each has failed and says so).
-  const settled = offerings.data.state === 'error' || (offerings.data.state === 'ready' && groups.data.state !== 'loading' && roster.phase === 'ready' && !members.loading && requests.phase === 'ready');
-  usePageLoadingSignal(!settled);
+  // The rows on screen narrow as the person types, before the server's answer for that search arrives (the server matches the same way: the typed
+  // text anywhere in the name, ignoring case). Once the answer for this search is in, its rows are shown as they are.
+  const waitingForSearch = typed.trim() !== query || roster.refreshing;
+  const needle = typed.trim().toLowerCase();
+  const rows = useMemo(() => waitingForSearch && needle ? roster.shown.filter(e => (e.row.display_name ?? '').toLowerCase().includes(needle)) : roster.shown, [roster.shown, waitingForSearch, needle]);
 
   const addNotice = (n: Notice) => setNotices(list => [n, ...list.filter(x => x.id !== n.id)].slice(0, 5));
   const canInvite = courses.ok && courses.value.length > 0;
@@ -58,7 +61,7 @@ export function TeacherStudentsView({ courses, inviteOffering }: { courses: { ok
     {inviting && courses.ok && <InvitePanel courses={courses.value} initialOffering={inviteOffering} onClose={() => setInviting(false)} />}
     {inviting && !courses.ok && <GroupError kind={failureKind(courses.status)} />}
 
-    {offerings.data.state === 'loading' && <Loading label="ts.students.loading" className="h-40" />}
+    {offerings.data.state === 'loading' && <div role="status" data-state="loading" className="space-y-5"><div aria-hidden="true" className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]"><Skeleton className="h-12 rounded-2xl" /><Skeleton className="h-12 rounded-2xl" /><Skeleton className="h-12 rounded-2xl" /></div><StudentRowsSkeleton /><span className="sr-only"><L id="ts.students.loading" /></span></div>}
     {offerings.data.state === 'error' && <GroupError kind={offerings.data.error.kind} onRetry={offerings.retry} />}
     {noCourses && <div data-state="empty" className="space-y-3"><p className="text-base text-slate-800"><L id="ts.students.no_courses" /></p></div>}
 
@@ -83,18 +86,18 @@ export function TeacherStudentsView({ courses, inviteOffering }: { courses: { ok
         <p className="min-w-0 flex-1"><L id="ts.students.groups_unavailable" /></p>
         <button type="button" onClick={() => { if (groups.data.state === 'error') groups.retry(); members.retry(); }} className={plainButton}><L id="tg.retry" /></button></div>}
 
-      {roster.phase === 'loading' && <Loading label="ts.students.loading" className="h-40" />}
+      {roster.phase === 'loading' && <div role="status" data-state="loading"><StudentRowsSkeleton /><span className="sr-only"><L id="ts.students.loading" /></span></div>}
       {roster.phase === 'ready' && <>
         {roster.failed.length > 0 && <div role="alert" data-state="error" data-courses-failed className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-black bg-rose-50 p-4 text-base">
           <p className="min-w-0 flex-1"><L id="ts.students.course_failed" values={{ courses: roster.failed.map(o => labels.get(o.id)).join(', ') }} /></p>
           <button type="button" onClick={roster.retryFailed} className={plainButton}><L id="tg.retry" /></button></div>}
-        {roster.shown.length === 0 && roster.failed.length === 0 && <div data-state="empty" className="space-y-3"><p className="text-base text-slate-800">
+        {rows.length === 0 && roster.failed.length === 0 && !waitingForSearch && <div data-state="empty" className="space-y-3"><p className="text-base text-slate-800">
           <L id={status === 'waiting' ? (requests.rows.length ? 'ts.students.waiting_above' : 'ts.students.waiting_none') : query || status !== 'all' || course !== 'all' ? 'ts.students.empty_filter' : 'ts.students.empty'} /></p>
           {!query && status === 'all' && course === 'all' && canInvite && !inviting && <button type="button" data-invite-empty onClick={() => setInviting(true)} className={`${primaryButton} ${tall}`}><L id="ts.students.invite" /></button>}</div>}
-        {roster.shown.length > 0 && <ul data-student-list data-tour="student-rows" className="divide-y-2 divide-black/15 border-y-2 border-black/15">{roster.shown.map(e => <StudentItem key={`${e.offering.id}:${e.row.user_id}`} entry={e} label={labels.get(e.offering.id) ?? e.offering.name}
+        {rows.length > 0 && <ul data-student-list data-tour="student-rows" className="divide-y-2 divide-black/15 border-y-2 border-black/15">{rows.map(e => <StudentItem key={`${e.offering.id}:${e.row.user_id}`} entry={e} label={labels.get(e.offering.id) ?? e.offering.name}
           groupNames={members.index.get(e.row.user_id)?.map(g => g.name)} groupsState={groups.data.state === 'error' || members.failedOfferings.has(e.offering.id) ? 'error' : groups.data.state === 'ready' && !members.loading ? 'ready' : 'loading'} />)}</ul>}
         {roster.capped && <p data-truncated className="text-base text-slate-700"><L id="ts.students.truncated" values={{ count: MAX_ROSTER_PAGES * ROSTER_PAGE }} /></p>}
-        {roster.more && <button type="button" data-more-students onClick={roster.loadMore} disabled={roster.loadingMore} className={`${plainButton} ${tall}`}>{roster.loadingMore && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ts.students.more" /></button>}
+        {roster.more && !waitingForSearch && <button type="button" data-more-students onClick={roster.loadMore} disabled={roster.loadingMore} className={`${plainButton} ${tall}`}>{roster.loadingMore && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ts.students.more" /></button>}
       </>}
     </>}
   </div>;

@@ -1,3 +1,1 @@
-import { groupsPOST } from '@/server/http/groups';
-import { withServerTiming } from '@/server/http/server-timing';
-export const POST = withServerTiming(groupsPOST);
+export { timedGroupsPOST as POST } from '@/server/http/timed';

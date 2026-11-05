@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Loader2, Search } from 'lucide-react';
@@ -9,7 +8,8 @@ import { cn } from '@/shared/utils';
 import { inkButton, linkClass, plainButton, sessionTime } from '@/frontend/features/teacher-home/parts';
 import { HelpButton } from '@/frontend/features/teacher-helper/help-button';
 import { GroupCallError, groupCall, groupSave, isAbort } from '@/frontend/features/teacher-groups/api';
-import { GroupError, Loading, ModeLabel } from '@/frontend/features/teacher-groups/parts';
+import { GroupError, ModeLabel } from '@/frontend/features/teacher-groups/parts';
+import { AttendanceSheetSkeleton } from '@/frontend/features/teacher-attendance/skeletons';
 import type { GroupPage, GroupRow, GroupSession, StudyGroup } from '@/shared/contracts/groups';
 import { studentsByName } from '@/shared/teacher-groups';
 import {
@@ -76,7 +76,6 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
   const [revision, setRevision] = useState(0);
   const [query, setQuery] = useState('');
   const [recheck, setRecheck] = useState<'none' | 'checking' | 'done'>('none');
-  usePageLoadingSignal(sheet.state === 'loading' || detail.state === 'loading');
   const [detailRevision, setDetailRevision] = useState(0);
   const alive = useRef(true);
   const marksRef = useRef<Marks>({});
@@ -253,7 +252,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
       {value && <p data-session-subtitle className="text-base text-slate-700"><LocalDate value={value.session.starts_at} options={sessionTime} /> · <span className="font-bold"><ModeLabel mode={value.session.mode} /></span>{value.session.mode === 'center' && value.session.location && <span className="break-words"> · <bdi dir="auto">{value.session.location}</bdi></span>}</p>}
     </header>
     {detail.state === 'error' && <div data-detail-error className="space-y-2"><p className="text-base text-slate-800"><L id="ta.error.group" /></p><GroupError kind={detail.error.kind} onRetry={() => setDetailRevision(v => v + 1)} /></div>}
-    {sheet.state === 'loading' && <Loading label="ta.loading" className="h-40" />}
+    {sheet.state === 'loading' && <div role="status" data-state="loading"><AttendanceSheetSkeleton /><span className="sr-only"><L id="ta.loading" /></span></div>}
     {sheet.state === 'error' && <GroupError kind={sheet.error.kind} onRetry={() => setRevision(v => v + 1)} />}
     {value && recheck === 'checking' && <p role="status" data-rechecking className="text-base text-slate-800"><L id="ta.checking" /></p>}
     {value && recheck === 'done' && <p role="status" data-reload-note className="text-base text-slate-800"><L id="ta.reload_note" /></p>}

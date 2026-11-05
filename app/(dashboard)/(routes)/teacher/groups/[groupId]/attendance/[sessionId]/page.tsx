@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { ServerTimingMarker } from '@/app/(dashboard)/_components/server-timing-marker';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { TeacherFoundationPage } from '@/app/(dashboard)/_components/teacher-foundation-page';
 import { staffContext } from '@/app/(dashboard)/_components/teacher-home-pages';
@@ -12,5 +13,5 @@ export default async function Page({ params }: { params: Promise<{ groupId: stri
   if (!uuid.test(groupId) || !uuid.test(sessionId)) notFound();
   if (!isFirebaseStaging()) return <TeacherFoundationPage title="Attendance" />;
   await staffContext();
-  return <TeacherAttendanceView groupId={groupId} sessionId={sessionId} />;
+  return <><TeacherAttendanceView groupId={groupId} sessionId={sessionId} /><ServerTimingMarker /></>;
 }

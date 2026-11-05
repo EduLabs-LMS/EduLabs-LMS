@@ -1,3 +1,1 @@
-import { groupCourseRunPOST } from '@/server/http/group-course-run';
-import { withServerTiming } from '@/server/http/server-timing';
-export const POST = withServerTiming(groupCourseRunPOST);
+export { timedGroupCourseRunPOST as POST } from '@/server/http/timed';

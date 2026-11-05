@@ -2,10 +2,10 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
 import { L, LocalDate } from '@/frontend/components/language-provider';
 import { inkButton, linkClass, plainButton } from '@/frontend/features/teacher-home/parts';
 import { GroupError, Loading, useCommand } from '@/frontend/features/teacher-groups/parts';
+import { StudentBodySkeleton } from './skeletons';
 import type { GroupPage } from '@/shared/contracts/groups';
 import type { AdminOffering } from '@/shared/contracts/student-administration';
 import { MAX_HISTORY_PAGES, MAX_ROSTER_PAGES, ROSTER_PAGE, attendanceCounts, attendanceEntries, courseName, displayStatus, type AttendanceEntry, type HistoryRow, type RosterRow } from '@/shared/teacher-students';
@@ -35,13 +35,11 @@ export function StudentDetailView({ studentId, offeringId }: { studentId: string
     try { return await findRow(offeringId, studentId); } catch (e) { if (e instanceof NotFound) return null; throw e; }
   });
   const ready = offerings.data.state === 'ready' && row.data.state === 'ready';
-  // The first view is the student, their course and status; the Groups and attendance below fill in after and say so while they do.
-  usePageLoadingSignal(offerings.data.state === 'loading' || row.data.state === 'loading');
   const back = <Link href="/teacher/students" data-back className={linkClass}><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /><span className="ms-2"><L id="ts.student.back" /></span></Link>;
   const failed = offerings.data.state === 'error' ? offerings.data : row.data.state === 'error' ? row.data : null;
   return <div data-student-page className="w-full max-w-3xl space-y-5">
     {back}
-    {!ready && !failed && <Loading label="ts.student.loading" className="h-40" />}
+    {!ready && !failed && <StudentBodySkeleton />}
     {failed && failed.state === 'error' && <GroupError kind={failed.error.kind} onRetry={() => { if (offerings.data.state === 'error') offerings.retry(); if (row.data.state === 'error') row.retry(); }} />}
     {ready && (!offering || row.data.state !== 'ready' || !row.data.value)
       ? <div data-state="empty" className="space-y-3"><p className="text-base text-slate-800"><L id="ts.student.not_found" /></p></div>

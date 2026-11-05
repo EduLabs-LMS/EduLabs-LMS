@@ -3,6 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { onIdTokenChanged, signOut, type User } from 'firebase/auth';
 import { getFirebaseAuth, restoreFirebaseAuth } from '@/frontend/lib/firebase';
+import { clearSwr, setSwrOwner } from '@/frontend/lib/swr-cache';
+import { clearFirstLoad } from '@/frontend/lib/first-load';
 
 async function request(action: string, idToken?: string) {
   const response = await fetch(`/api/auth/firebase/${action}`, {
@@ -43,6 +45,8 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       if (!active) return;
       unsubscribe = onIdTokenChanged(getFirebaseAuth(), async current => {
         const revision = ++generation;
+        // Cached screen data belongs to one signed-in user: a different user, or nobody, starts with an empty cache.
+        setSwrOwner(current?.uid ?? null);
         setUser(current); setLoading(true);
         try {
           if (current) await synchronizeFirebaseSession(current);
@@ -62,6 +66,7 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
   const logout = async () => {
     let failure: unknown;
     try { await request('logout'); } catch (value) { failure = value; }
+    clearSwr(); clearFirstLoad();
     await signOut(getFirebaseAuth());
     if (failure) throw failure;
     window.location.assign('/sign-in');

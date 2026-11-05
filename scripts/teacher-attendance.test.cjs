@@ -174,7 +174,7 @@ test('autosave: no Save draft; every tap goes at once through one queue that car
 test('save: it uses a keepalive request so closing or reloading the tab does not cancel it, and only that save call does', () => {
  const api = read('frontend/features/teacher-groups/api.ts');
  assert.match(api, /export async function postJson<T>\(url: string, body: object, signal\?: AbortSignal, keepalive = false\)/); assert.match(api, /body: JSON\.stringify\(body\), signal, keepalive \}/);
- assert.match(api, /export const groupSave = <T>\(action: string, groupId: string, data: object\) =>\s*postJson<T>\('\/api\/study-groups', \{ action, groupId, version: null, data \}, undefined, true\)/);
+ assert.match(api, /export async function groupSave<T>\(action: string, groupId: string, data: object\): Promise<T> \{\s*try \{ return await postJson<T>\('\/api\/study-groups', \{ action, groupId, version: null, data \}, undefined, true\); \}/);
  assert.doesNotMatch(view, /groupCall(?:<[^>]*>)?\('attendance'/, 'attendance is never sent without keepalive');
  assert.equal(model.MARKS_PER_SAVE * 90 < 64 * 1024, true, 'a full save is far below the 64 KB keepalive limit (about 90 bytes a mark)');
 });

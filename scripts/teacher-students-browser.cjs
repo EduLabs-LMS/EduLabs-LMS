@@ -207,7 +207,6 @@ function groupsCommand(body) {
 
 (async () => {
  const stubs = {
-  '@/frontend/components/providers/use-page-loading-signal': 'import { useEffect } from "react"; export const usePageLoadingSignal = busy => { useEffect(() => { window.__loadingSignal = busy; (window.__signalTrail = window.__signalTrail || []).push(busy); }, [busy]); };',
   '@/frontend/components/providers/use-loading-router': 'export const useLoadingRouter = () => ({ push(p) { location.assign(p); }, replace(p) { location.replace(p); }, refresh() { window.__refreshes = (window.__refreshes || 0) + 1; } });',
   'next/navigation': 'window.__refreshes = window.__refreshes || 0; export const usePathname = () => location.pathname; export const useRouter = () => ({ push(p) { location.assign(p); }, replace(p) { location.replace(p); }, refresh() { window.__refreshes++; } });',
   'next/link': 'import React from "react"; export default function Link({ href, children, onClick, ...rest }) { return React.createElement("a", { ...rest, href, onClick: e => { onClick && onClick(e); if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); location.assign(href); } }, children); }',
@@ -278,7 +277,7 @@ function groupsCommand(body) {
  const tall = page => tinyTargets(page);
  const posts = () => fetch(origin + '/__state').then(r => r.json());
  const names = page => page.locator('[data-student] >> nth=0').waitFor().then(() => page.locator('[data-student]').evaluateAll(els => els.map(e => e.querySelector('a span span').textContent.trim())));
- const waitSettled = async page => { await page.waitForFunction(() => window.__loadingSignal === false); };
+ const waitSettled = async page => { await page.waitForFunction(() => !document.querySelector('[data-state="loading"],[data-skeleton]') && ![...document.querySelectorAll('[data-student-groups]')].some(e => /Loading Groups/i.test(e.textContent))); };
  const checkClean = async (page, label, { skipSmall = false } = {}) => {
   assert.ok(await overflow(page), 'no horizontal scroll ' + label); assert.deepEqual(await tall(page), [], '48px targets ' + label); assert.doesNotMatch(await main(page), forbidden, 'wording ' + label);
  };
@@ -341,12 +340,12 @@ function groupsCommand(body) {
   }
   const { page, context } = await open(desktop, '/teacher/students', { lang: 'ar' }); await waitSettled(page); await page.locator('[data-student]').first().waitFor(); await shot(page, 'students-list-ar-1440'); await context.close();
  });
- await step('First view: the loading signal is held until the list, the Groups beside each student and the waiting requests are in', async () => {
+ await step('First view: a skeleton of the list shows first, then the list, the Groups beside each student and the waiting requests are all in', async () => {
   const { page, context } = await open(desktop, '/teacher/students');
-  await page.waitForFunction(() => window.__loadingSignal === false);
-  assert.ok(await page.locator('[data-student]').count() > 0 && await page.locator('[data-join-requests]').count() === 1, 'everything is on screen when the signal drops');
+  await waitSettled(page);
+  assert.ok(await page.locator('[data-student]').count() > 0 && await page.locator('[data-join-requests]').count() === 1, 'everything is on screen once the placeholders are gone');
   assert.equal(await page.locator('[data-student-groups]:has-text("Loading Groups")').count(), 0, 'no Group column is still loading');
-  const trail = await page.evaluate(() => window.__signalTrail); assert.equal(trail[0], true, 'busy first'); assert.equal(trail.at(-1), false);
+  assert.equal(await page.evaluate(() => typeof window.__loadingSignal), 'undefined', 'the page no longer talks to the loading overlay');
   await context.close();
  });
 

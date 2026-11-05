@@ -1,4 +1,1 @@
-import { academicsHTTP } from '@/server/http/academics';
-import { withServerTiming } from '@/server/http/server-timing';
-export const GET = withServerTiming(academicsHTTP);
-export const POST = GET;
+export { timedAcademicsHTTP as GET, timedAcademicsHTTP as POST } from '@/server/http/timed';

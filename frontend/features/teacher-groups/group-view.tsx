@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useSwr } from '@/frontend/lib/use-swr';
 import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { card, inkButton, linkClass, plainButton, primaryButton, sessionTime } from '@/frontend/features/teacher-home/parts';
@@ -11,40 +11,32 @@ import { RECENT_PAST, attendanceSummary, currentMembers, partitionSessions, stud
 import { GroupCallError, groupCall, isAbort } from './api';
 import { EditGroup } from './group-form';
 import { GroupError, Loading, ModeLabel, WeeklyTimes, asError, stateTone, useCommand } from './parts';
+import { GroupBodySkeleton, PanelSkeleton } from './skeletons';
 
 type Detail = { group: StudyGroup; schedules: WeeklyTime[]; serverNow: string };
+/** The Group as read, with how far the server clock was from this browser's clock when it was read (kept with the copy, so a revisit still shows the right "now"). */
+type Viewed = Detail & { skew: number };
 type Tab = 'sessions' | 'students' | 'details';
 const tabs: Tab[] = ['sessions', 'students', 'details'];
 
 export function TeacherGroupView({ groupId }: { groupId: string }) {
   const { t } = useLanguage();
-  const [detail, setDetail] = useState<Detail | null>(null);
-  const [error, setError] = useState<GroupCallError | null>(null);
+  // Stale-while-revalidate: a revisit shows the last copy at once and reads again in the background (frontend/lib/swr-cache.ts).
+  const read = useCallback((signal: AbortSignal) => groupCall<Detail>('view', groupId, { section: 'detail' }, null, signal).then((d): Viewed => ({ ...d, skew: Date.parse(d.serverNow) - Date.now() })), [groupId]);
+  const { data: viewed, retry, mutate } = useSwr<Viewed, GroupCallError>(`group:${groupId}:detail`, read, asError);
   const [tab, setTab] = useState<Tab>('sessions');
+  // A tab is built the first time it is opened and then stays, hidden, so going back to it is instant and keeps what was loaded.
+  const [opened, setOpened] = useState<Tab[]>(['sessions']);
   const [revision, setRevision] = useState(0);
-  const [sessionsRevision, setSessionsRevision] = useState(0);
-  const [skew, setSkew] = useState(0);
   const [adding, setAdding] = useState(false);
   const tabId = useId();
-  // The first view is the Group and its Sessions list; panels opened later do not bring the screen back.
-  const firstView = useRef(true);
-  usePageLoadingSignal(!detail && !error);
-  useEffect(() => { if (detail) firstView.current = false; }, [detail]);
+  const select = useCallback((next: Tab) => { setTab(next); setOpened(o => o.includes(next) ? o : [...o, next]); }, []);
+  const reload = useCallback(() => { retry(); setRevision(v => v + 1); }, [retry]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setError(null);
-    groupCall<Detail>('view', groupId, { section: 'detail' }, null, controller.signal).then(d => {
-      setDetail(d);
-      setSkew(Date.parse(d.serverNow) - Date.now());
-    }, e => { if (!isAbort(e)) setError(asError(e)); });
-    return () => controller.abort();
-  }, [groupId, revision]);
-  const reload = useCallback(() => { setRevision(v => v + 1); setSessionsRevision(v => v + 1); }, []);
-  const now = Date.now() + skew;
-
-  if (error && !detail) return <Frame><GroupError kind={error.kind} onRetry={() => setRevision(v => v + 1)} /></Frame>;
-  if (!detail) return <Frame><Loading label="tg.loading_group" className="h-40" /></Frame>;
+  if (viewed.state === 'error') return <Frame><GroupError kind={viewed.error.kind} onRetry={retry} /></Frame>;
+  if (viewed.state === 'loading') return <Frame><GroupBodySkeleton /></Frame>;
+  const detail = viewed.value;
+  const now = Date.now() + detail.skew;
   const { group, schedules } = detail;
   const active = group.status === 'active';
   return <Frame>
@@ -54,7 +46,6 @@ export function TeacherGroupView({ groupId }: { groupId: string }) {
         <span data-status={group.status} className={`inline-flex min-h-[28px] items-center rounded-full border-2 border-black px-3 text-base font-bold ${active ? 'bg-primary' : 'bg-slate-200'}`}><L id={active ? 'tg.status.active' : 'tg.status.archived'} /></span>
       </div>
       <p className="text-base font-bold"><ModeLabel mode={group.mode} /></p>
-      {error && <GroupError kind={error.kind} onRetry={() => setRevision(v => v + 1)} retryLabel="tg.reload" />}
       {active && group.staff && <div className="flex flex-wrap gap-3 pt-1">
         <button type="button" data-add-session onClick={() => setAdding(v => !v)} aria-expanded={adding} className={primaryButton}><L id="tg.add.button" /></button>
         {group.instructor && <ArchiveGroup group={group} onDone={reload} />}
@@ -67,16 +58,16 @@ export function TeacherGroupView({ groupId }: { groupId: string }) {
           const i = tabs.indexOf(tab), step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
           if (!step) return;
           const rtl = document.documentElement.dir === 'rtl', next = tabs[(i + (rtl ? -step : step) + tabs.length) % tabs.length];
-          e.preventDefault(); setTab(next); document.getElementById(`${tabId}-${next}`)?.focus();
+          e.preventDefault(); select(next); document.getElementById(`${tabId}-${next}`)?.focus();
         }}>
-          {tabs.map(key => <button key={key} id={`${tabId}-${key}`} role="tab" type="button" aria-selected={tab === key} aria-controls={`${tabId}-panel`} tabIndex={tab === key ? 0 : -1} data-tab={key} onClick={() => setTab(key)}
+          {tabs.map(key => <button key={key} id={`${tabId}-${key}`} role="tab" type="button" aria-selected={tab === key} aria-controls={`${tabId}-${key}`} tabIndex={tab === key ? 0 : -1} data-tab={key} onClick={() => select(key)}
             className={`${plainButton} ${tab === key ? '!bg-black !text-white' : ''}`}><L id={`tg.tab.${key}`} /></button>)}
         </div>
-        <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-${tab}`} className={`${card} space-y-4`}>
-          {tab === 'sessions' && <SessionsPanel key={sessionsRevision} group={group} now={now} onChanged={reload} track={firstView.current} />}
-          {tab === 'students' && <StudentsPanel group={group} onVersion={version => setDetail(d => d && { ...d, group: { ...d.group, version } })} onStale={reload} />}
-          {tab === 'details' && <Details group={group} schedules={schedules} onChanged={reload} />}
-        </div>
+        {tabs.map(key => opened.includes(key) && <div key={key} role="tabpanel" id={`${tabId}-${key}`} aria-labelledby={`${tabId}-${key}`} hidden={tab !== key} data-panel={key} className={`${card} space-y-4`}>
+          {key === 'sessions' && <SessionsPanel group={group} now={now} revision={revision} onChanged={reload} />}
+          {key === 'students' && <StudentsPanel group={group} revision={revision} onVersion={version => mutate({ ...detail, group: { ...detail.group, version } })} onStale={reload} />}
+          {key === 'details' && <Details group={group} schedules={schedules} onChanged={reload} />}
+        </div>)}
       </div>
       <aside aria-labelledby={`${tabId}-glance`} data-group-panel className={`${card} hidden h-fit space-y-3 lg:block`}>
         <h2 id={`${tabId}-glance`} className="font-display text-xl"><L id="tg.panel.title" /></h2>
@@ -114,40 +105,48 @@ function Details({ group, schedules, onChanged }: { group: StudyGroup; schedules
 }
 
 type Rows<T> = { state: 'loading' } | { state: 'error'; error: GroupCallError } | { state: 'ready'; rows: T[]; hasMore: boolean; page: number; catchingUp: boolean; more: 'idle' | 'loading' | GroupCallError };
+type More<T> = { base: GroupPage<T>; rows: T[]; hasMore: boolean; page: number; state: 'idle' | 'loading' | GroupCallError };
 
-/** Reads a paged list from the Group, appending further pages on request. Each panel has its own loading, error and retry. */
-function usePaged<T extends { id?: string; user_id?: string }>(groupId: string, section: 'sessions' | 'members', track = false) {
-  const [data, setData] = useState<Rows<T>>({ state: 'loading' });
-  const [tracked] = useState(track);
-  usePageLoadingSignal(tracked && data.state === 'loading');
-  const [revision, setRevision] = useState(0);
-  const quiet = useRef(false);
-  useEffect(() => {
-    const controller = new AbortController();
-    if (!quiet.current) setData({ state: 'loading' });
-    quiet.current = false;
-    groupCall<GroupPage<T>>('view', groupId, { section, page: 0, search: '' }, null, controller.signal)
-      .then(r => setData({ state: 'ready', rows: r.rows, hasMore: Boolean(r.hasMore), page: 0, catchingUp: Boolean(r.catchingUp), more: 'idle' }), e => { if (!isAbort(e)) setData({ state: 'error', error: asError(e) }); });
-    return () => controller.abort();
-  }, [groupId, section, revision]);
+/**
+ * Reads a paged list from the Group, appending further pages on request. The first page is a stale-while-revalidate read (a revisit shows the last
+ * copy at once); further pages are only ever read on request. `revision` changes when something on the screen changed: the list is read again
+ * without being blanked. Each panel has its own loading, error and retry.
+ */
+function usePaged<T extends { id?: string; user_id?: string }>(groupId: string, section: 'sessions' | 'members', revision: number) {
+  const read = useCallback((signal: AbortSignal) => groupCall<GroupPage<T>>('view', groupId, { section, page: 0, search: '' }, null, signal), [groupId, section]);
+  const first = useSwr<GroupPage<T>, GroupCallError>(`group:${groupId}:${section}:first`, read, asError);
+  const [extra, setExtra] = useState<More<T> | null>(null);
+  const seen = useRef(revision);
+  const { retry } = first;
+  useEffect(() => { if (seen.current !== revision) { seen.current = revision; retry(); } }, [revision, retry]);
+  const key = (x: T) => x.id ?? x.user_id;
+  const base = first.data.state === 'ready' ? first.data.value : null;
+  // Pages appended to a first page that has since been read again are dropped with it: the list starts over from the fresh first page.
+  const live = extra && extra.base === base ? extra : null;
+  const data = useMemo<Rows<T>>(() => {
+    if (first.data.state !== 'ready') return first.data.state === 'error' ? { state: 'error', error: first.data.error } : { state: 'loading' };
+    const page = first.data.value;
+    return { state: 'ready', rows: live ? [...page.rows, ...live.rows] : page.rows, hasMore: live ? live.hasMore : Boolean(page.hasMore), page: live ? live.page : 0, catchingUp: Boolean(page.catchingUp), more: live ? live.state : 'idle' };
+  }, [first.data, live]);
   const more = useCallback(async () => {
-    if (data.state !== 'ready' || data.more === 'loading') return;
-    setData({ ...data, more: 'loading' });
+    if (!base || data.state !== 'ready' || data.more === 'loading') return;
+    const prior: More<T> = live ?? { base, rows: [], hasMore: Boolean(base.hasMore), page: 0, state: 'idle' };
+    setExtra({ ...prior, state: 'loading' });
     try {
-      const r = await groupCall<GroupPage<T>>('view', groupId, { section, page: data.page + 1, search: '' });
-      const key = (x: T) => x.id ?? x.user_id;
-      const seen = new Set(data.rows.map(key));
-      setData({ state: 'ready', rows: [...data.rows, ...r.rows.filter(x => !seen.has(key(x)))], hasMore: Boolean(r.hasMore), page: data.page + 1, catchingUp: data.catchingUp, more: 'idle' });
-    } catch (e) { setData({ ...data, more: asError(e) }); }
-  }, [data, groupId, section]);
-  return { data, retry: () => setRevision(v => v + 1), refresh: () => { quiet.current = true; setRevision(v => v + 1); }, more };
+      const r = await groupCall<GroupPage<T>>('view', groupId, { section, page: prior.page + 1, search: '' });
+      const known = new Set([...base.rows, ...prior.rows].map(key));
+      setExtra({ base, rows: [...prior.rows, ...r.rows.filter(x => !known.has(key(x)))], hasMore: Boolean(r.hasMore), page: prior.page + 1, state: 'idle' });
+    } catch (e) { setExtra({ ...prior, state: asError(e) }); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, data, groupId, section, live]);
+  return { data, retry, refresh: retry, more };
 }
 
-function SessionsPanel({ group, now, onChanged, track }: { group: StudyGroup; now: number; onChanged: () => void; track: boolean }) {
-  const { data, retry, more } = usePaged<GroupSession>(group.id, 'sessions', track);
+function SessionsPanel({ group, now, revision, onChanged }: { group: StudyGroup; now: number; revision: number; onChanged: () => void }) {
+  const { data, retry, more } = usePaged<GroupSession>(group.id, 'sessions', revision);
   const [older, setOlder] = useState(false);
   const parts = useMemo(() => data.state === 'ready' ? partitionSessions(data.rows, now) : null, [data, now]);
-  if (data.state === 'loading') return <Loading label="tg.loading_sessions" className="h-32" />;
+  if (data.state === 'loading') return <div role="status" data-state="loading"><PanelSkeleton /><span className="sr-only"><L id="tg.loading_sessions" /></span></div>;
   if (data.state === 'error') return <GroupError kind={data.error.kind} onRetry={retry} />;
   const { upcoming, earlier } = parts!;
   const visibleEarlier = older ? earlier : earlier.slice(0, RECENT_PAST);
@@ -253,10 +252,10 @@ function AddSession({ group, onClose, onDone }: { group: StudyGroup; onClose: ()
   </form>;
 }
 
-function StudentsPanel({ group, onVersion, onStale }: { group: StudyGroup; onVersion: (version: number) => void; onStale: () => void }) {
-  const { data, retry, refresh, more } = usePaged<GroupRow>(group.id, 'members');
+function StudentsPanel({ group, revision, onVersion, onStale }: { group: StudyGroup; revision: number; onVersion: (version: number) => void; onStale: () => void }) {
+  const { data, retry, refresh, more } = usePaged<GroupRow>(group.id, 'members', revision);
   const [adding, setAdding] = useState(false);
-  if (data.state === 'loading') return <Loading label="tg.loading_students" className="h-32" />;
+  if (data.state === 'loading') return <div role="status" data-state="loading"><PanelSkeleton /><span className="sr-only"><L id="tg.loading_students" /></span></div>;
   if (data.state === 'error') return <GroupError kind={data.error.kind} onRetry={retry} />;
   const students = studentsByName(currentMembers(data.rows));
   const canChange = group.status === 'active' && group.staff;

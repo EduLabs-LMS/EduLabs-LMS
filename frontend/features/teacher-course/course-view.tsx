@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
-import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
 import type { MessageKey } from '@/frontend/locales/messages';
 import { SectionError, StatusBadge, card, inkButton, linkClass, plainButton, primaryButton, useRetry } from '@/frontend/features/teacher-home/parts';
@@ -38,7 +37,6 @@ export function TeacherCourseView({ load }: { load: CourseLoad }) {
 function Course({ course, back }: { course: CoursePageData; back: React.ReactNode }) {
   const [grades, setGrades] = useState<Grades>({ state: 'loading' });
   const [attempt, setAttempt] = useState(0);
-  usePageLoadingSignal(grades.state === 'loading');
   useEffect(() => {
     const controller = new AbortController();
     const query = new URLSearchParams({ kind: 'classification', organizationId: course.organizationId, courseId: course.id });

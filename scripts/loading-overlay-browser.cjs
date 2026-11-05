@@ -1,6 +1,11 @@
-// Real LoadingProvider + LoadingOverlay + useLoadingRouter in Chromium. Only next/navigation is replaced by a small
-// soft-navigation stand-in (Next's Link prevents the click, then the URL changes after the "server" delay).
-// The same behaviours were also checked against a real Next production build while fixing this.
+// Skeletons instead of the overlay, the first-load overlay, and stale-while-revalidate per user, in Chromium.
+//
+// Real: LoadingProvider + LoadingOverlay (the EduLabs logo overlay), first-load.ts, swr-cache.ts, use-swr.ts and the Skeleton components.
+// Stand-in: only next/navigation, as a soft-navigation model of Next's App Router with a loading.tsx on every route: the app frame (sidebar) is a layout and
+// stays mounted, the route's skeleton is put in the content area at once, and the page replaces it (and the address changes) when the "server" answers.
+// The same contract was measured against a real Next production build: see docs/ai/TESTING.md ("Speed").
+//
+// Run: LMS_ESBUILD_RUNTIME=<node_modules with esbuild> LMS_BROWSER_RUNTIME=<node_modules with playwright> [LMS_CHROMIUM_EXECUTABLE=...] node scripts/loading-overlay-browser.cjs
 const fs = require('fs'), path = require('path'), http = require('http'), assert = require('node:assert/strict');
 const esbuild = require(path.join(process.env.LMS_ESBUILD_RUNTIME, 'esbuild')), { chromium } = require(path.join(process.env.LMS_BROWSER_RUNTIME, 'playwright'));
 const out = path.resolve('.local/loading-overlay-browser'); fs.mkdirSync(out, { recursive: true });
@@ -10,60 +15,81 @@ import { useSyncExternalStore } from 'react';
 const subs = new Set(); const emit = () => subs.forEach(f => f());
 const sub = f => { subs.add(f); return () => subs.delete(f); };
 let key = location.pathname + location.search;
-window.addEventListener('popstate', () => { key = location.pathname + location.search; emit(); });
+let pending = null;
+window.addEventListener('popstate', () => { key = location.pathname + location.search; pending = null; emit(); });
 export const usePathname = () => useSyncExternalStore(sub, () => key.split('?')[0], () => '/');
+export const usePending = () => useSyncExternalStore(sub, () => pending, () => null);
 let cache = null, cacheKey = null;
 export const useSearchParams = () => useSyncExternalStore(sub, () => { if (cacheKey !== key) { cacheKey = key; cache = new URLSearchParams(key.split('?')[1] || ''); } return cache; }, () => new URLSearchParams());
 const delayOf = h => Number(new URLSearchParams(h.split('?')[1] || '').get('ms') || 0);
-export const softNavigate = (href, replace) => setTimeout(() => { history[replace ? 'replaceState' : 'pushState'](null, '', href); key = location.pathname + location.search; emit(); }, delayOf(href));
-export const useRouter = () => ({ push: h => softNavigate(h, false), replace: h => softNavigate(h, true), refresh() {}, back() { history.back(); } });
+export const softNavigate = (href, replace) => {
+  // The route's loading.tsx shows at once; the page (and the new address) arrive when the server has answered.
+  pending = href.split('?')[0]; emit();
+  setTimeout(() => { history[replace ? 'replaceState' : 'pushState'](null, '', href); key = location.pathname + location.search; pending = null; emit(); }, delayOf(href));
+};
+export const useRouter = () => ({ push: h => softNavigate(h, false), replace: h => softNavigate(h, true), refresh() {}, back() { history.back(); }, prefetch() {} });
 `;
+
 const entry = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { LoadingProvider } from '@/frontend/components/providers/loading-provider';
+import { LoadingProvider, useGlobalLoading } from '@/frontend/components/providers/loading-provider';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
-import { softNavigate, usePathname } from 'next/navigation';
-import RouteLoadingSignal from '@/frontend/components/route-loading-signal';
-import { usePageLoadingSignal } from '@/frontend/components/providers/use-page-loading-signal';
-function Link({ href, id, ignore, children }) {
-  return <a id={id} href={href} {...(ignore ? { 'data-loading-ignore': '' } : {})} onClick={e => { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); if (ignore) return; softNavigate(href, false); }}>{children}</a>;
+import { softNavigate, usePathname, usePending } from 'next/navigation';
+import { PageSkeleton, Skeleton } from '@/frontend/components/skeleton';
+import { clearSwr, setSwrOwner, swrSize } from '@/frontend/lib/swr-cache';
+import { useSwr } from '@/frontend/lib/use-swr';
+
+function Link({ href, id, children }) {
+  return <a id={id} href={href} onClick={e => { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); softNavigate(href, false); }}>{children}</a>;
 }
-// Stand-ins for what Next renders: loading.tsx fallbacks (RouteLoadingSignal) while the server works, then the page.
-function useAfter(ms) { const [done, setDone] = React.useState(ms === 0); React.useEffect(() => { const t = setTimeout(() => setDone(true), ms); return () => clearTimeout(t); }, [ms]); return done; }
-function Stacked() { // root fallback + nested fallback; the nested one goes first, the root one last
-  const nestedDone = useAfter(300), rootDone = useAfter(1000);
-  return <>{!rootDone && <RouteLoadingSignal />}{!nestedDone && <RouteLoadingSignal />}<p id="stacked">{rootDone ? 'stacked page' : 'fallback'}</p></>;
+
+// A teacher page whose data is read in the browser with stale-while-revalidate.
+class Refusal extends Error { constructor(status) { super('refused'); this.status = status; } }
+const readData = signal => fetch('/data?who=' + (window.__who || 'nobody') + '&d=' + (window.__delay || 0) + '&mode=' + (window.__mode || 'ok'), { signal })
+  .then(r => r.ok ? r.json() : Promise.reject(new Refusal(r.status)));
+function DataPage() {
+  const { data, retry } = useSwr('data:page', readData, e => e);
+  return <section data-page="data">
+    {data.state === 'loading' && <div id="data-skeleton" data-skeleton="data"><Skeleton className="h-6 w-40" /></div>}
+    {data.state === 'ready' && <p id="data" data-refreshing={data.refreshing ? '1' : '0'}>{data.value.name}</p>}
+    {data.state === 'error' && <p id="err" role="alert">Could not load ({String(data.error && data.error.status)})</p>}
+    <button id="retry" onClick={retry}>retry</button>
+  </section>;
 }
-// A teacher page that reads its main data in the browser after the server rendered it.
-function DataPage({ url }) {
-  const [state, setState] = React.useState({ s: 'loading' });
-  usePageLoadingSignal(state.s === 'loading');
-  React.useEffect(() => { if (state.s !== 'loading') return; const c = new AbortController(); fetch(url, { signal: c.signal }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(v => setState({ s: 'ready', v }), e => { if (e && e.name === 'AbortError') return; setState({ s: 'error' }); }); return () => c.abort(); }, [url, state.s]);
-  return <section>{state.s === 'loading' && <p id="skeleton">Loading...</p>}{state.s === 'ready' && <p id="data">{state.v.name}</p>}{state.s === 'error' && <p id="err" role="alert">Could not load</p>}
-    <button id="retry" onClick={() => setState({ s: 'loading' })}>retry</button></section>;
+
+function Page({ path }) {
+  if (path === '/teacher/data') return <DataPage />;
+  return <p id="page" data-page={path}>page {path}</p>;
 }
-function WithServerFallback({ children, ms = 200 }) { const done = useAfter(ms); return done ? children : <RouteLoadingSignal />; }
-function Content({ path }) {
-  const q = new URLSearchParams(location.search);
-  if (path === '/teacher/stacked') return <Stacked />;
-  if (path.startsWith('/teacher/data')) return <WithServerFallback ms={q.get("fb") === null ? 200 : Number(q.get("fb"))}><DataPage url={'/data?d=' + (q.get('d') || 0) + (q.get('fail') ? '&fail=1' : '') + (q.get('hang') ? '&hang=1' : '')} /></WithServerFallback>;
-  return null;
-}
+
 function App() {
-  const router = useLoadingRouter(); const path = usePathname();
-  return <div><nav>
-    <Link id="slow" href="/teacher/groups?ms=700">Groups</Link>
-    <Link id="fast" href="/teacher/fast?ms=10">Fast</Link>
-    <Link id="cancel" href="/teacher/cancelled?ms=700" ignore>Cancelled</Link>
-    <button id="push" onClick={() => router.push('/teacher/groups?ms=700')}>push</button>
-    <button id="pushfast" onClick={() => router.push('/teacher/fast?ms=10')}>push fast</button>
-    <Link id="data" href="/teacher/data?ms=300&d=1500">Data</Link>
-    <Link id="datafast" href="/teacher/data?ms=10&d=0&fb=0">Data fast</Link>
-  </nav><p id="path">{path}</p><Content path={path} /></div>;
+  const router = useLoadingRouter(); const path = usePathname(); const pending = usePending();
+  const { beginFirstLoad, startLoading, stopLoading } = useGlobalLoading();
+  const [, force] = React.useReducer(v => v + 1, 0);
+  return <div>
+    <aside id="frame" data-frame>
+      <nav>
+        <Link id="slow" href="/teacher/groups?ms=700">Groups</Link>
+        <Link id="fast" href="/teacher/fast?ms=10">Fast</Link>
+        <Link id="data-link" href="/teacher/data?ms=10">Data</Link>
+        <Link id="home" href="/teacher/home?ms=10">Home</Link>
+        <button id="push" onClick={() => router.push('/teacher/students?ms=700')}>push</button>
+      </nav>
+      <button id="signin" onClick={() => { beginFirstLoad(); router.replace('/teacher/home?ms=' + (window.__signinMs ?? 300)); }}>sign in</button>
+      <button id="save" onClick={() => startLoading('Saving')}>save</button>
+      <button id="saved" onClick={() => stopLoading()}>saved</button>
+      <button id="login-a" onClick={() => { window.__who = 'a'; setSwrOwner('uid-a'); }}>a</button>
+      <button id="login-b" onClick={() => { window.__who = 'b'; setSwrOwner('uid-b'); }}>b</button>
+      <button id="logout" onClick={() => { clearSwr(); window.__who = null; force(); }}>logout</button>
+    </aside>
+    <main id="content">{pending ? <PageSkeleton name={pending} label="Loading" /> : <Page path={path} />}</main>
+  </div>;
 }
+window.__swrSize = swrSize;
 createRoot(document.getElementById('root')).render(<LoadingProvider><App /></LoadingProvider>);
 `;
+
 const plugin = {
   name: 'overlay-harness', setup(b) {
     b.onResolve({ filter: /.*/ }, a => {
@@ -83,8 +109,8 @@ const plugin = {
     if (req.url === '/client.js') { res.setHeader('Content-Type', 'text/javascript'); return res.end(fs.readFileSync(path.join(out, 'client.js'))); }
     if (req.url.startsWith('/data')) {
       const q = new URL(req.url, 'http://x').searchParams;
-      if (q.get('hang')) return;
-      return setTimeout(() => { res.statusCode = q.get('fail') ? 500 : 200; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ name: 'teacher data' })); }, Number(q.get('d') || 0));
+      const status = q.get('mode') === '403' ? 403 : q.get('mode') === '500' ? 500 : 200;
+      return setTimeout(() => { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ name: 'data for ' + q.get('who') })); }, Number(q.get('d') || 0));
     }
     res.setHeader('Content-Type', 'text/html'); res.end(html);
   });
@@ -92,96 +118,176 @@ const plugin = {
   const origin = 'http://127.0.0.1:' + server.address().port;
   const browser = await chromium.launch({ headless: true, executablePath: process.env.LMS_CHROMIUM_EXECUTABLE });
   const errors = [];
-  try {
-
-  // Records when the overlay was on screen, in ms since the action, sampled every 20 ms.
-  async function run(action, { from = '/teacher/home', wait = 2300, reduced = false } = {}) {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
-    const page = await ctx.newPage(); page.on('pageerror', e => errors.push(e.message));
-    await page.goto(origin + from); await page.locator('#path').waitFor(); await page.waitForTimeout(300);
-    await page.evaluate(() => { window.__log = []; window.__t0 = performance.now(); window.__iv = setInterval(() => window.__log.push([Math.round(performance.now() - window.__t0), !!document.querySelector('[role="status"][aria-label]'), location.pathname]), 20); });
-    await action(page); await page.waitForTimeout(wait);
-    const log = await page.evaluate(() => { clearInterval(window.__iv); return window.__log; });
-    await ctx.close();
-    const on = log.filter(r => r[1]), changed = log.find(r => r[2] !== log[0][2]);
-    return { shown: on.length > 0, from: on[0] && on[0][0], until: on.length ? on[on.length - 1][0] : undefined, urlAt: changed && changed[0], path: log[log.length - 1][2] };
-  }
+  const OVERLAY = '[role="status"][aria-label]';
   const ok = (name, fn) => fn().then(() => console.log('PASS ' + name));
 
-  await ok('a slow teacher link shows the overlay after the short delay, keeps it until the page arrives, then finishes calmly', async () => {
-    const r = await run(p => p.click('#slow'));
-    assert.ok(r.shown, 'overlay shown'); assert.ok(r.from >= 100 && r.from <= 400, 'appears after the 120 ms delay, not instantly: ' + r.from);
-    assert.ok(r.until >= r.urlAt, 'still up when the page arrived'); assert.ok(r.until - r.urlAt >= 500, 'finish phase of about 650 ms: ' + (r.until - r.urlAt));
-    assert.ok(r.until < r.urlAt + 1400, 'and it goes away: ' + (r.until - r.urlAt)); assert.equal(r.path, '/teacher/groups');
-  });
-  await ok('router.push through useLoadingRouter shows it too', async () => { const r = await run(p => p.click('#push')); assert.ok(r.shown); assert.ok(r.until >= r.urlAt); assert.equal(r.path, '/teacher/groups'); });
-  await ok('a fast navigation (link or router.push) never flashes the overlay', async () => {
-    for (const id of ['#fast', '#pushfast']) { const r = await run(p => p.click(id), { wait: 900 }); assert.equal(r.shown, false, id); assert.equal(r.path, '/teacher/fast'); }
-  });
-  await ok('a cancelled navigation (the app cancels the click and never navigates) does not show it', async () => {
-    const r = await run(p => p.click('#cancel'), { wait: 1500 }); assert.equal(r.shown, false); assert.equal(r.path, '/teacher/home');
-  });
-  await ok('navigating to the page you are already on does not show it', async () => {
-    const r = await run(p => p.click('#slow'), { from: '/teacher/groups?ms=700', wait: 1000 }); assert.equal(r.shown, false);
-  });
-  await ok('modified clicks (open in new tab) do not show it', async () => {
-    const r = await run(p => p.click('#slow', { modifiers: ['Control'] }), { wait: 1000 }); assert.equal(r.shown, false);
-  });
-  await ok('the overlay never takes taps for a navigation', async () => {
-    const ctx = await browser.newContext(); const page = await ctx.newPage(); await page.goto(origin + '/teacher/home'); await page.locator('#path').waitFor();
-    await page.click('#slow'); await page.locator('[role="status"][aria-label]').waitFor({ timeout: 2000 });
-    assert.match(await page.locator('[role="status"][aria-label]').getAttribute('class'), /pointer-events-none/); await ctx.close();
-  });
-  await ok('with reduced motion the overlay still shows and finishes', async () => {
-    const r = await run(p => p.click('#slow'), { reduced: true }); assert.ok(r.shown); assert.equal(r.path, '/teacher/groups');
-  });
-
-  // Samples every 20 ms from the very start of the page (full loads) or from the action (client navigations).
-  const SAMPLER = () => { window.__log = []; const t0 = performance.now(); window.__iv = setInterval(() => window.__log.push({ t: Math.round(performance.now() - t0), overlay: !!document.querySelector('[role="status"][aria-label]'), data: !!document.querySelector('#data'), err: !!document.querySelector('#err'), skeleton: !!document.querySelector('#skeleton') }), 20); };
-  async function trace(url, { wait = 4000, click, reduced = false } = {}) {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: reduced ? 'reduce' : 'no-preference' }); const page = await ctx.newPage(); page.on('pageerror', e => errors.push(e.message));
-    if (click) { await page.goto(origin + '/teacher/home'); await page.locator('#path').waitFor(); await page.waitForTimeout(300); await page.evaluate(SAMPLER); await page.click(click); }
-    else { await page.addInitScript(SAMPLER); await page.goto(origin + url); }
+  // Samples every 10 ms from the moment it is installed: is the overlay up, is a skeleton up, which page is showing, is the frame the same node.
+  const SAMPLER = () => {
+    window.__frameNode = document.getElementById('frame'); 
+    window.__log = []; const t0 = performance.now();
+    window.__iv = setInterval(() => window.__log.push({ t: Math.round(performance.now() - t0), overlay: !!document.querySelector('[role="status"][aria-label]'), skeleton: !!document.querySelector('[data-skeleton]'),
+      page: (document.querySelector('[data-page]') || {}).dataset ? document.querySelector('[data-page]').dataset.page : null, sameFrame: document.getElementById('frame') === window.__frameNode }), 10);
+  };
+  async function open(url, { reduced = false, sessionFlag = false } = {}) {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
+    const page = await ctx.newPage(); page.on('pageerror', e => errors.push(e.message));
+    if (sessionFlag) await page.addInitScript(() => { if (!sessionStorage.getItem('__seeded')) { sessionStorage.setItem('edulabs-first-load', 'pending'); sessionStorage.setItem('__seeded', '1'); } });
+    await page.goto(origin + url); await page.locator('#frame').waitFor();
+    return { ctx, page };
+  }
+  const summary = (log) => {
+    const on = log.filter(r => r.overlay), edges = log.filter((r, i) => r.overlay && (i === 0 || !log[i - 1].overlay));
+    return { overlayShown: on.length > 0, runs: edges.length, from: on[0] && on[0].t, until: on.length ? on[on.length - 1].t : undefined, firstSkeleton: (log.find(r => r.skeleton) || {}).t, lastSkeleton: log.filter(r => r.skeleton).pop()?.t,
+      frameAlways: log.every(r => r.sameFrame), finalPage: log[log.length - 1].page };
+  };
+  async function action(url, act, { wait = 2200, reduced = false, sessionFlag = false } = {}) {
+    const { ctx, page } = await open(url, { reduced, sessionFlag });
+    await page.waitForTimeout(sessionFlag ? 0 : 300);
+    await page.evaluate(SAMPLER); const t0 = Date.now();
+    if (act) await act(page);
     await page.waitForTimeout(wait);
-    const log = await page.evaluate(() => { clearInterval(window.__iv); return window.__log; }); await ctx.close();
-    const edges = log.filter((r, i) => r.overlay && (i === 0 || !log[i - 1].overlay)), on = log.filter(r => r.overlay);
-    const gone = on.length ? log.find(r => !r.overlay && r.t > on[on.length - 1].t) : undefined;
-    return { log, runs: edges.length, shownAt: on[0] && on[0].t, lastOn: on.length ? on[on.length - 1].t : undefined, dataAtRemoval: gone ? gone.data : undefined, skeletonAfterOverlay: on.length ? log.some(r => r.t > on[on.length - 1].t && r.skeleton) : undefined, final: log[log.length - 1] };
+    const log = await page.evaluate(() => { clearInterval(window.__iv); return window.__log; });
+    await ctx.close();
+    return { ...summary(log), log, t0 };
   }
 
-  await ok('two stacked route signals (root + nested), one releasing early: one run, no early finish, no restart', async () => {
-    const r = await trace('/teacher/stacked');
-    assert.equal(r.runs, 1, 'overlay ran ' + r.runs + ' times'); assert.ok(r.lastOn >= 1000 + 500, 'overlay held until the last signal released and then finished: ' + r.lastOn);
-    assert.ok(r.log.filter(x => x.t > 200 && x.t < 1000).every(x => x.overlay), 'overlay up the whole time');
+  // ---- in-app navigation: frame stays, skeleton in the content area, never the overlay ----
+  await ok('a slow in-app link keeps the frame, shows the page skeleton within 100 ms, and never shows the logo overlay', async () => {
+    const r = await action('/teacher/home', p => p.click('#slow'), { wait: 1500 });
+    assert.equal(r.overlayShown, false, 'no overlay for in-app navigation');
+    assert.ok(r.firstSkeleton !== undefined && r.firstSkeleton <= 100 + 30, 'skeleton within ~100 ms of the click: ' + r.firstSkeleton);
+    assert.ok(r.lastSkeleton >= 600, 'skeleton stays until the page arrives: ' + r.lastSkeleton);
+    assert.equal(r.frameAlways, true, 'the app frame (sidebar) is the same node throughout: it never remounts');
+    assert.equal(r.finalPage, '/teacher/groups'); assert.equal(r.log[r.log.length - 1].skeleton, false, 'and the skeleton is gone');
   });
-  await ok('a slow browser fetch: the overlay stays up until the data arrives and the data is in the page when the overlay is removed (full reload)', async () => {
-    const r = await trace('/teacher/data?d=1500');
-    assert.equal(r.runs, 1, 'overlay ran ' + r.runs + ' times'); assert.equal(r.dataAtRemoval, true, 'data present when the overlay is gone');
-    assert.equal(r.skeletonAfterOverlay, false, 'no skeleton after the overlay'); assert.ok(r.lastOn >= 1500, 'up until the data: ' + r.lastOn);
-    assert.equal(r.final.data, true);
+  await ok('router.push behaves the same', async () => {
+    const r = await action('/teacher/home', p => p.click('#push'), { wait: 1500 });
+    assert.equal(r.overlayShown, false); assert.ok(r.firstSkeleton <= 130, String(r.firstSkeleton)); assert.equal(r.frameAlways, true); assert.equal(r.finalPage, '/teacher/students');
   });
-  await ok('the same through a client-side navigation', async () => {
-    const r = await trace(null, { click: '#data' });
-    assert.equal(r.runs, 1); assert.equal(r.dataAtRemoval, true); assert.equal(r.skeletonAfterOverlay, false);
+  await ok('a fast in-app navigation never shows the overlay', async () => {
+    const r = await action('/teacher/home', p => p.click('#fast'), { wait: 800 });
+    assert.equal(r.overlayShown, false); assert.equal(r.finalPage, '/teacher/fast');
   });
-  await ok('a fast client navigation with a fast fetch never flashes the overlay', async () => {
-    const r = await trace(null, { click: '#datafast', wait: 1200 }); assert.equal(r.runs, 0); assert.equal(r.final.data, true);
+  await ok('twenty navigations in a row never bring the overlay back', async () => {
+    const { ctx, page } = await open('/teacher/home'); await page.waitForTimeout(300); await page.evaluate(SAMPLER);
+    for (let i = 0; i < 20; i++) { await page.click(i % 2 ? '#fast' : '#home'); await page.waitForTimeout(60); }
+    await page.waitForTimeout(500);
+    const log = await page.evaluate(() => { clearInterval(window.__iv); return window.__log; }); await ctx.close();
+    assert.equal(summary(log).overlayShown, false); assert.equal(summary(log).frameAlways, true);
   });
-  await ok('a failing fetch releases the overlay and the page shows its own error state', async () => {
-    const r = await trace('/teacher/data?d=800&fail=1');
-    assert.equal(r.runs, 1); assert.equal(r.final.err, true); assert.equal(r.final.overlay, false); assert.equal(r.skeletonAfterOverlay, false);
+  await ok('opening a page directly or restoring a session (a plain load, no sign-in) shows no overlay', async () => {
+    const r = await action('/teacher/home', null, { wait: 800 }); assert.equal(r.overlayShown, false);
   });
-  await ok('a retry after the overlay is gone does not bring the overlay back', async () => {
-    const ctx = await browser.newContext(); const page = await ctx.newPage(); await page.goto(origin + '/teacher/data?d=300&fail=1'); await page.locator('#err').waitFor({ timeout: 5000 }); await page.waitForTimeout(1500);
-    await page.click('#retry'); await page.waitForTimeout(600); assert.equal(await page.locator('[role="status"][aria-label]').count(), 0); await ctx.close();
+
+  // ---- first load after sign-in ----
+  await ok('sign-in plays the logo overlay once, between the minimum and under one second, over a page that is ready', async () => {
+    const r = await action('/teacher/login', p => p.click('#signin'), { wait: 2000 });
+    assert.equal(r.overlayShown, true); assert.equal(r.runs, 1, 'one run');
+    assert.ok(r.from <= 100, 'appears at once, no delay: ' + r.from);
+    const total = r.until - r.from;
+    assert.ok(total >= 250, 'long enough not to flash: ' + total); assert.ok(r.until < 1000, 'gone in under one second: ' + r.until);
+    assert.equal(r.finalPage, '/teacher/home');
   });
-  await ok('safety cap: a fetch that never answers releases the overlay after about 10 s and the page keeps its own loading state', async () => {
-    const r = await trace('/teacher/data?hang=1', { wait: 12500 });
-    assert.equal(r.runs, 1); assert.ok(r.lastOn >= 9500 && r.lastOn <= 11500, 'overlay released around the cap: ' + r.lastOn); assert.equal(r.final.overlay, false); assert.equal(r.final.skeleton, true);
+  await ok('a slow first page does not hold the overlay past the cap: the frame and a skeleton take over', async () => {
+    const r = await action('/teacher/login', async p => { await p.evaluate(() => { window.__signinMs = 3000; }); await p.click('#signin'); }, { wait: 3600 });
+    assert.equal(r.overlayShown, true); assert.ok(r.until < 1000, 'overlay gone in under one second even though the page took 3 s: ' + r.until);
+    assert.ok(r.log.some(x => x.t > r.until && x.skeleton), 'the skeleton is what is left while the page is on its way');
+    assert.equal(r.finalPage, '/teacher/home');
   });
-  await ok('with reduced motion a slow fetch still keeps the overlay until the data is there', async () => {
-    const r = await trace('/teacher/data?d=1200', { reduced: true }); assert.equal(r.runs, 1); assert.equal(r.dataAtRemoval, true);
+  await ok('after the first load the overlay never replays: not on navigation, not after a reload in the same tab', async () => {
+    const { ctx, page } = await open('/teacher/login'); await page.waitForTimeout(300);
+    await page.click('#signin'); await page.waitForTimeout(1800);
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('edulabs-first-load')), null, 'the mark is cleared once played');
+    await page.evaluate(SAMPLER); await page.click('#slow'); await page.waitForTimeout(1200);
+    await page.reload(); await page.locator('#frame').waitFor(); await page.evaluate(SAMPLER); await page.waitForTimeout(900);
+    const log = await page.evaluate(() => { clearInterval(window.__iv); return window.__log; }); await ctx.close();
+    assert.equal(summary(log).overlayShown, false);
   });
+  await ok('a full page load in the middle of signing in (the Google redirect) still plays it once', async () => {
+    const { ctx, page } = await open('/teacher/home', { sessionFlag: true });
+    const first = [];
+    const t0 = Date.now(); while (Date.now() - t0 < 1500) { first.push(await page.locator(OVERLAY).count()); await page.waitForTimeout(20); }
+    assert.ok(first.some(n => n > 0), 'overlay shown after the redirect load'); assert.equal(first[first.length - 1], 0, 'and gone within 1.5 s');
+    await page.reload(); await page.locator('#frame').waitFor(); await page.waitForTimeout(100);
+    assert.equal(await page.locator(OVERLAY).count(), 0, 'a later reload does not replay it'); await ctx.close();
+  });
+  await ok('with reduced motion the first-load overlay still shows and finishes', async () => {
+    const r = await action('/teacher/login', p => p.click('#signin'), { wait: 1800, reduced: true });
+    assert.equal(r.overlayShown, true); assert.ok(r.until < 1000); assert.equal(r.log[r.log.length - 1].overlay, false);
+  });
+  await ok('a blocking action (save) still shows the overlay after the short delay and lets go when it ends', async () => {
+    const r = await action('/teacher/home', async p => { await p.click('#save'); await p.waitForTimeout(900); await p.click('#saved'); }, { wait: 1800 });
+    assert.equal(r.overlayShown, true); assert.ok(r.from >= 100 && r.from <= 300, 'after the 120 ms delay: ' + r.from); assert.equal(r.log[r.log.length - 1].overlay, false);
+  });
+  await ok('a quick blocking action never flashes it', async () => {
+    const r = await action('/teacher/home', async p => { await p.click('#save'); await p.waitForTimeout(40); await p.click('#saved'); }, { wait: 800 });
+    assert.equal(r.overlayShown, false);
+  });
+
+  // ---- stale-while-revalidate, per user ----
+  const textOf = (page, sel) => page.locator(sel).first().textContent();
+  async function swrPage() {
+    const { ctx, page } = await open('/teacher/home');
+    await page.evaluate(() => { window.__delay = 250; }); return { ctx, page };
+  }
+  await ok('swr: a revisit shows the last data at once (no skeleton) and refreshes it in the background', async () => {
+    const { ctx, page } = await swrPage();
+    await page.click('#login-a'); await page.click('#data-link'); await page.locator('#data').waitFor();
+    assert.equal(await textOf(page, '#data'), 'data for a');
+    await page.click('#home'); await page.locator('[data-page="/teacher/home"]').waitFor();
+    await page.evaluate(() => { window.__delay = 800; window.__who = 'a'; });
+    await page.click('#data-link');
+    await page.locator('#data').waitFor({ timeout: 300 });
+    assert.equal(await page.locator('#data-skeleton').count(), 0, 'no skeleton on the revisit');
+    assert.equal(await page.locator('#data').getAttribute('data-refreshing'), '1', 'refreshing in the background');
+    await page.waitForFunction(() => document.querySelector('#data')?.dataset.refreshing === '0', null, { timeout: 3000 });
+    await ctx.close();
+  });
+  await ok('swr: another user never sees the first user\'s copy, and signing out empties it', async () => {
+    const { ctx, page } = await swrPage();
+    await page.click('#login-a'); await page.click('#data-link'); await page.locator('#data').waitFor();
+    assert.equal(String(await page.evaluate(() => window.__swrSize())), '1');
+    await page.click('#logout');
+    // the mounted screen lets go of the previous user's data at once
+    await page.waitForFunction(() => !document.querySelector('#data') || document.querySelector('#data').textContent !== 'data for a', null, { timeout: 500 });
+    await page.evaluate(() => { window.__delay = 600; });
+    await page.click('#login-b');
+    const seen = await page.evaluate(() => new Promise(resolve => { const texts = []; const iv = setInterval(() => { const el = document.querySelector('#data'); if (el) texts.push(el.textContent); }, 10); setTimeout(() => { clearInterval(iv); resolve(texts); }, 1500); }));
+    assert.ok(seen.length > 0 && seen.every(t => t === 'data for b'), 'user b only ever sees b\'s data: ' + JSON.stringify([...new Set(seen)]));
+    await ctx.close();
+  });
+  await ok('swr: after sign-out and a different sign-in the old data is gone from memory (cache size) and nothing was written to storage', async () => {
+    const { ctx, page } = await swrPage();
+    await page.click('#login-a'); await page.click('#data-link'); await page.locator('#data').waitFor();
+    const stored = await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage), document.cookie]));
+    assert.doesNotMatch(stored, /data for a|uid-a/, 'no copy and no user id in browser storage');
+    await page.click('#logout'); assert.equal(String(await page.evaluate(() => window.__swrSize())), '0');
+    await ctx.close();
+  });
+  await ok('swr: a refusal on the refresh removes the copy and shows the refusal; an outage keeps the copy', async () => {
+    const { ctx, page } = await swrPage();
+    await page.click('#login-a'); await page.click('#data-link'); await page.locator('#data').waitFor();
+    await page.click('#home'); await page.evaluate(() => { window.__mode = '500'; window.__delay = 100; });
+    await page.click('#data-link'); await page.waitForTimeout(600);
+    assert.equal(await textOf(page, '#data'), 'data for a', 'an outage keeps what was shown'); assert.equal(await page.locator('#err').count(), 0);
+    await page.click('#home'); await page.evaluate(() => { window.__mode = '403'; });
+    await page.click('#data-link'); await page.locator('#err').waitFor({ timeout: 2000 });
+    assert.match(await textOf(page, '#err'), /403/); assert.equal(await page.locator('#data').count(), 0, 'the copy is not shown any more');
+    await page.click('#home'); await page.evaluate(() => { window.__mode = 'ok'; window.__delay = 400; });
+    await page.click('#data-link'); await page.waitForTimeout(80);
+    assert.equal(await page.locator('#data').count(), 0, 'and it stays gone: the next visit starts from a skeleton'); assert.equal(await page.locator('#data-skeleton').count(), 1);
+    await ctx.close();
+  });
+  await ok('swr: a first read that fails is an error, never an empty page', async () => {
+    const { ctx, page } = await swrPage();
+    await page.click('#login-a'); await page.evaluate(() => { window.__mode = '500'; });
+    await page.click('#data-link'); await page.locator('#err').waitFor({ timeout: 2000 }); assert.equal(await page.locator('#data').count(), 0); await ctx.close();
+  });
+  await ok('swr: with nobody signed in nothing is kept', async () => {
+    const { ctx, page } = await swrPage();
+    await page.click('#data-link'); await page.locator('#data').waitFor(); assert.equal(String(await page.evaluate(() => window.__swrSize())), '0'); await ctx.close();
+  });
+
   assert.deepEqual(errors, []);
-  } finally { await browser.close(); server.close(); }
+  await browser.close(); server.close();
 })().catch(e => { console.error(e); process.exitCode = 1; });
