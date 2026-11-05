@@ -32,3 +32,7 @@ components; do not add legacy paths to the middleware allow-list.
 ## Update 2026-11-05: design foundation
 
 Branch `claude/design-v2-foundation`, from `claude/teacher-v1`, pushed as a new branch, not merged or deployed. Classic and New looks behind a per-person switch, the new frame, Courses at `/teacher/courses`, Settings in the main shell, Home rebuilt. Decisions: DECISIONS.md, "Design foundation". Next step: the owner and co-founder compare the looks and choose; no screen beyond Home and the frame was rebuilt.
+
+## Update 2026-11-05: owner feedback on the New look
+
+Same branch, `claude/design-v2-foundation`, not merged or deployed. New now carries Classic's lime pill, edge and rounded shapes; the logo has no box; Homework, Exams and Reports show with a Soon tag; New has its motion; the logo plays on every fresh opening of the site and replaces the old landing splash; Home has a countdown. Decisions: DECISIONS.md, "Owner feedback on the New look". Next step: the owner judges it on staging.

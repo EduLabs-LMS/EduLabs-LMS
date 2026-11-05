@@ -19,7 +19,7 @@ V1 definition and checklist: [V1.md](V1.md). Integration branch: claude/teacher-
 - Owner authorization: issue #20 comment 6383545623 and the explicit chat instruction.
 - Neither friend branch 16acf2f nor integration merge f1be2f8 was merged/cherry-picked.
 - Continue Learning fix d96c40e was selectively ported, retaining baseline styles.
-- Staging-only successful-login soft replace and landing-only splash behavior were
+- Staging-only successful-login soft replace and landing-only splash behavior were (The landing splash was later replaced by the opening logo on every route: DECISIONS.md, "Owner feedback on the New look".)
   narrowly ported; no email/provider changes or PR #19 content were imported.
 - 50 teacher-only presentation files are removed; exact paths and baseline consumers
   are in RETIRED_TEACHER_UI.json. Shared views retain student behavior.
