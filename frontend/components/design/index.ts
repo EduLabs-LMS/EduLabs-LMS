@@ -1,4 +1,3 @@
-export { useSlidingIndicator } from './use-sliding-indicator';
 export { Avatar } from './avatar';
 export { Button, buttonClass, type ButtonVariant } from './button';
 export { Card, CardHead, IconBadge, ListRow } from './card';
@@ -10,4 +9,5 @@ export { PageHeader, type HeaderAction } from './page-header';
 export { DesignSkeleton } from './skeleton';
 export { StatusPill, type Tone } from './status-pill';
 export { StickyActionBar } from './sticky-action-bar';
-export { SegmentedControl, Tabs, type TabItem } from './tabs';
+export { ChoiceGroup, SegmentedControl, Select, Switch, type ChoiceOption, type SelectOption } from './controls';
+export { Tabs, type TabItem } from './tabs';

@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { api } from '@/frontend/lib/api';
+import { Select } from '@/frontend/components/design/controls';
 import { Button } from '@/frontend/components/ui/button';
 import {
 	Dialog,
@@ -82,18 +83,12 @@ export const NewTicketModal = ({ open, onOpenChange, onCreated }: NewTicketModal
 
 					<div className="grid gap-2">
 						<Label htmlFor="support-subject">Subject</Label>
-						<select
+						<Select
 							id="support-subject"
 							value={subject}
-							onChange={(event) => setSubject(event.target.value)}
-							className="h-10 w-full rounded-xl border-2 border-black bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-						>
-							{SUBJECT_PRESETS.map((preset) => (
-								<option key={preset} value={preset}>
-									{preset}
-								</option>
-							))}
-						</select>
+							onChange={setSubject}
+							options={SUBJECT_PRESETS.map((preset) => ({ value: preset, label: preset }))}
+						/>
 					</div>
 
 					{isOther && (

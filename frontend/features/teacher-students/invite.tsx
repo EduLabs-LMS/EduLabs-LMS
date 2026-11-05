@@ -3,6 +3,7 @@ import { actionToast } from '@/frontend/lib/action-toast';
 import { useId, useState } from 'react';
 import { Check, Copy, Loader2, Share2 } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
+import { Select } from '@/frontend/components/design/controls';
 import Link from 'next/link';
 import { inkButton, linkClass, plainButton, primaryButton } from '@/frontend/features/teacher-home/parts';
 import { GroupError, useCommand } from '@/frontend/features/teacher-groups/parts';
@@ -91,9 +92,9 @@ export function InvitePanel({ courses, initialOffering, onClose }: { courses: Co
       {open.length === 0 && <p data-no-published className="text-base text-slate-800"><L id="ts.invite.none_published" /></p>}
       {open.length > 0 && <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1" htmlFor={`${id}-c`}><span className="font-bold"><L id="ts.invite.course" /></span>
-          <select id={`${id}-c`} data-invite-course className={fieldClass} value={courseId} onChange={e => { setCourseId(e.target.value); setMade(null); setCopied(null); }}>{open.map(c => <option key={c.courseId} value={c.courseId}>{c.title}</option>)}{drafts.map(c => <option key={c.courseId} value={c.courseId} disabled>{t('ts.invite.draft_option', { title: c.title })}</option>)}</select></label>
+          <Select id={`${id}-c`} data-invite-course value={courseId} onChange={v => { setCourseId(v); setMade(null); setCopied(null); }} options={[...open.map(c => ({ value: c.courseId, label: c.title })), ...drafts.map(c => ({ value: c.courseId, label: t('ts.invite.draft_option', { title: c.title }), disabled: true }))]} /></label>
         <label className="block space-y-1" htmlFor={`${id}-d`}><span className="font-bold"><L id="ts.invite.length" /></span>
-          <select id={`${id}-d`} data-invite-days className={fieldClass} value={days} onChange={e => setDays(Number(e.target.value))}>{LINK_DAYS.map(d => <option key={d} value={d}>{t(d === 1 ? 'ts.invite.day_one' : 'ts.invite.days', { count: d })}</option>)}</select></label>
+          <Select id={`${id}-d`} data-invite-days value={String(days)} onChange={v => setDays(Number(v))} options={LINK_DAYS.map(d => ({ value: String(d), label: t(d === 1 ? 'ts.invite.day_one' : 'ts.invite.days', { count: d }) }))} /></label>
       </div>}
       {drafts.length > 0 && <ul data-draft-courses className="divide-y-2 divide-black/15 border-y-2 border-black/15">{drafts.map(c => <li key={c.courseId} data-draft-course={c.courseId} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="min-w-0"><span className="block break-words text-base font-bold"><bdi dir="auto">{c.title}</bdi></span><span className="block text-base text-slate-700"><L id="ts.invite.draft_line" /></span></span>

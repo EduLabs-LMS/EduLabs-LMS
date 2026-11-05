@@ -21,6 +21,7 @@ import {
 	type SupportAttachment,
 } from '@/shared/support';
 import { cn } from '@/shared/utils';
+import { Select } from '@/frontend/components/design/controls';
 
 interface SupportChatProps {
 	initial: SupportTicketDetail;
@@ -163,18 +164,13 @@ export const SupportChat = ({ initial, onBack }: SupportChatProps) => {
 					)}
 				</div>
 				{viewerIsAdmin ? (
-					<select
+					<Select
 						aria-label="Ticket status"
 						value={ticket.status}
-						onChange={(event) => changeStatus(event.target.value)}
-						className="h-9 rounded-full border-2 border-black bg-white px-3 text-xs font-bold"
-					>
-						{TICKET_STATUSES.map((status) => (
-							<option key={status} value={status}>
-								{STATUS_LABEL[status]}
-							</option>
-						))}
-					</select>
+						onChange={changeStatus}
+						className="w-auto min-w-[9rem]"
+						options={TICKET_STATUSES.map((status) => ({ value: status, label: STATUS_LABEL[status] }))}
+					/>
 				) : (
 					<StatusBadge status={ticket.status} />
 				)}

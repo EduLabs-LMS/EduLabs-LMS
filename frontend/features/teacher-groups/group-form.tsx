@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useId, useState } from 'react';
 import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
+import { Select } from '@/frontend/components/design/controls';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
 import { inkButton, linkClass, plainButton, primaryButton, useRetry } from '@/frontend/features/teacher-home/parts';
 import type { MessageKey } from '@/frontend/locales/messages';
@@ -49,11 +50,11 @@ function GroupFormFields({ form, set, problems }: { form: GroupForm; set: (next:
       <ul className="divide-y-2 divide-black/15">
         {form.times.map((row, i) => <li key={i} data-time-row className="grid grid-cols-2 items-end gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
           <label className="col-span-2 block space-y-1 sm:col-span-1"><span className="font-bold"><L id="tg.form.day" /></span>
-            <select data-time-day className={field} value={row.weekday} onChange={e => setTime(i, { weekday: Number(e.target.value) })}>{[0, 1, 2, 3, 4, 5, 6].map(d => <option key={d} value={d}>{day.format(new Date(weeklyReference(d, '12:00')))}</option>)}</select></label>
+            <Select data-time-day value={String(row.weekday)} onChange={v => setTime(i, { weekday: Number(v) })} options={[0, 1, 2, 3, 4, 5, 6].map(d => ({ value: String(d), label: day.format(new Date(weeklyReference(d, '12:00'))) }))} /></label>
           <label className="block space-y-1"><span className="font-bold"><L id="tg.form.start" /></span>
             <input type="time" data-time-start className={field} value={row.time} onChange={e => setTime(i, { time: e.target.value })} /></label>
           <label className="block space-y-1"><span className="font-bold"><L id="tg.form.length" /></span>
-            <select data-time-length className={field} value={row.durationMinutes} onChange={e => setTime(i, { durationMinutes: Number(e.target.value) })}>{Array.from(new Set([...GROUP_LENGTHS, row.durationMinutes])).sort((a, b) => a - b).map(m => <option key={m} value={m}>{t('tg.form.minutes', { count: m })}</option>)}</select></label>
+            <Select data-time-length value={String(row.durationMinutes)} onChange={v => setTime(i, { durationMinutes: Number(v) })} options={Array.from(new Set([...GROUP_LENGTHS, row.durationMinutes])).sort((a, b) => a - b).map(m => ({ value: String(m), label: t('tg.form.minutes', { count: m }) }))} /></label>
           <button type="button" data-time-remove aria-label={t('tg.form.remove_time')} title={t('tg.form.remove_time')} onClick={() => set({ ...form, times: form.times.filter((_, n) => n !== i) })} className={`${plainButton} ${tall} col-span-2 sm:col-span-1`}><Trash2 aria-hidden className="h-5 w-5" /></button>
         </li>)}
       </ul>
@@ -97,7 +98,7 @@ export function CreateGroupView({ courses }: { courses: { ok: true; value: Cours
     {courses.ok && !courses.value.length && <div data-state="empty" className="space-y-3"><p className="text-base text-slate-800"><L id="tg.create.no_courses" /></p><Link href="/teacher/settings/courses" className={`${primaryButton} ${tall}`}><L id="tg.create.go_courses" /></Link></div>}
     {courses.ok && courses.value.length > 0 && <form data-create-group-form onSubmit={submit} noValidate className="space-y-5">
       <label className="block space-y-1" htmlFor={`${id}-course`} data-tour="group-course"><span className="font-bold"><L id="tg.form.course" /></span>
-        <select id={`${id}-course`} data-group-course className={field} value={courseId} onChange={e => setCourseId(e.target.value)}>{courses.value.map(c => <option key={c.courseId} value={c.courseId}>{c.title}</option>)}</select></label>
+        <Select id={`${id}-course`} data-group-course value={courseId} onChange={setCourseId} options={courses.value.map(c => ({ value: c.courseId, label: c.title }))} /></label>
       <GroupFormFields form={form} set={setForm} problems={problems} />
       {error && <GroupError kind={error.kind} unknownOutcome={error.status === null} invalidText="tg.create.invalid" onRetry={error.status === null ? () => router.push('/teacher/groups') : undefined} retryLabel="tg.create.see_groups" />}
       <button type="submit" data-save-group data-tour="save-group" disabled={busy || saved} className={`${primaryButton} ${tall} w-full sm:w-auto`}>{(busy || saved) && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="tg.create.save" /></button>

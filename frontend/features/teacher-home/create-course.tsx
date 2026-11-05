@@ -3,6 +3,7 @@ import { useLoadingRouter } from '@/frontend/components/providers/use-loading-ro
 import { useId, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
+import { Select } from '@/frontend/components/design/controls';
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/frontend/components/ui/dialog';
 import { api } from '@/frontend/lib/api';
 import { courseSlug, type CreateTarget } from '@/shared/teacher-home';
@@ -55,7 +56,7 @@ export function CreateCourse({ targets, className, ink = false }: { targets: Cre
         </div>
         {targets.length > 1 && <div className="space-y-2">
           <label htmlFor={`${field}-space`} className="block text-base font-bold"><L id="th.create.space" /></label>
-          <select id={`${field}-space`} value={space} onChange={e => setSpace(e.target.value)} className="min-h-[44px] w-full rounded-2xl border-2 border-black bg-white px-3 text-base text-black">{targets.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
+          <Select id={`${field}-space`} value={space} onChange={setSpace} options={targets.map(x => ({ value: x.id, label: x.name }))} />
         </div>}
         {error && <p role="alert" className="text-base font-bold text-rose-800">{t(error)}</p>}
         <div className="flex flex-wrap justify-end gap-3">

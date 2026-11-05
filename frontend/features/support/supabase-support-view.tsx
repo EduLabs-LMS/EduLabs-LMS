@@ -3,6 +3,7 @@ import { L, Localized, useLanguage } from '@/frontend/components/language-provid
 import { useCallback,useEffect,useRef,useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft,LifeBuoy,Loader2,MessageCircle,PlusCircle,Send } from 'lucide-react';
+import { Select } from '@/frontend/components/design/controls';
 import { Button } from '@/frontend/components/ui/button';
 import { Input } from '@/frontend/components/ui/input';
 import { Textarea } from '@/frontend/components/ui/textarea';
@@ -13,7 +14,7 @@ import type { SupportDetail,SupportTicket } from '@/shared/contracts/communicati
 
 const panel='rounded-2xl border-2 border-black bg-white p-5 shadow-hard-sm';
 export function SupabaseSupportView(){
- const { language } = useLanguage();
+ const { language, t } = useLanguage();
  const date=(v:string)=>new Date(v).toLocaleString(language,{dateStyle:'medium',timeStyle:'short'});
  const params=useSearchParams();
  const [rows,setRows]=useState<SupportTicket[]>([]),[detail,setDetail]=useState<SupportDetail|null>(null),[page,setPage]=useState(0),[messagePage,setMessagePage]=useState(0);
@@ -48,7 +49,7 @@ export function SupabaseSupportView(){
    <section className={panel}><div className="flex flex-wrap items-center gap-3"><h2 className="font-display text-2xl break-words"><bdi dir="auto">{detail.ticket.subject}</bdi></h2><StatusBadge status={detail.ticket.status}/></div>
     <p className="text-xs text-slate-500"><L id="support.opened"/>{" "}{date(detail.ticket.created_at)}{" "}<L id="support.updated"/>{" "}{date(detail.ticket.updated_at)}</p>
     <div className="mt-3 flex flex-wrap gap-2">{(['OPEN','IN_PROGRESS','RESOLVED'] as const).filter(s=>detail.staff||s!=='IN_PROGRESS').map(status=><Button key={status} variant="outline" disabled={busy||status===detail.ticket.status} onClick={()=>void command('status',{status})}><L text={status==='OPEN'?'Reopen':status==='RESOLVED'?'Close ticket':'In Progress'}/></Button>)}</div>
-    {detail.staff&&<label className="mt-3 block text-sm"><L id="support.assigned_to"/><select className="ml-2 max-w-full rounded-xl border-2 border-black p-2" value={detail.ticket.assigned_to??''} disabled={busy} onChange={e=>void command('assign',{userId:e.target.value||null})}><option value=""><L id="support.unassigned"/></option>{detail.assignees.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
+    {detail.staff&&<label className="mt-3 block text-sm"><L id="support.assigned_to"/><Select className="mt-1 max-w-sm" value={detail.ticket.assigned_to??''} disabled={busy} onChange={v=>void command('assign',{userId:v||null})} options={[{value:'',label:<L id="support.unassigned"/>},...detail.assignees.map(a=>({value:a.id,label:a.name}))]}/></label>}
     {detail.ticket.response_due_at&&detail.ticket.status!=='RESOLVED'&&<p className="mt-3 text-xs text-amber-800"><L id="support.response_due"/>{" "}{date(detail.ticket.response_due_at)}{Date.parse(detail.ticket.response_due_at)<Date.now()&&<L id="support.overdueSuffix"/>}</p>}
    </section>
    <Localized as="section" labels={{"aria-label":"support.ticket_messages"}} className={panel}>{detail.messages.length===0?<p><L id="support.no_messages_on_this_page"/></p>:[...detail.messages].reverse().map(m=><div key={m.id} className={`mb-4 max-w-full rounded-xl border-2 p-3 ${m.mine?'border-black bg-primary/20':'border-slate-200 bg-slate-50'}`}><p className="text-xs font-semibold">{m.sender_name}{m.staff&&<L id="support.staffSuffix"/>} · {date(m.created_at)}</p><p dir="auto" className="mt-2 whitespace-pre-wrap break-words text-sm">{m.body}</p></div>)}
@@ -56,13 +57,13 @@ export function SupabaseSupportView(){
    </Localized>
    <form className={panel} onSubmit={e=>{e.preventDefault();void command('reply',{body:text});}}><label htmlFor="support-reply" className="text-sm font-semibold"><L id="support.reply"/></label><Textarea id="support-reply" maxLength={2000} value={text} onChange={e=>setText(e.target.value)} required/><Button className="mt-3" disabled={busy||!text.trim()}><Send className="mr-2 h-4 w-4"/><L id="support.send_reply"/></Button></form>
   </>:<>
-   <div className="flex flex-wrap gap-2"><Localized as={Input} labels={{"aria-label":"support.search_tickets","placeholder":"support.search_ticket_subjects"}} value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/><Localized as="select" labels={{"aria-label":"support.ticket_status"}} className="rounded-xl border-2 border-black p-2" value={filter} onChange={e=>{setFilter(e.target.value);setPage(0);}}>{['ALL','OPEN','IN_PROGRESS','RESOLVED'].map(s=><option key={s} value={s}><L text={s}/></option>)}</Localized></div>
+   <div className="flex flex-wrap gap-2"><Localized as={Input} labels={{"aria-label":"support.search_tickets","placeholder":"support.search_ticket_subjects"}} value={search} onChange={e=>{setSearch(e.target.value);setPage(0);}}/><Select aria-label={t('support.ticket_status')} className="w-auto min-w-[10rem]" value={filter} onChange={v=>{setFilter(v);setPage(0);}} options={['ALL','OPEN','IN_PROGRESS','RESOLVED'].map(s=>({value:s,label:<L text={s}/>}))}/></div>
    {loading?<Loader2 className="mx-auto h-6 w-6 animate-spin"/>:!error&&rows.length===0?<div className={`${panel} text-center`}><MessageCircle className="mx-auto h-8 w-8 text-slate-400"/><p><L id="support.no_matching_tickets_use_new"/></p></div>:<ul className="space-y-3">{rows.map(t=><li key={t.id}><button className={`${panel} w-full text-left transition-all hover:shadow-hard`} onClick={()=>void openTicket(t.id)}><div className="flex flex-wrap items-center gap-2"><span className="font-semibold break-words"><bdi dir="auto">{t.subject}</bdi></span><StatusBadge status={t.status}/></div><p className="mt-2 text-xs text-slate-500"><L id="support.opened"/>{" "}{date(t.created_at)}{" "}<L id="support.last_message"/>{" "}{date(t.last_message_at)}</p>{t.response_due_at&&t.status!=='RESOLVED'&&<p className="text-xs text-amber-800">{Date.parse(t.response_due_at)<Date.now()&&<L id="support.overdue"/>}<L id="support.response_due"/>{" "}{date(t.response_due_at)}</p>}</button></li>)}</ul>}
    <div className="flex gap-2"><Button variant="outline" disabled={page===0||loading} onClick={()=>setPage(page-1)}><L id="notifications.previous"/></Button><span className="p-2"><L id="notifications.page"/>{" "}{page+1}</span><Button variant="outline" disabled={rows.length<25||loading} onClick={()=>setPage(page+1)}><L id="notifications.next"/></Button></div>
   </>}
   <Dialog open={open} onOpenChange={v=>{if(!busy)setOpen(v);}}><DialogContent className="max-w-md"><DialogHeader><DialogTitle className="font-display text-2xl"><L id="support.new_ticket_"/></DialogTitle></DialogHeader><form className="grid gap-4" onSubmit={e=>{e.preventDefault();void command('create',{organizationId:org||null,category,subject,body:text});}}>
-   <label className="grid gap-1 text-sm"><L id="support.support_team"/><select className="rounded-xl border-2 border-black p-2" value={org} onChange={e=>setOrg(e.target.value)}><option value=""><L id="support.edulabs_platform_technical_support"/></option>{orgs.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
-   <label className="grid gap-1 text-sm"><L id="support.issue_category"/><select className="rounded-xl border-2 border-black p-2" value={category} onChange={e=>setCategory(e.target.value)}>{['account','video','upload','exam','website','other'].map(c=><option key={c} value={c}><L text={c}/></option>)}</select></label>
+   <label className="grid gap-1 text-sm"><L id="support.support_team"/><Select value={org} onChange={setOrg} options={[{value:'',label:<L id="support.edulabs_platform_technical_support"/>},...orgs.map(o=>({value:o.id,label:o.name}))]}/></label>
+   <label className="grid gap-1 text-sm"><L id="support.issue_category"/><Select value={category} onChange={setCategory} options={['account','video','upload','exam','website','other'].map(c=>({value:c,label:<L text={c}/>}))}/></label>
    <label className="grid gap-1 text-sm"><L id="support.subject"/><Input maxLength={120} required value={subject} onChange={e=>setSubject(e.target.value)}/></label>
    <label className="grid gap-1 text-sm"><L id="support.describe_your_problem"/><Textarea maxLength={2000} required value={text} onChange={e=>setText(e.target.value)}/></label><Button disabled={busy||!text.trim()||!subject.trim()}><L id="support.create_ticket"/></Button>
   </form></DialogContent></Dialog>

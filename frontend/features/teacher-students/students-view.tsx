@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
+import { Select } from '@/frontend/components/design/controls';
 import { plainButton, primaryButton } from '@/frontend/features/teacher-home/parts';
 import { GroupError } from '@/frontend/features/teacher-groups/parts';
 import { Skeleton } from '@/frontend/components/skeleton';
@@ -74,12 +75,9 @@ export function TeacherStudentsView({ courses, inviteOffering }: { courses: { ok
           <Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2" />
           <input type="search" data-students-search value={typed} onChange={e => setTyped(e.target.value)} maxLength={120} placeholder={t('ts.students.search')} className={`${fieldClass} ps-10 pe-3`} /></label>
         <label className="block"><span className="sr-only"><L id="ts.students.course_filter" /></span>
-          <select data-course-filter className={fieldClass} value={course} onChange={e => setCourse(e.target.value)}>
-            <option value="all">{t('ts.students.all_courses')}</option>
-            {offeringRows.map(o => <option key={o.id} value={o.id}>{labels.get(o.id)}</option>)}</select></label>
+          <Select data-course-filter value={course} onChange={setCourse} options={[{ value: 'all', label: t('ts.students.all_courses') }, ...offeringRows.map(o => ({ value: o.id, label: labels.get(o.id) }))]} /></label>
         <label className="block"><span className="sr-only"><L id="ts.students.status_filter" /></span>
-          <select data-status-filter className={fieldClass} value={status} onChange={e => setStatus(e.target.value as StatusFilter)}>
-            {STATUS_FILTERS.map(s => <option key={s} value={s}>{t(statusLabel[s])}</option>)}</select></label>
+          <Select data-status-filter value={status} onChange={v => setStatus(v as StatusFilter)} options={STATUS_FILTERS.map(s => ({ value: s, label: t(statusLabel[s]) }))} /></label>
       </div>
 
       {(groups.data.state === 'error' || members.failedGroups.length > 0) && <div role="alert" data-state="error" data-groups-failed className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-black bg-rose-50 p-4 text-base">

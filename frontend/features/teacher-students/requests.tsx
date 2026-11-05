@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { L, useLanguage } from '@/frontend/components/language-provider';
+import { Select } from '@/frontend/components/design/controls';
 import { inkButton, plainButton, primaryButton } from '@/frontend/features/teacher-home/parts';
 import { GroupError, useCommand } from '@/frontend/features/teacher-groups/parts';
 import type { StudyGroup } from '@/shared/contracts/groups';
@@ -72,10 +73,7 @@ function RequestItem({ item, groups, groupsError, label, onDone, onStale, onNoti
     </div>}
     {offering.manage && mode === 'approve' && <div data-approve-panel className="space-y-3">
       <label className="block space-y-1"><span className="font-bold"><L id="ts.requests.group_label" /></span>
-        <select data-approve-group className={fieldClass} value={groupId} onChange={e => setGroupId(e.target.value)} disabled={busy}>
-          <option value=""><L id="ts.requests.no_group" /></option>
-          {choices.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-        </select></label>
+        <Select data-approve-group value={groupId} onChange={setGroupId} disabled={busy} options={[{ value: '', label: <L id="ts.requests.no_group" /> }, ...choices.map(g => ({ value: g.id, label: g.name }))]} /></label>
       {groupsError && <p data-groups-unavailable className="text-base text-slate-800"><L id="ts.requests.groups_unavailable" /></p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" data-confirm-approve onClick={approve} disabled={busy} className={`${inkButton} ${tall}`}>{busy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ts.requests.approve" /></button>

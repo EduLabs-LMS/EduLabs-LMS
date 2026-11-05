@@ -15,7 +15,7 @@
 /* The heading font rules of globals.css and language.css name h1/h2/h3 directly; a section heading in the New look is the body font in both languages. */
 html[data-lms-appearance][lang] :is(h1, h2, h3).d-section { font-family: var(--d-section-font); font-weight: var(--d-section-weight); }
 html[data-lms-appearance][lang] :is(h1, h2, h3).d-title { font-family: var(--d-font-title); font-weight: 400; }
-.d-focus:focus-visible, .d-btn:focus-visible, .d-nav:focus-visible, .d-tab:focus-visible, .d-menu-item:focus-visible, .d-row-link:focus-visible, .d-field-input:focus-visible, .d-logo:focus-visible, .d-bottom-tab:focus-visible, .d-sheet-item:focus-visible { outline: 2px solid var(--d-focus); outline-offset: var(--d-focus-offset); }
+.d-switch:focus-visible, .d-choice:focus-visible, .d-select:focus-visible, .d-focus:focus-visible, .d-btn:focus-visible, .d-nav:focus-visible, .d-tab:focus-visible, .d-menu-item:focus-visible, .d-row-link:focus-visible, .d-field-input:focus-visible, .d-logo:focus-visible, .d-bottom-tab:focus-visible, .d-sheet-item:focus-visible { outline: 2px solid var(--d-focus); outline-offset: var(--d-focus-offset); }
 
 /* ---- Icon ---- */
 .d-icon { display: block; flex: none; }
@@ -108,12 +108,56 @@ html[data-lms-appearance][lang] :is(h1, h2, h3).d-title { font-family: var(--d-f
 .d-tab { min-width: var(--d-target); display: inline-flex; align-items: center; justify-content: center; min-height: var(--d-target); padding: 0; background: none; border: 0; font: inherit; font-size: var(--d-label-size); font-weight: 600; color: var(--d-meta); white-space: nowrap; cursor: pointer; }
 .d-tab[aria-current="page"], .d-tab[aria-selected="true"] { color: var(--d-ink); box-shadow: inset 0 -2px 0 var(--d-deep); }
 
-/* ---- SegmentedControl: real radio buttons, so the arrow keys work by themselves ---- */
+/* ---- SegmentedControl ---- */
 .d-seg { width: fit-content; max-width: 100%; display: inline-flex; border: var(--d-control-border-width) solid var(--d-field-line); border-radius: 999px; overflow: hidden; background: var(--d-raised); box-shadow: var(--d-control-shadow); }
-.d-seg-option { display: inline-flex; align-items: center; justify-content: center; min-height: var(--d-target); padding: 0 var(--d-space-4); font-size: var(--d-label-size); font-weight: 600; color: var(--d-text-2); cursor: pointer; }
-.d-seg-option input { position: absolute; width: 1px; height: 1px; opacity: 0; margin: 0; }
-.d-seg-option:has(input:checked) { background: var(--d-accent); color: var(--d-on-accent); }
-.d-seg-option:has(input:focus-visible) { outline: 2px solid var(--d-focus); outline-offset: -4px; border-radius: 999px; }
+.d-seg-option { display: inline-flex; align-items: center; justify-content: center; min-height: var(--d-target); padding: 0 var(--d-space-4); background: none; border: 0; font: inherit; font-size: var(--d-label-size); font-weight: 600; color: var(--d-text-2); cursor: pointer; }
+.d-seg-option[aria-checked="true"] { background: var(--d-accent); color: var(--d-on-accent); }
+.d-seg-option:focus-visible { outline: 2px solid var(--d-focus); outline-offset: -4px; border-radius: 999px; }
+
+/* ---- Switch, Choice, Select: no native control in the teacher area or the shared settings screens (owner decision, DECISIONS.md) ---- */
+.d-control-block { display: inline-flex; flex-direction: column; gap: var(--d-space-1); max-width: 100%; }
+.d-control-block--wide { display: flex; width: 100%; }
+.d-control-block > .d-switch { align-self: flex-start; }
+.d-control-reason { font-size: var(--d-meta-size); line-height: var(--d-meta-lh); color: var(--d-meta); }
+.d-switch { display: inline-flex; align-items: center; gap: var(--d-space-2); min-height: var(--d-target); min-width: var(--d-target); padding: 0; background: none; border: 0; border-radius: var(--d-radius-field); font: inherit; color: var(--d-ink); text-align: start; cursor: pointer; }
+.d-switch[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
+.d-switch-track { position: relative; flex: none; display: block; width: 44px; height: 24px; border-radius: 999px; background: var(--d-switch-off); border: 2px solid var(--d-switch-off-border); }
+.d-switch-thumb { position: absolute; top: 50%; inset-inline-start: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--d-switch-off-thumb); transform: translate(0, -50%); }
+.d-switch[aria-checked="true"] .d-switch-track { background: var(--d-switch-on); border-color: var(--d-switch-on-border); }
+.d-switch[aria-checked="true"] .d-switch-thumb { background: var(--d-switch-on-thumb); transform: translate(20px, -50%); }
+html[dir="rtl"] .d-switch[aria-checked="true"] .d-switch-thumb { transform: translate(-20px, -50%); }
+.d-switch-label { min-width: 0; font-size: var(--d-label-size); line-height: var(--d-label-lh); font-weight: var(--d-label-weight); overflow-wrap: anywhere; }
+.d-choices { display: grid; gap: var(--d-space-3); }
+@media (min-width: 640px) { .d-choices[data-columns="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); } .d-choices[data-columns="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.d-choice { display: flex; align-items: flex-start; gap: var(--d-space-3); min-height: var(--d-target); width: 100%; padding: var(--d-space-4); background: var(--d-raised); color: var(--d-ink); border: var(--d-control-border-width) solid var(--d-field-line); border-radius: var(--d-radius-control); font: inherit; text-align: start; cursor: pointer; }
+.d-choice:hover { background: var(--d-hover); }
+.d-choice[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
+.d-choice[aria-checked="true"] { background: var(--d-choice-on-bg); color: var(--d-choice-on-text); border-color: var(--d-choice-on-border); box-shadow: var(--d-choice-on-shadow); }
+.d-choice-mark { flex: none; position: relative; width: 20px; height: 20px; margin-top: 1px; border-radius: 50%; border: 2px solid var(--d-switch-off-border); background: var(--d-raised); }
+.d-choice[aria-checked="true"] .d-choice-mark { border-color: var(--d-choice-mark); }
+.d-choice[aria-checked="true"] .d-choice-mark::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--d-choice-mark); }
+.d-choice-text { min-width: 0; display: block; }
+.d-choice-label { display: flex; align-items: center; gap: var(--d-space-2); font-weight: 700; }
+.d-choice-description { display: block; margin-top: var(--d-space-2); font-size: var(--d-meta-size); line-height: var(--d-meta-lh); }
+.d-select { display: flex; align-items: center; justify-content: space-between; gap: var(--d-space-2); width: 100%; min-height: 48px; padding: 0 var(--d-space-3); background: var(--d-field); color: var(--d-ink); border: var(--d-control-border-width) solid var(--d-field-line); border-radius: var(--d-radius-field); box-shadow: var(--d-field-shadow); font: inherit; font-size: var(--d-body-size); text-align: start; cursor: pointer; }
+.d-select[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
+.d-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-select-chevron { flex: none; display: inline-flex; color: var(--d-meta); transform: rotate(90deg); }
+.d-select-list { z-index: 110; width: var(--radix-popover-trigger-width); min-width: 160px; max-height: min(320px, var(--radix-popover-content-available-height)); overflow-y: auto; padding: var(--d-space-1); background: var(--d-raised); color: var(--d-ink); border: var(--d-control-border-width) solid var(--d-field-line); border-radius: var(--d-radius-field); box-shadow: var(--d-card-shadow); outline: none; }
+.d-select-option { display: flex; align-items: center; min-height: var(--d-target); padding: var(--d-space-2) var(--d-space-3); border-radius: var(--d-radius-badge); font-size: var(--d-body-size); line-height: 1.3; overflow-wrap: anywhere; cursor: pointer; }
+.d-select-option[data-current="true"] { background: var(--d-hover); }
+.d-select-option[aria-selected="true"] { font-weight: 700; box-shadow: inset 3px 0 0 var(--d-deep); }
+html[dir="rtl"] .d-select-option[aria-selected="true"] { box-shadow: inset -3px 0 0 var(--d-deep); }
+.d-select-option[aria-disabled="true"] { color: var(--d-meta); cursor: not-allowed; }
+
+/* ---- Footer credits ---- */
+.d-credit-1 { color: var(--d-credit-1); }
+.d-credit-2 { color: var(--d-credit-2); }
+
+/* ---- Attendance: the action bar sits in the page from a large screen up, in both looks. The rules that map .bg-white are stronger than lg:bg-transparent, which left a white band. ---- */
+@media (min-width: 1024px) { [data-teacher-attendance] [data-actions] { background: transparent !important; border: 0 !important; box-shadow: none !important; } }
+/* The finished sheet on a phone: a floating bar with one full-width button. */
+.d-float-bar { position: fixed; inset-inline: var(--d-space-3); bottom: calc(var(--d-space-3) + env(safe-area-inset-bottom)); z-index: 30; display: flex; flex-direction: column; gap: var(--d-space-2); padding: var(--d-space-3); background: var(--d-surface); border: var(--d-card-border-width) solid var(--d-line); border-radius: var(--d-radius-card); box-shadow: var(--d-card-shadow); }
 
 /* ---- PageHeader ---- */
 .d-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--d-space-4); }
@@ -268,14 +312,23 @@ html[lang] h2.d-hero-heading { font-family: var(--d-font-body); font-weight: 400
   html[data-design="new"] .d-btn:not(.d-btn--tertiary):not([disabled]):hover::after { opacity: 0.16; }
   html[data-design="new"] .d-btn:not([disabled]):active { transition-duration: 120ms; transition-timing-function: ease-out; }
 
-  /* The active menu item and the tab underline slide. The real pill is painted again as soon as the slide ends. */
+  /* The active menu item changes where it is: the new pill fades and scales in very slightly, the old one fades out, nothing travels (owner decision, DECISIONS.md). So that the old one can fade, the pill is a layer of its own here. */
+  html[data-design="new"] .d-nav, html[data-design="new"] .d-bottom-tab-icon { isolation: isolate; }
+  html[data-design="new"] .d-nav { transition: color 120ms ease-out; }
+  html[data-design="new"] .d-nav[aria-current="page"], html[data-design="new"] .d-nav[aria-current="page"]:hover { background: none; box-shadow: none; overflow: visible; }
+  html[data-design="new"] :is(.d-bottom-tab[aria-current="page"], .d-bottom-tab[data-active="true"]) .d-bottom-tab-icon { background: none; box-shadow: none; }
+  html[data-design="new"] .d-nav:not(.d-nav--soon)::before, html[data-design="new"] .d-bottom-tab-icon::before { content: ''; position: absolute; z-index: -1; opacity: 0; transform: scale(0.97); pointer-events: none; transition: opacity 120ms ease-out, transform 120ms ease-out; }
+  html[data-design="new"] .d-nav:not(.d-nav--soon)::before { inset: calc(var(--d-control-border-width) * -1); border-radius: var(--d-radius-nav); background: var(--d-nav-active-bg); box-shadow: var(--d-nav-active-shadow); }
+  html[data-design="new"] .d-bottom-tab-icon::before { inset: 0; border-radius: 999px; background: var(--d-tab-active-bg); box-shadow: var(--d-tab-active-shadow); }
+  html[data-design="new"] .d-nav[aria-current="page"]::before, html[data-design="new"] :is(.d-bottom-tab[aria-current="page"], .d-bottom-tab[data-active="true"]) .d-bottom-tab-icon::before { opacity: 1; transform: none; }
+
+  /* The tab underline slides. The real one is painted again as soon as the slide ends. */
   html[data-design="new"] [data-sliding] > .d-slider { display: block; }
-  html[data-design="new"] .d-slider--pill { border-radius: var(--d-radius-nav); background: var(--d-nav-active-bg); box-shadow: var(--d-nav-active-shadow); }
-  html[data-design="new"] .d-slider--tab { border-radius: 999px; background: var(--d-tab-active-bg); box-shadow: var(--d-tab-active-shadow); }
   html[data-design="new"] .d-slider--line { background: var(--d-deep); }
-  html[data-design="new"] [data-sliding] > .d-nav-list .d-nav[aria-current="page"] { background: none; box-shadow: none; }
-  html[data-design="new"] [data-sliding] > .d-bottom-tab .d-bottom-tab-icon { background: none; box-shadow: none; }
   html[data-design="new"] [data-sliding] > .d-tab { box-shadow: none; }
+
+  /* A switch's thumb moves across. */
+  html[data-design="new"] .d-switch-thumb { transition: transform 120ms ease-out; }
 
   /* Cards and rows rise on a page's first render only: main[data-enter] exists for that moment and no longer (frontend/lib/page-entry.ts), so a data refresh never animates. */
   html[data-design="new"] main[data-enter] :is(.d-card, .d-hero, .d-row, .shadow-hard, li):not(:has(.d-sticky-bar, .fixed)) { animation: d-enter 220ms ease-out backwards; animation-delay: calc(var(--d-i, 0) * 30ms); }
