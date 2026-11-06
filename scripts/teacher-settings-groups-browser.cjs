@@ -133,6 +133,12 @@ function view(body) {
   const list = S.scenario === 'cleared' ? [] : S.data.members[groupId];
   return { rows: list.slice(page * PAGE, page * PAGE + PAGE), page, hasMore: list.length > (page + 1) * PAGE };
  }
+ if (section === 'history') {
+  if (take('history:' + groupId)) throw new Fail(503);
+  // Page 2 of 3 is what a real Group spreads marks over; a student past the first two has none, so they show a dash.
+  const list = S.scenario === 'cleared' ? [] : S.data.members[groupId].slice(0, 2).flatMap((m, i) => Array.from({ length: 20 }, (_, n) => ({ user_id: m.user_id, display_name: m.display_name, session_id: uuid(30000 + n), title: 'x', starts_at: iso(now - n * D), status: n % 5 === 4 - i ? 'absent' : n === 19 ? 'not_marked' : 'attended' })));
+  return { rows: list.slice(page * PAGE, page * PAGE + PAGE), page, hasMore: list.length > (page + 1) * PAGE };
+ }
  if (section === 'eligible') {
   if (take('eligible:' + groupId)) throw new Fail(503);
   const q = (body.data.search || '').toLowerCase(), list = S.data.eligible.filter(r => r.display_name.toLowerCase().includes(q));
@@ -158,7 +164,7 @@ function command(body) {
  if (action === 'remove') { if (version !== g.version) throw new Fail(409); const m = S.data.members[groupId].find(r => r.user_id === data.userId && r.ends_at == null); if (!m) throw new Fail(409); m.ends_at = iso(Date.now()); g.version++; return { id: g.id, version: g.version }; }
  if (action === 'archive') { if (version !== g.version) throw new Fail(409); g.status = 'archived'; g.version++; for (const s of S.data.sessions[groupId]) if (Date.parse(s.starts_at) > Date.now()) s.cancelled = true; return { ok: true }; }
  if (action === 'one-off') { if (version !== g.version) throw new Fail(409); S.data.sessions[groupId].push({ id: uuid(9000 + S.data.sessions[groupId].length), group_id: groupId, title: data.title, starts_at: data.startsAt, ends_at: data.endsAt, mode: g.mode, location: '', join_url: '', instructions: '', cancelled: false, version: 1, attendance_state: 'draft' }); g.version++; return { ok: true }; }
- if (action === 'session') { const s = S.data.sessions[groupId].find(x => x.id === data.sessionId); if (!s || s.version !== data.sessionVersion || data.operation !== 'cancel') throw new Fail(409); s.cancelled = true; s.version++; return { ok: true }; }
+ if (action === 'session') { const s = S.data.sessions[groupId].find(x => x.id === data.sessionId); if (!s || s.version !== data.sessionVersion || !['cancel', 'reschedule'].includes(data.operation)) throw new Fail(409); if (data.operation === 'cancel') s.cancelled = true; else { s.starts_at = data.startsAt; s.ends_at = data.endsAt; } s.version++; return { ok: true }; }
  throw new Fail(404);
 }
 
@@ -330,49 +336,65 @@ function command(body) {
  });
 
  // ------------------------------------------------------------------ one Group
- await step('One Group (filled), English desktop: header, tabs, Sessions upcoming/earlier with See older sessions, Students, Details, side panel', async () => {
+ await step('One Group (filled), English desktop: header with one meta line, tabs, Sessions grouped with Past collapsed, Students with attendance, Details', async () => {
   const { page, context } = await open(desktop, '/teacher/groups/' + G.alg);
   await page.locator('[data-group-sessions]').waitFor();
   assert.equal(await page.locator('h1').innerText(), 'Synthetic Algebra Group'); assert.match(await page.locator('[data-teacher-group]').innerText(), /Synthetic Maths/); assert.equal(await page.locator('[data-status]').innerText(), 'Active');
-  assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['Sessions', 'Students', 'Details']); assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Groups');
+  await page.locator('[data-header-students]').waitFor(); assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['Sessions', 'Students · 12', 'Details']); assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Groups');
+  assert.doesNotMatch(await page.locator('[data-teacher-group]').innerText(), /Demo offering/, 'the run never shows');
+  const headerMeta = await page.locator('.d-page-header-main .d-meta').innerText(); assert.match(headerMeta, /Synthetic Maths · Sun[^\n]*5:00[^\n]* · Synthetic Centre, Room 4 · 12 students/, 'one meta line: ' + headerMeta);
+  assert.equal(await page.locator('[data-group-panel]').count(), 0, 'the facts are in the header, no side panel');
+  assert.equal(await page.locator('[data-invite-group]').getAttribute('href'), '/teacher/students?invite=' + uuid(101));
+  assert.deepEqual(await page.locator('[data-session-group]').evaluateAll(e => e.map(x => x.dataset.sessionGroup)), ['needs', 'upcoming'], 'grouped, with Past collapsed');
   assert.equal(await page.locator('[data-session][data-state="upcoming"]').count(), 3); assert.equal(await page.locator('[data-session][data-state="cancelled"]').count(), 1, 'a cancelled upcoming Session is shown as Cancelled');
-  assert.equal(await page.locator('[data-session]').count(), 4 + 3, 'four upcoming/cancelled plus the three most recent earlier Sessions');
-  const earlier = page.locator('[data-session][data-state="completed"]');
-  assert.match(await earlier.nth(0).innerText(), /Attendance not saved/); assert.match(await earlier.nth(1).innerText(), /Attendance reopened/); assert.match(await earlier.nth(2).innerText(), /Attendance saved/);
-  assert.match(await page.locator('[data-session][data-state="upcoming"]').first().innerText(), /Attendance opens when the Session starts/); assert.doesNotMatch(await page.locator('[data-session][data-state="cancelled"]').innerText(), /Attendance/);
-  assert.ok(await page.locator('[data-group-panel]').isVisible(), 'desktop side panel'); assert.match(await page.locator('[data-group-panel]').innerText(), /Sun[^\n]*5:00/);
+  assert.equal(await page.locator('[data-session]').count(), 4 + 2, 'four upcoming or cancelled, and the two that need attendance');
+  const needs = page.locator('[data-session-group="needs"] [data-session]');
+  assert.match(await needs.nth(0).innerText(), /Attendance not saved/); assert.match(await needs.nth(0).innerText(), /Take attendance/); assert.match(await needs.nth(1).innerText(), /Attendance reopened/);
+  const firstUp = page.locator('[data-session][data-state="upcoming"]').first();
+  assert.match(await firstUp.innerText(), /Attendance opens when the Session starts/); assert.equal(await firstUp.locator('.d-tile').count(), 1, 'a date tile'); assert.equal(await firstUp.locator('[data-countdown]').count(), 1, 'a countdown'); assert.equal(await firstUp.locator('[data-attendance-link]').count(), 0);
+  assert.doesNotMatch(await page.locator('[data-session][data-state="cancelled"]').innerText(), /Attendance/);
   await shot(page, 'group-sessions-en-1440');
-  await page.locator('[data-see-older]').click(); assert.equal(await page.locator('[data-session][data-state="completed"]').count(), 21, 'the rest of the first page (the cancelled Session sorts into it but is listed with the upcoming ones)');
+  assert.match(await page.locator('[data-see-older]').innerText(), /Past · 19\+/); assert.equal(await page.locator('[data-see-older]').getAttribute('aria-expanded'), 'false');
+  await page.locator('[data-see-older]').click(); assert.equal(await page.locator('[data-session-group="past"] [data-session]').count(), 19, 'the rest of the first page');
+  assert.match(await page.locator('[data-session-group="past"] [data-session]').first().innerText(), /Attendance saved/);
   await page.locator('[data-more-sessions]').click(); await page.waitForFunction(() => document.querySelectorAll('[data-session][data-state="completed"]').length === 40);
   assert.equal(await page.locator('[data-more-sessions]').count(), 0, 'no more to load');
   await page.locator('[data-tab="students"]').click(); await page.locator('[data-group-students]').waitFor();
-  assert.equal(await page.locator('[data-group-students] li').count(), 12, 'only current students'); assert.match(await page.locator('[data-students-total]').innerText(), /12 of 20 students/);
+  assert.equal(await page.locator('[data-group-students] > ul > li').count(), 12, 'only current students'); assert.match(await page.locator('[data-students-total]').innerText(), /12 of 20 students/);
+  const rowOne = page.locator('[data-group-students] > ul > li').first(); assert.ok((await rowOne.boundingBox()).height >= 64, 'a 64 px row'); assert.equal(await rowOne.locator('[data-avatar]').count(), 1);
+  await page.locator('[data-student-attendance] .d-bar-text').first().waitFor();
+  const barLabels = await page.locator('[data-student-attendance][role="img"]').evaluateAll(e => e.map(x => x.getAttribute('aria-label'))); assert.equal(barLabels.length, 2, 'two students have marks'); for (const label of barLabels) assert.match(label, /of 19|of 20/, label);
+  assert.equal(await page.locator('[data-student-attendance]:not([role="img"])').count(), 10, 'the others show a dash, never 0%');
   await shot(page, 'group-students-en-1440');
   await page.locator('[data-tab="details"]').click(); const d = await page.locator('[data-group-details]').innerText();
-  assert.match(d, /Weekly times/); assert.match(d, /At a centre/); assert.match(d, /Synthetic Centre, Room 4/); assert.match(d, /Bring the red notebook\./); assert.match(d, /20/);
+  assert.match(d, /Weekly times/); assert.match(d, /At a centre/); assert.match(d, /Synthetic Centre, Room 4/); assert.match(d, /Bring the red notebook\./); assert.match(d, /20/); assert.equal(await page.locator('[data-group-details] [data-edit-group]').count(), 1);
   await shot(page, 'group-details-en-1440');
   assert.doesNotMatch(await main(page), forbidden);
   await context.close();
+  const edit = await open(desktop, '/teacher/groups/' + G.alg + '?edit=1'); await edit.page.locator('[data-panel="details"] form').waitFor(); assert.equal(await edit.page.locator('[data-tab="details"]').getAttribute('aria-selected'), 'true', 'the list\'s Add link opens Details, editing'); await edit.context.close();
+  const notHers = await open(desktop, '/teacher/groups/' + G.phys + '?edit=1'); await notHers.page.locator('[data-group-details]').waitFor(); assert.equal(await notHers.page.locator('[data-panel="details"] form').count(), 0, 'an address never opens the form for someone who cannot edit'); await notHers.context.close();
   const o = await open(desktop, '/teacher/groups/' + G.phys); await o.page.locator('[data-group-sessions]').waitFor();
-  await o.page.locator('[data-tab="students"]').click(); await o.page.locator('[data-group-students]').waitFor(); assert.equal(await o.page.locator('[data-group-students] li').count(), 25); assert.match(await o.page.locator('[data-students-total]').innerText(), /25\+/);
-  await o.page.locator('[data-more-students]').click(); await o.page.waitForFunction(() => document.querySelectorAll('[data-group-students] li').length === 30); assert.equal(await o.page.locator('[data-more-students]').count(), 0);
+  await o.page.locator('[data-tab="students"]').click(); await o.page.locator('[data-group-students]').waitFor(); assert.equal(await o.page.locator('[data-group-students] > ul > li').count(), 25); assert.match(await o.page.locator('[data-students-total]').innerText(), /25\+/);
+  await o.page.locator('[data-more-students]').click(); await o.page.waitForFunction(() => document.querySelectorAll('[data-group-students] > ul > li').length === 30); assert.equal(await o.page.locator('[data-more-students]').count(), 0);
   await o.page.locator('[data-tab="details"]').click(); assert.match(await o.page.locator('[data-group-details]').innerText(), /meet\.example\.test/); assert.equal(await o.page.locator('[data-group-details] a[target="_blank"]').getAttribute('rel'), 'noopener noreferrer');
   await o.context.close();
+  // The students' attendance has its own failure, and a list too long to add up honestly shows dashes.
+  await ctl({ fail: { ['history:' + G.alg]: 1 } });
+  const h = await open(desktop, '/teacher/groups/' + G.alg); await h.page.locator('[data-tab="students"]').click(); await h.page.locator('[data-group-students] [role="alert"]').waitFor(); assert.equal(await h.page.locator('[data-group-students] > ul > li').count(), 12, 'the students stay'); await h.page.getByRole('button', { name: 'Try again' }).click(); await h.page.locator('[data-student-attendance]').first().waitFor(); await h.context.close();
  });
- await step('One Group on a phone, English and Arabic: no overflow, 16px text, 44px targets, no side panel, mirrored back arrow', async () => {
+ await step('One Group on a phone, English and Arabic: no overflow, readable text, 44px targets, Invite and Add a Session in the sticky bar, mirrored back arrow', async () => {
   for (const lang of ['en', 'ar']) {
    const { page, context } = await open(phone, '/teacher/groups/' + G.alg, { lang });
    await page.locator('[data-group-sessions]').waitFor();
    assert.ok(await overflow(page), 'no overflow ' + lang); assert.deepEqual(await smallText(page), [], 'text ' + lang); assert.deepEqual(await tinyTargets(page), [], 'targets ' + lang);
-   assert.equal(await page.locator('[data-group-panel]').isVisible(), false, 'no side panel on a phone');
-   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['الحصص', 'الطلاب', 'التفاصيل']); const t = await main(page); assert.match(t, /القادمة/); assert.match(t, /ملغاة/); assert.match(t, /عرض الحصص الأقدم/); assert.match(t, /لم يُحفظ الحضور/); assert.doesNotMatch(t, forbidden); assert.equal(await page.locator('[data-teacher-group] > a svg').evaluate(e => getComputedStyle(e).transform !== 'none'), true, 'the back arrow is mirrored'); }
+   assert.equal(await page.locator('[data-sticky-primary] [data-invite-group]').count(), 1, 'Invite in the sticky bar'); assert.equal(await page.locator('[data-sticky-primary] [data-add-session]').count(), 1, 'Add a Session in the sticky bar');
+   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); await page.locator('[data-header-students]').waitFor(); assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['الحصص', 'الطلاب · 12', 'التفاصيل']); const t = await main(page); assert.match(t, /القادمة/); assert.match(t, /ملغاة/); assert.match(t, /السابقة/); assert.match(t, /بانتظار الحضور/); assert.match(t, /لم يُحفظ الحضور/); assert.doesNotMatch(t, forbidden); assert.equal(await page.locator('.d-back svg').evaluate(e => getComputedStyle(e).transform !== 'none'), true, 'the back arrow is mirrored'); }
    await shot(page, `group-sessions-${lang}-390`);
    await page.locator('[data-tab="details"]').click(); await shot(page, `group-details-${lang}-390`);
    await page.locator('[data-tab="students"]').click(); await page.locator('[data-group-students]').waitFor(); await shot(page, `group-students-${lang}-390`);
    await context.close();
   }
   const ar = await open(desktop, '/teacher/groups/' + G.phys, { lang: 'ar' }); await ar.page.locator('[data-group-sessions]').waitFor(); assert.ok(await overflow(ar.page));
-  const side = await ar.page.locator('[data-group-panel]').evaluate(e => e.getBoundingClientRect()), tabs = await ar.page.locator('[role="tablist"]').evaluate(e => e.getBoundingClientRect()); assert.ok(side.left < tabs.left, 'the side panel is on the left in RTL');
   await shot(ar.page, 'group-sessions-ar-1440'); await ar.context.close();
   const dark = await open(desktop, '/teacher/groups/' + G.alg, { theme: 'dark' }); await dark.page.locator('[data-group-sessions]').waitFor(); await dark.page.waitForFunction(() => document.documentElement.classList.contains('dark'));
   assert.deepEqual(await contrast(dark.page), [], 'dark contrast'); await shot(dark.page, 'group-sessions-dark-1440'); await dark.context.close();
@@ -393,17 +415,29 @@ function command(body) {
  });
  await step('Group buttons: Cancel session, Archive and Add a Session ask first, send the version they read, and report conflicts and lost replies honestly', async () => {
   const { page, context } = await open(desktop, '/teacher/groups/' + G.alg); await page.locator('[data-group-sessions]').waitFor();
-  const first = page.locator('[data-session][data-state="upcoming"]').first();
-  await first.locator('[data-cancel-session]').click(); assert.match(await first.innerText(), /Cancel this Session\?/); await first.getByRole('button', { name: 'Keep Session' }).click(); assert.equal((await ctl({})).posts.length, 0, 'nothing sent until confirmed');
-  await ctl({ cmd: 'changed' }); await first.locator('[data-cancel-session]').click(); await first.locator('[data-confirm-cancel]').click(); await first.locator('[role="alert"]').waitFor(); assert.match(await first.locator('[role="alert"]').innerText(), /changed while you were looking/);
-  await ctl({ cmd: 'lost' }); await first.locator('[data-confirm-cancel]').click(); await first.locator('[role="alert"]').filter({ hasText: /did not get a reply/ }).waitFor();
+  const first = page.locator('[data-session][data-state="upcoming"]').first(), dialog = page.locator('[role="dialog"]');
+  const choose = async (row, item) => { await row.locator('[data-session-menu]').click(); await page.locator(item).click(); await dialog.waitFor(); };
+  await choose(first, '[data-cancel-session]'); assert.match(await dialog.innerText(), /Cancel this Session\?/); await dialog.getByRole('button', { name: 'Keep Session' }).click(); await dialog.waitFor({ state: 'detached' }); assert.equal((await ctl({})).posts.length, 0, 'nothing sent until confirmed');
+  await page.waitForFunction(() => document.activeElement?.hasAttribute('data-session-menu')); // the focus goes back to the row's menu button
+  await ctl({ cmd: 'changed' }); await choose(first, '[data-cancel-session]'); await dialog.locator('[data-confirm-cancel]').click(); await dialog.locator('[role="alert"]').waitFor(); assert.match(await dialog.locator('[role="alert"]').innerText(), /changed while you were looking/);
+  await ctl({ cmd: 'lost' }); await dialog.locator('[data-confirm-cancel]').click(); await dialog.locator('[role="alert"]').filter({ hasText: /did not get a reply/ }).waitFor();
   const posted = (await ctl({})).posts.length; await page.waitForTimeout(600); assert.equal((await ctl({})).posts.length, posted, 'a lost reply is never retried by itself');
   await ctl({ cmd: 'ok' });
-  await page.getByRole('button', { name: 'Reload' }).first().click(); await page.locator('[data-group-sessions]').waitFor();
-  const fresh = page.locator('[data-session][data-state="upcoming"]').first(); await fresh.locator('[data-cancel-session]').click(); await fresh.locator('[data-confirm-cancel]').click();
+  await dialog.getByRole('button', { name: 'Reload' }).click(); await dialog.waitFor({ state: 'detached' }); await page.locator('[data-group-sessions]').waitFor();
+  const fresh = page.locator('[data-session][data-state="upcoming"]').first(); await choose(fresh, '[data-cancel-session]'); await dialog.locator('[data-confirm-cancel]').click();
   await page.waitForFunction(() => document.querySelectorAll('[data-session][data-state="cancelled"]').length === 2);
   const sent = (await ctl({})).posts.filter(p => p.data.operation === 'cancel').pop(); assert.equal(sent.action, 'session'); assert.equal(sent.groupId, G.alg); assert.equal(sent.data.sessionVersion, 1); assert.equal(sent.version, null);
   await shot(page, 'group-cancelled-en-1440');
+  // Reschedule: the form opens on the Session's own Cairo times; nothing is sent for a time that cannot work; the same session command as Cancel, with the version it read.
+  await ctl({ reset: true });
+  const re = await open(desktop, '/teacher/groups/' + G.alg); await re.page.locator('[data-group-sessions]').waitFor();
+  const reRow = re.page.locator('[data-session][data-state="upcoming"]').first(), reDialog = re.page.locator('[role="dialog"]');
+  await reRow.locator('[data-session-menu]').click(); await re.page.locator('[data-reschedule-session]').click(); await re.page.locator('[data-reschedule-form]').waitFor();
+  assert.match(await reDialog.getByLabel('Date (Cairo time)').inputValue(), /^\d{4}-\d{2}-\d{2}$/, 'opens on its own date'); assert.match(await reDialog.getByLabel('Starts').inputValue(), /^\d{2}:\d{2}$/, 'and its own time');
+  await reDialog.getByLabel('Date (Cairo time)').fill('2027-03-01'); await reDialog.getByLabel('Starts').fill('12:00'); await reDialog.getByLabel('Ends').fill('11:00'); await re.page.locator('[data-confirm-reschedule]').click(); await reDialog.locator('[role="alert"]').waitFor(); assert.equal((await ctl({})).posts.length, 0, 'an end before the start is not sent');
+  await shot(re.page, 'group-reschedule-en-1440');
+  await reDialog.getByLabel('Ends').fill('13:30'); await re.page.locator('[data-confirm-reschedule]').click(); await reDialog.waitFor({ state: 'detached' });
+  const moved = (await ctl({})).posts.find(p => p.data.operation === 'reschedule'); assert.equal(moved.action, 'session'); assert.equal(moved.data.startsAt, '2027-03-01T10:00:00.000Z'); assert.equal(moved.data.endsAt, '2027-03-01T11:30:00.000Z'); assert.equal(moved.data.sessionVersion, 1); await re.context.close();
   // Add a Session: Cairo wall time in winter is UTC+2, whatever the browser's own time zone is.
   await ctl({ reset: true });
   const add = await open(desktop, '/teacher/groups/' + G.alg); await add.page.locator('[data-group-sessions]').waitFor(); await add.page.locator('[data-add-session]').click(); await add.page.locator('[data-add-session-form]').waitFor();
@@ -416,13 +450,14 @@ function command(body) {
   // Archive: only the instructor of the course sees it; asks first; sends the version.
   await ctl({ reset: true });
   const arch = await open(desktop, '/teacher/groups/' + G.alg); await arch.page.locator('[data-group-sessions]').waitFor();
-  await arch.page.locator('[data-archive]').click(); assert.match(await arch.page.locator('[role="group"]').innerText(), /upcoming Sessions will be cancelled/); await arch.page.getByRole('button', { name: 'Keep Group' }).click(); assert.equal((await ctl({})).posts.length, 0);
-  await arch.page.locator('[data-archive]').click(); await arch.page.locator('[data-confirm-archive]').click(); await arch.page.locator('[data-status="archived"]').waitFor();
-  const a = (await ctl({})).posts[0]; assert.equal(a.action, 'archive'); assert.equal(a.version, 3); assert.equal(await arch.page.locator('[data-archive]').count(), 0); assert.equal(await arch.page.locator('[data-add-session]').count(), 0, 'an archived Group takes no new Sessions');
-  assert.equal(await arch.page.locator('[data-session][data-state="upcoming"] [data-cancel-session]').count(), 0); await shot(arch.page, 'group-archived-en-1440'); await arch.context.close();
-  const ni = await open(desktop, '/teacher/groups/' + G.phys); await ni.page.locator('[data-group-sessions]').waitFor(); assert.equal(await ni.page.locator('[data-archive]').count(), 0, 'not the instructor: no Archive'); assert.equal(await ni.page.locator('[data-add-session]').count(), 1); await ni.context.close();
+  const headerMenu = p => p.locator('.d-page-header-actions .d-btn--icon');
+  await headerMenu(arch.page).click(); await arch.page.locator('[data-archive]').click(); await arch.page.locator('[data-confirm-archive]').waitFor(); assert.match(await arch.page.locator('[role="dialog"]').innerText(), /upcoming Sessions will be cancelled/); await arch.page.getByRole('button', { name: 'Keep Group' }).click(); assert.equal((await ctl({})).posts.length, 0);
+  await headerMenu(arch.page).click(); await arch.page.locator('[data-archive]').click(); await arch.page.locator('[data-confirm-archive]').click(); await arch.page.locator('[data-status="archived"]').waitFor();
+  const a = (await ctl({})).posts[0]; assert.equal(a.action, 'archive'); assert.equal(a.version, 3); assert.equal(await headerMenu(arch.page).count(), 0, 'no Edit or Archive any more'); assert.equal(await arch.page.locator('[data-add-session]').count(), 0, 'an archived Group takes no new Sessions'); assert.equal(await arch.page.locator('[data-invite-group]').count(), 0);
+  assert.equal(await arch.page.locator('[data-session-menu]').count(), 0); await shot(arch.page, 'group-archived-en-1440'); await arch.context.close();
+  const ni = await open(desktop, '/teacher/groups/' + G.phys); await ni.page.locator('[data-group-sessions]').waitFor(); assert.equal(await headerMenu(ni.page).count(), 0, 'not the instructor: no Edit or Archive'); assert.equal(await ni.page.locator('[data-invite-group]').count(), 0, 'and no Invite'); assert.equal(await ni.page.locator('[data-add-session]').count(), 1); await ni.context.close();
   await ctl({ reset: true, cmd: 'denied' });
-  const den = await open(desktop, '/teacher/groups/' + G.alg); await den.page.locator('[data-group-sessions]').waitFor(); await den.page.locator('[data-archive]').click(); await den.page.locator('[data-confirm-archive]').click(); await den.page.locator('[role="alert"]').waitFor(); assert.match(await den.page.locator('[role="alert"]').innerText(), /do not have access/); await den.context.close();
+  const den = await open(desktop, '/teacher/groups/' + G.alg); await den.page.locator('[data-group-sessions]').waitFor(); await headerMenu(den.page).click(); await den.page.locator('[data-archive]').click(); await den.page.locator('[data-confirm-archive]').click(); await den.page.locator('[role="alert"]').waitFor(); assert.match(await den.page.locator('[role="alert"]').innerText(), /do not have access/); await den.context.close();
  });
  await step('Group tabs follow the keyboard: arrow keys move between tabs (mirrored in RTL), Tab reaches every control', async () => {
   const { page, context } = await open(desktop, '/teacher/groups/' + G.alg); await page.locator('[data-group-sessions]').waitFor();

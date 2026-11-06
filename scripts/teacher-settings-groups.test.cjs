@@ -108,13 +108,13 @@ test('groups: the screens use the Groups endpoint and the course-run route, and 
  const commands = [...new Set([...files.matchAll(/groupCall(?:<[^>]*>)?\('([a-z-]+)'/g)].map(m => m[1]))].sort();
  assert.deepEqual(commands, ['add', 'archive', 'create', 'edit', 'one-off', 'remove', 'session', 'view']);
  for (const out of ['attendance', 'finalize', 'reopen', 'transfer']) assert.ok(!files.includes(`groupCall('${out.replace(/'/g, '')}'`), out + ' is not called');
- assert.match(files, /operation: 'cancel'/); assert.doesNotMatch(files, /operation: '(reschedule|restore)'/);
+ assert.match(files, /operation: 'cancel'/); assert.match(files, /operation: 'reschedule', startsAt, endsAt/, 'Reschedule uses the existing session command'); assert.doesNotMatch(files, /operation: 'restore'/);
 });
 test('groups: changes ask first, send the version they read, and Archive is for the instructor only', () => {
  const view = read('frontend/features/teacher-groups/group-view.tsx');
  assert.match(view, /groupCall\('archive', group\.id, \{\}, group\.version\)/); assert.match(view, /groupCall\('one-off', group\.id, parsed\.data, group\.version\)/); assert.match(view, /sessionVersion: s\.version/);
- assert.match(view, /group\.instructor && <ArchiveGroup/); assert.match(view, /active && group\.staff/); assert.match(view, /canCancel && state === 'upcoming'/);
- assert.match(view, /setConfirm\(true\)/, 'cancel and archive both ask first'); assert.match(view, /cairoWallTime/);
+ assert.match(view, /active && group\.instructor \? \[/, 'Edit and Archive are for the instructor of an active Group'); assert.match(view, /<ArchiveGroup/); assert.match(view, /active && group\.staff/); assert.match(view, /canCancel && state === 'upcoming'/);
+ assert.match(view, /setDialog\('cancel'\)/, 'cancel asks first'); assert.match(view, /setArchiving\(true\)/, 'archive asks first'); assert.match(view, /setConfirm\(true\)/, 'removing a student asks first'); assert.match(view, /cairoWallTime/);
 });
 test('groups: pages are staff-only, validate the id, and the list route sits next to the menu entry', () => {
  const list = read('app/(dashboard)/(routes)/teacher/groups/page.tsx'), one = read('app/(dashboard)/(routes)/teacher/groups/[groupId]/page.tsx');
@@ -244,6 +244,17 @@ test('course-run: same gates as Groups with strict input, leaves the pinned Grou
  assert.equal((read('supabase/tests/group-course-run.sql').match(/student cannot add a run|assistant cannot add a run/g) || []).length, 2);
  assert.match(read('scripts/exam-sql-local.cjs'), /'group-course-run'/);
 });
+test('the Group page: four session sections with every Session in exactly one, attendance added up from marks only, the Cairo clock for a form', () => {
+ const now = Date.parse('2026-11-06T10:00:00Z'), at = (h, x = {}) => ({ id: 's' + h, starts_at: new Date(now + h * 3600e3).toISOString(), ends_at: new Date(now + (h + 1) * 3600e3).toISOString(), cancelled: false, attendance_state: 'draft', ...x });
+ const rows = [at(5), at(-0.5), at(-5), at(-8, { id: 'done', attendance_state: 'finalized' }), at(-9, { id: 'reopened', attendance_state: 'reopened' }), at(9, { id: 'off', cancelled: true }), at(-20, { id: 'gone', cancelled: true })];
+ const g = model.groupSessions(rows, now), ids = list => list.map(s => s.id);
+ assert.deepEqual(ids(g.now), ['s-0.5']); assert.deepEqual(ids(g.needs), ['s-5', 'reopened'], 'newest first; a reopened sheet still needs finishing'); assert.deepEqual(ids(g.upcoming), ['s5', 'off'], 'a cancelled future Session stays visible'); assert.deepEqual(ids(g.past), ['done', 'gone']);
+ assert.equal([...g.now, ...g.needs, ...g.upcoming, ...g.past].length, rows.length, 'every Session once');
+ const totals = model.attendanceTotals([{ user_id: 'a', status: 'attended' }, { user_id: 'a', status: 'absent' }, { user_id: 'a', status: 'not_marked' }, { user_id: 'b', status: 'not_marked' }, { user_id: 'c', status: 'attended' }]);
+ assert.deepEqual({ ...totals.get('a') }, { attended: 1, total: 2 }, 'a Session not marked is not counted either way'); assert.equal(totals.get('b'), undefined, 'nothing marked is no figure, not 0%'); assert.deepEqual({ ...totals.get('c') }, { attended: 1, total: 1 });
+ assert.deepEqual({ ...model.cairoFields('2027-03-01T10:00:00.000Z') }, { date: '2027-03-01', time: '12:00' }, 'winter, UTC+2'); assert.deepEqual({ ...model.cairoFields('2026-07-01T21:30:00.000Z') }, { date: '2026-07-02', time: '00:30' }, 'summer, UTC+3, across midnight');
+});
+
 test('group screens: Create, Edit, add and remove send what the contract and the database expect, and ask first where it matters', () => {
  const form = read('frontend/features/teacher-groups/group-form.tsx'), view = read('frontend/features/teacher-groups/group-view.tsx'), list = read('frontend/features/teacher-groups/list-view.tsx'), page = read('app/(dashboard)/(routes)/teacher/groups/new/page.tsx');
  assert.match(page, /staffContext\(\)/); assert.match(page, /isFirebaseStaging\(\)/);
@@ -252,12 +263,13 @@ test('group screens: Create, Edit, add and remove send what the contract and the
  assert.match(form, /groupCall\('edit', group\.id, editPayload\(group, schedules, value\), group\.version\)/);
  assert.match(view, /'add', group\.id, \{ userId: r\.user_id \}, group\.version/); assert.match(view, /'remove', group\.id, \{ userId: row\.user_id \}, group\.version/);
  assert.match(view, /section: 'eligible'/); assert.match(view, /data-confirm-remove/);
- assert.match(view, /group\.status === 'active' && group\.instructor && <button type="button" data-edit-group/, 'Edit is for the instructor of an active Group');
+ assert.match(view, /group\.status === 'active' && group\.instructor && <Button type="button" data-edit-group/, 'Edit is for the instructor of an active Group'); assert.match(view, /editing && group\.status === 'active' && group\.instructor/, 'the address cannot open the form for anyone else');
  assert.match(view, /const canChange = group\.status === 'active' && group\.staff/);
  assert.match(list, /href: '\/teacher\/groups\/new'.*'data-create-group': '', 'data-tour': 'create-group'/); assert.match(list, /data-create-group-empty/);
  for (const target of ['group-course', 'group-name', 'group-place', 'weekly-times', 'group-capacity', 'save-group']) assert.match(form, new RegExp(`data-tour="${target}"`), target);
- for (const target of ['edit-group', 'add-student', 'student-rows', 'remove-student', 'eligible-students']) assert.match(view, new RegExp(`data-tour="${target}"`), target);
+ for (const target of ['edit-group', 'add-student', 'student-rows', 'eligible-students']) assert.match(view, new RegExp(`data-tour="${target}"`), target);
+ assert.match(view, /'data-tour': 'remove-student'/, 'remove-student, on the button of the row\'s menu');
  assert.doesNotMatch(form, /offering_id|offering_name\}.*tg\.form/, 'the run never reaches a label');
- assert.deepEqual(view.match(/offering_id/g), ['offering_id'], 'the Group page uses the run only inside the Invite students address');
- assert.match(view, /href=\{`\/teacher\/students\?invite=\$\{group\.offering_id\}`\}/);
+ assert.doesNotMatch(view, /offering_name/, 'the name of the run is never drawn'); assert.match(view, /titles\.get\(group\.offering_id\)/, 'the course title comes from the offerings read');
+ assert.match(view, /href=\{inviteHref\(group\.offering_id\)\}/); assert.equal(model.inviteHref('x'), '/teacher/students?invite=x');
 });

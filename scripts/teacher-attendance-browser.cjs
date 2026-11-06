@@ -402,10 +402,10 @@ function command(body) {
  await step('Links: a started Session row on the Group page opens its attendance; upcoming and cancelled ones do not and keep their controls; the "not saved" flag opens that Session', async () => {
   const { page, context } = await open(desktop, '/teacher/groups/' + G.alg); await page.locator('[data-group-sessions]').waitFor();
   assert.equal(await page.locator(`[data-session="${sid.future}"] [data-attendance-link]`).count(), 0); assert.equal(await page.locator(`[data-session="${sid.cancelled}"] [data-attendance-link]`).count(), 0);
-  assert.equal(await page.locator(`[data-session="${sid.future}"] [data-cancel-session]`).count(), 1, 'Cancel is still on an upcoming Session');
+  await page.locator(`[data-session="${sid.future}"] [data-session-menu]`).click(); assert.equal(await page.locator('[data-cancel-session]').count(), 1, 'Cancel is still on an upcoming Session'); await page.keyboard.press('Escape');
   await page.locator('[data-see-older]').click();
   const link = page.locator(`[data-session="${sid.draft}"] [data-attendance-link]`);
-  assert.equal(await link.getAttribute('href'), at(G.alg, sid.draft)); assert.match(await link.innerText(), /Synthetic lesson 10/); assert.ok((await link.boundingBox()).height >= 47.5, 'the row is a 48px target');
+  assert.equal(await link.getAttribute('href'), at(G.alg, sid.draft)); assert.match(await link.getAttribute('aria-label'), /Synthetic lesson 10/); assert.ok((await link.boundingBox()).height >= 43.5, 'a 44 px target');
   await link.click(); await page.waitForURL('**' + at(G.alg, sid.draft)); await page.locator('h1').waitFor(); await context.close();
   const list = await open(desktop, '/teacher/groups'); await list.page.locator(`[data-group-card="${G.alg}"] [data-attendance-unsaved]`).waitFor();
   assert.equal(await list.page.locator(`[data-group-card="${G.alg}"] [data-attendance-unsaved]`).getAttribute('href'), at(G.alg, sid.draft)); assert.equal(await list.page.locator(`[data-group-card="${G.alg}"] [data-attendance-unsaved]`).evaluate(e => e.tagName), 'A');

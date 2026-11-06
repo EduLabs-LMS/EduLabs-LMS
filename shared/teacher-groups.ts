@@ -11,8 +11,10 @@ export type AttendanceSummary = 'opens' | 'saved' | 'reopened' | 'unsaved' | 'no
 /** Groups the list reads (25 per page, pages 0..LIST_PAGES-1); a bigger list is said to be cut off, never silently shortened. */
 export const LIST_PAGES = 4;
 export const PAGE_SIZE = 25;
-/** Sessions shown before "See older sessions". */
-export const RECENT_PAST = 3;
+/** Sessions waiting for attendance shown before "Show N more". */
+export const NEEDS_SHOWN = 5;
+/** Pages of a Group's attendance history read to add up each student's attendance (25 rows each); beyond this a student shows a dash, never a partial number. */
+export const ATTENDANCE_PAGES = 20;
 
 export function sortedSchedules(items: readonly WeeklyTime[]): WeeklyTime[] {
   return [...items].sort((a, b) => a.weekday - b.weekday || a.time.localeCompare(b.time));
@@ -41,6 +43,40 @@ export function partitionSessions(rows: readonly GroupSession[], now: number): {
     earlier: rows.filter(s => !later(s)).sort((a, b) => Date.parse(b.starts_at) - Date.parse(a.starts_at) || a.id.localeCompare(b.id)),
   };
 }
+
+/**
+ * The Group page's four sections. Now: in progress. Needs attendance: finished, not cancelled, not finalized (newest first). Upcoming: yet to start, cancelled ones included so a teacher can see them.
+ * Past: everything else, newest first. Every Session is in exactly one.
+ */
+export function groupSessions(rows: readonly GroupSession[], now: number) {
+  const { upcoming, earlier } = partitionSessions(rows, now);
+  const live = (s: GroupSession) => sessionState(s, now) === 'ongoing';
+  const waiting = (s: GroupSession) => !s.cancelled && s.attendance_state !== 'finalized';
+  return { now: upcoming.filter(live), needs: earlier.filter(waiting), upcoming: upcoming.filter(s => !live(s)), past: earlier.filter(s => !waiting(s)) };
+}
+
+/** Each student's Present marks out of Present and Absent marks. A student not marked in a Session is left out of that Session's count; nothing is estimated. */
+export function attendanceTotals(rows: readonly Pick<GroupRow, 'user_id' | 'status'>[]) {
+  const totals = new Map<string, { attended: number; total: number }>();
+  for (const { user_id, status } of rows) {
+    if (status !== 'attended' && status !== 'absent') continue;
+    const entry = totals.get(user_id) ?? { attended: 0, total: 0 };
+    entry.total++;
+    if (status === 'attended') entry.attended++;
+    totals.set(user_id, entry);
+  }
+  return totals;
+}
+
+/** The Cairo date and time of an instant, as a date and a time input expect them. */
+export function cairoFields(iso: string) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(iso));
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(p => p.type === type)?.value ?? '';
+  return { date: `${part('year')}-${part('month')}-${part('day')}`, time: `${part('hour')}:${part('minute')}` };
+}
+
+/** Where Invite students opens, with the Group's course already chosen. */
+export const inviteHref = (offeringId: string) => `/teacher/students?invite=${offeringId}`;
 
 export function attendanceSummary(s: GroupSession, now: number): AttendanceSummary {
   const state = sessionState(s, now);

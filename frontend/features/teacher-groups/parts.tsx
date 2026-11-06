@@ -1,22 +1,22 @@
 'use client';
 import { useState } from 'react';
 import { AlertCircle, Loader2, MapPin, Video } from 'lucide-react';
+import { Button } from '@/frontend/components/design/button';
+import { DesignSkeleton } from '@/frontend/components/design/skeleton';
 import { Icon as DesignIcon } from '@/frontend/components/design/icon';
 import { StatusPill } from '@/frontend/components/design/status-pill';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import type { MessageKey } from '@/frontend/locales/messages';
-import { plainButton } from '@/frontend/features/teacher-home/parts';
 import { sortedSchedules, weeklyReference, type FailureKind, type WeeklyTime } from '@/shared/teacher-groups';
-import type { GroupSession } from '@/shared/contracts/groups';
 import { GroupCallError } from './api';
 
 const failureText: Record<FailureKind, MessageKey> = { signin: 'tg.error.signin', denied: 'tg.error.denied', changed: 'tg.error.changed', invalid: 'tg.error.invalid', unavailable: 'tg.error.unavailable' };
 
 /** An honest failure: never shown as "nothing found". A 403 has no retry; a lost reply of a change says the outcome is unknown. */
 export function GroupError({ kind, unknownOutcome = false, onRetry, retryLabel = 'tg.retry', pending = false, invalidText }: { kind: FailureKind; unknownOutcome?: boolean; onRetry?: () => void; retryLabel?: 'tg.retry' | 'tg.reload' | 'tg.create.see_groups'; pending?: boolean; invalidText?: MessageKey }) {
-  return <div role="alert" data-state="error" className="space-y-3 rounded-2xl border-2 border-black bg-rose-50 p-4 text-slate-900">
-    <p className="flex gap-2 text-base"><AlertCircle aria-hidden className="mt-1 h-5 w-5 shrink-0" /><span><L id={unknownOutcome ? 'tg.error.unknown_outcome' : kind === 'invalid' && invalidText ? invalidText : failureText[kind]} /></span></p>
-    {kind !== 'denied' && onRetry && <button type="button" onClick={onRetry} disabled={pending} className={plainButton}>{pending && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id={retryLabel} /></button>}
+  return <div role="alert" data-state="error" className="d-alert">
+    <p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span><L id={unknownOutcome ? 'tg.error.unknown_outcome' : kind === 'invalid' && invalidText ? invalidText : failureText[kind]} /></span></p>
+    {kind !== 'denied' && onRetry && <Button type="button" onClick={onRetry} disabled={pending}>{pending && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id={retryLabel} /></Button>}
   </div>;
 }
 
@@ -35,7 +35,7 @@ export function useCommand(onDone: () => void) {
 }
 
 export function Loading({ label = 'tg.loading', className = 'h-24' }: { label?: MessageKey; className?: string }) {
-  return <div role="status" data-state="loading"><div className={`animate-pulse rounded-2xl border-2 border-black bg-slate-200 ${className}`} /><span className="sr-only"><L id={label} /></span></div>;
+  return <div role="status" data-state="loading"><DesignSkeleton className={className} /><span className="sr-only"><L id={label} /></span></div>;
 }
 
 export function ModeLabel({ mode }: { mode: 'center' | 'online' }) {
@@ -55,5 +55,3 @@ export function WeeklyTimes({ items }: { items: readonly WeeklyTime[] }) {
   if (!items.length) return <L id="tg.card.no_weekly" />;
   return <>{sortedSchedules(items).map((s, i) => <span key={s.weekday + s.time}>{i > 0 && ' · '}<bdi>{format.format(new Date(weeklyReference(s.weekday, s.time)))}</bdi></span>)}</>;
 }
-
-export const stateTone: Record<GroupSession['state'], string> = { upcoming: 'bg-primary', ongoing: 'bg-amber-100', completed: 'bg-slate-200', cancelled: 'bg-rose-100' };

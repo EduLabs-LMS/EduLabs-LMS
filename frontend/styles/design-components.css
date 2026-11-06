@@ -431,6 +431,41 @@ html[lang] h2.d-hero-heading { font-family: var(--d-font-body); font-weight: 400
 .d-bar-text { font-size: var(--d-label-size); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--d-ink); }
 .d-bar-empty { color: var(--d-meta); }
 
+/* A failure in place, and the small pieces of a page's read views and forms. */
+.d-alert { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: var(--d-space-3); padding: var(--d-space-4); border-radius: var(--d-radius-field); background: var(--d-pill-danger-bg); color: var(--d-ink); }
+.d-alert-text { display: flex; gap: var(--d-space-2); margin: 0; font-size: var(--d-body-size); }
+.d-alert-icon { flex: none; width: 20px; height: 20px; margin-top: 2px; color: var(--d-pill-danger); }
+.d-stack-lg { display: flex; flex-direction: column; gap: var(--d-space-4); }
+.d-stack-lg[hidden] { display: none; }
+.d-stack-form { display: flex; flex-direction: column; gap: var(--d-space-4); margin-top: var(--d-space-3); }
+.d-stack-form > .d-dialog-footer { margin-top: 0; }
+.d-stretch { align-self: stretch; }
+.d-toolbar--full { align-self: stretch; }
+.d-wrap { overflow-wrap: anywhere; }
+.d-wrap-all { word-break: break-all; }
+.d-pre { white-space: pre-line; }
+.d-field-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--d-space-3); }
+.d-dl { display: flex; flex-direction: column; gap: var(--d-space-4); margin: 0; align-self: stretch; }
+.d-dl dt { font-size: var(--d-meta-size); font-weight: 600; color: var(--d-meta); }
+.d-dl dd { margin: 2px 0 0; font-size: var(--d-body-size); color: var(--d-ink); }
+.d-dl dd.d-stack-sm { align-items: flex-start; }
+.d-section-label { margin: 0 0 var(--d-space-1); font-size: var(--d-meta-size); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--d-meta); }
+html[data-lms-appearance][lang] :is(h1, h2, h3).d-section-label { font-family: inherit; font-weight: 700; }
+html[lang="ar"] .d-section-label { letter-spacing: 0; }
+/* A Session: tile, words and ⋯ on one line of a phone, its pill and action beneath; everything on one line from the sidebar's width up. */
+.d-session .d-countdown { display: inline; }
+@media (max-width: 767px) {
+  .d-session { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--d-space-3); row-gap: var(--d-space-2); }
+  .d-session > .d-row-trailing { display: contents; }
+  .d-session > .d-row-trailing > .d-pill { grid-column: 2; grid-row: 2; justify-self: start; }
+  .d-session > .d-row-trailing > .d-btn:not(.d-btn--icon) { grid-column: 1 / -1; grid-row: 3; justify-self: end; }
+  .d-session > .d-row-trailing > .d-btn--icon { grid-column: 3; grid-row: 1; align-self: start; }
+}
+.d-row-more { display: flex; justify-content: center; padding-top: var(--d-space-2); }
+.d-rotate-90 { transform: rotate(90deg); }
+.d-student-body { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: var(--d-space-4); row-gap: 2px; }
+.d-student-body > .d-label { flex: 1 1 160px; min-width: 0; }
+
 /* ---- Reduced motion: nothing moves ---- */
 @media (prefers-reduced-motion: reduce) {
   .d-btn, .d-btn:not([disabled]):hover, .d-btn:not([disabled]):active, .d-btn--primary:not([disabled]):active { transition: none; transform: none; }
