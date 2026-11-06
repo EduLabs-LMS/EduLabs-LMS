@@ -1,5 +1,6 @@
 // Teacher Home, Courses and navigation in Chromium: the real components, the real built CSS and fonts, synthetic loopback data only.
 // Not provider acceptance. Needs a Firebase-mode `npm run build` first (CSS and fonts) and LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME.
+const { shootMatrix } = require('./screen-matrix.cjs');
 const fs = require('fs'), path = require('path'), http = require('http'), assert = require('node:assert/strict');
 const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
@@ -139,7 +140,8 @@ createRoot(document.getElementById('root')).render(
  };
  const overflow = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
  const text = page => page.locator('main').innerText();
- const step = async (name, fn) => { try { await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
+ const only = process.env.LMS_ONLY_STEPS ? new RegExp(process.env.LMS_ONLY_STEPS) : null;
+ const step = async (name, fn) => { if (only && !only.test(name)) return; try { await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
  const phone = { width: 390, height: 844 }, desktop = { width: 1440, height: 900 };
  const sections = ['th-next', 'th-coming', 'th-updates'];
  const menuItems = ['Home', 'Groups', 'Students', 'Courses'];
@@ -444,6 +446,17 @@ createRoot(document.getElementById('root')).render(
   const d = await open(desktop, 'view=home&s=draft'); await d.page.locator('[data-teacher-home]').waitFor();
   assert.equal(await d.page.locator('[data-section="th-next"] [data-take-attendance]').count(), 1, 'a draft still says Take attendance'); assert.equal(await d.page.locator('[data-attendance-taken]').count(), 0); await d.context.close();
  });
+ if (process.env.LMS_MATRIX) await step('Screen matrix: every look, theme, language and width, measured', async () => {
+  const withLook = (p, look) => p + (p.includes('?') ? '&' : '?') + 'design=' + look;
+  const findings = await shootMatrix({ label: 'home-courses', open: ({ viewport, lang, theme, look, target }) => open(viewport, `${target}&lang=${lang}&theme=${theme}&design=${look}`), screens: [
+   { name: 'home', target: 'view=home&s=full', ready: '[data-teacher-home]' },
+   { name: 'home-first-visit', target: 'view=home&s=first', ready: '[data-first-visit]' },
+   { name: 'courses-list', target: 'view=courses&s=full', ready: '[data-teacher-courses]' },
+   { name: 'courses-create', target: 'view=courses&s=empty', ready: '[data-teacher-courses]', act: async page => { await page.locator('header [data-create-course]').click(); await page.getByRole('dialog').waitFor(); } },
+  ] });
+  assert.deepEqual(findings, []);
+ });
+
  await browser.close(); server.close();
  assert.deepEqual(errors, [], 'no uncaught or console errors');
  assert.deepEqual(external, [], 'no external requests');

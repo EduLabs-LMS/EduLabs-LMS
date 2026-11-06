@@ -1,6 +1,7 @@
 // Teacher Settings area and Groups & Classes in Chromium: the real components, the REAL middleware in front of every page and API request,
 // the real built CSS and fonts, and a fictional /api/study-groups with synthetic data only. Not provider acceptance.
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME, a Firebase-mode `npm run build` (CSS, fonts) and optionally LMS_FRESH_CSS (a Tailwind compile of app/globals.css).
+const { shootMatrix } = require('./screen-matrix.cjs');
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
 const pick = async (select, value) => { await select.click(); await select.page().locator('[role="option"][data-value="' + value + '"]').click(); };
 const optionsOf = async select => { await select.click(); await select.page().waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); const rows = await select.page().locator('[role="option"]').evaluateAll(os => os.map(o => [o.textContent, o.getAttribute('aria-disabled') === 'true'])); await select.page().evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await select.page().keyboard.press('Escape'); await select.page().locator('[role="listbox"]').waitFor({ state: 'detached' }); return rows; };
@@ -653,6 +654,23 @@ function command(body) {
    if (lang === 'ar') assert.match(await page.getByRole('dialog').innerText(), /هل تريد إزالة/);
    await context.close();
   }
+ });
+
+ if (process.env.LMS_MATRIX) await step('Screen matrix: every look, theme, language and width, measured', async () => {
+  const withLook = (p, look) => p + (p.includes('?') ? '&' : '?') + 'design=' + look;
+  const findings = await shootMatrix({ label: 'groups-settings', open: ({ viewport, lang, theme, look, target }) => open(viewport, withLook(target, look), { lang, theme }), screens: [
+   { name: 'groups-list', target: '/teacher/groups', ready: '[data-group-card]' },
+   { name: 'group-sessions', target: '/teacher/groups/' + G.alg, ready: '[data-group-sessions]' },
+   { name: 'group-students', target: '/teacher/groups/' + G.alg, ready: '[data-tab="students"]', act: async page => { await page.locator('[data-tab="students"]').click(); await page.locator('[data-group-students] [data-student]').first().waitFor(); } },
+   { name: 'group-details', target: '/teacher/groups/' + G.alg, ready: '[data-tab="details"]', act: async page => { await page.locator('[data-tab="details"]').click(); await page.locator('[data-tab="details"][aria-selected="true"]').waitFor(); } },
+   { name: 'group-edit', target: '/teacher/groups/' + G.alg + '?edit=1', ready: '[data-edit-group-form]' },
+   { name: 'group-create', target: '/teacher/groups/new', ready: '[data-create-group-form]' },
+   { name: 'settings-list', target: '/teacher/settings', ready: '[data-settings-list]', sizes: ['phone'] },
+   { name: 'settings-account', target: '/teacher/settings/account', ready: '[data-settings-account]' },
+   { name: 'settings-language', target: '/teacher/settings/language', ready: '[data-settings-language]' },
+   { name: 'settings-notifications', target: '/teacher/settings/notifications', ready: '[data-settings-notifications]' },
+  ] });
+  assert.deepEqual(findings, []);
  });
 
  await browser.close(); server.close();

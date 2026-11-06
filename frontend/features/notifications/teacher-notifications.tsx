@@ -20,11 +20,11 @@ export function TeacherNotifications({ rows, unread, labels, filter, page, loadi
   return <div data-teacher-notifications className="d-page">
     <PageHeader title={<L id="settings.notifications" />} secondary={[{ key: 'read-all', label: <L id="notifications.mark_all_as_read" />, disabled: busy || !unread, onClick: () => onAction('read-all'), data: { 'data-read-all': '' } }]} />
     {error && <div role="alert" data-state="error" className="d-alert"><p className="d-alert-text"><L text={error} /></p><Button type="button" onClick={onRetry}><L id="home.retry" /></Button></div>}
-    <SegmentedControl label={t('settings.notifications')} value={filter} onChange={onFilter} options={[
+    <div className="d-capitalize"><SegmentedControl label={t('settings.notifications')} value={filter} onChange={onFilter} options={[
       { value: 'all', label: <L id="notifications.all" /> },
       { value: 'unread', label: <L id="notifications.filterUnread" /> },
       { value: 'read', label: <L id="notifications.filterRead" /> },
-    ]} />
+    ]} /></div>
     {loading
       ? <div role="status" data-state="loading" className="d-list d-card d-card--pad"><div aria-hidden="true" className="d-stack-sm">{[0, 1, 2].map(i => <DesignSkeleton key={i} className="h-11 w-full" />)}</div><span className="sr-only"><L id="th.state.loading" /></span></div>
       : !error && rows?.length === 0

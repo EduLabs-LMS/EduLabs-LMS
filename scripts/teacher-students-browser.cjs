@@ -1,6 +1,7 @@
 // Teacher Students screen in Chromium: the real components, the REAL middleware in front of every page and API request, the real built CSS and fonts,
 // and fictional /api/student-administration and /api/study-groups services with synthetic data only. Not provider acceptance.
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME, a Firebase-mode `npm run build` (CSS, fonts) and optionally LMS_FRESH_CSS (a Tailwind compile of app/globals.css).
+const { shootMatrix } = require('./screen-matrix.cjs');
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
 const pick = async (select, value) => { await select.click(); await select.page().locator('[role="option"][data-value="' + value + '"]').click(); };
 const optionsOf = async select => { await select.click(); await select.page().waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); const rows = await select.page().locator('[role="option"]').evaluateAll(os => os.map(o => [o.textContent, o.getAttribute('aria-disabled') === 'true'])); await select.page().evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await select.page().keyboard.press('Escape'); await select.page().locator('[role="listbox"]').waitFor({ state: 'detached' }); return rows; };
@@ -574,6 +575,16 @@ function groupsCommand(body) {
   const { page, context } = await open(phone, '/join/' + token); await page.locator('[role="alert"]').waitFor(); assert.doesNotMatch(await page.locator('[role="alert"]').innerText(), /This link isn't working/); await context.close();
   await ctl({ reset: true });
   const ok = await open(phone, '/join/' + token); await ok.page.getByRole('button', { name: 'Request access' }).waitFor(); await ok.context.close();
+ });
+
+ if (process.env.LMS_MATRIX) await step('Screen matrix: every look, theme, language and width, measured', async () => {
+  const withLook = (p, look) => p + (p.includes('?') ? '&' : '?') + 'design=' + look;
+  const findings = await shootMatrix({ label: 'students', open: ({ viewport, lang, theme, look, target }) => open(viewport, withLook(target, look), { lang, theme }), screens: [
+   { name: 'students-list', target: '/teacher/students', ready: '[data-student]' },
+   { name: 'students-invite', target: '/teacher/students/invite', ready: '[data-invite-panel]' },
+   { name: 'student-page', target: `/teacher/students/${stu(1)}?course=${O.maths}`, ready: '[data-attendance-row]' },
+  ] });
+  assert.deepEqual(findings, []);
  });
 
  await browser.close(); server.close();

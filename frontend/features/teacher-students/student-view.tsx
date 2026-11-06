@@ -73,6 +73,7 @@ function AccessChange({ row, offering, status, onChanged }: { row: RosterRow; of
     onChanged({ status: result.status, version: result.version, expires_at: suspending ? row.expires_at : null });
   });
   return <section data-access-change data-tour="student-access" className="d-card d-card--pad d-stack">
+    <h2 className="d-section"><L id="ts.student.status" /></h2>
     {!asking && <Button type="button" variant={suspending ? 'secondary' : 'primary'} data-ask-access onClick={() => setAsking(true)}><L id={suspending ? 'ts.student.suspend' : 'ts.student.reactivate'} /></Button>}
     {asking && <div data-access-confirm className="d-stack">
       <p className="d-body"><L id={suspending ? 'ts.student.suspend_confirm' : 'ts.student.reactivate_confirm'} values={{ name: row.display_name?.trim() || '', course: courseName(offering) }} /></p>

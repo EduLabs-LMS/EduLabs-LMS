@@ -1,6 +1,7 @@
 // Teacher course page (Settings > Courses > one course) in Chromium: the real components inside the real Settings shell, the REAL middleware in front of every
 // page and API request, the real built CSS and fonts, and fictional /api/teacher/courses and /api/teacher/academics services with synthetic data only. Not provider acceptance.
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME, a Firebase-mode `npm run build` (CSS, fonts) and optionally LMS_FRESH_CSS.
+const { shootMatrix } = require('./screen-matrix.cjs');
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
 const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
@@ -123,9 +124,9 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
  const errors = [], results = [], external = [];
  const phone = { width: 390, height: 844 }, desktop = { width: 1440, height: 900 };
  const PAGE = '/teacher/settings/courses/' + COURSE;
- const open = async (viewport, p = PAGE, { lang = 'en' } = {}) => {
+ const open = async (viewport, p = PAGE, { lang = 'en', theme = 'light' } = {}) => {
   const context = await browser.newContext({ viewport, locale: lang });
-  await context.addInitScript(([l]) => { try { localStorage.setItem('edulabs-lms-language', l); localStorage.setItem('edulabs-lms-appearance', 'light'); } catch {} }, [lang]);
+  await context.addInitScript(([l, t]) => { try { localStorage.setItem('edulabs-lms-language', l); localStorage.setItem('edulabs-lms-appearance', t); } catch {} }, [lang, theme]);
   const page = await context.newPage();
   page.on('pageerror', e => { errors.push(e.message); console.error('PAGEERROR', e.message.slice(0, 300)); });
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()); });
@@ -134,7 +135,8 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
   return { page, context };
  };
  const overflow = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
- const step = async (name, fn) => { try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
+ const only = process.env.LMS_ONLY_STEPS ? new RegExp(process.env.LMS_ONLY_STEPS) : null;
+ const step = async (name, fn) => { if (only && !only.test(name)) return; try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
  const shot = (page, name) => page.screenshot({ path: path.join(shots, name + '.png'), fullPage: true });
  const tinyTargets = page => page.evaluate(() => [...document.querySelectorAll('main a, main button, main input, main select')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.height < 43.5 || r.width < 43.5) && getComputedStyle(e).visibility !== 'hidden'; }).map(e => (e.textContent || e.getAttribute('aria-label') || e.tagName).trim().slice(0, 30) + ':' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height)));
  const smallText = page => page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const s = parseFloat(getComputedStyle(n.parentElement).fontSize); if (s < 12) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
@@ -268,6 +270,14 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
  await step('The first view shows a placeholder for the grade until it has been read, and no loading overlay signal exists', async () => {
   const { page, context } = await open(desktop); await page.locator('[data-teacher-course]').waitFor(); await settled(page);
   assert.equal(await page.evaluate(() => typeof window.__loadingSignal), 'undefined'); assert.equal(await page.locator('[data-state="loading"],[data-skeleton]').count(), 0); await context.close();
+ });
+
+ if (process.env.LMS_MATRIX) await step('Screen matrix: every look, theme, language and width, measured', async () => {
+  const withLook = (p, look) => p + (p.includes('?') ? '&' : '?') + 'design=' + look;
+  const findings = await shootMatrix({ label: 'course-page', open: ({ viewport, lang, theme, target }) => open(viewport, target, { lang, theme }), screens: [
+   { name: 'course-page', target: PAGE, ready: '[data-course-publish]' },
+  ] });
+  assert.deepEqual(findings, []);
  });
 
  await browser.close(); server.close();

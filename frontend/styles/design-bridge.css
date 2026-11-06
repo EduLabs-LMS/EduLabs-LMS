@@ -24,7 +24,7 @@ html[data-design="new"]:has([data-teacher-shell]) :is(.border-b-2, .border-b-\[2
 html[data-design="new"]:has([data-teacher-shell]) :is(.border-t-2, .border-t-\[2\.5px\]).border-black { border-top-width: 1px; }
 html[data-design="new"]:has([data-teacher-shell]) :is(.border-e-2, .border-e-\[2\.5px\]).border-black { border-inline-end-width: 1px; }
 html[data-design="new"]:has([data-teacher-shell]) :is(.border-black\/15) { border-color: var(--d-divider); }
-html[data-design="new"]:has([data-teacher-shell]) :is(input, select, textarea).border-black { border-color: var(--d-field-line); }
+html[data-design="new"]:has([data-teacher-shell]) :is(input, select, textarea).border-black { border-color: var(--d-field-edge); }
 
 /* Hard black shadows become bottom edges */
 html[data-design="new"]:has([data-teacher-shell]) :is(.shadow-hard, .shadow-hard-lg, .hover\:shadow-hard:hover, .hover\:shadow-hard-lg:hover) { box-shadow: var(--d-card-shadow); }

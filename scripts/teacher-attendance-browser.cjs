@@ -1,6 +1,7 @@
 // Teacher Take attendance in Chromium: the real components, the REAL middleware in front of every page and API request,
 // the real built CSS and fonts, and a fictional /api/study-groups with synthetic data only. Not provider acceptance.
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME, a Firebase-mode `npm run build` (CSS, fonts) and optionally LMS_FRESH_CSS (a Tailwind compile of app/globals.css).
+const { shootMatrix } = require('./screen-matrix.cjs');
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
 const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
@@ -239,7 +240,8 @@ function command(body) {
   return { page, context };
  };
  const overflow = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
- const step = async (name, fn) => { try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
+ const only = process.env.LMS_ONLY_STEPS ? new RegExp(process.env.LMS_ONLY_STEPS) : null;
+ const step = async (name, fn) => { if (only && !only.test(name)) return; try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
  // New's rows arrive one after another: a picture is of the page at rest, not of that.
  const shot = async (page, name, full = true) => { await page.evaluate(() => document.getAnimations().forEach(a => { try { a.finish(); } catch { /* an endless pulse */ } })); await page.screenshot({ path: path.join(shots, name + '.png'), fullPage: full }); };
  const lum = c => { const m = c.match(/\d+(\.\d+)?/g).map(Number).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; };
@@ -570,6 +572,15 @@ function command(body) {
   assert.deepEqual(await contrast(page), [], 'contrast'); await shot(page, 'attendance-dark-1440'); await context.close();
   const done = await open(desktop, at(G.alg, sid.finalized), { theme: 'dark' }); await rows(done.page).first().waitFor(); await done.page.waitForFunction(() => document.documentElement.classList.contains('dark'));
   assert.deepEqual(await contrast(done.page), [], 'contrast, finished'); await shot(done.page, 'attendance-finished-dark-1440'); await done.context.close();
+ });
+
+ if (process.env.LMS_MATRIX) await step('Screen matrix: every look, theme, language and width, measured', async () => {
+  const withLook = (p, look) => p + (p.includes('?') ? '&' : '?') + 'design=' + look;
+  const findings = await shootMatrix({ label: 'attendance', open: ({ viewport, lang, theme, look, target }) => open(viewport, withLook(target, look), { lang, theme }), screens: [
+   { name: 'attendance-marking', target: at(G.alg, sid.draft), ready: '[data-student-list]' },
+   { name: 'attendance-finished', target: at(G.alg, sid.finalized), ready: '[data-student-list]' },
+  ] });
+  assert.deepEqual(findings, []);
  });
 
  await browser.close(); server.close();
