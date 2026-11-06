@@ -47,7 +47,7 @@ Tables the seed may write (the `table_name` check of `private.demo_seed_rows`): 
 
 - Draft migration `20261106130000_course_content_tree.sql` (not applied anywhere) replaces `demo_fill_core` and `platform_demo_status`. `demo_clear_core` is not replaced: it starts from the recorded courses, so chapters and lessons the teacher added, renamed, moved or deleted need nothing new (`supabase/tests/course-content-tree.sql` proves it). No table or allowed-table list changes.
 - The published course has Electric current (Ohm's law, Resistors in series and parallel, Kirchhoff's laws), Magnetism (Magnetic field of a wire, Force on a wire) and Electromagnetic induction (empty). The first lesson of a chapter is published and the others are drafts. The draft course has no chapters, so the empty Content section can be tried.
-- Chapters have the type `Chapter` and no stored number, so a student's page numbers them by order, like a chapter a teacher adds.
+- Chapters are Chapter 1, 2 and 3: the type and number come from the database trigger, like a chapter a teacher adds. A chapter the teacher adds, moves or deletes keeps the numbers right, and Clear works on an archived demo course.
 - **The board's homework pills do not appear in a demo space.** Demo data holds no homework, and Clear refuses a space that does, so every lesson says "No homework". That returns with the Homework build.
 - A space filled at an earlier seed version is not upgraded in place. To get the tree: Clear, then Fill again.
 

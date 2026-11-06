@@ -94,7 +94,102 @@ module.exports = async function (makeClient, admin) {
     await blocked(b); await a.query('commit'); await second; await b.query('commit');
     const positions = (await admin.query('select array_agg(position order by position) p from public.course_modules where course_id=$1', [course])).rows[0].p;
     assert.equal(new Set(positions).size, positions.length); assert.deepEqual(positions, [0, 1, 2, 3, 4]);
-    console.log('All 6 independent-session course content races passed.');
+    console.log('PASS course content race: two tabs add a chapter, both land in different positions');
+    // What a tab read of the chapters, and the labels as they stand. Every race below ends with the labels proved correct.
+    const seenChapters = async () => (await admin.query('select id,title,updated_at::text updated_at from public.course_modules where course_id=$1 order by position', [course])).rows;
+    const labels = async () => (await admin.query("select string_agg(title||':'||group_type||':'||chapter_number||':'||position,'|' order by position) l from public.course_modules where course_id=$1", [course])).rows[0].l;
+    const at = (list, title) => { const c = list.find(x => x.title === title); return { id: c.id, updated_at: c.updated_at }; };
+    const reorderChapters = (c, items) => c.query("select public.edit_learning_content($1,'reorder_modules',null,null,null,$2)", [course, JSON.stringify({ items: items.map(({ id, updated_at }) => ({ id, updated_at })) })]);
+    const chapterLabels = titles => titles.map((t, i) => `${t}:Chapter:${i + 1}:${i}`).join('|');
+    assert.equal(await labels(), chapterLabels(['One', 'Two', 'Three', 'Four', 'Five']), 'two chapters created at once get the numbers 4 and 5');
+
+    // 7. Two tabs reorder the chapters. The first stands, and the numbers follow it.
+    let chapters = await seenChapters();
+    await a.claim(); await b.claim();
+    await reorderChapters(a, [...chapters].reverse());
+    second = stale(reorderChapters(b, [chapters[1], chapters[0], ...chapters.slice(2)]));
+    await blocked(b); await a.query('commit');
+    assert.equal(await second, 'PT409'); await b.query('rollback');
+    assert.equal(await labels(), chapterLabels(['Five', 'Four', 'Three', 'Two', 'One']));
+    console.log('PASS course content race: two tabs reorder chapters, the first stands and the numbers follow it');
+
+    // 8. A chapter delete and a chapter reorder. The reorder still lists the deleted chapter, so it is refused; no gap is left.
+    chapters = await seenChapters();
+    const five = at(chapters, 'Five');
+    await a.claim(); await b.claim();
+    await structure(a, 'delete_chapter', five.id, null, five.updated_at, { items: [] });
+    second = stale(reorderChapters(b, [...chapters].reverse()));
+    await blocked(b); await a.query('commit');
+    assert.equal(await second, 'PT409'); await b.query('rollback');
+    assert.equal(await labels(), chapterLabels(['Four', 'Three', 'Two', 'One']));
+    console.log('PASS course content race: a chapter delete beats a reorder, and the numbers close up');
+
+    // 9. Two tabs delete chapters. The first renumbers the chapters after it, so the second, holding an old version of a later chapter, must reload. Then it may delete.
+    await admin.query("insert into public.course_modules(course_id,title,position) values($1,'Six',4),($1,'Seven',5)", [course]);
+    chapters = await seenChapters();
+    await a.claim(); await b.claim();
+    await structure(a, 'delete_chapter', at(chapters, 'Six').id, null, at(chapters, 'Six').updated_at, { items: [] });
+    second = stale(structure(b, 'delete_chapter', at(chapters, 'Seven').id, null, at(chapters, 'Seven').updated_at, { items: [] }));
+    await blocked(b); await a.query('commit');
+    assert.equal(await second, 'PT409', 'the number of the second chapter changed under the tab'); await b.query('rollback');
+    assert.equal(await labels(), chapterLabels(['Four', 'Three', 'Two', 'One', 'Seven']));
+    chapters = await seenChapters();
+    await structure(admin, 'delete_chapter', at(chapters, 'Seven').id, null, at(chapters, 'Seven').updated_at, { items: [] }).then(() => assert.fail('a call with no identity is denied'), e => assert.equal(e.code, '42501'));
+    await b.claim(); await structure(b, 'delete_chapter', at(chapters, 'Seven').id, null, at(chapters, 'Seven').updated_at, { items: [] }); await b.query('commit');
+    assert.equal(await labels(), chapterLabels(['Four', 'Three', 'Two', 'One']));
+    console.log('PASS course content race: two chapter deletes, the second reloads, and no gap is left');
+
+    // 10. A delete and a create at once. The new chapter takes the number after the renumbering.
+    await admin.query("insert into public.course_modules(course_id,title,position) values($1,'Eight',4)", [course]);
+    chapters = await seenChapters();
+    await a.claim(); await b.claim();
+    await structure(a, 'delete_chapter', at(chapters, 'Eight').id, null, at(chapters, 'Eight').updated_at, { items: [] });
+    second = structure(b, 'create_chapter', null, null, null, { title: 'Nine' });
+    await blocked(b); await a.query('commit'); await second; await b.query('commit');
+    assert.equal(await labels(), chapterLabels(['Four', 'Three', 'Two', 'One', 'Nine']));
+    console.log('PASS course content race: a create waits for a delete and takes the next number');
+
+    // 11. A lesson moves while another tab reorders the chapters. A move changes no chapter's version, so both stand: the lesson stays in its new chapter, whatever its number is now.
+    chapters = await seenChapters();
+    const one = at(chapters, 'One'), two = at(chapters, 'Two'), runner = (await seen(ch2))[0], into = await seen(ch1);
+    assert.equal(two.id, ch2); assert.equal(one.id, ch1);
+    await a.claim(); await b.claim();
+    await structure(a, 'move_lesson', runner.id, ch1, runner.updated_at, { items: [...into, runner] });
+    second = reorderChapters(b, [...chapters].reverse());
+    await blocked(b); await a.query('commit'); await second; await b.query('commit');
+    assert.equal(await labels(), chapterLabels(['Nine', 'One', 'Two', 'Three', 'Four']));
+    assert.equal((await admin.query('select module_id from public.lessons where id=$1', [runner.id])).rows[0].module_id, ch1);
+    console.log('PASS course content race: a lesson move and a chapter reorder both stand, and the numbers follow the reorder');
+
+    // 12. A course is archived while a tab adds a chapter: the tab waits on the course, then is refused and adds nothing. The other order keeps the chapter, numbered.
+    const before = await labels();
+    const archive = (c, status) => c.query('update public.courses set status=$2 where id=$1', [course, status]);
+    await a.claim(); await b.claim();
+    await archive(a, 'archived');
+    second = stale(structure(b, 'create_chapter', null, null, null, { title: 'Too late' }));
+    await blocked(b); await a.query('commit');
+    assert.equal(await second, 'PT409'); await b.query('rollback');
+    assert.equal(await labels(), before);
+    // A direct write takes no course-root lock of its own: the trigger's share lock is what makes it wait and read the new state.
+    await admin.query("update public.courses set status='draft' where id=$1", [course]);
+    await a.claim(); await b.claim();
+    await archive(a, 'archived');
+    second = stale(b.query("update public.lessons set title='Too late' where id=$1", [runner.id]));
+    await blocked(b); await a.query('commit');
+    assert.equal(await second, 'PT409'); await b.query('rollback');
+    assert.notEqual((await admin.query('select title from public.lessons where id=$1', [runner.id])).rows[0].title, 'Too late');
+    console.log('PASS course content race: archiving beats a create and a direct rename, both wait and are refused');
+
+    // 13. The other order: the create holds the course, the archive waits, both stand.
+    await admin.query("update public.courses set status='draft' where id=$1", [course]);
+    await a.claim(); await b.claim();
+    await structure(a, 'create_chapter', null, null, null, { title: 'In time' });
+    second = archive(b, 'archived');
+    await blocked(b); await a.query('commit'); await second; await b.query('commit');
+    assert.equal(await labels(), before + '|In time:Chapter:6:5');
+    assert.equal((await admin.query('select status from public.courses where id=$1', [course])).rows[0].status, 'archived');
+    console.log('PASS course content race: a create in time stands, numbered, and the archive follows it');
+    console.log('All 13 independent-session course content races passed.');
   } finally {
     await Promise.all(clients.map(async c => { try { await c.query('rollback'); } finally { await c.end(); } }));
   }

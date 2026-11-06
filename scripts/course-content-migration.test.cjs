@@ -21,10 +21,11 @@ test('the rules: private SECURITY DEFINER, public invoker wrapper, no auth.uid()
   assert.match(code, new RegExp('revoke all on function public\\.' + fn + '\\([^)]*\\) from public,anon;'));
   assert.match(code, new RegExp('grant execute on function public\\.' + fn + '\\([^)]*\\) to authenticated;'));
  }
- for (const fn of ['lesson_delete_blockers\\(uuid\\)', 'keep_lesson_in_course\\(\\)']) assert.match(code, new RegExp('revoke all on function private\\.' + fn + ' from public,anon,authenticated,service_role;'), fn + ' is internal');
+ for (const fn of ['lesson_delete_blockers\\(uuid\\)', 'lesson_delete_counts\\(uuid\\[\\]\\)', 'keep_lesson_in_course\\(\\)', 'pin_chapter_label\\(\\)', 'close_chapter_gaps\\(uuid\\)', 'close_chapter_gaps_after_delete\\(\\)', 'refuse_archived_structure\\(\\)']) assert.match(code, new RegExp('revoke all on function private\\.' + fn + ' from public,anon,authenticated,service_role;'), fn + ' is internal');
  const body = /create function private\.edit_course_structure[\s\S]*?end \$\$;/.exec(code)[0];
  assert.match(body, /private\.current_app_user_id\(\) is null or p_course_id is null or not private\.can_edit_course\(p_course_id\)/, 'the same authorization as editing the course, before anything else');
  assert.match(body, /from public\.courses c where c\.id=p_course_id for update/, 'the same course-root lock as edit_learning_content');
+ assert.ok(body.indexOf("state='archived'") > body.indexOf('for update') && body.indexOf("state='archived'") < body.indexOf('p_data is null'), 'archived is read under the lock, before the input');
  assert.ok(body.indexOf('can_edit_course') < body.indexOf('for update'), 'a person with no rights never holds the lock');
  assert.match(body, /is distinct from p_updated_at then raise exception 'Content changed\. Reload\.' using errcode='PT409'/, 'a stale request is PT409');
 });
@@ -32,10 +33,29 @@ test('the rules: private SECURITY DEFINER, public invoker wrapper, no auth.uid()
 test('what it does not touch', () => {
  assert.doesNotMatch(code, /function (private|public)\.edit_learning_content/, 'the existing editing operation is unchanged');
  assert.doesNotMatch(code, /function private\.demo_clear_core/, 'Clear is unchanged');
- assert.doesNotMatch(code, /alter table|create table|create policy|drop policy|^\s*grant [a-z, ]+ on public\./im, 'no table, policy or table grant changes');
- assert.deepEqual(code.match(/drop [a-z]+ [^;]+;/gi), ['drop trigger prevent_reparenting on public.lessons;'], 'the one drop is the trigger it recreates');
+ assert.doesNotMatch(code, /create table|create policy|drop policy|^\s*grant [a-z, ]+ on public\./im, 'no new table or policy, and no client grant added');
+ assert.deepEqual([...new Set(code.match(/alter table [a-z_.]+/g))], ['alter table public.course_modules'], 'only the chapter table is altered');
+ assert.deepEqual(code.match(/drop [a-z]+ [^;]+;/gi), ['drop trigger prevent_reparenting on public.lessons;', 'drop constraint course_modules_chapter_number_check,drop constraint course_modules_group_type_check;'], 'the old label checks, which the new ones replace, and the trigger it recreates');
  assert.match(code, /create trigger prevent_reparenting before update on public\.lessons for each row execute function private\.reject_reparenting\('id'\);/, 'the lesson id still never changes');
  assert.doesNotMatch(code, /on conflict/i, 'a refused change is refused, never turned into another one');
+});
+
+test('the label: a trigger on every write, the table agrees, and the gap closes on delete', () => {
+ assert.match(code, /create trigger pin_chapter_label before insert or update on public\.course_modules for each row/);
+ assert.match(code, /new\.group_type:='Chapter';\s+new\.chapter_number:=new\.position\+1;/);
+ assert.match(code, /check \(chapter_number=position\+1\)/); assert.match(code, /check \(group_type='Chapter'\)/); assert.match(code, /alter column chapter_number set not null/);
+ assert.match(code, /create trigger close_chapter_gaps after delete on public\.course_modules referencing old table as gone for each statement/);
+ assert.ok(code.indexOf('private.close_chapter_gaps(c); end loop; end $$;\nupdate public.course_modules set chapter_number=position+1') > 0, 'existing rows are rewritten once');
+ assert.ok(code.indexOf('update public.course_modules set chapter_number=position+1') < code.indexOf('create trigger refuse_archived_structure'), 'the rewrite runs before archived courses start refusing');
+ assert.deepEqual(code.match(/^revoke [a-z(), ]+ on public\.[a-z_]+ from authenticated;$/gm), ['revoke insert,delete on public.course_modules from authenticated;', 'revoke update(position) on public.course_modules from authenticated;', 'revoke delete on public.lessons from authenticated;'], 'a gap cannot be made and a refused delete cannot be walked around from outside');
+});
+
+test('an archived course: refused at the tables, for both', () => {
+ for (const table of ['course_modules', 'lessons']) assert.match(code, new RegExp('create trigger refuse_archived_structure before insert or update or delete on public\\.' + table + ' for each row'), table);
+ const fn = /create function private\.refuse_archived_structure[\s\S]*?end \$\$;/.exec(code)[0];
+ assert.match(fn, /for share/, 'waits for an archive in another transaction');
+ assert.doesNotMatch(fn, /current_app_user_id/, 'no caller is exempt');
+ assert.match(code, /'archived',state='archived','canEdit',can_edit and state<>'archived'/, 'the read tells the screen');
 });
 
 test('demo seed 4: the board tree, no homework, and Clear needs no change', () => {

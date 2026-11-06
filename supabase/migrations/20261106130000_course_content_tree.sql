@@ -1,21 +1,29 @@
 -- Course content tree (Course > Chapter > Lesson) for the teacher's Course page. DRAFT: not applied anywhere.
 --
 -- What already works and is NOT replaced: public.edit_learning_content stays byte-for-byte as it is. The screen keeps using it for create_lesson,
--- reorder_modules and reorder_lessons (course-root lock, per-row updated_at check, can_edit_course).
+-- reorder_modules and reorder_lessons (course-root lock, per-row updated_at check, can_edit_course). The triggers below also apply to it.
 --
 -- What was missing or unsafe, and is added here:
 --   * Deleting: edit_learning_content has no delete. A direct delete under RLS takes no course-root lock, checks no version, and removing a chapter would
---     also remove lessons added to it a moment ago in another tab.
+--     also remove lessons added to it a moment ago in another tab. The client delete grants go too, so a refused delete cannot be walked around.
 --   * Moving a lesson to another chapter: lessons.module_id was immutable (prevent_reparenting). It may now change, inside one course only.
 --   * Renaming: edit_lesson also writes description and status, and refuses a published lesson with no published part. edit_module wipes the description
 --     when it is not sent. Renaming now changes the title and nothing else.
---   * Creating a chapter: create_module leaves group_type 'Module' and chapter_number 1, so a student would read "Module 1" on every chapter. create_chapter
---     stores 'Chapter' and no number; the student pages then number by order (chapter_number ?? index + 1), the same as the teacher's page.
 --   * Reading: why a lesson cannot be deleted depends on student work a course editor may not be able to read, so course_structure answers that directly
 --     (facts and counts, no student or homework content).
 --
--- Refused deletes: 23503 (PostgREST: HTTP 409) with the detail {"reasons":[...],"lessonIds":[...]}. Reasons: student_work, homework, student_progress, parts,
--- content (lesson blocks or a cover), in_use (any other reference the database refuses). A stale request is PT409 and nothing changes.
+-- The owner's decisions (DECISIONS.md, "Course content tree"):
+--   * The label. Every chapter has the type 'Chapter', and chapter_number = position + 1, with positions 0, 1, 2 and no gap. A trigger keeps this on every write,
+--     so a student and a teacher always read the same "Chapter N". Existing rows are rewritten once, here. edit_module and edit_module_details still accept a type
+--     and a number, which are now ignored. This replaces the 2B rule that a number is chosen freely and is independent of the order.
+--   * An archived course: create, rename, reorder, move and delete of a chapter or lesson are refused in the database, for every caller and every path: PT409
+--     (HTTP 409), so a tab that has not heard about it reloads and shows the content read-only. Deleting the whole course still works. Parts, blocks, covers, a lesson's
+--     description and its draft or published state are not structure and are not changed by this rule.
+--   * A published lesson no student has started may be deleted. Nothing here looks at the status of a lesson.
+--
+-- Refused deletes: 23503 (PostgREST: HTTP 409) with the detail {"reasons":[...],"lessonIds":[...],"contentBlocks":n,"covers":n,"parts":n,"homework":n}. Reasons:
+-- student_work, homework, student_progress, parts, content (lesson blocks or a cover), in_use (any other reference the database refuses). The counts let the screen say
+-- what is inside, in English and Arabic. A stale request is PT409 and nothing changes.
 --
 -- Demo seed version 4: three chapters with 3, 2 and 0 lessons in the published demo course, as on the board; the draft demo course has none.
 -- private.demo_clear_core is not replaced: it starts from the recorded courses, so added, moved or deleted lessons need nothing new.
@@ -40,6 +48,78 @@ revoke all on function private.keep_lesson_in_course() from public,anon,authenti
 create trigger keep_lesson_in_course before update of module_id on public.lessons for each row execute function private.keep_lesson_in_course();
 
 -- ---------------------------------------------------------------------------------------
+-- The label: type Chapter, number = position + 1, on every write. The two checks at the end say the same, so nothing can leave a row that disagrees.
+-- Positions stay 0, 1, 2: a deleted chapter's gap is closed in the same transaction, under the course-root lock, and only rows that actually move are written.
+-- The client grants that could write a position directly go, so a gap cannot be made from outside. The app has never used them.
+-- ---------------------------------------------------------------------------------------
+alter table public.course_modules drop constraint course_modules_chapter_number_check,drop constraint course_modules_group_type_check;
+alter table public.course_modules alter column group_type set default 'Chapter',alter column chapter_number drop default;
+
+create function private.pin_chapter_label() returns trigger language plpgsql security definer set search_path='' as $$
+begin
+ new.group_type:='Chapter';
+ new.chapter_number:=new.position+1;
+ return new;
+end $$;
+revoke all on function private.pin_chapter_label() from public,anon,authenticated,service_role;
+create trigger pin_chapter_label before insert or update on public.course_modules for each row execute function private.pin_chapter_label();
+
+create function private.close_chapter_gaps(p_course uuid) returns void language plpgsql security definer set search_path='' as $$
+declare top integer;
+begin
+ perform 1 from public.courses c where c.id=p_course for update;
+ if not found then return; end if;
+ -- Shift first, above every position in use, so the immediate unique index on (course_id,position) is never hit.
+ select coalesce(max(m.position),-1)+1 into top from public.course_modules m where m.course_id=p_course;
+ update public.course_modules m set position=m.position+top from (select x.id,row_number() over (order by x.position,x.id)-1 rn from public.course_modules x where x.course_id=p_course) w where w.id=m.id and m.position<>w.rn;
+ update public.course_modules m set position=w.rn from (select x.id,row_number() over (order by x.position,x.id)-1 rn from public.course_modules x where x.course_id=p_course) w where w.id=m.id and m.position<>w.rn;
+end $$;
+revoke all on function private.close_chapter_gaps(uuid) from public,anon,authenticated,service_role;
+
+create function private.close_chapter_gaps_after_delete() returns trigger language plpgsql security definer set search_path='' as $$
+declare c uuid;
+begin
+ for c in select distinct g.course_id from gone g order by 1 loop perform private.close_chapter_gaps(c); end loop;
+ return null;
+end $$;
+revoke all on function private.close_chapter_gaps_after_delete() from public,anon,authenticated,service_role;
+create trigger close_chapter_gaps after delete on public.course_modules referencing old table as gone for each statement execute function private.close_chapter_gaps_after_delete();
+
+-- Existing rows, once. Dev data only, by the owner's decision; the lessons of a chapter and every chapter id stay.
+do $$ declare c uuid; begin for c in select distinct m.course_id from public.course_modules m order by 1 loop perform private.close_chapter_gaps(c); end loop; end $$;
+update public.course_modules set chapter_number=position+1,group_type='Chapter' where chapter_number is distinct from position+1 or group_type<>'Chapter';
+alter table public.course_modules alter column chapter_number set not null,
+ add constraint course_modules_chapter_number_is_position check (chapter_number=position+1),
+ add constraint course_modules_group_type_is_chapter check (group_type='Chapter');
+
+revoke insert,delete on public.course_modules from authenticated;
+revoke update(position) on public.course_modules from authenticated;
+revoke delete on public.lessons from authenticated;
+
+-- ---------------------------------------------------------------------------------------
+-- An archived course: its tree does not change, for any caller. Only a real change counts, so a save that repeats the same title and position passes. The share lock waits
+-- for a course being archived in another transaction, then reads the new status. A course being deleted is already gone when the cascade arrives here, so it passes.
+-- ---------------------------------------------------------------------------------------
+create function private.refuse_archived_structure() returns trigger language plpgsql security definer set search_path='' as $$
+declare course uuid; state text;
+begin
+ if tg_table_name='course_modules' then
+  if tg_op='UPDATE' and new.title is not distinct from old.title and new.position is not distinct from old.position then return new; end if;
+  course:=case when tg_op='DELETE' then old.course_id else new.course_id end;
+ else
+  if tg_op='UPDATE' and new.title is not distinct from old.title and new.position is not distinct from old.position and new.module_id is not distinct from old.module_id then return new; end if;
+  select m.course_id into course from public.course_modules m where m.id=case when tg_op='DELETE' then old.module_id else new.module_id end;
+ end if;
+ select c.status into state from public.courses c where c.id=course for share;
+ if state='archived' then raise exception 'Course archived' using errcode='PT409',detail='{"reasons":["archived"]}'; end if;
+ if tg_op='DELETE' then return old; end if;
+ return new;
+end $$;
+revoke all on function private.refuse_archived_structure() from public,anon,authenticated,service_role;
+create trigger refuse_archived_structure before insert or update or delete on public.course_modules for each row execute function private.refuse_archived_structure();
+create trigger refuse_archived_structure before insert or update or delete on public.lessons for each row execute function private.refuse_archived_structure();
+
+-- ---------------------------------------------------------------------------------------
 -- Why a lesson cannot be deleted. One definition, so the screen's answer and the delete agree. lesson_blocks and a cover are not restrict references, but the
 -- teacher cannot see them on this page, so a delete must not remove them silently.
 -- ---------------------------------------------------------------------------------------
@@ -54,17 +134,28 @@ create function private.lesson_delete_blockers(p_lesson uuid) returns text[] lan
 $$;
 revoke all on function private.lesson_delete_blockers(uuid) from public,anon,authenticated,service_role;
 
+-- What is inside, so a refusal can say "This lesson has 2 content blocks and a cover". A homework counts once, however many versions it has.
+create function private.lesson_delete_counts(p_lessons uuid[]) returns jsonb language sql stable security definer set search_path='' as $$
+ select jsonb_build_object(
+  'contentBlocks',(select count(*) from public.lesson_blocks b where b.lesson_id=any(p_lessons)),
+  'covers',(select count(*) from public.lessons l where l.id=any(p_lessons) and l.cover_asset_id is not null),
+  'parts',(select count(*) from public.lesson_segments s where s.lesson_id=any(p_lessons)),
+  'homework',(select count(distinct a.family_id) from public.homework_assignments a where a.lesson_id=any(p_lessons)))
+$$;
+revoke all on function private.lesson_delete_counts(uuid[]) from public,anon,authenticated,service_role;
+
 -- ---------------------------------------------------------------------------------------
 -- The writes. Same authorization as editing the course today (can_edit_course) and the same course-root lock as edit_learning_content, so these and its reorders
 -- run one at a time per course. Every change to an existing row sends the updated_at it read.
 -- ---------------------------------------------------------------------------------------
 create function private.edit_course_structure(p_course_id uuid,p_action text,p_id uuid,p_parent_id uuid,p_updated_at timestamptz,p_data jsonb) returns uuid
 language plpgsql security definer set search_path='' as $$
-declare stamp timestamptz; other timestamptz; target uuid; item jsonb; n integer; i integer; name_ text; reasons text[]; blocked uuid[];
+declare state text; stamp timestamptz; other timestamptz; target uuid; item jsonb; n integer; i integer; name_ text; reasons text[]; blocked uuid[];
 begin
  if private.current_app_user_id() is null or p_course_id is null or not private.can_edit_course(p_course_id) then raise exception 'Content editing denied' using errcode='42501'; end if;
- perform 1 from public.courses c where c.id=p_course_id for update;
+ select c.status into state from public.courses c where c.id=p_course_id for update;
  if not found then raise exception 'Content editing denied' using errcode='42501'; end if;
+ if state='archived' then raise exception 'Course archived' using errcode='PT409',detail='{"reasons":["archived"]}'; end if;
  if p_data is null or jsonb_typeof(p_data)<>'object' then raise exception 'Invalid content' using errcode='23514'; end if;
 
  if p_action in ('create_chapter','rename_chapter','rename_lesson') then
@@ -78,7 +169,7 @@ begin
  if p_action='create_chapter' then
   select count(*),coalesce(max(m.position),-1)+1 into n,i from public.course_modules m where m.course_id=p_course_id;
   if n>=500 then raise exception 'Content limit reached' using errcode='23514'; end if;
-  insert into public.course_modules(course_id,title,position,group_type,chapter_number) values(p_course_id,name_,i,'Chapter',null) returning id into target;
+  insert into public.course_modules(course_id,title,position) values(p_course_id,name_,i) returning id into target;
   return target;
  end if;
 
@@ -121,7 +212,7 @@ begin
   if p_data<>'{}'::jsonb then raise exception 'Invalid content' using errcode='23514'; end if;
   reasons:=private.lesson_delete_blockers(p_id);
   if cardinality(reasons)>0 then
-   raise exception 'Content is in use' using errcode='23503',detail=jsonb_build_object('reasons',to_jsonb(reasons),'lessonIds',jsonb_build_array(p_id))::text;
+   raise exception 'Content is in use' using errcode='23503',detail=(jsonb_build_object('reasons',to_jsonb(reasons),'lessonIds',jsonb_build_array(p_id))||private.lesson_delete_counts(array[p_id]))::text;
   end if;
   begin
    delete from public.lessons where id=p_id;
@@ -142,7 +233,7 @@ begin
  select array_agg(distinct r),array_agg(distinct x.id) into reasons,blocked
   from (select l.id,private.lesson_delete_blockers(l.id) b from public.lessons l where l.module_id=p_id) x cross join lateral unnest(x.b) r;
  if cardinality(reasons)>0 then
-  raise exception 'Content is in use' using errcode='23503',detail=jsonb_build_object('reasons',to_jsonb(reasons),'lessonIds',to_jsonb(blocked))::text;
+  raise exception 'Content is in use' using errcode='23503',detail=(jsonb_build_object('reasons',to_jsonb(reasons),'lessonIds',to_jsonb(blocked))||private.lesson_delete_counts(blocked))::text;
  end if;
  begin
   delete from public.course_modules where id=p_id;
@@ -159,21 +250,23 @@ revoke all on function public.edit_course_structure(uuid,text,uuid,uuid,timestam
 grant execute on function public.edit_course_structure(uuid,text,uuid,uuid,timestamptz,jsonb) to authenticated;
 
 -- ---------------------------------------------------------------------------------------
--- The read: chapters and lessons in order, with each lesson's homework counts and delete blockers. Course staff who cannot edit (an assistant) may read; canEdit says
--- which. A homework counts once however many versions it has, by the status of its newest version.
+-- The read: chapters and lessons in order, with each chapter's stored label and each lesson's homework counts, delete blockers and what is inside. Course staff who cannot
+-- edit (an assistant) may read; canEdit says which, and is false for everybody on an archived course. A homework counts once however many versions it has, by the status of
+-- its newest version.
 -- ---------------------------------------------------------------------------------------
 create function private.course_structure(p_course_id uuid) returns jsonb language plpgsql stable security definer set search_path='' as $$
-declare can_edit boolean; n integer;
+declare can_edit boolean; state text; n integer;
 begin
  if private.current_app_user_id() is null or p_course_id is null then raise exception 'Course unavailable' using errcode='42501'; end if;
  can_edit:=private.can_edit_course(p_course_id);
  if not can_edit and not private.is_course_staff(p_course_id) then raise exception 'Course unavailable' using errcode='42501'; end if;
  select count(*) into n from public.lessons l join public.course_modules m on m.id=l.module_id where m.course_id=p_course_id;
  if n>5000 then raise exception 'Content is too large' using errcode='PT413'; end if;
- return jsonb_build_object('canEdit',can_edit,
-  'chapters',coalesce((select jsonb_agg(jsonb_build_object('id',m.id,'title',m.title,'position',m.position,'updatedAt',m.updated_at) order by m.position,m.id) from public.course_modules m where m.course_id=p_course_id),'[]'::jsonb),
+ select c.status into state from public.courses c where c.id=p_course_id;
+ return jsonb_build_object('archived',state='archived','canEdit',can_edit and state<>'archived',
+  'chapters',coalesce((select jsonb_agg(jsonb_build_object('id',m.id,'title',m.title,'type',m.group_type,'number',m.chapter_number,'position',m.position,'updatedAt',m.updated_at) order by m.position,m.id) from public.course_modules m where m.course_id=p_course_id),'[]'::jsonb),
   'lessons',coalesce((select jsonb_agg(jsonb_build_object('id',l.id,'chapterId',l.module_id,'title',l.title,'position',l.position,'status',l.status,'updatedAt',l.updated_at,
-    'homework',h.published,'draftHomework',h.draft,'deleteBlockers',to_jsonb(private.lesson_delete_blockers(l.id))) order by m.position,m.id,l.position,l.id)
+    'homework',h.published,'draftHomework',h.draft,'deleteBlockers',to_jsonb(private.lesson_delete_blockers(l.id)),'contentBlocks',(select count(*) from public.lesson_blocks b where b.lesson_id=l.id),'hasCover',l.cover_asset_id is not null,'parts',(select count(*) from public.lesson_segments s where s.lesson_id=l.id)) order by m.position,m.id,l.position,l.id)
    from public.lessons l join public.course_modules m on m.id=l.module_id
    cross join lateral (select count(*) filter (where x.status='published') published,count(*) filter (where x.status='draft') draft
     from (select distinct on (a.family_id) a.status from public.homework_assignments a where a.lesson_id=l.id order by a.family_id,a.version desc) x) h
@@ -208,7 +301,7 @@ begin
  v_day := date_trunc('day', now() at time zone 'Africa/Cairo');
 
  -- Courses: A (published) and B (draft). Seed version 4: A has the board's tree, three chapters with 3, 2 and 0 lessons, the first lesson of a chapter published and
- -- the others draft; B has no chapters, so the empty Content section can be tried. Chapters have the type 'Chapter' and no stored number, like one a teacher adds.
+ -- the others draft; B has no chapters, so the empty Content section can be tried. The type and the number come from the trigger, like a chapter a teacher adds.
  insert into public.courses(organization_id,title,slug,status,visibility,created_by)
   values(p_org,'Demo · Physics, Third Secondary','demo-physics','published','private',v_owner) returning id into crs_a;
  perform private.demo_track(p_org,'courses','courses',crs_a);
@@ -217,8 +310,8 @@ begin
  perform private.demo_track(p_org,'courses','courses',crs_b);
  n_courses := 2;
  for i in 0..2 loop
-  insert into public.course_modules(course_id,title,position,group_type,chapter_number)
-   values(crs_a,(array['Electric current','Magnetism','Electromagnetic induction'])[i+1],i,'Chapter',null) returning id into mod_id;
+  insert into public.course_modules(course_id,title,position)
+   values(crs_a,(array['Electric current','Magnetism','Electromagnetic induction'])[i+1],i) returning id into mod_id;
   perform private.demo_track(p_org,'courses','course_modules',mod_id);
   titles_ := case i when 0 then array['Ohm''s law','Resistors in series and parallel','Kirchhoff''s laws'] when 1 then array['Magnetic field of a wire','Force on a wire'] else '{}'::text[] end;
   for j in 1..cardinality(titles_) loop
