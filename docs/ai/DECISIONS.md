@@ -159,3 +159,19 @@ This section replaces older lines where they disagree: "Only Home and the frame 
 - **The sign-in action is ink on lime in every set** (`--d-accent` with `--d-on-accent`), also in Classic, where the shared primary is black. Measured 11.97:1 in Classic and 8.16:1 in New, light and dark.
 - **The copy on the sign-in page is English only, as before.** The page mirrors in Arabic (right-to-left) but its strings and error messages are not translated; translating them is a separate task because the messages are part of the auth behaviour.
 - **`/teacher/website` is not reachable by teachers until the website feature exists.** Its page file is deleted, its allowlist entry is out of `middleware.ts` and out of `shared/website-routes.ts` (an unlisted page goes to `/unavailable`). `scripts/teacher-website-gate.test.cjs` runs the real middleware to keep it so, and `scripts/teacher-foundation.test.cjs` pins that this is the only change to the baseline route list. `/api/teacher/website` (authorized in the database, no screen calls it) and the public `/t/<slug>` pages are unchanged.
+
+## Homework and course content (owner decisions, 2026-11-06, branch `claude/course-content`)
+
+The approved look is in `docs/design/homework-content/` (12 boards and `canvas.json`). Build with the existing design components, in both looks; do not copy board markup. These are decisions only: Homework is not built by recording them.
+
+- **File system (from the 2026-10-24 handoff):** teachers see Course > Chapter > Lesson. Homework belongs to exactly one Lesson. Exams belong to the course (later).
+- **Homework is a list of questions:** Multiple choice (auto-graded, including "textbook" questions with letters only) and Essay (a text box, plus ONE photo per question, max 5 MB, if the teacher allows photos; a per-homework switch).
+- **Every homework has a deadline.** "Allow after the deadline": a student who has not handed in can still hand in; it is stored and shown as "Missed the deadline". It covers a first hand-in only.
+- **Solutions open** right after the student hands in, OR after the deadline (per homework). After the deadline, solutions show only to students who handed in. With tries on, solutions open after the student's last try or at the deadline, whichever comes first. Unused tries end at the deadline.
+- **Tries:** one time / try again, fix mistakes (right answers stay, only wrong ones reopen) / try again, from zero; with a number of tries. The latest try counts; every try stays in history.
+- **Locking and versions:** once a student finishes, that submission is locked. Once any student has started, editing the homework makes a new version (existing behaviour).
+- **Student photos are never edited or drawn on** (the annotation feature is not used in the UI). Students can review their answers and photos after the homework closes, until the teacher deletes the images to free storage.
+- **Assistants can correct AND release;** both become per-assistant permissions, on by default (no assistants screen yet; the switches come with it). Server-enforced.
+- **The whole course gets the homework** (no per-Group homework in V1).
+- **The Homework tab is a portal:** stats (essays to correct, corrected, handed in, on time), a To correct list, Open / Closed / Drafts, and "New homework". New homework is a 4-step wizard like the platform admin's provision form (Details, Questions, Rules, Solutions, then Review), one question on screen at a time. Correcting shows one student at a time with Save and next.
+- **The student side is not in scope for now;** it must keep working.

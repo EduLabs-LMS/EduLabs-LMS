@@ -1,0 +1,153 @@
+{
+ "v": 3,
+ "attachments": {},
+ "boards": {
+  "Content-Phone.dc.html": {
+   "h": 844,
+   "title": "5 \u00b7 Phone \u00b7 Course content, lesson actions",
+   "w": 390,
+   "x": 0,
+   "y": 3420
+  },
+  "Correct-Desktop.dc.html": {
+   "expand": "fill",
+   "h": 1160,
+   "title": "4 \u00b7 Desktop \u00b7 Correcting one student",
+   "w": 1360,
+   "x": 0,
+   "y": 2140
+  },
+  "Correct-Phone.dc.html": {
+   "h": 844,
+   "title": "8 \u00b7 Phone \u00b7 Correcting",
+   "w": 390,
+   "x": 1410,
+   "y": 3420
+  },
+  "Homework-Desktop.dc.html": {
+   "expand": "fill",
+   "h": 1000,
+   "title": "2 \u00b7 Desktop \u00b7 Homework tab",
+   "w": 1360,
+   "x": 1440,
+   "y": 0
+  },
+  "Homework-Phone.dc.html": {
+   "h": 844,
+   "title": "6 \u00b7 Phone \u00b7 Homework tab",
+   "w": 390,
+   "x": 470,
+   "y": 3420
+  },
+  "Main.dc.html": {
+   "expand": "fill",
+   "h": 1000,
+   "title": "1 \u00b7 Desktop \u00b7 Course content (Chapters and Lessons)",
+   "w": 1360,
+   "x": 0,
+   "y": 0
+  },
+  "NewHomework-Desktop.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "title": "3b \u00b7 New homework \u00b7 step 2 Questions (one at a time)",
+   "w": 1360,
+   "x": 1440,
+   "y": 1120
+  },
+  "NewHomework-Phone.dc.html": {
+   "h": 844,
+   "title": "7 \u00b7 Phone \u00b7 New homework, step 2",
+   "w": 390,
+   "x": 940,
+   "y": 3420
+  },
+  "Wizard-1.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "title": "3a \u00b7 New homework \u00b7 step 1 Details",
+   "w": 1360,
+   "x": 0,
+   "y": 1120
+  },
+  "Wizard-3.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "title": "3c \u00b7 New homework \u00b7 step 3 Rules",
+   "w": 1360,
+   "x": 2880,
+   "y": 1120
+  },
+  "Wizard-4.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "title": "3d \u00b7 New homework \u00b7 step 4 Solutions",
+   "w": 1360,
+   "x": 4320,
+   "y": 1120
+  },
+  "Wizard-Review.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "title": "3e \u00b7 New homework \u00b7 Review and publish",
+   "w": 1360,
+   "x": 5760,
+   "y": 1120
+  }
+ },
+ "createdOnFiles": {
+  "at": "2026-11-06T18:10:00Z",
+  "v": 1
+ },
+ "designSystems": [],
+ "launch": {
+  "view": "canvas"
+ },
+ "noteOrder": [
+  "t1",
+  "n1",
+  "n2"
+ ],
+ "notes": {
+  "n1": {
+   "fill": "green",
+   "size": 24,
+   "text": "Order: the content tree comes first (Course > Chapter > Lesson), because every homework lives in one lesson. The tree only adds, renames, reorders and deletes Chapters and Lessons. What goes inside a lesson (videos, files) is the lesson editor, later.\n\nHomework = a list of questions: Multiple choice (graded automatically) and Essay (a text box, plus one image per question if the teacher allows it, up to 5 MB). Every homework has a deadline. Options per homework: allow after the deadline (kept as Missed the deadline), solutions right after submit or after the deadline, and tries: one time, fix mistakes, or from zero. Student photos are never edited. The whole course gets it (no Groups in V1).\n\nNew homework is a 4-step wizard like the admin panel: Details, Questions, Rules, Solutions, then Review. One step on screen at a time, one question at a time.",
+   "w": 1300,
+   "x": 0,
+   "y": -400
+  },
+  "n2": {
+   "fill": "orange",
+   "size": 24,
+   "text": "Safety rules shown on the boards:\n- After the deadline, solutions open only to students who already handed in. A late student sees them right after handing in.\n- With tries on, solutions open after the last try or after the deadline, so nobody reads the answers and then retries. Unused tries end at the deadline; 'allow after the deadline' covers a first hand-in only.\n- The latest try counts. Every try stays in the history.\n- A lesson with homework that students answered cannot be deleted (the database refuses it).\n- Once a student has started, editing the homework makes a new version.\n- Assistants: correcting and releasing become permissions, on by default. There is no assistants screen yet, so the switches come with that screen.",
+   "w": 1300,
+   "x": 1440,
+   "y": -400
+  },
+  "t1": {
+   "kind": "title1",
+   "maxW": 2800,
+   "text": "Homework and Course Content",
+   "w": 240,
+   "x": 0,
+   "y": -560
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Homework-Desktop.dc.html",
+  "Wizard-1.dc.html",
+  "NewHomework-Desktop.dc.html",
+  "Wizard-3.dc.html",
+  "Wizard-4.dc.html",
+  "Wizard-Review.dc.html",
+  "Correct-Desktop.dc.html",
+  "Content-Phone.dc.html",
+  "Homework-Phone.dc.html",
+  "NewHomework-Phone.dc.html",
+  "Correct-Phone.dc.html"
+ ],
+ "pages": [],
+ "title": "Homework and Course Content"
+}

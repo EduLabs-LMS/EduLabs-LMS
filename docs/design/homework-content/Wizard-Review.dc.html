@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New homework review</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button{font-family:inherit;color:inherit}
+.t{font-family:'Caprasimo',serif;font-weight:400;font-size:28px;line-height:34px;margin:0}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:14px;line-height:20px}
+.c{background:#FBFDF8;border:1px solid #D3DEC9;border-radius:18px;box-shadow:0 3px 0 #D3DEC9,0 14px 28px -18px rgba(29,37,24,.28)}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:12px;font-weight:600;font-size:15px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.p{background:#7FD959;color:#14301A;border:1px solid #5DB33B;box-shadow:0 3px 0 #2B6416}
+.o{background:#FFFFFF;border:1px solid #B7C6AA;color:#1D2518;box-shadow:0 2px 0 #D3DEC9}
+.g{background:transparent;border:0;color:#2B6416;padding:0 8px}
+.stp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sp{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px 0 6px;border-radius:999px;font-weight:600;font-size:14px;color:#2B6416;background:none;border:0}
+.sp i{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;font-weight:700;background:#2B6416;color:#FFFFFF}
+.sp.on{background:#7FD959;color:#14301A;box-shadow:0 3px 0 #2B6416}.sp.on i{background:#FFFFFF;color:#2B6416}
+.sl{width:18px;height:2px;background:#C9D6BD}
+.rv{display:flex;gap:16px;align-items:flex-start;padding:16px 0;border-bottom:1px solid #DCE5D3}
+.rv:last-child{border-bottom:0}
+.rv dt{width:110px;flex:none;font-weight:700;font-size:13px;color:#56684B;padding-top:2px}
+.rv dd{margin:0;flex:1}
+</style>
+</helmet>
+<div class="r" style="width:100%;min-height:900px;display:flex;flex-direction:column">
+<header style="height:64px;flex:none;display:flex;align-items:center;gap:12px;padding:0 24px;background:#F6F9F2;border-bottom:1px solid #D3DEC9">
+<a href="#" class="l" style="color:#2B6416;text-decoration:none;display:inline-flex;align-items:center;gap:4px;min-height:44px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>Homework</a>
+<span style="flex:1"></span><span class="m">Draft saved</span>
+</header>
+<main style="flex:1;width:100%;max-width:720px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:14px"><h1 class="t">Check and publish</h1>
+<nav class="stp" aria-label="Steps"><span class="sp"><i>✓</i>Details</span><span class="sl"></span><span class="sp"><i>✓</i>Questions</span><span class="sl"></span><span class="sp"><i>✓</i>Rules</span><span class="sl"></span><span class="sp"><i>✓</i>Solutions</span><span class="sl"></span><span class="sp on" aria-current="step"><i>✓</i>Review</span></nav></div>
+<dl class="c" style="padding:4px 24px;margin:0">
+<div class="rv"><dt>DETAILS</dt><dd><span class="l" style="font-size:15px">Ohm's law practice</span><br><span class="m">Physics · Chapter 1 · 1.1 Ohm's law</span></dd><a href="#" class="b g" style="height:32px">Edit</a></div>
+<div class="rv"><dt>QUESTIONS</dt><dd>3 questions · 6 marks<br><span class="m">2 multiple choice (graded automatically) · 1 essay · photo answers on</span></dd><a href="#" class="b g" style="height:32px">Edit</a></div>
+<div class="rv"><dt>RULES</dt><dd>Due Tue 3 Nov · 11:59 PM<br><span class="m">Late allowed, marked "Missed the deadline" · 2 tries, fix mistakes</span></dd><a href="#" class="b g" style="height:32px">Edit</a></div>
+<div class="rv"><dt>SOLUTIONS</dt><dd>After the last try or the deadline<br><span class="m">Model answer for question 3 · Solving video.mp4</span></dd><a href="#" class="b g" style="height:32px">Edit</a></div>
+</dl>
+<div class="m" style="font-size:14px">Everyone in Physics sees it in lesson 1.1 once you publish. After a student starts, changes make a new version.</div>
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><button type="button" class="b o">Preview as student</button><span style="flex:1"></span><button type="button" class="b o">Keep as draft</button><button type="button" class="b p">Publish</button></div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

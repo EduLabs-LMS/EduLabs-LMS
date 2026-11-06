@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New homework step 1</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button,.r input,.r textarea{font-family:inherit;color:inherit}
+.t{font-family:'Caprasimo',serif;font-weight:400;font-size:28px;line-height:34px;margin:0}
+.s{font-weight:700;font-size:20px;line-height:28px;margin:0}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:14px;line-height:20px}
+.c{background:#FBFDF8;border:1px solid #D3DEC9;border-radius:18px;box-shadow:0 3px 0 #D3DEC9,0 14px 28px -18px rgba(29,37,24,.28)}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 18px;border-radius:12px;font-weight:600;font-size:15px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.p{background:#7FD959;color:#14301A;border:1px solid #5DB33B;box-shadow:0 3px 0 #2B6416}
+.o{background:#FFFFFF;border:1px solid #B7C6AA;color:#1D2518;box-shadow:0 2px 0 #D3DEC9}
+.f{height:44px;width:100%;border:1px solid #B7C6AA;border-radius:12px;background:#FFFFFF;padding:0 12px;font-size:15px}
+.ta{height:auto;padding:10px 12px;line-height:20px;resize:none}
+.sel{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;cursor:pointer}
+.fl{display:flex;flex-direction:column;gap:6px}
+.stp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sp{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px 0 6px;border-radius:999px;font-weight:600;font-size:14px;color:#56684B;background:none;border:0}
+.sp i{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;font-weight:700;background:#E3E9DC;color:#44523D}
+.sp.done i{background:#2B6416;color:#FFFFFF}
+.sp.on{background:#7FD959;color:#14301A;box-shadow:0 3px 0 #2B6416}.sp.on i{background:#FFFFFF;color:#2B6416}
+.sl{width:18px;height:2px;background:#C9D6BD}
+</style>
+</helmet>
+<div class="r" style="width:100%;min-height:900px;display:flex;flex-direction:column">
+<header style="height:64px;flex:none;display:flex;align-items:center;gap:12px;padding:0 24px;background:#F6F9F2;border-bottom:1px solid #D3DEC9">
+<a href="#" class="l" style="color:#2B6416;text-decoration:none;display:inline-flex;align-items:center;gap:4px;min-height:44px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>Homework</a>
+<span style="flex:1"></span><span class="m">Draft saved</span>
+</header>
+<main style="flex:1;width:100%;max-width:720px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:14px"><h1 class="t">New homework</h1>
+<nav class="stp" aria-label="Steps"><span class="sp on" aria-current="step"><i>1</i>Details</span><span class="sl"></span><span class="sp"><i>2</i>Questions</span><span class="sl"></span><span class="sp"><i>3</i>Rules</span><span class="sl"></span><span class="sp"><i>4</i>Solutions</span><span class="sl"></span><span class="sp"><i>✓</i>Review</span></nav></div>
+<section class="c" style="padding:24px;display:flex;flex-direction:column;gap:18px">
+<div><h2 class="s">Details</h2><div class="m" style="font-size:14px">What it's called and where students find it.</div></div>
+<label class="fl"><span class="l">Title</span><input class="f" value="Ohm's law practice"></label>
+<div class="fl"><span class="l">Course</span><button type="button" class="f sel"><span>Physics · Third Secondary</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+<div class="fl"><span class="l">Lesson</span><button type="button" class="f sel"><span>Chapter 1 · 1.1 Ohm's law</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button><span class="m">Students find it inside this lesson. No lesson yet? Add one from the course page.</span></div>
+<label class="fl"><span class="l">Instructions <span class="m" style="font-weight:400">(optional)</span></span><textarea class="f ta" rows="3">Solve on paper first. Show every step for the essay question.</textarea></label>
+</section>
+<div style="display:flex;align-items:center;gap:12px"><span class="m" style="flex:1">Step 1 of 4</span><button type="button" class="b p">Next: Questions<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></button></div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Correcting homework</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button,.r input,.r textarea{font-family:inherit;color:inherit}
+.pt{font-family:'Caprasimo',serif;font-weight:400;font-size:24px;line-height:30px;margin:0}
+.s{font-weight:700;font-size:18px;line-height:26px;margin:0}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:14px;line-height:20px}
+.d{font-weight:700;font-variant-numeric:tabular-nums}
+.c{background:#FBFDF8;border:1px solid #D3DEC9;border-radius:18px;box-shadow:0 3px 0 #D3DEC9,0 14px 28px -18px rgba(29,37,24,.28)}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:12px;font-weight:600;font-size:14px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.p{background:#7FD959;color:#14301A;border:1px solid #5DB33B;box-shadow:0 3px 0 #2B6416}
+.o{background:#FFFFFF;border:1px solid #B7C6AA;color:#1D2518;box-shadow:0 2px 0 #D3DEC9}
+.g{background:transparent;border:0;color:#2B6416;padding:0 8px}
+.pl{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.ok{color:#2B6416;background:#E3F3DA}.in{color:#1F5A6B;background:#E0F0F3}.wa{color:#7A4F00;background:#FEF3C7}.ba{color:#A61B1B;background:#FBE9E9}.ne{color:#44523D;background:#E3E9DC}
+.f{width:100%;border:1px solid #B7C6AA;border-radius:12px;background:#FFFFFF;padding:10px 12px;font-size:14px;line-height:20px;resize:none}
+.av{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.st{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;text-decoration:none;color:inherit;min-height:52px}
+.st.on{background:#FFFFFF;box-shadow:inset 3px 0 0 #2B6416,0 2px 0 #D3DEC9;border:1px solid #D3DEC9}
+.mk{display:inline-flex;align-items:center;border:1px solid #B7C6AA;border-radius:12px;background:#FFFFFF;height:44px;overflow:hidden}
+.mk button{width:44px;height:42px;border:0;background:none;font-size:20px;cursor:pointer;color:#2B6416}
+.mk span{min-width:72px;text-align:center;font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:20px;border-bottom:1px solid #C9D6BD}
+.tab{padding:8px 0;font-weight:600;font-size:13px;color:#56684B;background:none;border:0;cursor:pointer}
+.tab.on{color:#1D2518;box-shadow:inset 0 -2px 0 #2B6416}
+.paper{height:300px;border-radius:12px;border:1px solid #C9D6BD;background-color:#FFFEF8;background-image:repeating-linear-gradient(0deg,transparent 0,transparent 27px,#DCE6F0 27px,#DCE6F0 28px);position:relative;overflow:hidden}
+</style>
+</helmet>
+<div class="r" style="width:100%;min-height:1160px;display:flex;flex-direction:column">
+<header style="min-height:64px;flex:none;display:flex;align-items:center;gap:12px;padding:8px 24px;background:#F6F9F2;border-bottom:1px solid #D3DEC9;flex-wrap:wrap">
+<a href="#" class="l" style="color:#2B6416;text-decoration:none;display:inline-flex;align-items:center;gap:4px;min-height:44px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>Homework</a>
+<span style="flex:1;min-width:200px"><span class="l" style="font-size:15px">Ohm's law practice</span><span class="m"> · Physics · 1.1 Ohm's law · closed Tue 3 Nov</span></span>
+<span class="m"><span class="d" style="color:#1D2518">12</span> corrected, not released</span>
+<button type="button" class="b o">Release 12 grades</button>
+</header>
+<div style="flex:1;display:flex;flex-wrap:wrap">
+<nav aria-label="Students" style="flex:1 1 260px;max-width:300px;padding:16px;border-right:1px solid #D3DEC9;background:#F3F7EE;display:flex;flex-direction:column;gap:6px">
+<div class="tabs" role="tablist" style="margin-bottom:8px"><button type="button" role="tab" aria-selected="true" class="tab on">To correct · 9</button><button type="button" role="tab" class="tab">Done · 17</button><button type="button" role="tab" class="tab">Missing · 2</button></div>
+<a href="#" class="st"><span class="av" style="background:#E3F3DA;color:#2B6416">AS</span><span style="flex:1"><span class="l">Ahmed Samir</span><br><span class="m">Tue 6:10 PM</span></span></a>
+<a href="#" class="st on" aria-current="true"><span class="av" style="background:#E0F0F3;color:#1F5A6B">KM</span><span style="flex:1"><span class="l">Karim Mostafa</span><br><span class="m">Wed 9:42 PM</span></span><span class="pl ba" style="height:22px;font-size:12px">Late</span></a>
+<a href="#" class="st"><span class="av" style="background:#FEF3C7;color:#7A4F00">MK</span><span style="flex:1"><span class="l">Mariam Khaled</span><br><span class="m">Tue 8:55 PM · try 2</span></span></a>
+<a href="#" class="st"><span class="av" style="background:#F3E3F5;color:#6B2B72">NA</span><span style="flex:1"><span class="l">Nour Adel</span><br><span class="m">Tue 10:20 PM</span></span></a>
+<a href="#" class="st"><span class="av" style="background:#E3E9F8;color:#2B3F8A">OT</span><span style="flex:1"><span class="l">Omar Tarek</span><br><span class="m">Tue 11:41 PM</span></span></a>
+<a href="#" class="st"><span class="av" style="background:#FBE9E9;color:#A61B1B">SE</span><span style="flex:1"><span class="l">Salma Ezz</span><br><span class="m">Tue 11:58 PM</span></span></a>
+</nav>
+<main style="flex:999 1 560px;min-width:0;padding:24px 28px;display:flex;flex-direction:column;gap:16px;max-width:860px">
+<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+<span class="av" style="width:48px;height:48px;font-size:15px;background:#E0F0F3;color:#1F5A6B">KM</span>
+<div style="flex:1"><h1 class="pt">Karim Mostafa</h1><div class="m" style="font-size:14px">Handed in Wed 4 Nov · 9:42 PM · try 1 of 2</div></div>
+<span class="pl ba">Missed the deadline</span>
+</div>
+
+<section class="c" style="padding:16px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+<span style="flex:1"><span class="l">Multiple choice</span><br><span class="m">Graded automatically</span></span>
+<span style="display:flex;gap:8px"><span class="pl ok"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>Q1 · A</span><span class="pl ba"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>Q2 · picked B, answer C</span></span>
+<span class="d" style="font-size:16px">1 / 2</span>
+</section>
+
+<section class="c" style="padding:18px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:center;gap:10px"><span class="pl ne">3</span><span class="l" style="flex:1">Essay · 4 marks</span><button type="button" class="b g" style="height:32px">Model answer</button></div>
+<div style="font-weight:500">A 2 Ω wire carries 3 A. Find the voltage across it and explain each step.</div>
+<div style="padding:12px 14px;border-radius:12px;background:#F1F6EC;border:1px solid #DCE5D3"><span class="m" style="font-weight:700">TYPED ANSWER</span><div style="margin-top:4px">V equals current times resistance. 3 times 2 is 6, so the voltage is 6.</div></div>
+<div>
+<span class="m" style="font-weight:700">PHOTO</span>
+<a href="#" class="paper" style="display:block;margin-top:6px" aria-label="Open Karim's photo full size">
+<span style="position:absolute;left:28px;top:30px;font-family:'Segoe Print','Comic Sans MS',cursive;font-size:20px;line-height:28px;color:#24427A">V = I × R<br>V = 3 × 2<br>V = 6</span>
+<span style="position:absolute;right:12px;bottom:12px" class="pl ne">Student's photo · tap to open full size</span>
+</a>
+<div class="m" style="margin-top:6px">Shown exactly as the student sent it. Nothing is drawn on it.</div>
+</div>
+<div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:6px"><span class="l">Mark</span><span class="mk"><button type="button" aria-label="One mark less">−</button><span>3 / 4</span><button type="button" aria-label="One mark more">+</button></span></div>
+<label style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:6px"><span class="l">Note to Karim <span class="m" style="font-weight:400">(optional)</span></span><textarea class="f" rows="2">Right method. Write the unit: 6 V, not just 6.</textarea></label>
+</div>
+</section>
+
+<div style="position:sticky;bottom:0;display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:16px;background:#FBFDF8;border:1px solid #D3DEC9;box-shadow:0 -10px 24px -18px rgba(29,37,24,.35);flex-wrap:wrap">
+<span style="flex:1"><span class="m">Total</span><br><span class="d" style="font-size:20px">4 / 6</span></span>
+<button type="button" class="b o">Save</button>
+<button type="button" class="b p">Save and next student</button>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":1160}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

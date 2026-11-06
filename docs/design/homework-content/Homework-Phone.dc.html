@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Homework tab phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button{font-family:inherit;color:inherit}
+.pt{font-family:'Caprasimo',serif;font-weight:400;font-size:24px;line-height:30px;margin:0}
+.s{font-weight:700;font-size:17px;line-height:24px;margin:0}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:15px;line-height:20px}
+.d{font-weight:700;font-variant-numeric:tabular-nums}
+.c{background:#FBFDF8;border:1px solid #D3DEC9;border-radius:18px;box-shadow:0 3px 0 #D3DEC9}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 16px;border-radius:12px;font-weight:600;font-size:15px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.p{background:#7FD959;color:#14301A;border:1px solid #5DB33B;box-shadow:0 3px 0 #2B6416}
+.pl{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.wa{color:#7A4F00;background:#FEF3C7}
+.row{display:flex;align-items:center;gap:10px;border-bottom:1px solid #DCE5D3;min-height:64px;text-decoration:none;color:inherit}
+.row:last-child{border-bottom:0}
+.ph{height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;border-bottom:1px solid #D3DEC9;background:#F6F9F2}
+.bt4{height:62px;flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid #D3DEC9;background:#F6F9F2}
+.bt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:600;color:#56684B;text-decoration:none}
+.bt.on{color:#2B6416}
+.k{padding:12px 14px;display:flex;flex-direction:column}
+.sti{flex:none;padding:10px 16px;background:#FBFDF8;border-top:1px solid #D3DEC9;display:flex}
+.sti .b{flex:1;height:48px}
+</style>
+</helmet>
+<div class="r" style="width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden">
+<header class="ph"><a href="#" style="display:flex;align-items:center;gap:6px;color:#2B6416;text-decoration:none"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-8M12 14l-3-3M12 12l3-3M12 2a7 7 0 0 1 7 7c0 3.6-3.1 6-7 6s-7-2.4-7-6a7 7 0 0 1 7-7z"></path></svg><span style="font-family:'Caprasimo',serif;font-size:19px;color:#1D2518">EduLabs</span></a><button type="button" aria-label="Notifications, 3 unread" style="width:44px;height:44px;border-radius:12px;border:1px solid #D3DEC9;background:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;position:relative"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"></path></svg><span style="position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:#D97706"></span></button></header>
+<div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:14px">
+<div><h1 class="pt">Homework</h1><div class="m">This week · all courses</div></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+<div class="c k" style="background:#FFF9E6;border-color:#F1DFA6;box-shadow:0 3px 0 #F1DFA6"><span class="d" style="font-size:22px">14</span><span class="m" style="color:#5E3D00">essays to correct</span></div>
+<div class="c k"><span class="d" style="font-size:22px">37</span><span class="m">corrected</span></div>
+<div class="c k"><span class="d" style="font-size:22px">51</span><span class="m">handed in</span></div>
+<div class="c k"><span class="d" style="font-size:22px">88%</span><span class="m">on time</span></div>
+</div>
+<h2 class="s">To correct</h2>
+<div class="c" style="padding:0 14px">
+<a href="#" class="row"><span style="flex:1;min-width:0"><span class="l">Ohm's law practice</span><br><span class="m">Physics · closed Tue · 26 of 28</span></span><span class="pl wa">9</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7F9170" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></a>
+<a href="#" class="row"><span style="flex:1;min-width:0"><span class="l">Series and parallel circuits</span><br><span class="m">Physics · due in 1 d 4 h · 17 of 28</span></span><span class="pl wa">5</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7F9170" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></a>
+</div>
+<a href="#" class="row c" style="padding:0 14px;min-height:52px"><span class="l" style="flex:1">All homework</span><span class="m">2 open · 4 closed · 1 draft</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7F9170" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></a>
+</div>
+<div class="sti"><button type="button" class="b p">+ New homework</button></div>
+<nav class="bt4" aria-label="Main">
+<a href="#" class="bt"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg>Home</a>
+<a href="#" class="bt"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2 20c0-3 3-5 7-5s7 2 7 5M16 5a3 3 0 0 1 0 6M18 15c2.5.4 4 2.2 4 5"></path></svg>Groups</a>
+<a href="#" class="bt"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>Students</a>
+<a href="#" class="bt on" aria-current="page"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>More</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

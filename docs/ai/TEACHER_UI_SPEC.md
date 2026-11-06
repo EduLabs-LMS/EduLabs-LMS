@@ -115,3 +115,14 @@ redesign, revive deleted screens, expand permissions or begin Jitsi/email work.
 ## Update 2026-11-06: the component system
 
 Every teacher screen is built on `frontend/components/design` in both looks. Targets are 44 px and the minimum text is 12 px; where this file says 48 px or 16 px, this replaces it. Invite students is its own page at `/teacher/students/invite`, reached from the Students header and an empty Group's Students tab. See "Every teacher screen on the component system" in DECISIONS.md.
+
+## Homework and course content (decided, not built)
+
+Boards: `docs/design/homework-content/`. Build with the design components in both looks, not by copying board markup. The rules are in DECISIONS.md, "Homework and course content"; this is the screen shape.
+
+- **File system:** Course > Chapter > Lesson. Homework belongs to exactly one Lesson. Exams belong to the course (later).
+- **Homework tab (portal):** stats (essays to correct, corrected, handed in, on time), a To correct list, Open / Closed / Drafts, and "New homework".
+- **New homework:** a 4-step wizard like the platform admin's provision form: Details, Questions, Rules, Solutions, then Review. One question on screen at a time. Question types: Multiple choice (auto-graded, including "textbook" questions with letters only) and Essay (text box, plus one photo per question, max 5 MB, if the per-homework switch allows photos). Every homework has a deadline.
+- **Correcting:** one student at a time with Save and next. Student photos are shown, never edited or drawn on; the annotation feature is not used in the UI.
+- **Assistants:** correct and release are per-assistant permissions, on by default; the switches come with the assistants screen.
+- **Not in scope for now:** the student side, which must keep working.
