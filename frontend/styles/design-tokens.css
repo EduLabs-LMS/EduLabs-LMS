@@ -28,7 +28,7 @@ html[lang="ar"] body {
   --d-font-title: var(--font-arabic-display), var(--font-arabic-body), sans-serif;
   --d-font-body: var(--font-arabic-body), system-ui, sans-serif;
 }
-html[data-design="new"]:has([data-teacher-shell]) body { --d-section-font: var(--d-font-body); }
+html[data-design="new"]:has(:is([data-teacher-shell], [data-auth-surface])) body { --d-section-font: var(--d-font-body); }
 
 /* ---- Classic, light: today's values ---- */
 :root, html[data-design="classic"] {
@@ -166,7 +166,7 @@ html[data-design="new"]:has([data-teacher-shell]) body { --d-section-font: var(-
 }
 
 /* ---- Classic, dark: what appearance.css makes those same classes today ---- */
-html.dark:not([data-design="new"]), html.dark:not(:has([data-teacher-shell])) {
+html.dark:not([data-design="new"]), html.dark:not(:has(:is([data-teacher-shell], [data-auth-surface]))) {
   --d-canvas: hsl(140 14% 13%);     /* .bg-slate-50 -> --card */
   --d-surface: hsl(140 14% 13%);    /* .bg-white -> --card */
   --d-sidebar: hsl(140 14% 13%);
@@ -226,7 +226,7 @@ html.dark:not([data-design="new"]), html.dark:not(:has([data-teacher-shell])) {
 
 /* ---- New, light: design v2 ---- */
 /* New belongs to the teacher app: a student's or a signed-out page has no teacher shell and keeps the Classic values, whatever the cookie or the default says. */
-html[data-design="new"]:has([data-teacher-shell]) {
+html[data-design="new"]:has(:is([data-teacher-shell], [data-auth-surface])) {
   --d-canvas: #EDF1E8;
   --d-surface: #FBFDF8;
   --d-sidebar: #F3F7EE;
@@ -345,7 +345,7 @@ html[data-design="new"]:has([data-teacher-shell]) {
 }
 
 /* ---- New, dark: the same roles. Depth comes from lighter surfaces, not shadows. ---- */
-html.dark[data-design="new"]:has([data-teacher-shell]) {
+html.dark[data-design="new"]:has(:is([data-teacher-shell], [data-auth-surface])) {
   --d-canvas: #111813;
   --d-surface: #1C2620;
   --d-sidebar: #161F19;
@@ -420,7 +420,7 @@ html.dark[data-design="new"]:has([data-teacher-shell]) {
 }
 
 /* Arabic body line height in the New look. */
-html[data-design="new"][lang="ar"]:has([data-teacher-shell]) {
+html[data-design="new"][lang="ar"]:has(:is([data-teacher-shell], [data-auth-surface])) {
   --d-body-lh: 1.6;
   --d-label-lh: 1.6;
   --d-meta-lh: 1.6;

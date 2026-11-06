@@ -13,9 +13,9 @@ function block(selector) {
   return Object.fromEntries([...body.matchAll(/(--d-[\w-]+):\s*([^;]+);/g)].map(m => [m[1], m[2].trim()]));
 }
 const classicLight = block(':root, html[data-design="classic"]');
-const classicDark = { ...classicLight, ...block('html.dark:not([data-design="new"]), html.dark:not(:has([data-teacher-shell]))') };
-const newLight = block('html[data-design="new"]:has([data-teacher-shell])');
-const newDark = { ...newLight, ...block('html.dark[data-design="new"]:has([data-teacher-shell])') };
+const classicDark = { ...classicLight, ...block('html.dark:not([data-design="new"]), html.dark:not(:has(:is([data-teacher-shell], [data-auth-surface])))') };
+const newLight = block('html[data-design="new"]:has(:is([data-teacher-shell], [data-auth-surface]))');
+const newDark = { ...newLight, ...block('html.dark[data-design="new"]:has(:is([data-teacher-shell], [data-auth-surface]))') };
 
 function parse(value, over) {
   value = value.trim();
@@ -71,7 +71,7 @@ test('New tokens are the owner\'s values', () => {
   assert.equal(newLight['--d-title-md'], '28px'); assert.equal(newLight['--d-title-phone'], '24px');
   assert.equal(newLight['--d-section-size'], '18px'); assert.equal(newLight['--d-section-weight'], '700'); assert.equal(newLight['--d-body-size'], '15px'); assert.equal(newLight['--d-label-size'], '14px'); assert.equal(newLight['--d-meta-size'], '13px'); assert.equal(newLight['--d-data-size'], '14px');
   assert.equal(newLight['--d-radius-hero'], '24px'); assert.equal(newLight['--d-radius-control'], '16px');
-  assert.match(tokens, /html\[data-design="new"\]\[lang="ar"\]:has\(\[data-teacher-shell\]\) \{\s*--d-body-lh: 1\.6;/);
+  assert.match(tokens, /html\[data-design="new"\]\[lang="ar"\]:has\(:is\(\[data-teacher-shell\], \[data-auth-surface\]\)\) \{\s*--d-body-lh: 1\.6;/);
 });
 
 test('New has no black outline and no hard black shadow, in the tokens or in the bridge to the existing screens', () => {

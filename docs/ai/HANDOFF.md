@@ -44,3 +44,7 @@ Same branch, `claude/design-v2-foundation`, not merged or deployed. Both looks s
 ## Update 2026-11-06: every teacher screen on the component system
 
 Same branch, `claude/design-v2-foundation`, not merged or deployed. Every teacher screen is rebuilt on the design components in both looks, one commit each. New is the default for a browser that has not chosen, and its tokens now need the teacher shell, so student pages keep Classic values. Next for the owner: check New on staging, including whether existing teachers should get New by default, since a cookie cannot tell them from new ones.
+
+## Update 2026-11-06: follow-ups on `claude/design-followups`
+
+Branched from `claude/teacher-v1` after it was fast-forwarded to the design branch (owner tested it on staging). Sign-in and sign-up are on the design components in both looks; `/teacher/website` is switched off until its feature exists; V1.md lists the eleven stale browser harnesses to repair. Not merged or deployed.

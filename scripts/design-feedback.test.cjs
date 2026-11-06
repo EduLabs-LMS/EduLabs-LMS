@@ -105,7 +105,7 @@ test('the logo: no box anywhere, the placeholder tokens are gone, sign-in has no
 
 test('New carries Classic\'s personality: the lime pill and edge, the rounded shapes', () => {
   const tokens = read('frontend/styles/design-tokens.css'), blocks = start => { const from = tokens.indexOf(start + ' {'); assert.ok(from >= 0, start); return tokens.slice(from, tokens.indexOf('\n}', from)); };
-  const newLight = blocks('html[data-design="new"]:has([data-teacher-shell])'), classic = blocks(':root, html[data-design="classic"]');
+  const newLight = blocks('html[data-design="new"]:has(:is([data-teacher-shell], [data-auth-surface]))'), classic = blocks(':root, html[data-design="classic"]');
   const value = (block, name) => block.match(new RegExp(`${name}:\\s*([^;]+);`))[1].trim();
   for (const [name, expected] of [['--d-nav-active-bg', '#7FD959'], ['--d-nav-active-text', '#14301A'], ['--d-nav-active-shadow', '3px 3px 0 #2B6416'], ['--d-primary', '#7FD959'], ['--d-primary-shadow', '3px 3px 0 #2B6416'], ['--d-primary-active-transform', 'translate(3px, 3px)'], ['--d-tab-active-bg', '#7FD959']]) assert.equal(value(newLight, name), expected, name);
   for (const name of ['--d-radius-control', '--d-radius-field', '--d-radius-card', '--d-radius-hero', '--d-radius-nav', '--d-radius-badge']) assert.equal(value(newLight, name), value(classic, name), 'the same shape as Classic: ' + name);

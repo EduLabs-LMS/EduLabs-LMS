@@ -51,6 +51,9 @@ const audit = () => {
     for (const el of root.querySelectorAll('a, button, input, select, textarea, [role="switch"], [role="radio"], [role="combobox"], [role="tab"], [role="menuitem"]')) {
       if (!visible(el) || el.closest('.d-group-link') || el.matches('.d-group-link') || getComputedStyle(el).display === 'inline') continue;
       const b = el.getBoundingClientRect();
+      // A visually hidden input (the file chooser) is reached through its label: the label is the target, and it must be 44 px.
+      const label = el.matches('.sr-only') ? el.closest('label') : null;
+      if (label) { const l = label.getBoundingClientRect(); if (l.height >= 43.5 && l.width >= 43.5) continue; }
       if (b.height < 43.5 || b.width < 43.5) targets.push(`${(el.textContent || el.getAttribute('aria-label') || el.tagName).trim().slice(0, 30)} | ${Math.round(b.width)}x${Math.round(b.height)}`);
     }
     // A control's own edge has to be seen: 3:1 against what is around it, by the border or by its fill (WCAG 1.4.11).
@@ -84,7 +87,7 @@ async function shootMatrix({ open, screens, label }) {
       try {
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.locator(screen.ready).first().waitFor();
-        await page.evaluate(l => { document.documentElement.dataset.design = l; if (!document.querySelector('[data-teacher-shell]')) document.querySelector('main')?.setAttribute('data-teacher-shell', ''); }, look);
+        await page.evaluate(l => { document.documentElement.dataset.design = l; if (!document.querySelector('[data-teacher-shell], [data-auth-surface]')) document.querySelector('main')?.setAttribute('data-teacher-shell', ''); }, look);
         if (screen.act) await screen.act(page);
         await page.waitForFunction(t => (t === 'dark') === document.documentElement.classList.contains('dark'), theme);
         await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => { document.getAnimations().forEach(a => { try { a.finish(); } catch {} }); r(); }))));

@@ -135,3 +135,9 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - Run it with `LMS_MATRIX=1 LMS_ONLY_STEPS='^Screen matrix' node scripts/<harness>-browser.cjs`, for `teacher-home`, `teacher-attendance`, `teacher-students`, `teacher-settings-groups`, `teacher-course-page` and `design-foundation`. Each writes `audit-<label>.json` beside the pictures. A normal run skips it.
 - It measures rendered states on synthetic data, not every state. Look at the pictures too: on sign-in it was looking, not a measure, that found the large tree's shadow.
 - The course page harness has no teacher frame, so its pictures show the page without the sidebar.
+
+## Sign-in (`claude/design-followups`)
+
+- `scripts/sign-in-browser.cjs` runs the real `FirebaseForm` with a synthetic Firebase SDK on a loopback server: the wording and behaviour of sign-in, sign-up, the show-password control, Forgot password, a failed sign-in, the unverified-email panel, the photo chooser, the Sign in button's contrast in both looks and themes, and that the marker is what opts the page into New. `LMS_MATRIX=1` adds the screen matrix for four sign-in screens (sign-in, sign-up, failed sign-in, unverified) to `.local/design-screens/<screen>/`.
+- `scripts/screen-matrix.cjs` no longer adds the teacher marker to a page that carries `data-auth-surface`, so the sign-in page is tested on its own marker. A visually hidden file input is measured through its 44 px label.
+- `scripts/teacher-website-gate.test.cjs` runs the real middleware for `/teacher/website`.
