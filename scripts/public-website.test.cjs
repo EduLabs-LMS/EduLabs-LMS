@@ -66,7 +66,7 @@ test('middleware allows only exact public paths and preserves private API gating
  const req=path=>({nextUrl:new URL('https://platform.example'+path),url:'https://platform.example'+path});
  assert.equal(middleware(true)(req('/t/fictional-academy'),{}).status,200);assert.equal(middleware(true)(req('/t/fictional-academy/sitemap.xml'),{}).status,200);
  for(const p of ['/t','/t/fictional-academy/private','/t/fictional-academy/courses/bad'])assert.equal(middleware(true)(req(p),{}).status,404);
- assert.equal(middleware(false)(req('/t/fictional-academy'),{}).status,404);assert.equal(middleware(true)(req('/api/unmigrated'),{}).status,503);assert.equal(middleware(true)(req('/teacher/website'),{}).headers.get('X-Robots-Tag'),'noindex, nofollow');
+ assert.equal(middleware(false)(req('/t/fictional-academy'),{}).status,404);assert.equal(middleware(true)(req('/api/unmigrated'),{}).status,503);assert.equal(middleware(true)(req('/teacher/website'),{}).status,307,'the teacher website is not reachable until its own feature exists (scripts/teacher-website-gate.test.cjs)');
 });
 
 test('gateway response is byte-bounded during streaming and cancels oversized bodies',async()=>{

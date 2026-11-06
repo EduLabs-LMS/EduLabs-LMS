@@ -22,7 +22,6 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
     if(!route || !isFirebaseStaging())return new NextResponse('Not found',{status:404,headers:{'Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow'}});
     return NextResponse.next();
   }
-  if (path === '/teacher/website') {const response=NextResponse.next();response.headers.set('X-Robots-Tag','noindex, nofollow');if(isFirebaseStaging())return response;}
   if (path === '/api/health') return NextResponse.next();
   if (path.startsWith('/api/auth/firebase/')) return NextResponse.next();
   if (!isFirebaseStaging()) {

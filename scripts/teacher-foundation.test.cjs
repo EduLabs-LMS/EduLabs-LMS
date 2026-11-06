@@ -26,7 +26,10 @@ test('foundation: academic data, existing server authorization, API adapters and
 // and the invariants below keep the security behaviour: verification and the revocation check are the same code, run once per request, kept nowhere else.
 const speedRoutes=['app/api/communications/route.ts','app/api/student-administration/route.ts','app/api/study-groups/route.ts','app/api/teacher/academics/route.ts','app/api/teacher/courses/[courseId]/route.ts','app/api/teacher/courses/route.ts'];
 const speedServer=['server/integrations/supabase.ts','server/services/application-auth.ts','server/services/firebase-auth.ts','server/services/website.ts'];
-assert.deepEqual(git(['--name-only','--diff-filter=MDR']).filter(p=>p!=='shared/contracts/database.types.ts'&&!speedRoutes.includes(p)&&!speedServer.includes(p)),[]);
+// claude/design-followups: the teacher website has no feature yet, so its page is no longer a Phase One route. Exactly one clause leaves shared/website-routes.ts; the next line pins that.
+const routeGate=['shared/website-routes.ts'];
+assert.deepEqual(git(['--name-only','--diff-filter=MDR']).filter(p=>p!=='shared/contracts/database.types.ts'&&!speedRoutes.includes(p)&&!speedServer.includes(p)&&!routeGate.includes(p)),[]);
+{const norm=t=>t.replace(/\r\n/g,'\n'),baseline=norm(cp.execFileSync('git',['show','fa67875fdab88f0fc640804e2f96b6aa7c44b0c1:shared/website-routes.ts'],{encoding:'utf8'}));assert.ok(baseline.includes(" || path === '/teacher/website'"));assert.equal(norm(fs.readFileSync('shared/website-routes.ts','utf8')),baseline.replace(" || path === '/teacher/website'",''),'only the teacher website clause left the route list');}
 for(const route of speedRoutes){const code=fs.readFileSync(route,'utf8');assert.ok(code.split(/\r?\n/).filter(Boolean).length<=6,route+' stays a thin adapter');assert.match(code,/from '@\/server\/http\/timed'/);}
 const verify=src=>src.slice(src.indexOf('export async function verifyFirebaseToken'),src.indexOf('\n}',src.indexOf('export async function verifyFirebaseToken'))).replace(/\r/g,'');
 assert.equal(verify(fs.readFileSync('server/services/firebase-auth.ts','utf8')),verify(cp.execFileSync('git',['show','fa67875fdab88f0fc640804e2f96b6aa7c44b0c1:server/services/firebase-auth.ts'],{encoding:'utf8'})),'token verification and the revocation check are byte-identical to the baseline');
