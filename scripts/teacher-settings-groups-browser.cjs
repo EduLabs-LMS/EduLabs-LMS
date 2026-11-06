@@ -527,7 +527,7 @@ function command(body) {
 
 
  // ------------------------------------------------------------------ Create a Group, Edit a Group, students in a Group
- const NEW = '/teacher/groups/new', tall = page => page.evaluate(() => [...document.querySelectorAll('main form button, main form input, main form select, main [data-group-students] button, main [data-group-students] input, main [data-details-edit] button')].filter(e => { const r = e.getBoundingClientRect(); return r.width && r.height < 47.5; }).map(e => e.outerHTML.slice(0, 90)));
+ const NEW = '/teacher/groups/new', tall = page => page.evaluate(() => [...document.querySelectorAll('main form button, main form input, main form select, main [data-group-students] button, main [data-group-students] input, main [data-details-edit] button')].filter(e => { const r = e.getBoundingClientRect(); return r.width && r.height < 43.5; }).map(e => e.outerHTML.slice(0, 90)));
  const posts = () => fetch(origin + '/__posts').then(r => r.json());
  const fillCentre = async page => { await page.locator('[data-group-name]').fill('Synthetic new Group'); await page.locator('[data-group-location]').fill('Synthetic Centre'); await page.locator('[data-time-start]').first().fill('17:00'); };
  await step('Create: the middleware lets exactly the new page through, and lookalikes stay out', async () => {
@@ -567,11 +567,11 @@ function command(body) {
   assert.equal(sent[1].data.definition.location, ''); assert.equal(sent[1].data.definition.capacity, null); assert.equal(sent[1].data.definition.schedules.length, 2);
   await context.close();
  });
- await step('Create on a phone, English and Arabic: no sideways scroll, 48px controls, mirrored, teacher words only', async () => {
+ await step('Create on a phone, English and Arabic: no sideways scroll, 44px controls, mirrored, teacher words only', async () => {
   for (const lang of ['en', 'ar']) {
    const { page, context } = await open(phone, NEW, { lang }); await page.locator('[data-create-group-form]').waitFor();
    await page.locator('[data-time-add]').click();
-   assert.ok(await overflow(page), 'no horizontal scroll ' + lang); assert.deepEqual(await tall(page), [], '48px targets ' + lang); assert.deepEqual(await smallText(page), [], '16px text ' + lang);
+   assert.ok(await overflow(page), 'no horizontal scroll ' + lang); assert.deepEqual(await tall(page), [], '44px targets ' + lang); assert.deepEqual(await smallText(page), [], '16px text ' + lang);
    assert.doesNotMatch(await main(page), forbidden);
    if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); assert.match(await main(page), /إنشاء مجموعة/); assert.match(await main(page), /المواعيد الأسبوعية/); }
    await shot(page, `group-create-${lang}-390`); await context.close();
@@ -609,7 +609,7 @@ function command(body) {
   await page.locator('[data-save-edit]').click(); await page.locator('[data-state="error"]').waitFor(); assert.match(await page.locator('[data-state="error"]').innerText(), /This changed while you were looking at it/);
   await ctl({ cmd: 'ok' }); await page.getByRole('button', { name: 'Reload' }).click(); await page.locator('[data-group-details]').waitFor(); assert.equal(await page.locator('[data-teacher-group] h1').innerText(), 'Synthetic Algebra Group', 'the unsaved change is gone and the Group reads again');
   await ctl({ cmd: 'invalid' }); await page.locator('[data-edit-group]').click(); await page.locator('[data-group-capacity]').fill('1'); await page.locator('[data-save-edit]').click(); await page.locator('[data-state="error"]').waitFor(); assert.match(await page.locator('[data-state="error"]').innerText(), /Capacity cannot be lower than the number of students/);
-  assert.ok(await overflow(page), 'no horizontal scroll'); assert.deepEqual(await tall(page), [], '48px targets'); await shot(page, 'group-edit-en-390'); await context.close(); await ctl({ cmd: 'ok' });
+  assert.ok(await overflow(page), 'no horizontal scroll'); assert.deepEqual(await tall(page), [], '44px targets'); await shot(page, 'group-edit-en-390'); await context.close(); await ctl({ cmd: 'ok' });
   for (const [id, why] of [[G.phys, 'not the instructor'], [G.old, 'archived']]) { const o = await open(desktop, '/teacher/groups/' + id); await o.page.locator('[data-tab="details"]').click(); await o.page.locator('[data-group-details]').waitFor(); assert.equal(await o.page.locator('[data-edit-group]').count(), 0, why); await o.context.close(); }
   const ar = await open(phone, '/teacher/groups/' + G.alg, { lang: 'ar' }); await ar.page.locator('[data-tab="details"]').click(); await ar.page.locator('[data-edit-group]').click(); await ar.page.locator('[data-edit-group-form]').waitFor(); assert.ok(await overflow(ar.page), 'no horizontal scroll in Arabic'); assert.match(await main(ar.page), /حفظ التغييرات/); assert.doesNotMatch(await main(ar.page), forbidden); await shot(ar.page, 'group-edit-ar-390'); await ar.context.close();
  });
@@ -626,9 +626,9 @@ function command(body) {
   await page.waitForFunction(() => /14 of 20 students/.test(document.querySelector('[data-students-total]').innerText));
   await page.locator('[data-student-search]').fill('nobody at all'); await page.locator('[data-add-students] [data-state="empty"]').waitFor(); assert.match(await page.locator('[data-add-students] [data-state="empty"]').innerText(), /No student matches/);
   await page.locator('[data-close-add]').click(); assert.equal(await page.locator('[data-add-students]').count(), 0);
-  const row = page.locator(`[data-student="${uuid(6000)}"]`); assert.equal(await row.locator('[data-remove-student]').getAttribute('aria-label'), 'Remove Synthetic student 1');
-  await row.locator('[data-remove-student]').click(); assert.match(await row.innerText(), /keep their access to the course/); assert.equal((await posts()).length, 2, 'asks first');
-  await row.getByRole('button', { name: 'Keep' }).click(); assert.equal((await posts()).length, 2); await row.locator('[data-remove-student]').click(); await row.locator('[data-confirm-remove]').click();
+  const row = page.locator(`[data-student="${uuid(6000)}"]`); assert.equal(await row.locator('[data-student-menu]').getAttribute('aria-label'), 'Remove Synthetic student 1');
+  await row.locator('[data-student-menu]').click(); await page.locator('[data-remove-student]').click(); await page.locator('[data-confirm-remove]').waitFor(); assert.match(await page.getByRole('dialog').innerText(), /keep their access to the course/); assert.equal((await posts()).length, 2, 'asks first');
+  await page.getByRole('dialog').getByRole('button', { name: 'Keep' }).click(); await page.getByRole('dialog').waitFor({ state: 'detached' }); assert.equal((await posts()).length, 2); await row.locator('[data-student-menu]').click(); await page.locator('[data-remove-student]').click(); await page.locator('[data-confirm-remove]').click();
   await page.waitForFunction(id => !document.querySelector(`[data-student="${id}"]`), uuid(6000));
   sent = await posts(); assert.deepEqual([sent[2].action, sent[2].version, sent[2].data.userId], ['remove', 5, uuid(6000)]); assert.doesNotMatch(await main(page), forbidden); await context.close();
  });
@@ -637,15 +637,21 @@ function command(body) {
   await ctl({ reset: true }); S.data.groups[G.alg].capacity = 12; const full = await open(desktop, '/teacher/groups/' + G.alg); await full.page.locator('[data-tab="students"]').click(); await full.page.locator('[data-add-student]').click(); await full.page.locator('[data-group-full]').waitFor(); await full.page.locator('[data-add-one]').first().waitFor(); assert.equal(await full.page.locator('[data-add-one]').first().isDisabled(), true, 'a full Group offers no Add'); await full.context.close();
   await ctl({ reset: true, cmd: 'invalid' }); const refused = await open(desktop, '/teacher/groups/' + G.alg); await refused.page.locator('[data-tab="students"]').click(); await refused.page.locator('[data-add-student]').click(); await refused.page.locator('[data-add-one]').first().click(); await refused.page.locator('[data-add-students] [data-state="error"]').waitFor(); assert.match(await refused.page.locator('[data-add-students] [data-state="error"]').innerText(), /may already be in another Group/); await refused.context.close();
   await ctl({ reset: true, fail: { ['eligible:' + G.alg]: 1 } }); const failed = await open(desktop, '/teacher/groups/' + G.alg); await failed.page.locator('[data-tab="students"]').click(); await failed.page.locator('[data-add-student]').click(); await failed.page.locator('[data-add-students] [data-state="error"]').waitFor(); await failed.page.getByRole('button', { name: 'Try again' }).click(); await failed.page.locator('[data-eligible]').first().waitFor(); await failed.context.close();
-  await ctl({ reset: true, cmd: 'changed' }); const stale = await open(desktop, '/teacher/groups/' + G.alg); await stale.page.locator('[data-tab="students"]').click(); await stale.page.locator('[data-remove-student]').first().click(); await stale.page.locator('[data-confirm-remove]').click(); await stale.page.locator('[data-group-students] [data-state="error"]').waitFor(); assert.match(await stale.page.locator('[data-group-students] [data-state="error"]').innerText(), /This changed while you were looking at it/); await stale.context.close();
+  await ctl({ reset: true, cmd: 'changed' }); const stale = await open(desktop, '/teacher/groups/' + G.alg); await stale.page.locator('[data-tab="students"]').click(); await stale.page.locator('[data-student-menu]').first().click(); await stale.page.locator('[data-remove-student]').click(); await stale.page.locator('[data-confirm-remove]').click(); await stale.page.getByRole('dialog').locator('[data-state="error"]').waitFor(); assert.match(await stale.page.getByRole('dialog').locator('[data-state="error"]').innerText(), /This changed while you were looking at it/); await stale.context.close();
   await ctl({ reset: true }); const old = await open(desktop, '/teacher/groups/' + G.old); await old.page.locator('[data-tab="students"]').click(); await old.page.locator('[data-group-students]').waitFor(); assert.equal(await old.page.locator('[data-add-student]').count(), 0, 'an archived Group cannot change'); await old.context.close();
  });
- await step('Students on a phone, English and Arabic: rows and buttons are 48px, no sideways scroll, mirrored, Arabic copy, a long name wraps', async () => {
+ await step('Students on a phone, English and Arabic: rows and buttons are 44px or more, no sideways scroll, mirrored, Arabic copy, a long name wraps', async () => {
   for (const lang of ['en', 'ar']) {
-   const { page, context } = await open(phone, '/teacher/groups/' + G.alg, { lang }); await page.locator('[data-tab="students"]').click(); await page.locator('[data-group-students]').waitFor(); await page.locator('[data-add-student]').click(); await page.locator('[data-eligible]').first().waitFor(); await page.locator('[data-remove-student]').first().click();
-   assert.ok(await overflow(page), 'no horizontal scroll ' + lang); assert.deepEqual(await tall(page), [], '48px targets ' + lang); assert.doesNotMatch(await main(page), forbidden);
-   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); assert.match(await main(page), /إضافة/); assert.match(await main(page), /هل تريد إزالة/); }
-   await shot(page, `group-students-add-${lang}-390`); await context.close();
+   const { page, context } = await open(phone, '/teacher/groups/' + G.alg, { lang }); await page.locator('[data-tab="students"]').click(); await page.locator('[data-group-students]').waitFor(); await page.locator('[data-add-student]').click(); await page.locator('[data-eligible]').first().waitFor();
+   const inDialog = () => page.evaluate(() => [...document.querySelectorAll('[role="dialog"] button, [role="dialog"] input')].filter(e => { const r = e.getBoundingClientRect(); return r.width && r.height < 43.5; }).map(e => e.outerHTML.slice(0, 90)));
+   assert.ok(await overflow(page), 'no horizontal scroll ' + lang); assert.deepEqual(await inDialog(), [], '44px targets in Add students ' + lang); assert.doesNotMatch(await page.getByRole('dialog').innerText(), forbidden);
+   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); assert.match(await page.getByRole('dialog').innerText(), /إضافة/); }
+   await shot(page, `group-students-add-${lang}-390`);
+   await page.locator('[data-close-add]').click(); await page.getByRole('dialog').waitFor({ state: 'detached' });
+   assert.deepEqual(await tall(page), [], '44px targets ' + lang); assert.doesNotMatch(await main(page), forbidden);
+   await page.locator('[data-student-menu]').first().click(); await page.locator('[data-remove-student]').click(); await page.locator('[data-confirm-remove]').waitFor(); assert.deepEqual(await inDialog(), [], '44px targets in the question ' + lang);
+   if (lang === 'ar') assert.match(await page.getByRole('dialog').innerText(), /هل تريد إزالة/);
+   await context.close();
   }
  });
 

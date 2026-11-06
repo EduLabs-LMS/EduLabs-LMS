@@ -22,7 +22,6 @@ export function courseLabels(offerings: readonly AdminOffering[]): Map<string, s
   return new Map(offerings.map(o => [o.id, courseName(o)]));
 }
 
-export const fieldClass = 'min-h-[48px] w-full rounded-xl border-2 border-black bg-white px-3 text-base';
 
 export function useDate() {
   const { language } = useLanguage();

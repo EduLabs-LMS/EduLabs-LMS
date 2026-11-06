@@ -6,16 +6,8 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { L } from '@/frontend/components/language-provider';
 import { Button, buttonClass } from '@/frontend/components/design/button';
 import { StatusPill, type Tone } from '@/frontend/components/design/status-pill';
-import { cn } from '@/shared/utils';
 import type { CourseStatus } from '@/shared/teacher-home';
 import { coursePagePath } from '@/shared/teacher-course-page';
-
-export const card = 'rounded-[24px] border-[2.5px] border-black bg-white p-5 shadow-hard';
-export const button = 'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border-2 border-black px-4 py-2 text-base font-bold shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black disabled:opacity-60';
-export const primaryButton = cn(button, 'bg-primary text-black');
-export const plainButton = cn(button, 'bg-white text-black');
-export const inkButton = cn(button, 'bg-black text-white');
-export const linkClass = 'inline-flex min-h-[44px] items-center text-base font-bold underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black';
 
 /** Re-runs the server reads for the whole page. */
 export function useRetry() {
