@@ -175,3 +175,26 @@ The approved look is in `docs/design/homework-content/` (12 boards and `canvas.j
 - **The whole course gets the homework** (no per-Group homework in V1).
 - **The Homework tab is a portal:** stats (essays to correct, corrected, handed in, on time), a To correct list, Open / Closed / Drafts, and "New homework". New homework is a 4-step wizard like the platform admin's provision form (Details, Questions, Rules, Solutions, then Review), one question on screen at a time. Correcting shows one student at a time with Save and next.
 - **The student side is not in scope for now;** it must keep working.
+
+## Course content tree: audit and draft migration (2026-11-06, branch `claude/course-content`)
+
+Audit of the Firebase/Supabase path for chapters (`course_modules`) and lessons. The legacy Clerk routes `app/api/courses/[courseId]/chapters/*` were not used. Draft migration `20261106130000_course_content_tree.sql`, **not applied anywhere**. The Content section on the Course page is **not built**: the owner reviews and applies the migration on dev first.
+
+- **Existing and kept:** `edit_learning_content` (through `POST /api/learning/<course>/edit`, Firebase only, exact origin) for `create_lesson`, `reorder_modules` and `reorder_lessons`. It locks the course root, checks `can_edit_course` and each row's `updated_at`, and works under a Firebase identity. It is not changed.
+- **Missing or unsafe, now in the draft as `edit_course_structure`:**
+  - `delete_lesson` and `delete_chapter`. The RPC had no delete. A direct delete under RLS has no lock and no version check, and a chapter delete would also remove a lesson added a moment ago in another tab, so a chapter delete must list every lesson the teacher was shown.
+  - `move_lesson`. `lessons.module_id` was immutable.
+  - `rename_lesson` and `rename_chapter`. `edit_lesson` also writes the status and description and refuses a published lesson with no published part; the old demo seed made exactly those lessons. `edit_module` wipes the description unless it is sent.
+  - `create_chapter`. `create_module` stores type `Module` and number 1, so a student would read "Module 1" on every chapter.
+- **New read, `course_structure`:** chapters and lessons in order, with homework counts (a homework counts once, by its newest version) and each lesson's delete blockers. Course staff who cannot edit may read it and get `canEdit: false`. It is needed because the board shows Delete off with its reason before a click, and a course editor may have no right to read the student work behind that reason. It gives facts and counts, no student or homework content.
+- **An old rule changes:** "parent links never move" no longer holds for a lesson inside its course. A new trigger refuses leaving the course, even for the database owner, and there is still no client column grant on `module_id`. The lesson id, homework, progress and parts are untouched, and a move sends no notification.
+- **Refused deletes:** SQLSTATE 23503 with the detail `{"reasons":[...],"lessonIds":[...]}`, so the screen words the reason in English and Arabic. Reasons: `student_work`, `homework`, `student_progress`, `parts`, `content`, `in_use` (any other restrict reference). Nothing is hidden and nothing can be forced.
+- **Stricter than the database (our call, for the owner to confirm):** lesson blocks and a cover would cascade or be orphaned, but the teacher cannot see them on this page, so they refuse the delete as `content`.
+- **Draft state:** lessons have draft/published; chapters have none. The screen will show only a small Draft pill. **A lesson added here stays a draft, and students cannot see it, until the lesson editor exists:** publishing needs a published part, and parts have no screen.
+
+Open for the owner:
+
+- **Chapters that already exist keep their stored label.** Every chapter made by `create_module`, and every chapter in a space filled before seed version 4, has type `Module` and number 1. The teacher's page numbers by order, so a student could read "Module 1" where the teacher reads "Chapter 2". The draft backfills nothing, because the 2B migration said no number is inferred. Decide whether to leave them or clear the stored numbers.
+- **Deleting a published lesson that no student has started is allowed,** as RLS allows it today. A chapter delete removes its free lessons with it; the confirmation must say how many.
+- **An archived course is not refused by the new function,** the same as `edit_learning_content`. The screen would hide editing there.
+- **The direct RLS grants stay** (`delete` on both tables, `update(position)`, and so on). They give the same people the same rights but take no lock. Removing them is separate hardening, not done here.

@@ -116,6 +116,10 @@ redesign, revive deleted screens, expand permissions or begin Jitsi/email work.
 
 Every teacher screen is built on `frontend/components/design` in both looks. Targets are 44 px and the minimum text is 12 px; where this file says 48 px or 16 px, this replaces it. Invite students is its own page at `/teacher/students/invite`, reached from the Students header and an empty Group's Students tab. See "Every teacher screen on the component system" in DECISIONS.md.
 
+## Course content tree (specified, waiting on the draft migration)
+
+Boards `Main` and `Content-Phone`. On `/teacher/settings/courses/<id>`, a Content section replaces the "Lessons" note: chapters and lessons in order, numbered by position (Chapter 1; 1.1, 1.2), collapsible; add a chapter; add a lesson inline (Add, Cancel; "Add the first lesson" in an empty chapter); rename; delete with a confirmation, and a refusal in plain words; drag on desktop plus Move up, Move down and Move to another chapter in each row's menu; a bottom sheet with the same actions and no drag on a phone; each lesson shows its homework or "No homework"; a small Draft pill; a change made elsewhere says so and offers Reload. Lesson content is not in scope. Not built until draft migration `20261106130000` is reviewed and applied on dev (DECISIONS.md, "Course content tree").
+
 ## Homework and course content (decided, not built)
 
 Boards: `docs/design/homework-content/`. Build with the design components in both looks, not by copying board markup. The rules are in DECISIONS.md, "Homework and course content"; this is the screen shape.

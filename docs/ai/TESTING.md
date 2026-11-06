@@ -136,6 +136,15 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - It measures rendered states on synthetic data, not every state. Look at the pictures too: on sign-in it was looking, not a measure, that found the large tree's shadow.
 - The course page harness has no teacher frame, so its pictures show the page without the sidebar.
 
+## Course content tree (`claude/course-content`)
+
+- `supabase/tests/course-content-tree.sql` (138 checks, rolled back, every identity a Firebase identity) runs in `npm run test:exam-sql:postgres`: who may write and read, cross-space denial, stale requests, moving, every refused delete and its reason, the read, demo seed 4 and Clear. It has NOT been run against any provider database.
+- `scripts/course-content-concurrency.cjs` runs in the same command when it uses PostgreSQL: six real two-tab races on separate connections. Because `updated_at` is the transaction's time, staleness inside the single-transaction SQL suite is tested with an old stamp, and only this script proves it across transactions.
+- `node --test scripts/course-content-migration.test.cjs` (part of `npm test`) checks the file's shape.
+- The runtime is in the main checkout: `LMS_SQL_RUNTIME=/c/dev/EduLabs-LMS/.local/step03a/runtime/node_modules`. `bash .local/pg17.sh start` starts the disposable server.
+- **Expect a long full run.** `listing-performance` is much slower after the other suites than alone: on the base commit `0d32831`, 234 s alone and 1,476 s in a full run; on this branch, 215 s alone and about 44 minutes in one full run while other runs shared the machine. Why it slows after the other suites is not diagnosed. To work on one suite, set `LMS_SQL_ONLY=<name>`.
+- No browser harness yet: the screen is not built.
+
 ## Sign-in (`claude/design-followups`)
 
 - `scripts/sign-in-browser.cjs` runs the real `FirebaseForm` with a synthetic Firebase SDK on a loopback server: the wording and behaviour of sign-in, sign-up, the show-password control, Forgot password, a failed sign-in, the unverified-email panel, the photo chooser, the Sign in button's contrast in both looks and themes, and that the marker is what opts the page into New. `LMS_MATRIX=1` adds the screen matrix for four sign-in screens (sign-in, sign-up, failed sign-in, unverified) to `.local/design-screens/<screen>/`.

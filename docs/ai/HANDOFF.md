@@ -48,3 +48,7 @@ Same branch, `claude/design-v2-foundation`, not merged or deployed. Every teache
 ## Update 2026-11-06: follow-ups on `claude/design-followups`
 
 Branched from `claude/teacher-v1` after it was fast-forwarded to the design branch (owner tested it on staging). Sign-in and sign-up are on the design components in both looks; `/teacher/website` is switched off until its feature exists; V1.md lists the eleven stale browser harnesses to repair. Not merged or deployed.
+
+## Update 2026-11-06: course content, stopped for review on `claude/course-content`
+
+The homework and content boards and the owner's decisions are committed. The backend audit found delete, move and a safe rename missing, so the work stopped at one draft migration and its tests, as the owner instructed: `20261106130000_course_content_tree.sql`, not applied anywhere. **Next:** the owner reviews it and applies it on dev. Then build the Content section: contract and service, reasons in English and Arabic, the screen, unit tests and a browser harness. The open questions are in DECISIONS.md, "Course content tree". Local commits only; not pushed.
