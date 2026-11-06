@@ -63,7 +63,7 @@ test('route: the owner rename is its own PATCH route, the create route stays clo
 });
 test('screens: Rename only for an owner; the picker is hidden for one space; no forbidden word in what a teacher reads', () => {
  const names = read('frontend/features/teacher-settings/space-names.tsx');
- assert.match(names, /\{s\.owner && <button/); assert.match(names, /\/api\/teacher\/space/); assert.match(names, /data-tour="space-name"/);
+ assert.match(names, /\{s\.owner && <Button/); assert.match(names, /\/api\/teacher\/space/); assert.match(names, /data-tour="space-name"/);
  assert.match(read('frontend/features/teacher-home/create-course.tsx'), /targets\.length > 1 && <div/);
  const en = read('frontend/locales/en.ts');
  for (const line of en.split('\n').filter(l => /^\s+"ts\.space\./.test(l))) assert.doesNotMatch(line.split('": ')[1], /organi[sz]ation|tenant|slug/i);

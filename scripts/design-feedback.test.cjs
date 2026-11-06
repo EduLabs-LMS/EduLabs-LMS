@@ -149,8 +149,8 @@ test('A toast only where the screen already confirms, and only as an addition to
   ]) { const source = read(file); assert.match(source, confirmed, file); assert.match(source, said, file); }
 });
 
-test('The logo's shadow is light-theme only on the opening logo and the sign-in page, and only there', () => {
-  assert.match(read('frontend/styles/design-components.css'), /html.dark .edulabs-mark-light-shadow { display: none; }/);
+test('The logo\'s shadow is light-theme only on the opening logo and the sign-in page, and only there', () => {
+  assert.ok(read('frontend/styles/design-components.css').includes('html.dark .edulabs-mark-light-shadow { display: none; }'));
   for (const file of ['frontend/components/loading-overlay.tsx', 'frontend/features/auth/firebase-form.tsx', 'app/(auth)/layout.tsx']) for (const mark of read(file).match(/<EduLabsMark [^>]*>/g)) assert.match(mark, /lightShadowOnly/, file + ': every mark');
   for (const file of ['frontend/components/brand-logo.tsx', 'frontend/components/logo.tsx']) assert.doesNotMatch(read(file), /lightShadowOnly/, file);
 });
