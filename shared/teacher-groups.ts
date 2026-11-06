@@ -56,8 +56,9 @@ export function groupSessions(rows: readonly GroupSession[], now: number) {
 }
 
 /** Each student's Present marks out of Present and Absent marks. A student not marked in a Session is left out of that Session's count; nothing is estimated. */
+export type AttendanceTotal = { attended: number; total: number };
 export function attendanceTotals(rows: readonly Pick<GroupRow, 'user_id' | 'status'>[]) {
-  const totals = new Map<string, { attended: number; total: number }>();
+  const totals = new Map<string, AttendanceTotal>();
   for (const { user_id, status } of rows) {
     if (status !== 'attended' && status !== 'absent') continue;
     const entry = totals.get(user_id) ?? { attended: 0, total: 0 };
@@ -76,7 +77,7 @@ export function cairoFields(iso: string) {
 }
 
 /** Where Invite students opens, with the Group's course already chosen. */
-export const inviteHref = (offeringId: string) => `/teacher/students?invite=${offeringId}`;
+export const inviteHref = (offeringId: string) => `/teacher/students/invite?invite=${offeringId}`;
 
 export function attendanceSummary(s: GroupSession, now: number): AttendanceSummary {
   const state = sessionState(s, now);

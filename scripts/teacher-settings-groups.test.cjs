@@ -271,5 +271,5 @@ test('group screens: Create, Edit, add and remove send what the contract and the
  assert.match(view, /'data-tour': 'remove-student'/, 'remove-student, on the button of the row\'s menu');
  assert.doesNotMatch(form, /offering_id|offering_name\}.*tg\.form/, 'the run never reaches a label');
  assert.doesNotMatch(view, /offering_name/, 'the name of the run is never drawn'); assert.match(view, /titles\.get\(group\.offering_id\)/, 'the course title comes from the offerings read');
- assert.match(view, /href=\{inviteHref\(group\.offering_id\)\}/); assert.equal(model.inviteHref('x'), '/teacher/students?invite=x');
+ assert.match(view, /href=\{inviteHref\(group\.offering_id\)\}/); assert.equal(model.inviteHref('x'), '/teacher/students/invite?invite=x');
 });

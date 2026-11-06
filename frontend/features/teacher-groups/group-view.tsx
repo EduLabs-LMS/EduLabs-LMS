@@ -20,8 +20,9 @@ import { Tabs } from '@/frontend/components/design/tabs';
 import { sessionTime } from '@/frontend/features/teacher-home/parts';
 import { cairoWallTime, sessionDefinition, sessionState, type GroupPage, type GroupRow, type GroupSession, type StudyGroup } from '@/shared/contracts/groups';
 import { attendanceHref, canTakeAttendance } from '@/shared/teacher-attendance';
-import { ATTENDANCE_PAGES, NEEDS_SHOWN, attendanceSummary, attendanceTotals, cairoFields, currentMembers, groupSessions, inviteHref, studentsByName, type WeeklyTime } from '@/shared/teacher-groups';
-import { GroupCallError, groupCall, isAbort, limited } from './api';
+import { NEEDS_SHOWN, attendanceSummary, cairoFields, currentMembers, groupSessions, inviteHref, studentsByName, type WeeklyTime } from '@/shared/teacher-groups';
+import { GroupCallError, groupCall, isAbort } from './api';
+import { readAttendanceTotals, type Totals } from './attendance-totals';
 import { useCourseTitles } from './course-titles';
 import { EditGroup } from './group-form';
 import { GroupError, Loading, ModeLabel, ModePill, WeeklyTimes, asError, useCommand } from './parts';
@@ -313,20 +314,9 @@ function RescheduleSession({ s, group, now, onClose, onDone }: { s: GroupSession
   </form>;
 }
 
-type Totals = { totals: ReadonlyMap<string, { attended: number; total: number }>; truncated: boolean };
-
-/** How each student has attended, added up from the Group's attendance history (the existing staff read). No read holds these totals, and a Group larger than the cap shows a dash rather than a wrong number. */
+/** The students' attendance in this Group. A viewer who is not staff has no such read. */
 function useAttendanceTotals(groupId: string, enabled: boolean, revision: number) {
-  const read = useCallback(async (signal: AbortSignal): Promise<Totals> => {
-    if (!enabled) return { totals: new Map(), truncated: false };
-    const rows: GroupRow[] = [];
-    for (let page = 0; page < ATTENDANCE_PAGES; page++) {
-      const result = await limited(() => groupCall<GroupPage<GroupRow>>('view', groupId, { section: 'history', page, search: '' }, null, signal));
-      rows.push(...result.rows);
-      if (!result.hasMore) return { totals: attendanceTotals(rows), truncated: false };
-    }
-    return { totals: new Map(), truncated: true };
-  }, [groupId, enabled]);
+  const read = useCallback((signal: AbortSignal): Promise<Totals> => enabled ? readAttendanceTotals(groupId, signal) : Promise.resolve({ totals: new Map(), truncated: false }), [groupId, enabled]);
   const swr = useSwr<Totals, GroupCallError>(`group:${groupId}:attendance`, read, asError);
   const seen = useRef(revision);
   const { retry } = swr;

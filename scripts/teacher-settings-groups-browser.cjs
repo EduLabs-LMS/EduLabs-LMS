@@ -3,7 +3,7 @@
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME, a Firebase-mode `npm run build` (CSS, fonts) and optionally LMS_FRESH_CSS (a Tailwind compile of app/globals.css).
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
 const pick = async (select, value) => { await select.click(); await select.page().locator('[role="option"][data-value="' + value + '"]').click(); };
-const optionsOf = async select => { await select.click(); await select.page().waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); const rows = await select.page().locator('[role="option"]').evaluateAll(os => os.map(o => [o.textContent, o.getAttribute('aria-disabled') === 'true'])); await select.page().keyboard.press('Escape'); await select.page().locator('[role="listbox"]').waitFor({ state: 'detached' }); return rows; };
+const optionsOf = async select => { await select.click(); await select.page().waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); const rows = await select.page().locator('[role="option"]').evaluateAll(os => os.map(o => [o.textContent, o.getAttribute('aria-disabled') === 'true'])); await select.page().evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await select.page().keyboard.press('Escape'); await select.page().locator('[role="listbox"]').waitFor({ state: 'detached' }); return rows; };
 const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
 const { chromium } = require(path.join(browserRuntime, 'playwright')), esbuild = require(path.join(esbuildRuntime, 'esbuild'));
@@ -344,7 +344,7 @@ function command(body) {
   assert.doesNotMatch(await page.locator('[data-teacher-group]').innerText(), /Demo offering/, 'the run never shows');
   const headerMeta = await page.locator('.d-page-header-main .d-meta').innerText(); assert.match(headerMeta, /Synthetic Maths · Sun[^\n]*5:00[^\n]* · Synthetic Centre, Room 4 · 12 students/, 'one meta line: ' + headerMeta);
   assert.equal(await page.locator('[data-group-panel]').count(), 0, 'the facts are in the header, no side panel');
-  assert.equal(await page.locator('[data-invite-group]').getAttribute('href'), '/teacher/students?invite=' + uuid(101));
+  assert.equal(await page.locator('[data-invite-group]').getAttribute('href'), '/teacher/students/invite?invite=' + uuid(101));
   assert.deepEqual(await page.locator('[data-session-group]').evaluateAll(e => e.map(x => x.dataset.sessionGroup)), ['needs', 'upcoming'], 'grouped, with Past collapsed');
   assert.equal(await page.locator('[data-session][data-state="upcoming"]').count(), 3); assert.equal(await page.locator('[data-session][data-state="cancelled"]').count(), 1, 'a cancelled upcoming Session is shown as Cancelled');
   assert.equal(await page.locator('[data-session]').count(), 4 + 2, 'four upcoming or cancelled, and the two that need attendance');

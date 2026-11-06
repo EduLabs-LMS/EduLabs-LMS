@@ -3,7 +3,7 @@
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME, a Firebase-mode `npm run build` (CSS, fonts) and optionally LMS_FRESH_CSS (a Tailwind compile of app/globals.css).
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
 const pick = async (select, value) => { await select.click(); await select.page().locator('[role="option"][data-value="' + value + '"]').click(); };
-const optionsOf = async select => { await select.click(); await select.page().waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); const rows = await select.page().locator('[role="option"]').evaluateAll(os => os.map(o => [o.textContent, o.getAttribute('aria-disabled') === 'true'])); await select.page().keyboard.press('Escape'); await select.page().locator('[role="listbox"]').waitFor({ state: 'detached' }); return rows; };
+const optionsOf = async select => { await select.click(); await select.page().waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); const rows = await select.page().locator('[role="option"]').evaluateAll(os => os.map(o => [o.textContent, o.getAttribute('aria-disabled') === 'true'])); await select.page().evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); await select.page().keyboard.press('Escape'); await select.page().locator('[role="listbox"]').waitFor({ state: 'detached' }); return rows; };
 const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
 const { chromium } = require(path.join(browserRuntime, 'playwright')), esbuild = require(path.join(esbuildRuntime, 'esbuild'));
@@ -38,6 +38,7 @@ import { LanguageProvider } from '@/frontend/components/language-provider';
 import { ThemeProvider } from '@/frontend/components/theme-provider';
 import { TeacherFrame } from '@/frontend/features/teacher-frame/teacher-frame';
 import { TeacherStudentsView } from '@/frontend/features/teacher-students/students-view';
+import { InvitePage } from '@/frontend/features/teacher-students/invite';
 import { StudentDetailView } from '@/frontend/features/teacher-students/student-view';
 import { StudentAccess } from '@/frontend/features/admin/users/student-access';
 const pathname = location.pathname, query = new URLSearchParams(location.search);
@@ -52,7 +53,11 @@ const choices = {
 function Body() {
   if (pathname === '/teacher/students') {
     const c = query.get('courses');
-    return <TeacherStudentsView courses={c === 'fail' ? { ok: false, status: 503 } : { ok: true, value: choices[c === 'none' ? 'none' : c === 'drafts' ? 'drafts' : 'normal'] }} inviteOffering={query.get('invite')} />;
+    return <TeacherStudentsView canInvite={c !== 'fail' && c !== 'none'} />;
+  }
+  if (pathname === '/teacher/students/invite') {
+    const c = query.get('courses');
+    return <InvitePage courses={c === 'fail' ? { ok: false, status: 503 } : { ok: true, value: choices[c === 'none' ? 'none' : c === 'drafts' ? 'drafts' : 'normal'] }} initialOffering={query.get('invite')} />;
   }
   const m = /^\\/teacher\\/students\\/([0-9a-f-]{36})$/.exec(pathname);
   if (m) return <StudentDetailView studentId={m[1]} offeringId={query.get('course')} />;
@@ -186,6 +191,7 @@ function groupsView(body) {
   }
   const g = S.data.groups[groupId]; if (!g) throw new Fail(403);
   if (section === 'detail') return { group: g, schedules: [], serverNow: iso(now) };
+  if (section === 'history' && !search) { const first = (S.data.members[groupId] ?? []).find(m => m.ends_at == null); return { rows: first ? [{ user_id: first.user_id, status: 'attended' }, { user_id: first.user_id, status: 'attended' }, { user_id: first.user_id, status: 'absent' }, { user_id: first.user_id, status: 'not_marked' }] : [], page, hasMore: false }; }
   if (section === 'members') { if (take('members:' + groupId)) throw new Fail(503); return { rows: S.data.members[groupId], page, hasMore: false }; }
   if (section === 'history') { if (take('history')) throw new Fail(503); return { rows: groupId === G.alg ? S.data.history.filter(r => !search || r.user_id === search) : [], page, hasMore: false }; }
   throw new Fail(400);
@@ -263,7 +269,8 @@ function groupsCommand(body) {
   return { page, context };
  };
  const overflow = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
- const step = async (name, fn) => { try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
+ const only = process.env.LMS_ONLY_STEPS ? new RegExp(process.env.LMS_ONLY_STEPS) : null;
+ const step = async (name, fn) => { if (only && !only.test(name)) return; try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
  const shot = (page, name, full = true) => page.screenshot({ path: path.join(shots, name + '.png'), fullPage: full });
  const lum = c => { const m = c.match(/\d+(\.\d+)?/g).map(Number).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; };
  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
@@ -311,6 +318,8 @@ function groupsCommand(body) {
   assert.equal(await page.locator('[data-student] a[href], a[data-student]').count() >= 0, true);
   assert.match(await page.locator(`[data-student="${stu(1)}"] a`).getAttribute('href'), new RegExp('^/teacher/students/' + stu(1) + '\\?course=' + O.maths + '$'));
   assert.equal(await page.locator('aside [data-nav="students"]').getAttribute('aria-current'), 'page', 'Students is the current menu entry');
+  await page.waitForFunction(() => document.querySelector('[data-student-attendance][role="img"]'), null); const label = await page.locator('[data-student-attendance][role="img"]').first().getAttribute('aria-label'); assert.match(label, /2 of 3/, 'attendance added up from the marks: ' + label); assert.ok(await page.locator('[data-student-attendance]:not([role="img"])').count() > 0, 'a student with no marks shows a dash');
+  assert.ok((await page.locator('[data-student] a').first().boundingBox()).height >= 59.5, 'a 60 px row'); assert.equal(await page.locator('[data-student] [data-avatar]').count(), await page.locator('[data-student]').count(), 'an avatar on every row'); assert.equal(await page.locator('.d-student-head').isVisible(), true, 'column headings on a desktop');
   await checkClean(page, 'list desktop'); await shot(page, 'students-list-en-1440'); await context.close();
  });
  await step('Students, search and filters: by name, by course, by status; Waiting points at Join requests; empty results say so', async () => {
@@ -386,7 +395,7 @@ function groupsCommand(body) {
   await shot(page, 'students-approve-not-added-en-1440');
   await page.locator('[data-notice="approved_not_added"] [data-dismiss-notice]').click(); assert.equal(await page.locator('[data-notice="approved_not_added"]').count(), 0);
   await context.close();
-  const ar = await open(phone, '/teacher/students', { lang: 'ar' }); await waitSettled(ar.page); await ar.page.locator('[data-request]').first().waitFor();
+  const ar = await open(phone, '/teacher/students', { lang: 'ar' }); await waitSettled(ar.page); await ar.page.locator('[data-requests-toggle]').click(); await ar.page.locator('[data-request]').first().waitFor();
   const r = ar.page.locator('[data-request]').first(); await r.locator('[data-approve]').click(); await pick(r.locator('[data-approve-group]'), G.eve); await r.locator('[data-confirm-approve]').click();
   await ar.page.locator('[data-notice="approved_not_added"]').waitFor(); assert.match(await ar.page.locator('[data-notice="approved_not_added"]').innerText(), /تم القبول، لكن لم تتم إضافته إلى المجموعة/);
   await checkClean(ar.page, 'not-added phone ar'); await shot(ar.page, 'students-approve-not-added-ar-390'); await ar.context.close();
@@ -434,18 +443,19 @@ function groupsCommand(body) {
   let { page, context } = await open(desktop, '/teacher/students'); await waitSettled(page); await page.locator('[data-state="empty"]').waitFor(); assert.match(await main(page), /You do not teach a course yet/); await context.close();
   await ctl({ reset: true, emptyRoster: true });
   ({ page, context } = await open(desktop, '/teacher/students')); await waitSettled(page); await page.locator('[data-invite-empty]').waitFor(); assert.match(await main(page), /No students yet/);
-  await page.locator('[data-invite-empty]').click(); await page.locator('[data-invite-panel]').waitFor(); await shot(page, 'students-empty-invite-en-1440'); await context.close();
+  await page.locator('[data-invite-empty]').click(); await page.waitForURL('**/teacher/students/invite'); await page.locator('[data-invite-panel]').waitFor(); await shot(page, 'students-empty-invite-en-1440'); await context.close();
   await ctl({ reset: true });
   ({ page, context } = await open(desktop, '/teacher/students?courses=none')); await waitSettled(page); await page.locator('[data-student]').first().waitFor(); assert.equal(await page.locator('[data-invite-students]').count(), 0, 'nothing to invite to'); await context.close();
  });
 
  // ------------------------------------------------------------------ Invite students
- await step('Invite students: a 43-character link is made in the browser, shown once with Copy and Share, never put in an address, storage or log, and listed links can be revoked', async () => {
-  const { page, context } = await open(desktop, '/teacher/students'); await waitSettled(page);
+ await step('Invite students: a page of its own; a 43-character link is made in the browser, shown once with Copy and Share, never put in an address, storage or log, and listed links can be revoked', async () => {
+  const list = await open(desktop, '/teacher/students'); await waitSettled(list.page); assert.equal(await list.page.locator('[data-invite-students]').getAttribute('href'), '/teacher/students/invite', 'the Students header button'); await list.page.locator('[data-invite-students]').click(); await list.page.waitForURL('**/teacher/students/invite'); await list.page.locator('[data-invite-panel]').waitFor(); assert.equal(await list.page.locator('[data-close-invite]').getAttribute('href'), '/teacher/students', 'and a back link to Students'); await list.context.close();
+  const { page, context } = await open(desktop, '/teacher/students/invite'); await waitSettled(page);
   await page.addInitScript(() => {});
   await page.evaluate(() => { window.__copied = null; window.__shared = null; Object.defineProperty(navigator, 'clipboard', { value: { writeText: async t => { window.__copied = t; } }, configurable: true }); navigator.share = async d => { window.__shared = d; }; });
   const urls = []; page.on('framenavigated', f => urls.push(f.url())); const logs = []; page.on('console', m => logs.push(m.text()));
-  await page.locator('[data-invite-students]').click(); await page.locator('[data-invite-panel]').waitFor();
+  await page.locator('[data-invite-panel]').waitFor();
   assert.equal(await page.locator('[data-invite-days]').getAttribute('data-value'), '7', 'seven days by default'); assert.equal(await page.locator('[data-invite-course]').getAttribute('data-value'), uuid(10));
   await page.locator('[data-active-links] [data-link]').first().waitFor(); assert.equal(await page.locator('[data-active-links] [data-link]').count(), 1, 'one active link; the expired one is not listed');
   await shot(page, 'students-invite-en-1440');
@@ -462,9 +472,9 @@ function groupsCommand(body) {
   assert.ok(!s.requests.some(r => r.includes(token)), 'the token is in no request address'); assert.ok(!urls.some(u => u.includes(token)), 'the token is in no page address'); assert.ok(!page.url().includes(token));
   assert.ok(!logs.some(l => l.includes(token)), 'the token is not logged');
   const stored = await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage), document.cookie])); assert.ok(!stored.includes(token), 'the token is not stored');
-  await page.locator('[data-done-link]').click(); await page.waitForTimeout(100);
-  assert.equal(await page.locator('[data-made-link]').count(), 0); assert.ok(!(await page.content()).includes(token), 'the token is gone from the page after Done');
-  assert.equal(await page.locator('[data-invite-panel]').count(), 0, 'Done closes the panel'); await page.locator('[data-invite-students]').click(); await page.locator('[data-active-links] [data-link]').first().waitFor(); assert.equal(await page.locator('[data-active-links] [data-link]').count(), 2, 'the new link is listed (without its secret)');
+  await page.locator('[data-done-link]').click(); await page.waitForURL('**/teacher/students');
+  assert.equal(await page.locator('[data-made-link]').count(), 0); assert.ok(!(await page.content()).includes(token), 'the token is gone from the page after Done'); assert.ok(!page.url().includes(token));
+  assert.equal(await page.locator('[data-invite-panel]').count(), 0, 'Done goes back to Students'); await page.locator('[data-invite-students]').click(); await page.waitForURL('**/teacher/students/invite'); await page.locator('[data-active-links] [data-link]').first().waitFor(); assert.equal(await page.locator('[data-active-links] [data-link]').count(), 2, 'the new link is listed (without its secret)');
   const st = await fetch(origin + '/__state').then(r => r.json()); assert.ok(!JSON.stringify(st.links).includes(token), 'only a stored record, not the secret, is listed');
   // revoke the first listed link: asks first
   await page.locator('[data-active-links] [data-revoke]').first().click(); assert.equal((await posts()).admin.filter(a => a.action === 'revoke-link').length, 0, 'asked first');
@@ -473,19 +483,19 @@ function groupsCommand(body) {
   await context.close();
  });
  await step('Invite students: a published course with no run yet gets one through the existing course-run route first', async () => {
-  const { page, context } = await open(desktop, '/teacher/students?invite=' + O.maths); await waitSettled(page);
+  const { page, context } = await open(desktop, '/teacher/students/invite?invite=' + O.maths); await waitSettled(page);
   await page.locator('[data-invite-panel]').waitFor(); assert.equal(await page.locator('[data-invite-course]').getAttribute('data-value'), uuid(10), 'opened from the empty Group with its course chosen');
   await pick(page.locator('[data-invite-course]'), uuid(13));
   await pick(page.locator('[data-invite-days]'), '3'); await page.locator('[data-create-link]').click(); await page.locator('[data-made-link]').waitFor();
   const s = await posts(); assert.deepEqual(s.posts.map(p => p.action), ['course-run']); assert.equal(s.posts[0].data.courseId, uuid(13));
   const sent = s.admin.find(a => a.action === 'link'); assert.equal(sent.offeringId, O.history, 'the link is for the run the route returned');
   await checkClean(page, 'invite desktop'); await context.close();
-  const ph = await open(phone, '/teacher/students', { lang: 'ar' }); await waitSettled(ph.page); await ph.page.locator('[data-invite-students]').click(); await ph.page.locator('[data-create-link]').click(); await ph.page.locator('[data-made-link]').waitFor();
+  const ph = await open(phone, '/teacher/students/invite', { lang: 'ar' }); await waitSettled(ph.page); await ph.page.locator('[data-create-link]').click(); await ph.page.locator('[data-made-link]').waitFor();
   assert.equal(await ph.page.locator('[data-join-link]').getAttribute('dir'), 'ltr', 'the address stays left to right in Arabic');
   await checkClean(ph.page, 'invite phone ar'); await shot(ph.page, 'students-invite-made-ar-390'); await ph.context.close();
  });
  await step('Invite students, errors: a lost reply says it cannot tell and offers a new link; the link list failing has its own retry; Share is absent where the browser has none', async () => {
-  const { page, context } = await open(desktop, '/teacher/students'); await waitSettled(page); await page.locator('[data-invite-students]').click(); await page.locator('[data-create-link]').waitFor();
+  const { page, context } = await open(desktop, '/teacher/students/invite'); await waitSettled(page); await page.locator('[data-create-link]').waitFor();
   await page.route('**/api/student-administration', r => JSON.parse(r.request().postData() || '{}').action === 'link' ? r.abort('connectionreset') : r.continue()); await page.locator('[data-create-link]').click(); await page.locator('[data-link-unknown]').waitFor(); assert.equal(await page.locator('[data-made-link]').count(), 0, 'no link is shown for an unknown outcome');
   assert.equal(await page.locator('[data-share-link]').count(), 0);
   await context.close();
@@ -529,7 +539,7 @@ function groupsCommand(body) {
  });
 
  await step('Invite students and draft courses: only published courses can be chosen; a draft is shown disabled with how to publish it; nothing is sent for a draft; with none published there is no Create link', async () => {
-  const { page, context } = await open(desktop, '/teacher/students'); await waitSettled(page); await page.locator('[data-invite-students]').click(); await page.locator('[data-invite-panel]').waitFor();
+  const { page, context } = await open(desktop, '/teacher/students/invite'); await waitSettled(page); await page.locator('[data-invite-panel]').waitFor();
   const options = await optionsOf(page.locator('[data-invite-course]'));
   assert.deepEqual(options, [['Synthetic Maths', false], ['Synthetic Physics', false], ['Synthetic History (draft)', true]], 'drafts are listed, last and disabled');
   const draft = page.locator(`[data-draft-course="${uuid(12)}"]`); await draft.waitFor();
@@ -542,7 +552,7 @@ function groupsCommand(body) {
   assert.equal(await page.locator('[data-invite-course]').getAttribute('data-value'), chosenBefore, 'choosing the draft changes nothing'); await page.keyboard.press('Escape');
   const s = await posts(); assert.equal(s.admin.filter(a => a.action === 'link').length, 0); assert.equal(s.posts.filter(p => p.action === 'course-run').length, 0, 'no run is made for a draft');
   await context.close();
-  const only = await open(phone, '/teacher/students?courses=drafts', { lang: 'ar' }); await waitSettled(only.page); await only.page.locator('[data-invite-students]').click(); await only.page.locator('[data-no-published]').waitFor();
+  const only = await open(phone, '/teacher/students/invite?courses=drafts', { lang: 'ar' }); await waitSettled(only.page); await only.page.locator('[data-no-published]').waitFor();
   assert.equal(await only.page.locator('[data-create-link]').isVisible(), false); assert.match(await main(only.page), /انشر هذه الدورة قبل دعوة الطلاب/);
   await checkClean(only.page, 'invite drafts phone ar'); await shot(only.page, 'students-invite-drafts-ar-390'); await only.context.close();
  });

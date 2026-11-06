@@ -1,14 +1,15 @@
 'use client';
 import { L, useLanguage } from '@/frontend/components/language-provider';
+import { StatusPill as Pill, type Tone } from '@/frontend/components/design/status-pill';
 import type { MessageKey } from '@/frontend/locales/messages';
 import type { AdminOffering } from '@/shared/contracts/student-administration';
 import { courseName, type StudentStatus } from '@/shared/teacher-students';
 
-const tone: Record<StudentStatus, string> = { active: 'bg-primary', suspended: 'bg-amber-100', expired: 'bg-slate-200', completed: 'bg-sky-100', cancelled: 'bg-rose-100', invited: 'bg-white' };
+const tone: Record<StudentStatus, Tone> = { active: 'success', suspended: 'warning', expired: 'neutral', completed: 'info', cancelled: 'danger', invited: 'neutral' };
 const statusKey: Record<StudentStatus, MessageKey> = { active: 'ts.students.status.active', suspended: 'ts.students.status.suspended', expired: 'ts.students.status.expired', completed: 'ts.students.status.completed', cancelled: 'ts.students.status.cancelled', invited: 'ts.students.status.invited' };
 
 export function StatusPill({ status }: { status: StudentStatus }) {
-  return <span data-student-status={status} className={`inline-flex min-h-[28px] w-fit items-center rounded-full border-2 border-black px-3 text-base font-bold text-black ${tone[status]}`}><L id={statusKey[status]} /></span>;
+  return <Pill tone={tone[status]} data-student-status={status}><L id={statusKey[status]} /></Pill>;
 }
 
 /** A student without a saved name is never shown as a blank line. */

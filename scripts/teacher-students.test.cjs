@@ -113,7 +113,7 @@ test('navigation: Students opens /teacher/students (and its student pages), no l
  same(active('/teacher/students'), ['students']); same(active('/teacher/students/abc'), ['students']);
  same(active('/admin/users'), []); same(active('/teacher/studentsx'), []); same(active('/teacher/groups'), ['groups']);
 });
-test('middleware: with Firebase staging on, exactly /teacher/students and /teacher/students/<id> pass, with no referrer and no caching; lookalikes are refused', () => {
+test('middleware: with Firebase staging on, exactly /teacher/students, /teacher/students/invite and /teacher/students/<id> pass, with no referrer and no caching; lookalikes are refused', () => {
  class NextResponse { constructor(kind, status) { this.kind = kind; this.status = status; this.headers = new Map(); } static next() { return new NextResponse('next', 200); } static json(_, o) { return new NextResponse('json', o.status); } static redirect(u) { return new NextResponse('redirect:' + u.pathname, 307); } }
  const middleware = load('middleware.ts', {
   '@/shared/public-website': load('shared/public-website.ts', { zod: require('zod') }), '@/shared/website-routes': load('shared/website-routes.ts'),
@@ -122,8 +122,8 @@ test('middleware: with Firebase staging on, exactly /teacher/students and /teach
  }).default;
  const run = path => middleware({ nextUrl: new URL('https://platform.example' + path), url: 'https://platform.example' + path }, {});
  const id = '1234abcd-0000-4000-8000-00000000000f';
- for (const ok of ['/teacher/students', '/teacher/students/' + id]) { const r = run(ok); assert.equal(r.kind, 'next', ok); assert.equal(r.headers.get('Referrer-Policy'), 'no-referrer', ok); assert.equal(r.headers.get('Cache-Control'), 'private, no-store', ok); }
- for (const bad of ['/teacher/students/', '/teacher/students/x', '/teacher/students/' + id + '/x', '/teacher/students/' + id + '/', '/teacher/students/' + id.toUpperCase().replace(/-/g, 'G'), '/teacher/students//' + id, '/teacher/Students', '/teacher/studentsx', '/teacher/students.json', '/teacher/students/new'])
+ for (const ok of ['/teacher/students', '/teacher/students/invite', '/teacher/students/' + id]) { const r = run(ok); assert.equal(r.kind, 'next', ok); assert.equal(r.headers.get('Referrer-Policy'), 'no-referrer', ok); assert.equal(r.headers.get('Cache-Control'), 'private, no-store', ok); }
+ for (const bad of ['/teacher/students/', '/teacher/students/x', '/teacher/students/' + id + '/x', '/teacher/students/' + id + '/', '/teacher/students/' + id.toUpperCase().replace(/-/g, 'G'), '/teacher/students//' + id, '/teacher/Students', '/teacher/studentsx', '/teacher/students.json', '/teacher/students/new', '/teacher/students/invite/', '/teacher/students/invite/x', '/teacher/students/invitex', '/teacher/students/Invite', '/teacher/students/invite.json', '/teacher/students/invite/' + id])
   assert.equal(run(bad).kind, 'redirect:/unavailable', bad + ' is not reachable');
  assert.equal(run('/api/student-administration').kind, 'next', 'the one existing endpoint');
 });
@@ -131,6 +131,8 @@ test('middleware: with Firebase staging on, exactly /teacher/students and /teach
 // ------------------------------------------------------------------ sources: the secret, the endpoints, hidden actions, wording
 test('the join link secret is made with crypto.getRandomValues, never logged, stored, navigated to or put in a query string', () => {
  const invite = src('invite.tsx');
+ const invitePage = read('app/(dashboard)/(routes)/teacher/students/invite/page.tsx'), listPage = read('app/(dashboard)/(routes)/teacher/students/page.tsx');
+ assert.match(invitePage, /uuid\.test\(invite\)/, 'the address only names a course run, checked'); assert.doesNotMatch(invitePage + invite, /searchParams[^\n]*token|location\.(search|href) *=|history\.(push|replace)State/, 'the link never reaches an address'); assert.match(listPage, /redirect\(`\/teacher\/students\/invite\?invite=/, 'the old address still leads there');
  assert.match(invite, /crypto\.getRandomValues\(new Uint8Array\(32\)\)/); assert.doesNotMatch(all, /Math\.random/);
  assert.doesNotMatch(all, /console\.|localStorage|sessionStorage|indexedDB|document\.cookie|history\.(push|replace)State|router\.(push|replace)|window\.open|location\.(href|assign|replace)\s*=|wa\.me|whatsapp|mailto:|sms:/i);
  assert.doesNotMatch(all, /\?(token|t)=|[?&]token/, 'no token in a query string');
@@ -157,7 +159,7 @@ test('actions the caller cannot perform are not offered: answering a request and
  assert.match(req, /!offering\.manage && <p[^>]*><L id="ts\.requests\.view_only"/);
  for (const k of ['mode === \'idle\'', 'mode === \'approve\'', 'mode === \'reject\'']) assert.ok(req.includes('offering.manage && ' + k), k);
  assert.match(stu, /offering\.manage && \(status === 'active' \|\| status === 'suspended' \|\| status === 'expired'\) && <AccessChange/);
- assert.match(src('students-view.tsx'), /canInvite = courses\.ok && courses\.value\.length > 0/);
+ assert.match(read('app/(dashboard)/(routes)/teacher/students/page.tsx'), /canInvite=\{courses\.ok && courses\.value\.length > 0\}/);
  assert.match(src('invite.tsx'), /published/);
 });
 test('suspend, reactivate, revoke and reject ask first; approval keeps one request id per attempt and never retries or rolls back silently', () => {
@@ -177,7 +179,7 @@ test('pages draw skeletons in place of the loading overlay, and every section ha
  assert.match(src('requests.tsx'), /ts\.requests\.load_failed/);
 });
 test('tour targets exist for the new screens', () => {
- const targets = new Set([...all.matchAll(/data-tour="([a-z-]+)"/g)].map(m => m[1]));
+ const targets = new Set([...all.matchAll(/data-tour"?'?(?:=|: )["']([a-z-]+)["']/g), ...all.matchAll(/'data-tour': '([a-z-]+)'/g)].map(m => m[1]));
  for (const t of ['invite-students', 'student-filters', 'student-rows', 'join-requests', 'invite-panel', 'create-link', 'student-access', 'student-groups', 'student-attendance']) assert.ok(targets.has(t), t);
  assert.match(read('frontend/features/teacher-groups/group-view.tsx'), /data-invite-from-group data-tour="invite-students"|data-tour="invite-students"[^>]*data-invite-from-group|data-invite-from-group/);
 });

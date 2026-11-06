@@ -23,7 +23,7 @@ function Action({ action, variant, block }: { action: HeaderAction; variant: 'pr
  * On a phone the primary action moves to a sticky bar at the bottom and the secondary and destructive ones into a ⋯ menu; `stickySecondary` keeps the secondary ones in the bar, beside the primary.
  * `menu` is always behind ⋯, at any width. One arrangement is rendered at a time, so a test id or a tour target exists once.
  */
-export function PageHeader({ title, back, pill, meta, primary, secondary = [], menu = [], stickySecondary = false, ...rest }: Omit<HTMLAttributes<HTMLElement>, 'title'> & { title: ReactNode; back?: { href: string; label: ReactNode }; pill?: ReactNode; meta?: ReactNode; primary?: HeaderAction; secondary?: readonly HeaderAction[]; menu?: readonly HeaderAction[]; stickySecondary?: boolean }) {
+export function PageHeader({ title, back, pill, meta, primary, secondary = [], menu = [], stickySecondary = false, ...rest }: Omit<HTMLAttributes<HTMLElement>, 'title'> & { title: ReactNode; back?: { href: string; label: ReactNode; data?: DataAttributes }; pill?: ReactNode; meta?: ReactNode; primary?: HeaderAction; secondary?: readonly HeaderAction[]; menu?: readonly HeaderAction[]; stickySecondary?: boolean }) {
   const router = useRouter();
   const phone = usePhone();
   const asItem = (a: HeaderAction): MenuAction => ({ key: a.key, label: a.label, destructive: a.destructive, disabled: a.disabled, data: a.data, onSelect: () => { if (a.href) router.push(a.href); else a.onClick?.(); } });
@@ -31,7 +31,7 @@ export function PageHeader({ title, back, pill, meta, primary, secondary = [], m
   const inBar = phone && (primary || (stickySecondary && secondary.length > 0));
   return <header className="d-page-header" {...rest}>
     <div className="d-page-header-main">
-      {back && <Link href={back.href} className="d-back d-focus"><Icon name="back" size={16} />{back.label}</Link>}
+      {back && <Link href={back.href} className="d-back d-focus" {...back.data}><Icon name="back" size={16} />{back.label}</Link>}
       <div className="d-page-header-title"><h1 className="d-title">{title}</h1>{pill}</div>
       {meta && <p className="d-meta">{meta}</p>}
     </div>
