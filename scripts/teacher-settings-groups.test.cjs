@@ -70,7 +70,9 @@ test('groups: Active/Archived counts, filter and search come from the rows alone
  assert.deepEqual({ ...model.groupCounts(model.managed(rows)) }, { active: 2, archived: 1 });
  assert.equal(model.managed(rows).length, 3, 'only Groups the database says the teacher manages');
  assert.deepEqual(model.filterGroups(model.managed(rows), 'active', '').map(g => g.name), ['Algebra A', 'Physics']);
- assert.deepEqual(model.filterGroups(model.managed(rows), 'active', ' science ').map(g => g.name), ['Physics']);
+ const titles = { Physics: 'Science' };
+ assert.deepEqual(model.filterGroups(model.managed(rows), 'active', ' science ', g => titles[g.name] ?? '').map(g => g.name), ['Physics'], 'search reads the course title');
+ assert.deepEqual(model.filterGroups(model.managed(rows), 'active', 'maths').map(g => g.name), [], 'and never the name of the run');
  assert.deepEqual(model.filterGroups(model.managed(rows), 'archived', 'algebra').map(g => g.name), ['Algebra B']);
 });
 test('groups: students are current members only, and a partial read says so', () => {
@@ -252,7 +254,7 @@ test('group screens: Create, Edit, add and remove send what the contract and the
  assert.match(view, /section: 'eligible'/); assert.match(view, /data-confirm-remove/);
  assert.match(view, /group\.status === 'active' && group\.instructor && <button type="button" data-edit-group/, 'Edit is for the instructor of an active Group');
  assert.match(view, /const canChange = group\.status === 'active' && group\.staff/);
- assert.match(list, /href="\/teacher\/groups\/new" data-create-group data-tour="create-group"/); assert.match(list, /data-create-group-empty/);
+ assert.match(list, /href: '\/teacher\/groups\/new'.*'data-create-group': '', 'data-tour': 'create-group'/); assert.match(list, /data-create-group-empty/);
  for (const target of ['group-course', 'group-name', 'group-place', 'weekly-times', 'group-capacity', 'save-group']) assert.match(form, new RegExp(`data-tour="${target}"`), target);
  for (const target of ['edit-group', 'add-student', 'student-rows', 'remove-student', 'eligible-students']) assert.match(view, new RegExp(`data-tour="${target}"`), target);
  assert.doesNotMatch(form, /offering_id|offering_name\}.*tg\.form/, 'the run never reaches a label');

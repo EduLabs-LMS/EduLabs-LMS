@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { AlertCircle, Loader2, MapPin, Video } from 'lucide-react';
+import { Icon as DesignIcon } from '@/frontend/components/design/icon';
+import { StatusPill } from '@/frontend/components/design/status-pill';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import type { MessageKey } from '@/frontend/locales/messages';
 import { plainButton } from '@/frontend/features/teacher-home/parts';
@@ -39,6 +41,11 @@ export function Loading({ label = 'tg.loading', className = 'h-24' }: { label?: 
 export function ModeLabel({ mode }: { mode: 'center' | 'online' }) {
   const Icon = mode === 'online' ? Video : MapPin;
   return <span className="inline-flex items-center gap-1.5"><Icon aria-hidden className="h-4 w-4" /><L id={mode === 'online' ? 'tg.mode.online' : 'tg.mode.center'} /></span>;
+}
+
+/** At a centre or online, as a pill with its icon. */
+export function ModePill({ mode }: { mode: 'center' | 'online' }) {
+  return <StatusPill tone="neutral" data-group-mode={mode}><DesignIcon name={mode === 'online' ? 'video' : 'pin'} size={14} /><L id={mode === 'online' ? 'tg.mode.online' : 'tg.mode.center'} /></StatusPill>;
 }
 
 /** "Sun 5:00 PM · Wed 5:00 PM", read in the Cairo wall-clock times the Group was set up with. */

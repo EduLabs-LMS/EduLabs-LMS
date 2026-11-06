@@ -26,7 +26,8 @@ export function displayStatus(row: Pick<RosterRow, 'status' | 'expires_at'>, now
 /** The roster action's own filter for a screen filter ("waiting" is read from the requests instead). */
 export const rosterFilter = (filter: StatusFilter) => filter === 'waiting' ? 'all' : filter;
 
-export const courseName = (o: Pick<AdminOffering, 'course_title' | 'name'>) => o.course_title?.trim() || o.name;
+/** Only ever the course's title. The run's own name ("Demo offering") is a word teachers must never see, so it is not a fallback. */
+export const courseName = (o: Pick<AdminOffering, 'course_title'>) => o.course_title?.trim() ?? '';
 
 /** The courses a teacher may look at and, separately, the ones they may change. */
 export const manageable = (offerings: readonly AdminOffering[]) => offerings.filter(o => o.manage);

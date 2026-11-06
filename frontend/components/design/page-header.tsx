@@ -1,50 +1,48 @@
 'use client';
-import * as Menu from '@radix-ui/react-dropdown-menu';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { HTMLAttributes, ReactNode } from 'react';
-import { useLanguage } from '@/frontend/components/language-provider';
-import { cn } from '@/shared/utils';
+import { ActionMenu, type MenuAction } from './action-menu';
 import { Button, buttonClass } from './button';
 import { Icon } from './icon';
 import { StickyActionBar } from './sticky-action-bar';
+import { usePhone } from './use-phone';
 
-export type HeaderAction = { key: string; label: ReactNode; href?: string; onClick?: () => void; destructive?: boolean; disabled?: boolean };
+type DataAttributes = { [name: `data-${string}`]: string | undefined };
+export type HeaderAction = { key: string; label: ReactNode; href?: string; onClick?: () => void; destructive?: boolean; disabled?: boolean; data?: DataAttributes };
 
 function Action({ action, variant, block }: { action: HeaderAction; variant: 'primary' | 'secondary' | 'destructive'; block?: boolean }) {
   const size = block ? 'lg' : 'md';
   return action.href
-    ? <Link href={action.href} className={buttonClass(variant, { block, size })}>{action.label}</Link>
-    : <Button variant={variant} block={block} size={size} disabled={action.disabled} onClick={action.onClick}>{action.label}</Button>;
+    ? <Link href={action.href} className={buttonClass(variant, { block, size })} {...action.data}>{action.label}</Link>
+    : <Button variant={variant} block={block} size={size} disabled={action.disabled} onClick={action.onClick} {...action.data}>{action.label}</Button>;
 }
 
 /**
  * The top of a page: back link, title, one pill, one meta line, actions at the top trailing corner.
- * On a phone the primary action moves to a sticky bar at the bottom and the secondary and destructive ones into a ⋯ menu.
+ * On a phone the primary action moves to a sticky bar at the bottom and the secondary and destructive ones into a ⋯ menu; `stickySecondary` keeps the secondary ones in the bar, beside the primary.
+ * `menu` is always behind ⋯, at any width. One arrangement is rendered at a time, so a test id or a tour target exists once.
  */
-export function PageHeader({ title, back, pill, meta, primary, secondary = [], ...rest }: Omit<HTMLAttributes<HTMLElement>, 'title'> & { title: ReactNode; back?: { href: string; label: ReactNode }; pill?: ReactNode; meta?: ReactNode; primary?: HeaderAction; secondary?: readonly HeaderAction[] }) {
-  const { t } = useLanguage();
+export function PageHeader({ title, back, pill, meta, primary, secondary = [], menu = [], stickySecondary = false, ...rest }: Omit<HTMLAttributes<HTMLElement>, 'title'> & { title: ReactNode; back?: { href: string; label: ReactNode }; pill?: ReactNode; meta?: ReactNode; primary?: HeaderAction; secondary?: readonly HeaderAction[]; menu?: readonly HeaderAction[]; stickySecondary?: boolean }) {
   const router = useRouter();
+  const phone = usePhone();
+  const asItem = (a: HeaderAction): MenuAction => ({ key: a.key, label: a.label, destructive: a.destructive, disabled: a.disabled, data: a.data, onSelect: () => { if (a.href) router.push(a.href); else a.onClick?.(); } });
+  const behindDots = [...(phone && !stickySecondary ? secondary : []), ...menu].map(asItem);
+  const inBar = phone && (primary || (stickySecondary && secondary.length > 0));
   return <header className="d-page-header" {...rest}>
     <div className="d-page-header-main">
       {back && <Link href={back.href} className="d-back d-focus"><Icon name="back" size={16} />{back.label}</Link>}
       <div className="d-page-header-title"><h1 className="d-title">{title}</h1>{pill}</div>
       {meta && <p className="d-meta">{meta}</p>}
     </div>
-    {(primary || secondary.length > 0) && <div className="d-page-header-actions">
-      <span className="hidden items-center gap-2 md:flex">
-        {secondary.map(a => <Action key={a.key} action={a} variant={a.destructive ? 'destructive' : 'secondary'} />)}
-        {primary && <Action action={primary} variant="primary" />}
-      </span>
-      {secondary.length > 0 && <span className="md:hidden">
-        <Menu.Root>
-          <Menu.Trigger asChild><Button variant="icon" aria-label={t('ds.more_actions')}><Icon name="more" size={20} /></Button></Menu.Trigger>
-          <Menu.Portal><Menu.Content align="end" sideOffset={6} collisionPadding={12} className="d-menu">
-            {secondary.map(a => <Menu.Item key={a.key} disabled={a.disabled} className={cn('d-menu-item', a.destructive && 'd-menu-item--danger')} onSelect={() => { if (a.href) router.push(a.href); else a.onClick?.(); }}>{a.label}</Menu.Item>)}
-          </Menu.Content></Menu.Portal>
-        </Menu.Root>
-      </span>}
+    {(!phone || behindDots.length > 0) && (primary || secondary.length > 0 || behindDots.length > 0) && <div className="d-page-header-actions">
+      {!phone && secondary.map(a => <Action key={a.key} action={a} variant={a.destructive ? 'destructive' : 'secondary'} />)}
+      {!phone && primary && <Action action={primary} variant="primary" />}
+      {behindDots.length > 0 && <ActionMenu items={behindDots} />}
     </div>}
-    {primary && <StickyActionBar data-sticky-primary><Action action={primary} variant="primary" block /></StickyActionBar>}
+    {inBar && <StickyActionBar data-sticky-primary>
+      {stickySecondary && secondary.map(a => <Action key={a.key} action={a} variant={a.destructive ? 'destructive' : 'secondary'} block />)}
+      {primary && <Action action={primary} variant="primary" block />}
+    </StickyActionBar>}
   </header>;
 }

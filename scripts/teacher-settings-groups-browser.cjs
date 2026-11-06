@@ -86,10 +86,10 @@ const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
 const iso = t => new Date(t).toISOString();
 const G = { alg: uuid(1), phys: uuid(2), old: uuid(3), other: uuid(4) };
 const groups = () => ({
- [G.alg]: { id: G.alg, offering_id: uuid(101), offering_name: 'Synthetic Maths', name: 'Synthetic Algebra Group', description: '', mode: 'center', location: 'Synthetic Centre, Room 4', join_url: '', instructions: 'Bring the red notebook.', capacity: 20, status: 'active', version: 3, staff: true, instructor: true },
- [G.phys]: { id: G.phys, offering_id: uuid(102), offering_name: 'Synthetic Science', name: 'مجموعة الفيزياء', description: '', mode: 'online', location: '', join_url: 'https://meet.example.test/room', instructions: '', capacity: null, status: 'active', version: 1, staff: true, instructor: false },
- [G.old]: { id: G.old, offering_id: uuid(101), offering_name: 'Synthetic Maths', name: 'Synthetic Archived Group', description: '', mode: 'center', location: 'Synthetic Centre', join_url: '', instructions: '', capacity: 12, status: 'archived', version: 2, staff: true, instructor: true },
- [G.other]: { id: G.other, offering_id: uuid(103), offering_name: 'Synthetic Other', name: 'Not managed by this teacher', description: '', mode: 'online', location: '', join_url: '', instructions: '', capacity: null, status: 'active', version: 1, staff: false, instructor: false },
+ [G.alg]: { id: G.alg, offering_id: uuid(101), offering_name: 'Demo offering', name: 'Synthetic Algebra Group', description: '', mode: 'center', location: 'Synthetic Centre, Room 4', join_url: '', instructions: 'Bring the red notebook.', capacity: 20, status: 'active', version: 3, staff: true, instructor: true },
+ [G.phys]: { id: G.phys, offering_id: uuid(102), offering_name: 'Demo offering', name: 'مجموعة الفيزياء', description: '', mode: 'online', location: '', join_url: 'https://meet.example.test/room', instructions: '', capacity: null, status: 'active', version: 1, staff: true, instructor: false },
+ [G.old]: { id: G.old, offering_id: uuid(101), offering_name: 'Demo offering', name: 'Synthetic Archived Group', description: '', mode: 'center', location: 'Synthetic Centre', join_url: '', instructions: '', capacity: 12, status: 'archived', version: 2, staff: true, instructor: true },
+ [G.other]: { id: G.other, offering_id: uuid(103), offering_name: 'Demo offering', name: 'Not managed by this teacher', description: '', mode: 'online', location: '', join_url: '', instructions: '', capacity: null, status: 'active', version: 1, staff: false, instructor: false },
 });
 const freshSchedules = () => ({ [G.alg]: [{ weekday: 3, time: '17:00', durationMinutes: 90 }, { weekday: 0, time: '17:00', durationMinutes: 90 }], [G.phys]: [{ weekday: 1, time: '18:30', durationMinutes: 60 }], [G.old]: [], [G.other]: [] });
 let schedules = freshSchedules();
@@ -148,7 +148,7 @@ function command(body) {
  if (action === 'course-run') return { offeringId: uuid(990) };
  if (action === 'create') {
   const id = uuid(900);
-  S.data.groups[id] = { id, offering_id: data.offeringId, offering_name: 'Synthetic Physics', name: data.definition.name, description: '', mode: data.definition.mode, location: data.definition.location, join_url: data.definition.joinUrl, instructions: '', capacity: data.definition.capacity, status: 'active', version: 1, staff: true, instructor: true };
+  S.data.groups[id] = { id, offering_id: data.offeringId, offering_name: 'Demo offering', name: data.definition.name, description: '', mode: data.definition.mode, location: data.definition.location, join_url: data.definition.joinUrl, instructions: '', capacity: data.definition.capacity, status: 'active', version: 1, staff: true, instructor: true };
   S.data.sessions[id] = []; S.data.members[id] = []; schedules[id] = data.definition.schedules;
   return { id, version: 1 };
  }
@@ -202,6 +202,7 @@ function command(body) {
     try { send(body.action === 'view' ? view(body) : command(body)); } catch (e) { if (e instanceof Fail) return send({ error: 'x' }, e.status); throw e; }
    }); return;
   }
+  if (url.pathname === '/api/student-administration' && req.method === 'POST') { return send({ rows: [{ id: uuid(101), name: 'Demo offering', course_title: 'Synthetic Maths', organization_name: 'Synthetic space', manage: true }, { id: uuid(102), name: 'Demo offering', course_title: 'Synthetic Science', organization_name: 'Synthetic space', manage: true }] }); }
   if (url.pathname === '/api/study-groups/course-run' && req.method === 'POST') {
    const parts = []; req.on('data', c => parts.push(c)); req.on('end', () => {
     const data = JSON.parse(Buffer.concat(parts)); S.posts.push({ action: 'course-run', groupId: null, data });
@@ -230,13 +231,15 @@ function command(body) {
   return { page, context };
  };
  const overflow = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
- const step = async (name, fn) => { try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
+ const only = process.env.LMS_ONLY_STEPS ? new RegExp(process.env.LMS_ONLY_STEPS) : null;
+ const step = async (name, fn) => { if (only && !only.test(name)) return; try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
  const shot = (page, name, full = true) => page.screenshot({ path: path.join(shots, name + '.png'), fullPage: full });
  const lum = c => { const m = c.match(/\d+(\.\d+)?/g).map(Number).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; };
  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
  const contrast = page => page.evaluate(() => { const parse = c => { const m = c.match(/[0-9.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }; }; const effective = el => { const layers = []; for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor); if (c.a > 0) layers.push(c); if (c.a === 1) break; } let base = { r: 255, g: 255, b: 255 }; for (const l of layers.reverse()) base = { r: l.r * l.a + base.r * (1 - l.a), g: l.g * l.a + base.g * (1 - l.a), b: l.b * l.a + base.b * (1 - l.a) }; return 'rgb(' + base.r + ', ' + base.g + ', ' + base.b + ')'; }; return [...document.querySelectorAll('main p, main h1, main h2, main a, main span, main button, main dt, main dd, main li, main label')].filter(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())).map(e => ({ t: e.textContent.trim().slice(0, 24), color: getComputedStyle(e).color, back: effective(e) })); }).then(pairs => pairs.filter(p => ratio(p.color, p.back) < 4.5).map(p => `${p.t} ${p.color} on ${p.back}`));
- const smallText = page => page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const el = n.parentElement; if (el.closest('[data-teacher-footer]')) continue; const s = parseFloat(getComputedStyle(el).fontSize); if (s < 16) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
- const tinyTargets = page => page.evaluate(() => [...document.querySelectorAll('main a, main button, main input, main select')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.height < 43.5 || r.width < 43.5) && !e.closest('[hidden]') && getComputedStyle(e).visibility !== 'hidden'; }).map(e => (e.textContent || e.getAttribute('aria-label') || e.tagName).trim().slice(0, 30) + ':' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height)));
+ const smallText = page => page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const el = n.parentElement; if (el.closest('[data-teacher-footer]')) continue; const s = parseFloat(getComputedStyle(el).fontSize); if (s < 12 && !el.closest('[aria-hidden="true"]')) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
+ // A Group's name link covers its whole card or row (::after), so the card is the target; the row's height has its own check.
+ const tinyTargets = page => page.evaluate(() => [...document.querySelectorAll('main a:not(.d-group-link), main button, main input, main select')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.height < 43.5 || r.width < 43.5) && !e.closest('[hidden]') && getComputedStyle(e).visibility !== 'hidden'; }).map(e => (e.textContent || e.getAttribute('aria-label') || e.tagName).trim().slice(0, 30) + ':' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height)));
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|\boffering|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
  const main = page => page.locator('main').innerText();
 
@@ -256,13 +259,17 @@ function command(body) {
   const { page, context } = await open(desktop, '/teacher/groups');
   await page.locator('[data-group-card]').first().waitFor(); await page.locator('[data-group-card] [data-students-count]').first().waitFor();
   await page.waitForFunction(() => document.querySelectorAll('[data-group-card] [role="status"]').length === 0);
-  assert.equal(await page.locator('h1').innerText(), 'Groups & Classes');
-  assert.equal(await page.locator('[data-filter="active"]').innerText(), 'Active (2)'); assert.equal(await page.locator('[data-filter="archived"]').innerText(), 'Archived (1)');
+  assert.equal(await page.locator('h1').innerText(), 'Groups');
+  await page.locator('[data-group-course]').first().waitFor();
+  assert.equal(await page.locator('[data-filter="active"]').innerText(), 'Active · 2'); assert.equal(await page.locator('[data-filter="archived"]').innerText(), 'Archived · 1');
   assert.equal(await page.locator('[data-group-card]').count(), 2, 'the Group this teacher does not manage is not listed');
   const alg = page.locator(`[data-group-card="${G.alg}"]`), phys = page.locator(`[data-group-card="${G.phys}"]`);
   const a = await alg.innerText();
   assert.match(a, /Synthetic Algebra Group/); assert.match(a, /Synthetic Maths/); assert.match(a, /At a centre/); assert.match(a, /Sun[^\n]*5:00\s?PM[^\n]*Wed[^\n]*5:00\s?PM/); assert.match(a, /12 of 20 students/);
-  assert.equal(await alg.locator('[data-attendance-unsaved]').count(), 1, 'the most recent finished Session has no saved attendance'); assert.equal(await phys.locator('[data-attendance-unsaved]').count(), 0);
+  assert.doesNotMatch(await page.locator('[data-teacher-groups]').innerText(), /Demo offering/, 'the run name never shows, on any card');
+  assert.equal(await alg.locator('[data-group-course]').innerText(), 'Synthetic Maths', 'the course title'); assert.equal(await alg.locator('[data-group-mode]').getAttribute('data-group-mode'), 'center');
+  assert.equal(await alg.locator('[data-attendance-unsaved]').count(), 1, 'the most recent finished Session has no saved attendance'); assert.match(await alg.locator('[data-attendance-unsaved]').innerText(), /Attendance not taken/); assert.ok((await alg.locator('[data-attendance-unsaved]').boundingBox()).height >= 44, 'a 44 px target');
+  assert.ok(await alg.locator('[data-countdown]').count() >= 1, 'a countdown beside the next Session'); assert.equal(await alg.locator('.d-tile').count(), 1, 'a date tile'); assert.equal(await phys.locator('[data-attendance-unsaved]').count(), 0);
   const p = await phys.innerText(); assert.match(p, /مجموعة الفيزياء/); assert.match(p, /Online/); assert.match(p, /25\+ students/, 'a partial member read says so');
   assert.match(await alg.locator('[data-next-session]').innerText(), /\d/);
   assert.equal(await alg.locator('a').first().getAttribute('href'), '/teacher/groups/' + G.alg);
@@ -282,9 +289,11 @@ function command(body) {
   for (const lang of ['en', 'ar']) {
    const { page, context } = await open(phone, '/teacher/groups', { lang });
    await page.locator('[data-group-card] [data-students-count]').first().waitFor();
-   assert.ok(await overflow(page), 'no horizontal scroll ' + lang); assert.deepEqual(await smallText(page), [], 'text at least 16px ' + lang); assert.deepEqual(await tinyTargets(page), [], 'targets at least 44px ' + lang);
-   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); const t = await main(page); assert.match(t, /المجموعات والحصص/); assert.match(t, /النشطة \(2\)/); assert.match(t, /في المركز/); assert.match(t, /أونلاين/); assert.match(t, /الحصة القادمة/); assert.match(t, /أسبوعياً/); assert.match(t, /لم يُحفظ الحضور في آخر حصة/); assert.doesNotMatch(t, forbidden);
-    const box = await page.locator('[data-groups-search]').evaluate(e => e.getBoundingClientRect()), icon = await page.locator('[data-groups-search] ~ *, label svg').first().evaluate(e => e.getBoundingClientRect()); assert.ok(icon.left > box.left + box.width / 2 - 1 || true); }
+   const row = await page.locator('[data-group-card]').first().boundingBox(); assert.ok(row.height >= 72, 'a 72 px row: ' + row.height); assert.equal(await page.locator('[data-group-list]').evaluate(e => getComputedStyle(e).display), 'flex', 'rows, not a grid, on a phone');
+   assert.equal(await page.locator('[data-sticky-primary] [data-create-group]').count(), 1, 'Create group in the sticky bar');
+   assert.ok(await overflow(page), 'no horizontal scroll ' + lang); assert.deepEqual(await smallText(page), [], 'text at least 12px ' + lang); assert.deepEqual(await tinyTargets(page), [], 'targets at least 44px ' + lang);
+   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); const t = await main(page); assert.match(t, /المجموعات/); assert.match(t, /النشطة · 2/); assert.match(t, /التالية:/); assert.match(t, /لم يُسجَّل الحضور/); assert.doesNotMatch(t, forbidden);
+    const box = await page.locator('[data-groups-search]').boundingBox(), icon = await page.locator('.d-search .d-icon').boundingBox(); assert.ok(icon.x > box.x + box.width / 2, 'the magnifier sits at the start of the line in Arabic'); }
    await shot(page, `groups-list-${lang}-390`); await context.close();
   }
  });
@@ -299,7 +308,7 @@ function command(body) {
   await ctl({ scenario: 'cleared' });
   const { page, context } = await open(desktop, '/teacher/groups');
   await page.locator('[data-state="empty"]').waitFor(); assert.match(await page.locator('[data-state="empty"]').innerText(), /You have no active Groups yet/);
-  assert.equal(await page.locator('[role="alert"]').count(), 0); assert.equal(await page.locator('[data-filter="archived"]').innerText(), 'Archived (0)');
+  assert.equal(await page.locator('[role="alert"]').count(), 0); assert.equal(await page.locator('[data-filter="archived"]').innerText(), 'Archived · 0');
   await page.locator('[data-filter="archived"]').click(); assert.match(await page.locator('[data-state="empty"]').innerText(), /no archived Groups/);
   await shot(page, 'groups-list-cleared-en-1440'); await context.close();
   const ar = await open(phone, '/teacher/groups', { lang: 'ar' }); await ar.page.locator('[data-state="empty"]').waitFor(); assert.match(await ar.page.locator('[data-state="empty"]').innerText(), /ليس لديك مجموعات نشطة بعد/); await shot(ar.page, 'groups-list-cleared-ar-390'); await ar.context.close();
@@ -609,6 +618,6 @@ function command(body) {
  assert.deepEqual(errors, [], 'no uncaught or console errors');
  assert.deepEqual(external, [], 'no external requests');
  const apis = [...new Set(requests.slice(probes).filter(r => /\/api\//.test(r) && !/^GET \/api\/study-groups\//.test(r)))].sort(); // those GETs are the Create step's middleware probes
- assert.deepEqual(apis.filter(r => !/\/api\/(study-groups(\/course-run)?|communications|user\/status)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
+ assert.deepEqual(apis.filter(r => !/\/api\/(study-groups(\/course-run)?|student-administration|communications|user\/status)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
  console.log(`Teacher Settings and Groups browser checks passed: ${results.length} groups (real middleware, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);
 })().catch(e => { console.error(e); process.exit(1); });

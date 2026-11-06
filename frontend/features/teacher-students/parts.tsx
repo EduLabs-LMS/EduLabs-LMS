@@ -16,11 +16,9 @@ export function StudentName({ name }: { name: string | null | undefined }) {
   return name?.trim() ? <bdi dir="auto">{name}</bdi> : <L id="ts.students.unnamed" />;
 }
 
-/** Course names the teacher sees; two courses with the same title are told apart by their own name. */
+/** Course names the teacher sees: the course's title and nothing else. Two runs of one course read the same; the run's own name is never shown to tell them apart. */
 export function courseLabels(offerings: readonly AdminOffering[]): Map<string, string> {
-  const counts = new Map<string, number>();
-  for (const o of offerings) counts.set(courseName(o), (counts.get(courseName(o)) ?? 0) + 1);
-  return new Map(offerings.map(o => [o.id, (counts.get(courseName(o)) ?? 0) > 1 && o.name !== courseName(o) ? `${courseName(o)} · ${o.name}` : courseName(o)]));
+  return new Map(offerings.map(o => [o.id, courseName(o)]));
 }
 
 export const fieldClass = 'min-h-[48px] w-full rounded-xl border-2 border-black bg-white px-3 text-base';

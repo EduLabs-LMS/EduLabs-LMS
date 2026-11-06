@@ -77,15 +77,16 @@ export function studentsByName<T extends { display_name: string; user_id: string
 
 export const nextOf = (rows: readonly GroupSession[], now: number) => nextSession([...rows], now);
 
-export type ListedGroup = Pick<StudyGroup, 'id' | 'name' | 'offering_name' | 'status' | 'staff' | 'instructor' | 'capacity' | 'mode' | 'location' | 'version'>;
+export type ListedGroup = Pick<StudyGroup, 'id' | 'name' | 'status' | 'staff' | 'instructor' | 'capacity' | 'mode' | 'location' | 'version'>;
 /** Only Groups the teacher manages are listed; the database decides that (`staff`), the screen only filters on it. */
 export const managed = <T extends Pick<StudyGroup, 'staff'>>(rows: readonly T[]) => rows.filter(g => g.staff);
 export function groupCounts(rows: readonly Pick<StudyGroup, 'status'>[]) {
   return { active: rows.filter(g => g.status === 'active').length, archived: rows.filter(g => g.status === 'archived').length };
 }
-export function filterGroups<T extends Pick<StudyGroup, 'name' | 'offering_name' | 'status'>>(rows: readonly T[], filter: GroupFilter, query: string) {
+/** Search reads the Group's name and its course title. The name of the run is never shown, so it must not decide a match either. */
+export function filterGroups<T extends Pick<StudyGroup, 'name' | 'status'>>(rows: readonly T[], filter: GroupFilter, query: string, courseTitle: (group: T) => string = () => '') {
   const q = query.trim().toLowerCase();
-  return rows.filter(g => g.status === filter && (!q || g.name.toLowerCase().includes(q) || g.offering_name.toLowerCase().includes(q)));
+  return rows.filter(g => g.status === filter && (!q || g.name.toLowerCase().includes(q) || courseTitle(g).toLowerCase().includes(q)));
 }
 
 /** What a failed call means for the person, never "nothing found". `null` = no reply (the outcome of a change is then unknown). */

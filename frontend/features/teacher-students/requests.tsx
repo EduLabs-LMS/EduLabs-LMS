@@ -118,7 +118,7 @@ export function RequestsSection({ rows, failed, more, labels, groups, groupsErro
     <div><h2 id="ts-requests" className="font-display text-2xl leading-tight"><L id="ts.requests.title" /></h2>{rows.length > 0 && <p className="text-base text-slate-700"><L id="ts.requests.intro" /></p>}</div>
     {notices.length > 0 && <Notices notices={notices} onClose={onCloseNotice} />}
     {failed > 0 && <div role="alert" data-state="error" className="space-y-3 rounded-2xl border-2 border-black bg-rose-50 p-4 text-base"><p><L id="ts.requests.load_failed" /></p><button type="button" onClick={onRetryFailed} className={plainButton}><L id="tg.retry" /></button></div>}
-    {rows.length > 0 && <ul className="divide-y-2 divide-black/15 border-y-2 border-black/15">{rows.map(item => <RequestItem key={item.request.id} item={item} groups={groups} groupsError={groupsError} label={labels.get(item.offering.id) ?? item.offering.name}
+    {rows.length > 0 && <ul className="divide-y-2 divide-black/15 border-y-2 border-black/15">{rows.map(item => <RequestItem key={item.request.id} item={item} groups={groups} groupsError={groupsError} label={labels.get(item.offering.id) ?? ''}
       onDone={() => onChanged(item.request.id)} onStale={onRetryFailed} onNotice={onNotice} />)}</ul>}
     {more > 0 && <p data-requests-more className="text-base text-slate-700"><L id="ts.requests.more" /></p>}
   </section>;

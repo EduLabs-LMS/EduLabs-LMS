@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState } from 'react';
+import { Countdown } from '@/frontend/components/design/countdown';
 import { Card, CardHead, DateTile, Icon, IconBadge, ListRow, PageHeader, StatusPill, buttonClass } from '@/frontend/components/design';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { useApplicationAuth, useWebsiteNavigation } from '@/frontend/components/providers/application-auth-provider';
@@ -8,7 +9,6 @@ import { eventLabels } from '@/shared/contracts/communications';
 import { cn } from '@/shared/utils';
 import { cairoHour, greetingKey, sessionsTodayKey, type HomeSession, type HomeUnsaved, type TeacherHomeLoad } from '@/shared/teacher-home';
 import { attendanceHref } from '@/shared/teacher-attendance';
-import { countdownParts, formatCountdown } from '@/shared/home-countdown';
 import { useCountUp } from '@/frontend/lib/page-entry';
 import { useServerNow } from './use-server-now';
 import { CreateCourse } from './create-course';
@@ -78,12 +78,6 @@ function Facts({ next, facts }: { next: HomeSession; facts: HomeData['nextFacts'
     <span className="d-hero-fact"><Icon name={next.mode === 'online' ? 'video' : 'pin'} size={16} />{next.mode === 'online' ? <L id="th.next.online" /> : <span><L id="th.next.center" />{next.location && <> · <bdi dir="auto">{next.location}</bdi></>}</span>}</span>
     {students !== null && <span data-next-students className="d-hero-fact"><Icon name="students" size={16} /><L id={more ? 'th.next.students_more' : students === 1 ? 'th.next.student_one' : 'th.next.students'} values={{ count: number(students) }} /></span>}
   </p>;
-}
-
-/** How long until it starts: a calm line that changes once a minute, in the server's time. */
-function Countdown({ startsAt, now, as: Tag = 'span' }: { startsAt: string; now: number; as?: 'span' | 'p' }) {
-  const { language, number } = useLanguage();
-  return <Tag data-countdown className="d-countdown"><bdi>{formatCountdown(countdownParts(Date.parse(startsAt), now), language, number)}</bdi></Tag>;
 }
 
 /** The one heavy thing on the screen: the class happening now, or the next one. */
