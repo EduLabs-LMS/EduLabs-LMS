@@ -1,4 +1,5 @@
 'use client';
+import { TeacherSurface } from '@/frontend/components/design/surface';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -126,7 +127,7 @@ export function TeacherFrame({ children }: { children: React.ReactNode }) {
       <PhoneHeader />
       <DesktopSidebar pathname={pathname} />
       <div className="d-main">
-        <main ref={main} data-enter="" className="d-main-inner">{children}</main>
+        <main ref={main} data-enter="" className="d-main-inner"><TeacherSurface>{children}</TeacherSurface></main>
         <div className="hidden md:block"><Footer audience="teacher" /></div>
         <p data-teacher-phone-footer className="d-phone-footer"><FooterCredits /></p>
       </div>

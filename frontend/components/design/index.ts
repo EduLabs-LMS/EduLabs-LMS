@@ -12,6 +12,7 @@ export { PageHeader, type HeaderAction } from './page-header';
 export { DesignSkeleton } from './skeleton';
 export { StatusPill, type Tone } from './status-pill';
 export { StickyActionBar } from './sticky-action-bar';
+export { TeacherSurface, useTeacherSurface } from './surface';
 export { ChoiceGroup, SegmentedControl, Select, Switch, type ChoiceOption, type SelectOption } from './controls';
 export { Tabs, type TabItem } from './tabs';
 export { usePhone } from './use-phone';

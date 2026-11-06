@@ -9,5 +9,5 @@ import { LanguageSettings } from '@/frontend/features/personalization/language-s
 export default async function Page() {
   await staffContext();
   const cookieStore = await cookies();
-  return <div data-settings-language className="space-y-6"><LanguageSettings /><AppearanceSettings /><DesignSettings initial={designFromCookie(cookieStore.get(designCookieKey)?.value)} /></div>;
+  return <div data-settings-language className="d-stack-lg"><LanguageSettings /><AppearanceSettings /><DesignSettings initial={designFromCookie(cookieStore.get(designCookieKey)?.value)} /></div>;
 }

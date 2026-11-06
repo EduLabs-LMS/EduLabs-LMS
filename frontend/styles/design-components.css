@@ -547,6 +547,31 @@ html[lang="ar"] .d-section-label { letter-spacing: 0; }
 .d-card .d-dl--grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--d-space-4); }
 .d-dl-wide { grid-column: 1 / -1; }
 
+/* ---- Settings ---- */
+.d-settings-head { display: flex; align-items: center; gap: var(--d-space-2); }
+.d-settings-head--wide, .d-settings-tabs { display: none; }
+@media (min-width: 768px) { .d-settings-head--wide, .d-settings-tabs { display: block; } .d-settings-head--phone { display: none; } }
+.d-account { display: flex; flex-wrap: wrap; align-items: center; gap: var(--d-space-4); }
+.d-account-photo { flex: none; display: grid; place-items: center; width: 72px; height: 72px; overflow: hidden; border-radius: 50%; background: var(--d-tint); color: var(--d-ink); }
+.d-account .d-dl { flex: 1 1 220px; min-width: 0; gap: var(--d-space-3); }
+[data-settings-list] .d-row { padding: 0; }
+[data-settings-list] .d-row-link { min-height: 72px; }
+.d-space-editing { padding: var(--d-space-3) 0; }
+ul.d-list.d-card { overflow: hidden; }
+
+/* ---- Notifications ---- */
+.d-note-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
+.d-note-dot--unread { background: var(--d-pill-danger); }
+.d-pager { display: flex; flex-wrap: wrap; align-items: center; gap: var(--d-space-2); }
+
+/* ---- The Group form ---- */
+.d-form-page { max-width: 720px; }
+.d-self-start { align-self: flex-start; }
+.d-time-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: var(--d-space-2); padding: var(--d-space-3) 0; border-bottom: var(--d-divider-width) solid var(--d-divider); }
+.d-time-row:last-child { border-bottom: 0; }
+.d-time-day, .d-time-remove { grid-column: 1 / -1; }
+@media (min-width: 640px) { .d-time-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto; } .d-time-day, .d-time-remove { grid-column: auto; } }
+
 /* ---- Reduced motion: nothing moves ---- */
 @media (prefers-reduced-motion: reduce) {
   .d-btn, .d-btn:not([disabled]):hover, .d-btn:not([disabled]):active, .d-btn--primary:not([disabled]):active { transition: none; transform: none; }

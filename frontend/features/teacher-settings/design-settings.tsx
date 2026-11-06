@@ -18,10 +18,10 @@ export function DesignSettings({ initial = defaultDesign }: { initial?: Design }
     document.documentElement.dataset.design = next;
     setDesign(next);
   }
-  return <section aria-labelledby="design-title" data-design-switch className="rounded-3xl border-2 border-black bg-card p-5 shadow-hard-sm sm:p-6">
-    <h2 id="design-title" className="font-display text-2xl"><L id="ds.design.title" /></h2>
-    <p className="mt-3 text-sm text-muted-foreground"><L id="ds.design.help" /></p>
-    <div className="mt-5">
+  return <section aria-labelledby="design-title" data-design-switch className="d-card d-card--pad d-stack">
+    <h2 id="design-title" className="d-section"><L id="ds.design.title" /></h2>
+    <p className="d-meta"><L id="ds.design.help" /></p>
+    <div>
       <SegmentedControl label={t('ds.design.title')} value={design} onChange={choose} options={[
         { value: 'classic', label: <L id="ds.design.classic" />, 'data-design-option': 'classic' },
         { value: 'new', label: <L id="ds.design.new" />, 'data-design-option': 'new' },
