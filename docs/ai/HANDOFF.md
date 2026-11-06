@@ -49,6 +49,10 @@ Same branch, `claude/design-v2-foundation`, not merged or deployed. Every teache
 
 Branched from `claude/teacher-v1` after it was fast-forwarded to the design branch (owner tested it on staging). Sign-in and sign-up are on the design components in both looks; `/teacher/website` is switched off until its feature exists; V1.md lists the eleven stale browser harnesses to repair. Not merged or deployed.
 
-## Update 2026-11-06: course content, stopped for review on `claude/course-content`
+## Update 2026-11-06: the Content section is built on `claude/course-content`
+
+The owner applied `20261106130000_course_content_tree.sql` on dev and smoke-tested it with a real Firebase teacher. The Content section is now on the course page, through one new route, `/api/teacher/courses/<id>/content`. The migration did not change. It has been tested with synthetic data in a browser and against the real functions on a disposable database, not yet on dev. **Next:** the owner tries it on dev, then decides on the merge. Pushed to `claude/course-content`; no merge, no PR.
+
+## Earlier on 2026-11-06: course content, stopped for review on `claude/course-content`
 
 The homework and content boards and the owner's decisions are committed. The backend audit found delete, move and a safe rename missing, so the work stopped at one draft migration and its tests, as the owner instructed: `20261106130000_course_content_tree.sql`, not applied anywhere. **Next:** the owner reviews it and applies it on dev. Then build the Content section: contract and service, reasons in English and Arabic, the screen, unit tests and a browser harness. The owner's four answers are in DECISIONS.md, "Course content tree", and the draft follows them. Pushed to `claude/course-content`; no merge, no PR, nothing applied.

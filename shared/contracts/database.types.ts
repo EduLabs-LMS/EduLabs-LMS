@@ -2329,6 +2329,18 @@ export type Database = {
         }
         Returns: Json
       }
+      course_structure: { Args: { p_course_id: string }; Returns: Json }
+      edit_course_structure: {
+        Args: {
+          p_action: string
+          p_course_id: string
+          p_data: Json
+          p_id: string | null
+          p_parent_id: string | null
+          p_updated_at: string | null
+        }
+        Returns: string
+      }
       edit_learning_content: {
         Args: {
           p_action: string

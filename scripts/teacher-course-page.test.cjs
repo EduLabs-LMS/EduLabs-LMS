@@ -55,5 +55,5 @@ test('locales: every tc.* text exists in English and Arabic with the same placeh
   const holes = s => (s.match(/\{\w+\}/g) ?? []).sort().join(); assert.equal(holes(messages.en[k]), holes(messages.ar[k]), k);
   assert.match(messages.ar[k], /[؀-ۿ]/, k); assert.doesNotMatch(messages.en[k] + messages.ar[k], /organi[sz]ation|tenant|\bslug\b|منظمة|مؤسسة/i, k);
  }
- assert.match(messages.en['tc.lessons_soon'], /lesson editor is coming/);
+ assert.match(messages.en['tc.content.note'], /come with the lesson editor/);
 });

@@ -110,6 +110,7 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
    if (b.updated_at !== S.updatedAt) return send({ error: 'Course changed. Reload before saving.' }, 409);
    S.status = b.status; bump(); return send({ id: COURSE });
   });
+  if (url.pathname === '/api/teacher/courses/' + COURSE + '/content' && req.method === 'GET') return send({ archived: S.status === 'archived', canEdit: S.canEdit, chapters: [{ id: uuid(80), title: 'Synthetic Motion', type: 'chapter', number: 1, position: 0, updatedAt: S.updatedAt }], lessons: [{ id: uuid(81), chapterId: uuid(80), title: 'Synthetic Speed', position: 0, status: 'draft', updatedAt: S.updatedAt, homework: 0, draftHomework: 0, deleteBlockers: [], contentBlocks: 0, hasCover: false, parts: 0 }] });
   if (url.pathname.startsWith('/api/')) { if (url.pathname === '/api/communications') return send({ rows: [], page: 0, unread: 0 }); if (url.pathname === '/api/user/status') return send({ user: { role: 'teacher' } }); return send({ error: 'harness: not served' }, 404); }
   const h = decision.headers || new Map();
   res.setHeader('Content-Type', 'text/html; charset=utf-8'); for (const [k, v] of h) res.setHeader(k, v);
@@ -156,7 +157,7 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
   probes = requests.length;
  });
 
- await step('Desktop: a draft course shows title, system, grade, description, Draft, Publish and a calm Lessons note (no fake list)', async () => {
+ await step('Desktop: a draft course shows title, system, grade, description, Draft, Publish, and its Content section', async () => {
   const { page, context } = await open(desktop);
   await page.locator('[data-teacher-course]').waitFor(); await settled(page);
   assert.equal((await page.locator('[data-course-title]').innerText()).trim(), 'Synthetic Physics 9');
@@ -164,8 +165,8 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
   assert.match(text, /Education system\s+American Diploma/); assert.match(text, /Grade\s+Grade 9/); assert.match(text, /A synthetic course about motion and energy\./);
   assert.equal(await page.locator('[data-status="draft"]').count(), 1); assert.match(await page.locator('[data-status-note]').innerText(), /Students cannot see this course yet/);
   assert.equal(await page.locator('[data-course-publish]').innerText(), 'Publish');
-  assert.match(await page.locator('[data-lessons-soon]').innerText(), /lesson editor is coming/i);
-  assert.equal(await page.locator('[data-section="lessons"] li, [data-section="lessons"] ul').count(), 0, 'no list of lessons');
+  assert.match(await page.locator('[data-content-note]').innerText(), /come with the lesson editor/i);
+  assert.equal(await page.locator('[data-lesson]').count(), 1, 'the real read, not a fake list'); assert.equal(await page.locator('[data-lessons-soon], [data-section="lessons"]').count(), 0, 'the old note is gone');
   assert.equal(await page.locator('[data-course-space]').count(), 0, 'one space: the space is not named');
   assert.equal(await page.locator('[data-settings-section]').count(), 0, 'a course page has no Settings sub-navigation: it belongs to Courses');
   assert.equal(await page.locator('[data-course-back]').getAttribute('href'), '/teacher/courses');
@@ -199,11 +200,11 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
   await context.close();
  });
 
- await step('Arabic and RTL: the page, the confirmation and the Lessons note are in Arabic, mirrored, with no overflow', async () => {
+ await step('Arabic and RTL: the page, the confirmation and the Content section are in Arabic, mirrored, with no overflow', async () => {
   const { page, context } = await open(phone, PAGE, { lang: 'ar' }); await page.locator('[data-teacher-course]').waitFor(); await settled(page);
   assert.equal(await page.evaluate(() => document.documentElement.dir), 'rtl');
   const text = await main(page);
-  for (const part of ['التفاصيل', 'النظام التعليمي', 'الصف', 'الظهور', 'مسودة', 'نشر', 'الدروس', 'محرر الدروس قادم']) assert.ok(text.includes(part), part);
+  for (const part of ['التفاصيل', 'النظام التعليمي', 'الصف', 'الظهور', 'مسودة', 'نشر', 'المحتوى', 'محرر الدروس']) assert.ok(text.includes(part), part);
   await page.locator('[data-course-publish]').click(); await page.locator('[data-confirm]').waitFor(); assert.ok((await page.locator('[data-confirm]').innerText()).includes('سيستطيع الطلاب الذين تدعوهم رؤيتها'));
   await clean(page, 'arabic'); await shot(page, 'phone-arabic'); await context.close();
  });
@@ -259,7 +260,7 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
 
  await step('Not allowed, archived, missing and server error: no Publish button, a plain note, or an honest page', async () => {
   await ctl({ canEdit: false }); let o = await open(desktop); await o.page.locator('[data-teacher-course]').waitFor();
-  assert.equal(await o.page.locator('[data-course-publish]').count(), 0); assert.match(await o.page.locator('[data-cannot-edit]').innerText(), /Only the owner, an admin or the course team/); await o.context.close();
+  assert.equal(await o.page.locator('[data-course-publish]').count(), 0); assert.match(await o.page.locator('[data-cannot-edit]').innerText(), /Only the owner, an admin or the course team/); await o.page.locator('[data-content-readonly="staff"]').waitFor(); await o.context.close();
   await ctl({ reset: true, status: 'archived' }); o = await open(desktop); await o.page.locator('[data-teacher-course]').waitFor();
   assert.equal(await o.page.locator('[data-course-publish]').count(), 0); assert.equal(await o.page.locator('[data-status="archived"]').count(), 1); await o.context.close();
   await ctl({ reset: true, load: 'missing' }); o = await open(phone); await o.page.locator('[data-state="missing"]').waitFor(); assert.match(await main(o.page), /Course not found/); await clean(o.page, 'missing'); await o.context.close();
@@ -284,6 +285,6 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
  assert.deepEqual(errors, [], 'no uncaught or console errors');
  assert.deepEqual(external, [], 'no external requests');
  const apis = [...new Set(requests.slice(probes).filter(r => /\/api\//.test(r)).map(r => r.replace(/^(\w+) (\/[^?]*).*/, '$1 $2')))].sort();
- assert.deepEqual(apis.filter(r => !/^(GET \/api\/teacher\/academics|PATCH \/api\/teacher\/courses\/[0-9a-f-]{36}|GET \/api\/communications|GET \/api\/user\/status)$/.test(r)), [], 'the page calls only the existing endpoints: ' + apis.join(', '));
+ assert.deepEqual(apis.filter(r => !/^(GET \/api\/teacher\/courses\/[0-9a-f-]{36}\/content|GET \/api\/teacher\/academics|PATCH \/api\/teacher\/courses\/[0-9a-f-]{36}|GET \/api\/communications|GET \/api\/user\/status)$/.test(r)), [], 'the page calls only the existing endpoints: ' + apis.join(', '));
  console.log(`Teacher course page browser checks passed: ${results.length} groups (real middleware, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);
 })().catch(e => { console.error(e); process.exit(1); });

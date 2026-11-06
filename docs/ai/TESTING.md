@@ -144,7 +144,11 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `node --test scripts/course-content-migration.test.cjs` (part of `npm test`) checks the file's shape.
 - The runtime is in the main checkout: `LMS_SQL_RUNTIME=/c/dev/EduLabs-LMS/.local/step03a/runtime/node_modules`. `bash .local/pg17.sh start` starts the disposable server.
 - **Expect a long full run.** `listing-performance` is much slower after the other suites than alone: on the base commit `0d32831`, 234 s alone and 1,476 s in a full run; on this branch, 215 s alone and about 44 minutes in one full run while other runs shared the machine. Why it slows after the other suites is not diagnosed. To work on one suite, set `LMS_SQL_ONLY=<name>`.
-- No browser harness yet: the screen is not built.
+- `node --test scripts/course-content-screen.test.cjs` (part of `npm test`): numbering, reorder and move payloads, which function each action calls, database codes to replies to messages, refusal wording in both languages, the contract, the middleware pattern.
+- `scripts/course-content-screen-sql.cjs` runs in the same SQL command, after the races: the screen's own payload builders, the route's contract and reply mapper against the real functions, under a Firebase identity, with the `updated_at` round trip. pg gives the code, message and detail directly; PostgREST is not run.
+- `scripts/teacher-course-content-browser.cjs` (Chromium, real middleware, real contract and reply mapper, fictional server, synthetic data): desktop drag and keyboard moves, move to another chapter, inline add and rename, delete, Delete off with its reason, a refused delete, stale reload with the typed text kept, a lost reply, archived, assistant, the phone sheet, Arabic RTL, Classic and New. `LMS_MATRIX=1` adds the screen matrix. Needs a Firebase-mode `npm run build`, `source .local/pa-env.sh` and `LMS_FRESH_CSS=1`.
+- The esbuild path in `.local/pa-env.sh` no longer exists on the owner's machine. These runs set `LMS_ESBUILD_RUNTIME` to another existing copy.
+- A harness pressing Escape within milliseconds of opening a Radix menu or dialog can be ignored: the layer has not registered yet. No person is that fast. The harness waits briefly first.
 
 ## Sign-in (`claude/design-followups`)
 

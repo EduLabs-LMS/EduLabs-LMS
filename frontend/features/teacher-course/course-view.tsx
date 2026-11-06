@@ -11,6 +11,7 @@ import { L, useLanguage } from '@/frontend/components/language-provider';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
 import type { MessageKey } from '@/frontend/locales/messages';
 import { SectionError, StatusBadge, useRetry } from '@/frontend/features/teacher-home/parts';
+import { CourseContent } from '@/frontend/features/teacher-course/content-section';
 import { courseFailure, nextStatus, type CourseFailureKind, type CourseLoad, type CoursePageData } from '@/shared/teacher-course-page';
 import type { Classification } from '@/shared/contracts/academics';
 
@@ -30,7 +31,7 @@ export function CourseLoading() {
 
 const backLink = <Link href="/teacher/courses" data-course-back className="d-back d-focus"><Icon name="back" size={16} /><L id="tc.back" /></Link>;
 
-/** One course: what it is, whether students can see it, and Publish / Unpublish. Chapters and lessons are not here yet (see TEACHER_UI_SPEC.md). */
+/** One course: what it is, whether students can see it, Publish / Unpublish, and its chapters and lessons. */
 export function TeacherCourseView({ load }: { load: CourseLoad }) {
   const retry = useRetry();
   if (load.state === 'error') return <div data-teacher-course className="d-page">{backLink}<SectionError status={load.status} onRetry={retry.retry} pending={retry.pending} /></div>;
@@ -66,10 +67,7 @@ function Course({ course }: { course: CoursePageData }) {
       </dl>
     </section>
     <Status course={course} />
-    <section aria-labelledby="tc-l" data-section="lessons" data-tour="course-lessons" className="d-card d-card--pad d-stack">
-      <h2 id="tc-l" className="d-section"><L id="tc.lessons" /></h2>
-      <p data-lessons-soon className="d-body"><L id="tc.lessons_soon" /></p>
-    </section>
+    <CourseContent courseId={course.id} />
   </div>;
 }
 

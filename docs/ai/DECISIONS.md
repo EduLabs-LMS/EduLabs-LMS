@@ -176,6 +176,12 @@ The approved look is in `docs/design/homework-content/` (12 boards and `canvas.j
 - **The Homework tab is a portal:** stats (essays to correct, corrected, handed in, on time), a To correct list, Open / Closed / Drafts, and "New homework". New homework is a 4-step wizard like the platform admin's provision form (Details, Questions, Rules, Solutions, then Review), one question on screen at a time. Correcting shows one student at a time with Save and next.
 - **The student side is not in scope for now;** it must keep working.
 
+## Course content screen: one route (2026-11-06, branch `claude/course-content`)
+
+The Content section reads and writes through one new route, `/api/teacher/courses/<id>/content`, which dispatches to `edit_course_structure` and the existing `edit_learning_content`. It does not use the existing `/api/learning/<id>/edit` route for `create_lesson` and the reorders, because that route drops the database's detail: an archived course could not be told from a stale version. The route runs the same origin, sign-in and `editableTeacherCourse` checks as the Course page; the database authorizes again. Reads call only `course_structure`, which decides by itself, so assistants can read. Middleware allows exactly this path and nothing beside it.
+
+A 42501 whose message is "Module unavailable", "Lesson unavailable" or "Content unavailable" means the row is gone since the teacher read it, so the screen says it changed elsewhere and offers Reload. "Course unavailable" and any other 42501 are refusals.
+
 ## Course content tree: audit and draft migration (2026-11-06, branch `claude/course-content`)
 
 Audit of the Firebase/Supabase path for chapters (`course_modules`) and lessons. The legacy Clerk routes `app/api/courses/[courseId]/chapters/*` were not used. Draft migration `20261106130000_course_content_tree.sql`, **not applied anywhere**, then updated in place with the owner's four answers below. The Content section on the Course page is **not built**: the owner reviews and applies the migration on dev first.
@@ -198,12 +204,14 @@ Audit of the Firebase/Supabase path for chapters (`course_modules`) and lessons.
 
    | Inside | English | Arabic |
    |---|---|---|
-   | 1 block | This lesson has 1 content block. | يحتوي هذا الدرس على كتلة محتوى واحدة. |
-   | 2 blocks | This lesson has 2 content blocks. | يحتوي هذا الدرس على كتلتي محتوى. |
-   | 3 to 10 blocks | This lesson has 3 content blocks. | يحتوي هذا الدرس على 3 كتل محتوى. |
-   | 11 or more blocks | This lesson has 11 content blocks. | يحتوي هذا الدرس على 11 كتلة محتوى. |
-   | A cover | This lesson has a cover. | يحتوي هذا الدرس على صورة غلاف. |
-   | 2 blocks and a cover | This lesson has 2 content blocks and a cover. | يحتوي هذا الدرس على كتلتي محتوى وصورة غلاف. |
+   | 1 item | This lesson has 1 content item. | في هذا الدرس عنصر محتوى واحد. |
+   | 2 items | This lesson has 2 content items. | في هذا الدرس عنصرا محتوى. |
+   | 3 to 10 items | This lesson has 3 content items. | في هذا الدرس 3 عناصر محتوى. |
+   | 11 or more items | This lesson has 11 content items. | في هذا الدرس 11 عنصرًا. |
+   | A cover | This lesson has a cover. | في هذا الدرس صورة غلاف. |
+   | 2 items and a cover | This lesson has 2 content items and a cover. | في هذا الدرس عنصرا محتوى وصورة غلاف. |
+
+   The owner's copy change (2026-11-06): teachers read "content item", never "content block". The Arabic count forms are the owner's: عنصر محتوى واحد / عنصرا محتوى / 3 عناصر محتوى (3 to 10) / 11 عنصرًا (11 and up), and صورة غلاف stays. These forms are nominative, so the sentence is "في هذا الدرس …", not "يحتوي هذا الدرس على …", which would need another case. Inside the database the field is still `contentBlocks`; it is not shown to anyone.
 
 3. **Chapters are type Chapter, and the stored number always equals the position** (1, 2, 3…), so students and teachers read the same "Chapter N". This replaces the 2B rule that a number is chosen freely and stays independent of the order.
    - A trigger sets the type and number on every write to `course_modules`, so it covers the new function, the old `edit_learning_content` and the demo fill. Two table checks and `not null` say the same.
