@@ -40,3 +40,7 @@ Same branch, `claude/design-v2-foundation`, not merged or deployed. New now carr
 ## Update 2026-11-06: owner feedback after testing New
 
 Same branch, `claude/design-v2-foundation`, not merged or deployed. Both looks stay permanently, so every screen has to work in both. New this round: the credits in the owner's order; a help line for teachers in the footer; a menu that changes in place; a logo at 3:1 or more everywhere; `Switch`, `ChoiceGroup` and `Select` in place of native controls; "Edit attendance" in the page header. Decisions: DECISIONS.md, "Owner feedback after testing New".
+
+## Update 2026-11-06: every teacher screen on the component system
+
+Same branch, `claude/design-v2-foundation`, not merged or deployed. Every teacher screen is rebuilt on the design components in both looks, one commit each. New is the default for a browser that has not chosen, and its tokens now need the teacher shell, so student pages keep Classic values. Next for the owner: check New on staging, including whether existing teachers should get New by default, since a cookie cannot tell them from new ones.

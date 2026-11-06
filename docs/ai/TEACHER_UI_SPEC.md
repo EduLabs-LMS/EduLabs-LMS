@@ -111,3 +111,7 @@ After explicit handoff approval: implement only the teacher course-list/navigati
 screen using existing authorized data, with empty/error/loading and mobile states.
 Preserve neutral editor routes until separately assigned. Do not import the friend's
 redesign, revive deleted screens, expand permissions or begin Jitsi/email work.
+
+## Update 2026-11-06: the component system
+
+Every teacher screen is built on `frontend/components/design` in both looks. Targets are 44 px and the minimum text is 12 px; where this file says 48 px or 16 px, this replaces it. Invite students is its own page at `/teacher/students/invite`, reached from the Students header and an empty Group's Students tab. See "Every teacher screen on the component system" in DECISIONS.md.

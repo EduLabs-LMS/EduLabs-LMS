@@ -128,3 +128,10 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `scripts/teacher-attendance-browser.cjs` has the finished sheet in both looks, both themes, desktop and phone, English and Arabic. It sets the look on `<html>` after the page loads and renders without the frame.
 - `scripts/first-open-real-server.cjs` also measures the logo's contrast on `/sign-in` against a real server, in both looks and themes.
 - In a browser test, click a disabled control with `{ force: true }`: Playwright waits for an `aria-disabled` element to become enabled.
+
+## Every teacher screen, every look (`claude/design-v2-foundation`)
+
+- `scripts/screen-matrix.cjs` shoots each screen in Classic and New, light and dark, English and Arabic, desktop and phone, to `.local/design-screens/<screen>/<look>-<theme>-<lang>-<size>.png`, and fails on: text below WCAG AA or 12 px, a control edge below 3:1, a target below 44 px (inline links excepted), sideways scroll, or Arabic that is not right-to-left. Text on a gradient is measured against each stop; a picture background is listed as not measured, never passed.
+- Run it with `LMS_MATRIX=1 LMS_ONLY_STEPS='^Screen matrix' node scripts/<harness>-browser.cjs`, for `teacher-home`, `teacher-attendance`, `teacher-students`, `teacher-settings-groups`, `teacher-course-page` and `design-foundation`. Each writes `audit-<label>.json` beside the pictures. A normal run skips it.
+- It measures rendered states on synthetic data, not every state. Look at the pictures too: on sign-in it was looking, not a measure, that found the large tree's shadow.
+- The course page harness has no teacher frame, so its pictures show the page without the sidebar.
