@@ -116,9 +116,9 @@ test('attendance: the page needs both ids to be UUIDs and repeats the staff chec
 test('attendance: the Group page and the "not saved" flag link to it', () => {
  const groupView = read('frontend/features/teacher-groups/group-view.tsx');
  assert.match(groupView, /const opens = canTakeAttendance\(s, now\)/);
- assert.match(groupView, /\? <Link href=\{attendanceHref\(group\.id, s\.id\)\} data-attendance-link/, 'a started, not cancelled Session row is itself the link');
+ assert.match(groupView, /\{opens && <Link href=\{attendanceHref\(group\.id, s\.id\)\} data-attendance-link/, 'a started, not cancelled Session has the link');
  assert.doesNotMatch(groupView, /canTakeAttendance\(s, now\) && <Link/, 'no separate Attendance link under the row any more');
- assert.match(groupView, /\{canCancel && state === 'upcoming' && <CancelSession/, 'cancel stays on upcoming Sessions only');
+ assert.match(groupView, /canCancel && state === 'upcoming' \? \[/, 'cancel stays on upcoming Sessions only');
  assert.match(read('frontend/features/teacher-groups/list-view.tsx'), /<Link href=\{attendanceHref\(group\.id, unsaved\.id\)\} data-attendance-unsaved/);
 });
 test('attendance: the tour targets exist (not the tour itself)', () => {
@@ -127,10 +127,9 @@ test('attendance: the tour targets exist (not the tour itself)', () => {
  assert.doesNotMatch(all, /driver\.js|intro\.js|shepherd|spotlight/i, 'the tour is not built here');
 });
 test('attendance: the controls are at least 48px tall', () => {
- for (const m of view.matchAll(/data-(?:finalize|reopen|mark-button|confirm-[a-z-]+|save-retry)[^>]*className=\{`([^`]*)`\}/g)) assert.match(m[1], /\$\{bigButton\}|\$\{pill\}/);
- assert.match(view, /const bigButton = 'min-h-\[48px\]/); assert.match(view, /const pill = 'inline-flex min-h-\[48px\]/);
- assert.match(view, /data-mark-all[\s\S]*?className=\{cn\(linkClass, 'min-h-\[48px\]'\)\}/);
- assert.match(view, /data-save-retry[\s\S]*?className=\{cn\(linkClass, 'min-h-\[48px\]'\)\}/);
+ for (const name of ['data-finalize', 'data-confirm-finalize-yes', 'data-confirm-reopen-yes']) assert.match(view, new RegExp('variant="primary" size="lg" ' + name), name);
+ assert.match(view, /variant="tertiary" data-tour="mark-all" data-mark-all/);
+ assert.match(view, /variant="tertiary" data-save-retry/);
 });
 
 // ------------------------------------------------------------------ wording and locales
@@ -202,13 +201,13 @@ test('leaving: every way out is guarded while a save is pending, running, retryi
 test('list: alphabetical (the same order function as the Group Students tab), search only above 15 students, the title has no Session number', () => {
  assert.match(view, /const ordered = useMemo\(\(\) => studentsByName\(value\?\.rows \?\? \[\]\)/);
  assert.match(read('frontend/features/teacher-groups/group-view.tsx'), /const students = studentsByName\(currentMembers\(data\.rows\)\)/);
- assert.match(view, /const searching = \(value\?\.rows\.length \?\? 0\) > SEARCH_FROM/); assert.match(view, /\{searching && <label/);
+ assert.match(view, /const searching = \(value\?\.rows\.length \?\? 0\) > SEARCH_FROM/); assert.match(view, /\{searching && <div data-tour="student-search"><SearchField/);
  assert.match(view, /const title = sessionTitle \|\| t\('ta\.title_plain'\)/); assert.doesNotMatch(view, /Session \{|ta\.title'|sessionNumber/);
  assert.match(view, /<bdi dir="auto">\{title\}<\/bdi>/, 'a Latin title inside Arabic stays isolated');
  assert.match(view, /<LocalDate value=\{value\.session\.starts_at\} options=\{sessionTime\} \/>/, 'the date is under the title');
 });
 test('Mark the rest present: shown only while someone is unmarked, and it applies markRestPresent, never a blanket mark', () => {
- assert.match(view, /\{editable && counts\.not_marked > 0 && <button type="button" data-tour="mark-all" data-mark-all[^>]*onClick=\{\(\) => mark\(markRestPresent\(marksRef\.current\)\)\}/);
+ assert.match(view, /\{editable && counts\.not_marked > 0 && <Button type="button" variant="tertiary" data-tour="mark-all" data-mark-all[^>]*onClick=\{\(\) => mark\(markRestPresent\(marksRef\.current\)\)\}/);
  assert.doesNotMatch(view, /allPresent/);
 });
 test('Edit attendance: the reason form is scrolled into view and focused; the "?" is hidden but keeps its tour target', () => {
@@ -220,11 +219,11 @@ test('Edit attendance: the reason form is scrolled into view and focused; the "?
 test('finished view: the same screen, read-only; flat status labels; Edit attendance keeps the reason rule and stays instructor-only', () => {
  assert.match(view, /<StudentRow [^>]*editable=\{editable\}/, 'the same rows; only the controls change');
  assert.match(view, /const editable = Boolean\(value\) && !locked && !cancelled/);
- assert.match(view, /: <p data-mark-text=\{mark\} className=\{cn\('flex shrink-0 items-center gap-2 text-base'/, 'a finished mark is a plain paragraph, not a pill');
+ assert.match(view, /: <p data-mark-text=\{mark\} className=\{cn\('d-mark-text'/, 'a finished mark is a plain paragraph, not a pill');
  const finished = view.slice(view.indexOf(': <p data-mark-text'));
  assert.doesNotMatch(finished, /\$\{pill\}|border-2|shadow|rounded-full border|bg-green-700 text-white|bg-red-700 text-white/, 'no button shape, border, fill or shadow');
  assert.match(view, /\{locked && <><span data-finished>/, 'counts line starts with Finished');
- assert.match(view, /!confirming && canEdit && phone && <button ref=\{editRef\} type="button" data-reopen/); assert.match(view, /canEdit && !phone && !cancelled && !confirming && <div data-header-actions/);
+ assert.match(view, /!confirming && canEdit && phone && <Button ref=\{editRef\} type="button" size="lg" block data-reopen/); assert.match(view, /canEdit && !phone && !cancelled && !confirming && <div data-header-actions/);
  assert.match(view, /groupCall\('reopen', groupId, \{ sessionId, sessionVersion: session\.version, reason: reason\.trim\(\) \}\)/);
  assert.match(view, /if \(kind === 'reopen' && !reasonValid\(reason\)\)/);
  assert.match(view, /data-confirm-finalize[\s\S]*?data-unmarked-warning/, 'Finish asks first and warns about unmarked students');

@@ -2,11 +2,15 @@
 import { actionToast } from '@/frontend/lib/action-toast';
 import Link from 'next/link';
 import { useLoadingRouter } from '@/frontend/components/providers/use-loading-router';
-import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, Loader2, Search } from 'lucide-react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { cn } from '@/shared/utils';
-import { inkButton, linkClass, plainButton, sessionTime } from '@/frontend/features/teacher-home/parts';
+import { Button } from '@/frontend/components/design/button';
+import { SearchField } from '@/frontend/components/design/field';
+import { Icon } from '@/frontend/components/design/icon';
+import { usePhone } from '@/frontend/components/design/use-phone';
+import { sessionTime } from '@/frontend/features/teacher-home/parts';
 import { HelpButton } from '@/frontend/features/teacher-helper/help-button';
 import { GroupCallError, groupCall, groupSave, isAbort } from '@/frontend/features/teacher-groups/api';
 import { GroupError, ModeLabel } from '@/frontend/features/teacher-groups/parts';
@@ -26,15 +30,6 @@ type Saving = 'idle' | 'saving' | 'retrying' | 'saved' | 'error';
 type Busy = null | 'finalize' | 'reopen';
 type Failure = GroupCallError;
 const asError = (e: unknown) => e instanceof GroupCallError ? e : new GroupCallError(null);
-const bigButton = 'min-h-[48px] w-full lg:w-auto lg:min-w-[260px]';
-const pill = 'inline-flex min-h-[48px] w-[5.5rem] items-center justify-center rounded-full border-2 px-3 text-base font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:opacity-60';
-
-/** Below the frame's sidebar breakpoint. The sheet is read on the client only, so nothing the server painted depends on it. */
-const PHONE = '(max-width: 767px)';
-function usePhone() {
-  return useSyncExternalStore(change => { const list = window.matchMedia(PHONE); list.addEventListener('change', change); return () => list.removeEventListener('change', change); }, () => window.matchMedia(PHONE).matches, () => false);
-}
-
 /** A note that a save was running, kept only for this tab and this Session, so a reload during a save can say so instead of looking like lost work. */
 const noteKey = (sessionId: string) => `lms-attendance-saving:${sessionId}`;
 function writeNote(sessionId: string, on: boolean) {
@@ -272,100 +267,95 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
     field.focus({ preventScroll: true });
   }, [confirming]);
 
-  return <div data-teacher-attendance className={cn('w-full space-y-4', locked ? (canEdit ? 'pb-40 md:pb-0' : '') : 'pb-44 lg:pb-0')}>
-    <div className="flex items-center justify-between gap-3">
-      <Link href={`/teacher/groups/${groupId}`} data-back className={linkClass}><ArrowLeft aria-hidden className="h-5 w-5 rtl:rotate-180" /><span className="ms-2">{group ? <L id="ta.back" values={{ name: group.name }} /> : <L id="ta.back_plain" />}</span></Link>
+  return <div data-teacher-attendance className={cn('d-page', locked ? (canEdit ? 'd-attendance-room-phone' : '') : 'd-attendance-room')}>
+    <div className="d-toolbar">
+      <Link href={`/teacher/groups/${groupId}`} data-back className="d-back d-focus"><Icon name="back" size={16} /><span>{group ? <L id="ta.back" values={{ name: group.name }} /> : <L id="ta.back_plain" />}</span></Link>
       <HelpButton />
     </div>
-    <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-      <div className="min-w-0 flex-1 basis-64 space-y-1">
-        <h1 data-attendance-title className="break-words font-display text-3xl leading-tight lg:text-4xl"><bdi dir="auto">{title}</bdi></h1>
-        {value && <p data-session-subtitle className="text-base text-slate-700"><LocalDate value={value.session.starts_at} options={sessionTime} /> · <span className="font-bold"><ModeLabel mode={value.session.mode} /></span>{value.session.mode === 'center' && value.session.location && <span className="break-words"> · <bdi dir="auto">{value.session.location}</bdi></span>}</p>}
+    <header className="d-page-header">
+      <div className="d-page-header-main">
+        <h1 data-attendance-title className="d-title d-wrap"><bdi dir="auto">{title}</bdi></h1>
+        {value && <p data-session-subtitle className="d-meta"><LocalDate value={value.session.starts_at} options={sessionTime} /> · <span className="font-bold"><ModeLabel mode={value.session.mode} /></span>{value.session.mode === 'center' && value.session.location && <span className="break-words"> · <bdi dir="auto">{value.session.location}</bdi></span>}</p>}
       </div>
       {/* The finished sheet on a desktop: its one action is a page action, with its hint under it. Tablets have no hover, so the hint is on the page and not only in a tooltip. */}
-      {canEdit && !phone && !cancelled && !confirming && <div data-header-actions className="flex flex-wrap-reverse items-center justify-end gap-x-3 gap-y-1">
-        <p id={editHint} data-edit-hint className="text-base text-slate-700"><L id="ta.edit_needs_reason" /></p>
-        <button ref={editRef} type="button" data-reopen aria-describedby={editHint} title={t('ta.edit_needs_reason')} disabled={Boolean(busy)} onClick={openReopen} className={`${plainButton} ${bigButton}`}><L id="ta.edit" /></button>
+      {canEdit && !phone && !cancelled && !confirming && <div data-header-actions className="d-page-header-actions d-attendance-header-actions">
+        <p id={editHint} data-edit-hint className="d-meta"><L id="ta.edit_needs_reason" /></p>
+        <Button ref={editRef} type="button" size="lg" data-reopen aria-describedby={editHint} title={t('ta.edit_needs_reason')} disabled={Boolean(busy)} onClick={openReopen}><L id="ta.edit" /></Button>
       </div>}
     </header>
-    {detail.state === 'error' && <div data-detail-error className="space-y-2"><p className="text-base text-slate-800"><L id="ta.error.group" /></p><GroupError kind={detail.error.kind} onRetry={() => setDetailRevision(v => v + 1)} /></div>}
+    {detail.state === 'error' && <div data-detail-error className="d-stack-lg"><p className="d-body"><L id="ta.error.group" /></p><GroupError kind={detail.error.kind} onRetry={() => setDetailRevision(v => v + 1)} /></div>}
     {sheet.state === 'loading' && <div role="status" data-state="loading"><AttendanceSheetSkeleton /><span className="sr-only"><L id="ta.loading" /></span></div>}
     {sheet.state === 'error' && <GroupError kind={sheet.error.kind} onRetry={() => setRevision(v => v + 1)} />}
-    {value && recheck === 'checking' && <p role="status" data-rechecking className="text-base text-slate-800"><L id="ta.checking" /></p>}
-    {value && recheck === 'done' && <p role="status" data-reload-note className="text-base text-slate-800"><L id="ta.reload_note" /></p>}
-    {value && cancelled && <div data-state="cancelled" role="status"><p className="text-base text-slate-800"><L id="ta.cancelled" /></p></div>}
+    {value && recheck === 'checking' && <p role="status" data-rechecking className="d-body"><L id="ta.checking" /></p>}
+    {value && recheck === 'done' && <p role="status" data-reload-note className="d-body"><L id="ta.reload_note" /></p>}
+    {value && cancelled && <div data-state="cancelled" role="status"><p className="d-body"><L id="ta.cancelled" /></p></div>}
     {value && !cancelled && <>
-      <div data-tour="status-bar" data-sheet-state={value.session.attendance_state} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b-2 border-black/15 pb-3">
-        <p data-counts className="flex min-h-[48px] flex-wrap items-center gap-x-2 text-base font-bold">
+      <div data-tour="status-bar" data-sheet-state={value.session.attendance_state} className="d-attendance-status">
+        <p data-counts className="d-attendance-counts">
           {locked && <><span data-finished><L id="ta.finished" /></span><span aria-hidden>·</span></>}
           <span data-count="attended"><L id="ta.count.present" values={{ count: counts.attended }} /></span><span aria-hidden>·</span>
           <span data-count="absent"><L id="ta.count.absent" values={{ count: counts.absent }} /></span>
           {(!locked || counts.not_marked > 0) && <><span aria-hidden>·</span><span data-count="not_marked"><L id="ta.count.not_marked" values={{ count: counts.not_marked }} /></span></>}
         </p>
-        {editable && counts.not_marked > 0 && <button type="button" data-tour="mark-all" data-mark-all disabled={Boolean(busy)} onClick={() => mark(markRestPresent(marksRef.current))} className={cn(linkClass, 'min-h-[48px]')}><L id="ta.mark_rest" /></button>}
+        {editable && counts.not_marked > 0 && <Button type="button" variant="tertiary" data-tour="mark-all" data-mark-all disabled={Boolean(busy)} onClick={() => mark(markRestPresent(marksRef.current))}><L id="ta.mark_rest" /></Button>}
       </div>
-      {!value.complete && <p data-truncated className="text-base text-slate-800"><L id="ta.truncated" values={{ count: ROSTER_PAGES * ROSTER_PAGE_SIZE }} /></p>}
-      {searching && <label className="relative block" data-tour="student-search"><span className="sr-only"><L id="ta.search" /></span>
-        <Search aria-hidden className="pointer-events-none absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-600" />
-        <input type="search" data-student-search value={query} onChange={e => setQuery(e.target.value)} placeholder={t('ta.search')} autoComplete="off" dir="auto"
-          className="min-h-[48px] w-full rounded-2xl border-2 border-black bg-white ps-10 pe-3 text-base text-black" /></label>}
+      {!value.complete && <p data-truncated className="d-body"><L id="ta.truncated" values={{ count: ROSTER_PAGES * ROSTER_PAGE_SIZE }} /></p>}
+      {searching && <div data-tour="student-search"><SearchField label={t('ta.search')} data-student-search value={query} onChange={e => setQuery(e.target.value)} placeholder={t('ta.search')} autoComplete="off" dir="auto" /></div>}
       {value.rows.length === 0
-        ? <div data-state="empty"><p className="text-base text-slate-800"><L id="ta.empty" /></p></div>
+        ? <div data-state="empty"><p className="d-body"><L id="ta.empty" /></p></div>
         : shown.length === 0
-          ? <p data-search-empty className="text-base text-slate-800"><L id="ta.search_none" /></p>
-          : <ul data-tour="student-rows" data-student-list className="divide-y divide-black/15">
+          ? <p data-search-empty className="d-body"><L id="ta.search_none" /></p>
+          : <ul data-tour="student-rows" data-student-list className="d-list d-card d-card--pad">
             {shown.map(r => <StudentRow key={r.user_id} row={r} mark={marks[r.user_id] ?? 'not_marked'} editable={editable} onMark={m => mark({ ...marksRef.current, [r.user_id]: m })} />)}
           </ul>}
-      <div data-tour="save-actions" data-actions className={locked ? (canEdit && phone ? 'd-float-bar' : 'space-y-2 pt-2') : 'fixed inset-x-0 bottom-0 z-30 space-y-2 border-t-2 border-black bg-white p-4 md:start-[var(--d-sidebar-width)] lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:pt-2'}>
+      <div data-tour="save-actions" data-actions className={locked ? (canEdit && phone ? 'd-float-bar' : 'd-attendance-actions') : 'd-attendance-actions d-attendance-bar'}>
         {guard.asking && <LeaveQuestion stay={guard.stay} leave={guard.leave} />}
         {failure && !saveFailed && <GroupError kind={failure.kind} unknownOutcome={failure.status === null} onRetry={failure.kind === 'changed' || failure.status === null ? reloadAll : undefined} retryLabel="tg.reload" />}
-        {confirming === 'finalize' && <div role="group" data-confirm-finalize aria-label={t('ta.finish')} className="space-y-2">
-          <p className="text-base"><L id="ta.finalize.confirm" /></p>
-          {counts.not_marked > 0 && <p data-unmarked-warning className="text-base font-bold"><L id="ta.finalize.unmarked" values={{ count: counts.not_marked }} /></p>}
-          <div className="flex flex-col gap-2 lg:flex-row">
-            <button type="button" data-confirm-finalize-yes disabled={Boolean(busy)} onClick={() => void command('finalize')} className={`${inkButton} ${bigButton}`}>{busy === 'finalize' && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ta.finalize.yes" /></button>
-            <button type="button" disabled={Boolean(busy)} onClick={() => setConfirming(null)} className={`${plainButton} ${bigButton}`}><L id="ta.finalize.keep" /></button>
+        {confirming === 'finalize' && <div role="group" data-confirm-finalize aria-label={t('ta.finish')} className="d-stack-sm">
+          <p className="d-body"><L id="ta.finalize.confirm" /></p>
+          {counts.not_marked > 0 && <p data-unmarked-warning className="d-label"><L id="ta.finalize.unmarked" values={{ count: counts.not_marked }} /></p>}
+          <div className="d-attendance-choice">
+            <Button type="button" variant="primary" size="lg" data-confirm-finalize-yes disabled={Boolean(busy)} onClick={() => void command('finalize')}>{busy === 'finalize' && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ta.finalize.yes" /></Button>
+            <Button type="button" size="lg" disabled={Boolean(busy)} onClick={() => setConfirming(null)}><L id="ta.finalize.keep" /></Button>
           </div>
         </div>}
-        {confirming === 'reopen' && <div role="group" data-confirm-reopen aria-label={t('ta.edit')} className="space-y-2">
-          <label className="block space-y-1"><span className="font-bold"><L id="ta.reopen.reason" /></span>
-            <textarea ref={reasonRef} data-reopen-reason value={reason} maxLength={1000} rows={2} aria-invalid={reasonProblem} onChange={e => { setReason(e.target.value); setReasonProblem(false); }} className="min-h-[48px] w-full rounded-xl border-2 border-black bg-white px-3 py-2 text-base text-black" />
+        {confirming === 'reopen' && <div role="group" data-confirm-reopen aria-label={t('ta.edit')} className="d-stack-sm">
+          <label className="d-field"><span className="d-field-label"><L id="ta.reopen.reason" /></span>
+            <textarea ref={reasonRef} data-reopen-reason value={reason} maxLength={1000} rows={2} aria-invalid={reasonProblem} onChange={e => { setReason(e.target.value); setReasonProblem(false); }} className="d-field-input d-textarea" />
           </label>
-          <p className={`text-base ${reasonProblem ? 'font-bold text-rose-800' : 'text-slate-700'}`} role={reasonProblem ? 'alert' : undefined}><L id={reasonProblem ? 'ta.reopen.reason_required' : 'ta.reopen.hint'} /></p>
-          <div className="flex flex-col gap-2 lg:flex-row">
-            <button type="button" data-confirm-reopen-yes disabled={Boolean(busy)} onClick={() => void command('reopen')} className={`${inkButton} ${bigButton}`}>{busy === 'reopen' && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ta.reopen.yes" /></button>
-            <button type="button" disabled={Boolean(busy)} onClick={keepFinished} className={`${plainButton} ${bigButton}`}><L id="ta.reopen.keep" /></button>
+          <p className={reasonProblem ? 'd-field-error' : 'd-meta'} role={reasonProblem ? 'alert' : undefined}><L id={reasonProblem ? 'ta.reopen.reason_required' : 'ta.reopen.hint'} /></p>
+          <div className="d-attendance-choice">
+            <Button type="button" variant="primary" size="lg" data-confirm-reopen-yes disabled={Boolean(busy)} onClick={() => void command('reopen')}>{busy === 'reopen' && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="ta.reopen.yes" /></Button>
+            <Button type="button" size="lg" disabled={Boolean(busy)} onClick={keepFinished}><L id="ta.reopen.keep" /></Button>
           </div>
         </div>}
-        {!confirming && editable && instructor && <button type="button" data-finalize disabled={finishBlocked} onClick={() => { setFailure(null); setConfirming('finalize'); }} className={`${inkButton} ${bigButton}`}><L id="ta.finish" /></button>}
-        {!confirming && canEdit && phone && <button ref={editRef} type="button" data-reopen disabled={Boolean(busy)} onClick={openReopen} className={`${plainButton} ${bigButton}`}><L id="ta.edit" /></button>}
-        {!confirming && (!locked || (canEdit && phone)) && <div data-save-line role="status" aria-live="polite" className="flex min-h-[24px] flex-wrap items-center gap-x-3 text-base text-slate-700">
+        {!confirming && editable && instructor && <Button type="button" variant="primary" size="lg" data-finalize disabled={finishBlocked} onClick={() => { setFailure(null); setConfirming('finalize'); }}><L id="ta.finish" /></Button>}
+        {!confirming && canEdit && phone && <Button ref={editRef} type="button" size="lg" block data-reopen disabled={Boolean(busy)} onClick={openReopen}><L id="ta.edit" /></Button>}
+        {!confirming && (!locked || (canEdit && phone)) && <div data-save-line role="status" aria-live="polite" className="d-attendance-save">
           {locked ? <span><L id="ta.edit_needs_reason" /></span>
-            : saveFailed ? <><span data-save-state="error" className="font-bold text-rose-800"><L id="ta.save_failed" /></span><button type="button" data-save-retry onClick={() => void retry()} className={cn(linkClass, 'min-h-[48px]')}><L id="ta.save_retry" /></button></>
-            : saving === 'retrying' ? <span data-save-state="retrying" className="inline-flex items-center gap-1 font-bold"><Loader2 aria-hidden className="h-3 w-3 animate-spin" /><L id="ta.retrying" /></span>
-            : saving === 'saving' ? <span data-save-state="saving" className="inline-flex items-center gap-1"><Loader2 aria-hidden className="h-3 w-3 animate-spin" /><L id="ta.saving" /></span>
+            : saveFailed ? <><span data-save-state="error" className="d-field-error"><L id="ta.save_failed" /></span><Button type="button" variant="tertiary" data-save-retry onClick={() => void retry()}><L id="ta.save_retry" /></Button></>
+            : saving === 'retrying' ? <span data-save-state="retrying" className="d-attendance-saving d-label"><Loader2 aria-hidden className="h-3 w-3 animate-spin" /><L id="ta.retrying" /></span>
+            : saving === 'saving' ? <span data-save-state="saving" className="d-attendance-saving"><Loader2 aria-hidden className="h-3 w-3 animate-spin" /><L id="ta.saving" /></span>
             : saving === 'saved' ? <span data-save-state="saved"><L id="ta.saved_now" /></span>
             : <span data-save-state="idle"><L id="ta.saved_as_you_tap" /></span>}
         </div>}
-        {!confirming && group && !instructor && (editable || locked) && <p data-only-instructor className="text-base text-slate-700"><L id="ta.only_instructor" /></p>}
+        {!confirming && group && !instructor && (editable || locked) && <p data-only-instructor className="d-meta"><L id="ta.only_instructor" /></p>}
       </div>
     </>}
   </div>;
 }
 
 function StudentRow({ row, mark, editable, onMark }: { row: GroupRow; mark: Mark; editable: boolean; onMark: (m: Mark) => void }) {
-  const on = (m: 'attended' | 'absent') => m === 'attended' ? 'border-green-800 bg-green-700 text-white' : 'border-red-800 bg-red-700 text-white';
-  const off = 'border-black/40 bg-white text-black';
-  return <li data-student={row.user_id} data-mark={mark} className="flex min-h-[65px] items-center justify-between gap-3 py-2">
-    <p className="min-w-0 flex-1 break-words text-base font-bold"><bdi dir="auto">{row.display_name}</bdi></p>
+  return <li data-student={row.user_id} data-mark={mark} className="d-row">
+    <p className="d-row-body d-label d-wrap"><span><bdi dir="auto">{row.display_name}</bdi></span></p>
     {editable
-      ? <div role="group" aria-label={row.display_name} className="flex shrink-0 gap-2">
-        <button type="button" data-mark-button="attended" aria-pressed={mark === 'attended'} onClick={() => onMark(toggled(mark, 'attended'))} className={`${pill} ${mark === 'attended' ? on('attended') : off}`}><L id="ta.present" /></button>
-        <button type="button" data-mark-button="absent" aria-pressed={mark === 'absent'} onClick={() => onMark(toggled(mark, 'absent'))} className={`${pill} ${mark === 'absent' ? on('absent') : off}`}><L id="ta.absent" /></button>
+      ? <div role="group" aria-label={row.display_name} className="d-seg d-seg--marks">
+        <button type="button" data-mark-button="attended" aria-pressed={mark === 'attended'} onClick={() => onMark(toggled(mark, 'attended'))} className="d-seg-option"><L id="ta.present" /></button>
+        <button type="button" data-mark-button="absent" aria-pressed={mark === 'absent'} onClick={() => onMark(toggled(mark, 'absent'))} className="d-seg-option"><L id="ta.absent" /></button>
       </div>
       /* Finished: a flat label, a coloured dot and plain text. No button shape, border or shadow, so it cannot be mistaken for something to press. */
-      : <p data-mark-text={mark} className={cn('flex shrink-0 items-center gap-2 text-base', mark === 'not_marked' ? 'text-slate-700' : 'font-semibold text-slate-900')}>
-        {mark !== 'not_marked' && <span aria-hidden className={cn('h-2.5 w-2.5 rounded-full', mark === 'attended' ? 'bg-green-700' : 'bg-red-700')} />}
+      : <p data-mark-text={mark} className={cn('d-mark-text', mark === 'not_marked' ? 'd-meta' : 'd-label')}>
+        {mark !== 'not_marked' && <span aria-hidden className={cn('d-mark-dot', mark === 'attended' ? 'bg-green-700' : 'bg-red-700')} />}
         <L id={mark === 'attended' ? 'ta.present' : mark === 'absent' ? 'ta.absent' : 'ta.not_marked'} />
       </p>}
   </li>;

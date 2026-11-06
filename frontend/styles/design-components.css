@@ -452,6 +452,37 @@ html[lang] h2.d-hero-heading { font-family: var(--d-font-body); font-weight: 400
 .d-section-label { margin: 0 0 var(--d-space-1); font-size: var(--d-meta-size); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--d-meta); }
 html[data-lms-appearance][lang] :is(h1, h2, h3).d-section-label { font-family: inherit; font-weight: 700; }
 html[lang="ar"] .d-section-label { letter-spacing: 0; }
+/* Taking attendance. The Finish bar stays on screen below the desktop width; the page keeps room for it. */
+.d-attendance-room { padding-bottom: 11rem; }
+.d-attendance-room-phone { padding-bottom: 10rem; }
+.d-attendance-header-actions { flex-wrap: wrap-reverse; justify-content: flex-end; column-gap: var(--d-space-3); row-gap: 4px; max-width: 100%; }
+.d-attendance-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: var(--d-space-4); row-gap: 4px; }
+.d-attendance-counts { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--d-space-2); min-height: var(--d-target); margin: 0; font-size: var(--d-body-size); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--d-ink); }
+.d-attendance-actions { display: flex; flex-direction: column; gap: var(--d-space-2); }
+.d-attendance-actions > .d-btn, .d-attendance-choice > .d-btn { width: 100%; }
+.d-attendance-bar { position: fixed; inset-inline: 0; bottom: 0; z-index: 30; padding: var(--d-space-4); padding-bottom: max(var(--d-space-4), env(safe-area-inset-bottom)); background: var(--d-surface); border-top: var(--d-card-border-width) solid var(--d-line); }
+.d-attendance-choice { display: flex; flex-direction: column; gap: var(--d-space-2); }
+.d-attendance-save { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--d-space-3); min-height: 24px; font-size: var(--d-meta-size); line-height: var(--d-meta-lh); color: var(--d-meta); }
+.d-attendance-saving { display: inline-flex; align-items: center; gap: 4px; }
+.d-textarea { min-height: 72px; padding-block: var(--d-space-2); resize: vertical; }
+.d-mark-text { flex: none; display: flex; align-items: center; gap: var(--d-space-2); margin: 0; }
+/* A row keeps its height when a sheet is finished and its control becomes a label, so no row moves. */
+[data-student-list].d-card { padding: 0 var(--d-space-4); }
+[data-student-list] > .d-row { min-height: calc(var(--d-target) + 2 * var(--d-control-border-width) + 20px + var(--d-divider-width)); }
+.d-mark-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.d-seg--marks { flex: none; }
+.d-seg--marks .d-seg-option { min-width: 5rem; padding-inline: var(--d-space-3); cursor: pointer; }
+.d-seg--marks .d-seg-option:disabled { opacity: .6; }
+.d-seg--marks [data-mark-button="attended"][aria-pressed="true"] { background: var(--d-pill-success-bg); color: var(--d-pill-success); }
+.d-seg--marks [data-mark-button="absent"][aria-pressed="true"] { background: var(--d-pill-danger-bg); color: var(--d-pill-danger); }
+@media (min-width: 768px) { .d-attendance-bar { inset-inline-start: var(--d-sidebar-width); } .d-attendance-room-phone { padding-bottom: 0; } }
+@media (min-width: 1024px) {
+  .d-attendance-room { padding-bottom: 0; }
+  .d-attendance-bar { position: static; padding: 0; background: none; border-top: 0; }
+  .d-attendance-actions > .d-btn, .d-attendance-choice > .d-btn { width: auto; min-width: 260px; }
+  .d-attendance-actions > .d-btn { align-self: flex-start; }
+  .d-attendance-choice { flex-direction: row; }
+}
 /* A Session: tile, words and ⋯ on one line of a phone, its pill and action beneath; everything on one line from the sidebar's width up. */
 .d-session .d-countdown { display: inline; }
 @media (max-width: 767px) {

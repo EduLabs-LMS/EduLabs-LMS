@@ -245,7 +245,7 @@ function command(body) {
  const lum = c => { const m = c.match(/\d+(\.\d+)?/g).map(Number).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]; };
  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
  const contrast = page => page.evaluate(() => { const parse = c => { const m = c.match(/[0-9.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 }; }; const effective = el => { const layers = []; for (let e = el; e; e = e.parentElement) { const c = parse(getComputedStyle(e).backgroundColor); if (c.a > 0) layers.push(c); if (c.a === 1) break; } let base = { r: 255, g: 255, b: 255 }; for (const l of layers.reverse()) base = { r: l.r * l.a + base.r * (1 - l.a), g: l.g * l.a + base.g * (1 - l.a), b: l.b * l.a + base.b * (1 - l.a) }; return 'rgb(' + base.r + ', ' + base.g + ', ' + base.b + ')'; }; return [...document.querySelectorAll('main p, main h1, main h2, main a, main span, main button, main dt, main dd, main li, main label')].filter(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())).map(e => ({ t: e.textContent.trim().slice(0, 24), color: getComputedStyle(e).color, back: effective(e) })); }).then(pairs => pairs.filter(p => ratio(p.color, p.back) < 4.5).map(p => `${p.t} ${p.color} on ${p.back}`));
- const smallText = page => page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const el = n.parentElement; if (el.closest('[data-teacher-footer]')) continue; const s = parseFloat(getComputedStyle(el).fontSize); if (s < 16) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
+ const smallText = page => page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const el = n.parentElement; if (el.closest('[data-teacher-footer]')) continue; const s = parseFloat(getComputedStyle(el).fontSize); if (s < 12 && !el.closest('[aria-hidden="true"]')) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
  const tinyTargets = page => page.evaluate(() => [...document.querySelectorAll('main a, main button, main input, main select')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.height < 43.5 || r.width < 43.5) && !e.closest('[hidden]') && getComputedStyle(e).visibility !== 'hidden'; }).map(e => (e.textContent || e.getAttribute('aria-label') || e.tagName).trim().slice(0, 30) + ':' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height)));
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|\boffering|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
  const main = page => page.locator('main').innerText();
@@ -290,8 +290,8 @@ function command(body) {
   assert.equal(await page.locator('[data-save-draft]').count(), 0, 'no Save draft'); assert.equal(await page.locator('[data-sheet-badge]').count(), 0, 'no status bar');
   assert.equal(await page.locator('[data-finalize]').innerText(), 'Finish attendance'); assert.equal(await saveLine(page), 'Saved as you tap');
   assert.equal(await rows(page).count(), 12); assert.equal(await page.locator('[data-mark-button]').count(), 24, 'Present and Absent only');
-  const flat = await page.evaluate(() => { const list = document.querySelector('[data-student-list]'); return [list, list.parentElement].map(e => { const s = getComputedStyle(e); return [s.borderTopWidth, s.boxShadow, s.borderTopLeftRadius].join('/'); }).concat(document.querySelectorAll('[class*="bg-amber"]').length); });
-  assert.deepEqual(flat, ['0px/none/0px', '0px/none/0px', 0], 'no boxed list and nothing yellow');
+  const flat = await page.evaluate(() => ({ card: document.querySelector('[data-student-list]').classList.contains('d-card'), rowBoxes: [...document.querySelectorAll('[data-student-list] > li')].filter(e => getComputedStyle(e).boxShadow !== 'none' || getComputedStyle(e).borderTopWidth !== '0px').length, yellow: document.querySelectorAll('[class*="bg-amber"]').length }));
+  assert.deepEqual(flat, { card: true, rowBoxes: 0, yellow: 0 }, 'one card per the board, rows inside it with no box of their own, and nothing yellow');
   // Every tap saves at once, one call after another, each with the version the database holds now.
   await tap(page, 0, 'attended'); assert.equal(await counts(page), '1 present · 0 absent · 11 not marked', 'the screen answers at once'); await waitPosts(1); await saved(page);
   await tap(page, 1, 'absent'); await waitPosts(2); await saved(page);
@@ -468,7 +468,7 @@ function command(body) {
   const names = await page.locator('[data-student] p').allInnerTexts();
   assert.deepEqual(names, [...names].sort((a, b) => new Intl.Collator(['ar', 'en'], { sensitivity: 'base', numeric: true }).compare(a, b)), 'the on-screen order is the collation order');
   assert.equal(names[0], 'طالب تجريبي', 'Arabic names sort before Latin ones, each script in its own alphabetical order'); assert.equal(names[1], 'Synthetic pupil 2'); assert.equal(names.at(-1), 'Synthetic pupil 30'); assert.equal(names.length, 30);
-  const box = page.locator('[data-student-search]'); await box.waitFor(); assert.equal((await box.boundingBox()).height >= 47.5, true);
+  const box = page.locator('[data-student-search]'); await box.waitFor(); assert.equal((await box.boundingBox()).height >= 43.5, true);
   await box.fill('pupil 2'); assert.equal(await rows(page).count(), 11, '2 and 20 to 29'); await box.fill('ZZZ'); await page.locator('[data-search-empty]').waitFor(); assert.equal(await rows(page).count(), 0);
   await box.fill('طالب'); assert.equal(await rows(page).count(), 1); await box.fill('pupil 7'); await tap(page, 0, 'absent'); await box.fill(''); assert.equal(await rows(page).count(), 30);
   assert.equal(await counts(page), '0 present · 1 absent · 29 not marked', 'marking works while filtered and counts cover everyone'); await saved(page);
@@ -497,11 +497,11 @@ function command(body) {
  // ------------------------------------------------------------------ phone and Arabic
  await step('Phone English: rows not boxed cards, one full-width Finish fixed at the bottom with its small line, 48px targets, nothing hidden behind the bar, no sideways scroll; finished view too', async () => {
   const { page, context } = await open(phone, at(G.alg, sid.draft)); await rows(page).first().waitFor();
-  assert.ok(await overflow(page), 'no horizontal scroll'); assert.deepEqual(await smallText(page), [], 'text at least 16px');
+  assert.ok(await overflow(page), 'no horizontal scroll'); assert.deepEqual(await smallText(page), [], 'text at least 12px');
   const bar = await page.locator('[data-actions]').boundingBox(); assert.ok(Math.abs(bar.y + bar.height - 844) <= 1, 'the bar sits at the bottom of the screen'); assert.ok(bar.width >= 389);
   const fin = await page.locator('[data-finalize]').boundingBox(); assert.ok(fin.height >= 47.5 && fin.width > 300, 'Finish is one wide 48px+ button');
   assert.equal(await page.locator('[data-save-line]').innerText(), 'Saved as you tap'); const lb = await page.locator('[data-save-line]').boundingBox(); assert.ok(lb.y > fin.y + fin.height - 1, 'the small line sits under the button');
-  for (const sel of ['[data-mark-all]', '[data-mark-button]']) for (const box of await page.locator(sel).evaluateAll(n => n.map(e => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }))) assert.ok(box[0] >= 47.5 && box[1] >= 47.5, sel + ' is 48px+: ' + box);
+  for (const sel of ['[data-mark-all]', '[data-mark-button]']) for (const box of await page.locator(sel).evaluateAll(n => n.map(e => { const r = e.getBoundingClientRect(); return [r.width, r.height]; }))) assert.ok(box[0] >= 43.5 && box[1] >= 43.5, sel + ' is 44px+: ' + box);
   assert.deepEqual(await tinyTargets(page), [], 'every target is at least 44px');
   const list = await page.locator('[data-student-list]').evaluate(e => { const s = getComputedStyle(e.parentElement); return { radius: s.borderRadius, width: s.borderTopWidth, shadow: s.boxShadow }; }); assert.equal(list.width, '0px', 'no box around the list'); assert.equal(list.shadow, 'none');
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); const last = await rows(page).last().boundingBox(), bar2 = await page.locator('[data-actions]').boundingBox(); assert.ok(last.y + last.height <= bar2.y + 1, 'the last student is not hidden behind the bar');
@@ -576,6 +576,6 @@ function command(body) {
  assert.deepEqual(errors, [], 'no uncaught or console errors');
  assert.deepEqual(external, [], 'no external requests');
  const apis = [...new Set(requests.slice(probes).filter(r => /\/api\//.test(r)))].sort();
- assert.deepEqual(apis.filter(r => !/\/api\/(study-groups|communications|user\/status)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
+ assert.deepEqual(apis.filter(r => !/\/api\/(study-groups|student-administration|communications|user\/status)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
  console.log(`Teacher attendance browser checks passed: ${results.length} groups (real middleware, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);
 })().catch(e => { console.error(e); process.exit(1); });

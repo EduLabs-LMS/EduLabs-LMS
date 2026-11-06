@@ -421,7 +421,7 @@ function AddStudents({ group, present, full, onAdded, onStale, onClose }: { grou
     {list.state === 'ready' && !rows.length && !list.hasMore && <p data-state="empty" className="d-body"><L id={query ? 'tg.students.none_match' : 'tg.students.none_eligible'} /></p>}
     {rows.length > 0 && <ul className="d-list">{rows.map(r => <li key={r.user_id} data-eligible={r.user_id} className="d-row">
       <Avatar id={r.user_id} name={r.display_name} />
-      <span className="d-row-body d-label d-wrap"><bdi>{r.display_name}</bdi></span>
+      <span className="d-row-body d-label d-wrap"><span><bdi>{r.display_name}</bdi></span></span>
       <Button type="button" data-add-one aria-label={t('tg.students.add_named', { name: r.display_name })} disabled={busy || full} onClick={() => { setBusyId(r.user_id); void run(async () => onAdded((await groupCall<{ version: number }>('add', group.id, { userId: r.user_id }, group.version)).version)); }}><Busy on={busyId === r.user_id && busy} /><L id="tg.students.add_one" /></Button>
     </li>)}</ul>}
     {list.state === 'ready' && list.hasMore && <Button type="button" data-more-eligible disabled={list.more === 'loading'} onClick={() => void loadMore()}><Busy on={list.more === 'loading'} /><L id="tg.students.more_eligible" /></Button>}
