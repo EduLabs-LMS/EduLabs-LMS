@@ -105,7 +105,7 @@ test('the logo: no box anywhere, the placeholder tokens are gone, sign-in has no
 
 test('New carries Classic\'s personality: the lime pill and edge, the rounded shapes', () => {
   const tokens = read('frontend/styles/design-tokens.css'), blocks = start => { const from = tokens.indexOf(start + ' {'); assert.ok(from >= 0, start); return tokens.slice(from, tokens.indexOf('\n}', from)); };
-  const newLight = blocks('html[data-design="new"]'), classic = blocks(':root, html[data-design="classic"]');
+  const newLight = blocks('html[data-design="new"]:has([data-teacher-shell])'), classic = blocks(':root, html[data-design="classic"]');
   const value = (block, name) => block.match(new RegExp(`${name}:\\s*([^;]+);`))[1].trim();
   for (const [name, expected] of [['--d-nav-active-bg', '#7FD959'], ['--d-nav-active-text', '#14301A'], ['--d-nav-active-shadow', '3px 3px 0 #2B6416'], ['--d-primary', '#7FD959'], ['--d-primary-shadow', '3px 3px 0 #2B6416'], ['--d-primary-active-transform', 'translate(3px, 3px)'], ['--d-tab-active-bg', '#7FD959']]) assert.equal(value(newLight, name), expected, name);
   for (const name of ['--d-radius-control', '--d-radius-field', '--d-radius-card', '--d-radius-hero', '--d-radius-nav', '--d-radius-badge']) assert.equal(value(newLight, name), value(classic, name), 'the same shape as Classic: ' + name);
@@ -147,4 +147,10 @@ test('A toast only where the screen already confirms, and only as an addition to
     ['frontend/features/teacher-attendance/attendance-view.tsx', /data-finished/, /actionToast\(t\('ta\.finished'\)\)/],
     ['frontend/features/teacher-course/course-view.tsx', /data-status-note/, /actionToast\(t\(target === 'published'/],
   ]) { const source = read(file); assert.match(source, confirmed, file); assert.match(source, said, file); }
+});
+
+test('The logo's shadow is light-theme only on the opening logo and the sign-in page, and only there', () => {
+  assert.match(read('frontend/styles/design-components.css'), /html.dark .edulabs-mark-light-shadow { display: none; }/);
+  for (const file of ['frontend/components/loading-overlay.tsx', 'frontend/features/auth/firebase-form.tsx', 'app/(auth)/layout.tsx']) assert.match(read(file), /<EduLabsMark [^>]*lightShadowOnly/, file);
+  for (const file of ['frontend/components/brand-logo.tsx', 'frontend/components/logo.tsx']) assert.doesNotMatch(read(file), /lightShadowOnly/, file);
 });

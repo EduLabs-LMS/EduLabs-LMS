@@ -11,11 +11,13 @@ interface EduLabsMarkProps {
 	grow?: boolean;
 	/** Black offset shadow, enabled by default. Pass false to omit it or a number for logo-unit offset. */
 	shadow?: boolean | number;
+	/** The shadow is drawn in the light theme only: on the opening logo and the sign-in page it cannot be seen on a dark background. */
+	lightShadowOnly?: boolean;
 	/** Delay between pieces while growing, in ms (default 45). */
 	stagger?: number;
 }
 
-const EduLabsMark = ({ className, grow = false, shadow = true, stagger, tone = 'brand' }: EduLabsMarkProps) => {
+const EduLabsMark = ({ className, grow = false, shadow = true, lightShadowOnly = false, stagger, tone = 'brand' }: EduLabsMarkProps) => {
 	const offset = typeof shadow === 'number' ? shadow : 12;
 	const svgStyle = {
 		overflow: 'visible',
@@ -41,7 +43,7 @@ const EduLabsMark = ({ className, grow = false, shadow = true, stagger, tone = '
 			style={svgStyle}
 		>
 			{shadow ? (
-				<g transform={`translate(${offset} ${offset})`} aria-hidden="true">
+				<g transform={`translate(${offset} ${offset})`} aria-hidden="true" className={lightShadowOnly ? 'edulabs-mark-light-shadow' : undefined}>
 					{pieces('#000000')}
 				</g>
 			) : null}

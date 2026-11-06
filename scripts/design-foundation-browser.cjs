@@ -1,6 +1,7 @@
 // The design foundation in Chromium: the real frame, Home, Settings switch and shared components, the real stylesheet and fonts, synthetic loopback data only.
 // The test server answers like the real root layout: it reads the cookie with the real designFromCookie and writes data-design into the first byte of <html>.
 // Not provider acceptance. Needs a Firebase-mode `npm run build` first (font faces) and LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME.
+const { shootMatrix } = require('./screen-matrix.cjs');
 const fs = require('fs'), path = require('path'), http = require('http'), assert = require('node:assert/strict');
 const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
@@ -192,20 +193,29 @@ const helpers = () => {
   } }] });
 
  const cookiesSeen = [];
+ const noteCalls = [];
+ // The real layout sends the teacher frame in the first byte of <body>; this client-rendered page stands in for it with an empty element, so the first frame's tokens are measured as they would be.
  const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const send = (value, status = 200) => { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(value)); };
   if (url.pathname === '/app.js') { res.setHeader('Content-Type', 'application/javascript'); return res.end(fs.readFileSync(path.join(out, 'app.js'))); }
   if (url.pathname === '/style.css') { res.setHeader('Content-Type', 'text/css'); return res.end(css); }
   if (url.pathname.startsWith('/_next/static/media/')) { const f = path.join(mediaDir, path.basename(url.pathname)); if (!fs.existsSync(f)) { res.statusCode = 404; return res.end(); } res.setHeader('Content-Type', 'font/woff2'); return res.end(fs.readFileSync(f)); }
-  if (url.pathname === '/api/communications') return send({ rows: [], page: 0, unread: 3 });
+  if (url.pathname === '/api/communications') { let raw = ''; req.on('data', c => { raw += c; }); req.on('end', () => {
+   const { action, data } = JSON.parse(raw || '{}'); noteCalls.push({ action, data });
+   if (action === 'preferences') return send([]);
+   if (action === 'push-config') return send({ publicKey: null });
+   if (action === 'preference' || action === 'read' || action === 'unread' || action === 'read-all') return send({});
+   if (action === 'list' && data?.filter) return send({ page: data.page ?? 0, unread: 3, rows: data.filter === 'read' ? [] : [{ id: 'a0000000-0000-4000-8000-000000000001', event_type: 'support_reply', created_at: new Date(Date.now() - 1800000).toISOString(), read_at: null, link: '/support' }, { id: 'a0000000-0000-4000-8000-000000000002', event_type: 'session_details', created_at: new Date(Date.now() - 7200000).toISOString(), read_at: new Date().toISOString(), link: null }] });
+   return send({ rows: [], page: 0, unread: 3 });
+  }); return; }
   if (url.pathname === '/api/user/status') return send({ user: { role: 'teacher' } });
   if (url.pathname === '/') {
    const cookie = /(?:^|;\s*)([^=;]+)=([^;]*)/g, jar = {}; for (const m of (req.headers.cookie || '').matchAll(cookie)) jar[m[1]] = m[2];
    cookiesSeen.push(req.headers.cookie || '');
    const design = designFromCookie(jar[designCookieKey]);
    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-   return res.end(`<!doctype html><html lang="en" data-lms-appearance data-design="${design}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body class="${fontVars} font-sans"><div id="root"></div><script src="/app.js"></script></body></html>`);
+   return res.end(`<!doctype html><html lang="en" data-lms-appearance data-design="${design}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body class="${fontVars} font-sans"><div data-teacher-shell hidden></div><div id="root"></div><script src="/app.js"></script></body></html>`);
   }
   res.statusCode = 404; res.end();
  });
@@ -226,7 +236,7 @@ const helpers = () => {
   await page.route('**/*', r => { if (r.request().url().startsWith(origin)) return r.continue(); external.push(r.request().url()); return r.abort(); });
   if (beforeGoto) await beforeGoto(page);
   await page.goto(origin + '/?' + query);
-  await page.locator('[data-teacher-shell]').waitFor();
+  await page.locator('[data-teacher-shell][data-lms-shell]').waitFor();
   await page.evaluate(() => document.fonts.ready);
   // Measure a page at rest: its first render's animation has ended. A test of that animation changes the address itself.
   await page.waitForFunction(() => !document.querySelector('main[data-enter]'));
@@ -311,7 +321,7 @@ const helpers = () => {
    const { page, context } = await open(phone, 'view=guard', look);
    assert.equal(await page.locator('[data-teacher-tabs]').count(), 0, 'no tabs on Attendance');
    assert.equal(await page.locator('[data-teacher-phone-header]').isVisible(), true);
-   assert.equal(await page.locator('[data-teacher-shell]').getAttribute('data-tabs'), 'hidden');
+   assert.equal(await page.locator('[data-teacher-shell][data-lms-shell]').getAttribute('data-tabs'), 'hidden');
    await context.close();
   }
   const { page, context } = await open(phone, 'view=home&path=' + encodeURIComponent('/teacher/groups/x'), 'new');
@@ -345,23 +355,44 @@ const helpers = () => {
   }
  });
 
- await step('The switch, default: a first visit is Classic; a broken cookie is Classic; the server writes it into the first byte', async () => {
+ await step('The switch, default: a first visit is New; a broken cookie is New; a chosen Classic stays Classic; the server writes it into the first byte', async () => {
   const raw = async cookie => { const r = await fetch(origin + '/?view=settings', { headers: cookie ? { cookie } : {} }); return (await r.text()).match(/<html[^>]*>/)[0]; };
-  assert.match(await raw(), /data-design="classic"/);
+  assert.match(await raw(), /data-design="new"/, 'a browser that has not chosen gets New');
   assert.match(await raw(`${designCookieKey}=new`), /data-design="new"/);
   assert.match(await raw(`${designCookieKey}=classic`), /data-design="classic"/);
-  for (const bad of ['NEW', '%22%3E%3Cscript%3E', 'admin', '']) assert.match(await raw(`${designCookieKey}=${bad}`), /data-design="classic"/, bad);
+  for (const bad of ['NEW', '%22%3E%3Cscript%3E', 'admin', '']) assert.match(await raw(`${designCookieKey}=${bad}`), /data-design="new"/, bad);
   const { page, context } = await open(desktop, 'view=settings');
-  assert.equal(await page.evaluate(() => document.documentElement.dataset.design), 'classic');
-  assert.equal(await page.locator('[data-design-option="classic"]').getAttribute('aria-checked'), 'true'); assert.equal(await page.locator('[data-design-option="new"]').getAttribute('aria-checked'), 'false');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.design), 'new');
+  assert.equal(await page.locator('[data-design-option="new"]').getAttribute('aria-checked'), 'true'); assert.equal(await page.locator('[data-design-option="classic"]').getAttribute('aria-checked'), 'false');
   assert.equal((await context.cookies()).length, 0, 'choosing nothing stores nothing');
   await context.close();
  });
 
+ await step('The opening logo keeps its black offset shadow in the light theme and draws none in the dark theme', async () => {
+  for (const [query, shown] of [['view=logo', true], ['view=logo&theme=dark', false]]) {
+   const { page, context } = await open(desktop, query, 'new'); await page.locator('[data-first-load-logo] svg').first().waitFor();
+   if (!shown) await page.waitForFunction(() => document.documentElement.classList.contains('dark'));
+   const display = await page.locator('[data-first-load-logo] svg > g[aria-hidden="true"]').evaluate(e => getComputedStyle(e).display);
+   assert.equal(display !== 'none', shown, query); await context.close();
+  }
+ });
+
+ await step('New belongs to the teacher app: a page with no teacher shell keeps the Classic values, in light and dark, whatever the cookie says', async () => {
+  for (const [query, expected] of [['view=settings', '#E9EEE4'], ['view=settings&theme=dark', 'HSL(140 14% 13%)']]) {
+   const { page, context } = await open(desktop, query, 'new');
+   if (query.includes('dark')) await page.waitForFunction(() => document.documentElement.classList.contains('dark'));
+   assert.equal(await page.evaluate(() => document.documentElement.dataset.design), 'new');
+   assert.notEqual((await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--d-canvas').trim())).toUpperCase(), expected, 'in the teacher app, New');
+   await page.evaluate(() => document.querySelectorAll('[data-teacher-shell]').forEach(e => e.removeAttribute('data-teacher-shell')));
+   assert.equal((await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--d-canvas').trim())).toUpperCase(), expected, 'elsewhere, Classic');
+   await context.close();
+  }
+ });
+
  await step('The switch, choosing: Settings changes the look at once with no reload, stores only the word, and persists after a reload with no flash', async () => {
-  const { page, context } = await open(desktop, 'view=settings');
+  const { page, context } = await open(desktop, 'view=settings', 'classic');
   await page.evaluate(() => { window.__stay = true; });
-  const before = await page.locator('[data-teacher-shell]').evaluate(() => getComputedStyle(document.body).getPropertyValue('--d-canvas').trim());
+  const before = await page.locator('[data-teacher-shell][data-lms-shell]').evaluate(() => getComputedStyle(document.body).getPropertyValue('--d-canvas').trim());
   await page.locator('[data-design-option="new"]').click();
   assert.equal(await page.evaluate(() => document.documentElement.dataset.design), 'new');
   assert.equal(await page.evaluate(() => window.__stay), true, 'no reload');
@@ -434,7 +465,7 @@ const helpers = () => {
    assert.match(await first('[data-variant="primary"]'), body); assert.match(await first('[data-gallery-forms] .d-field-label'), body);
    const faces = await page.evaluate(() => [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family).join());
    assert.match(faces, title, 'the face really loaded'); assert.match(faces, body, 'the face really loaded');
-   if (lang === 'ar') { assert.equal(await page.locator('[data-teacher-shell]').evaluate(e => { const s = getComputedStyle(e); return Math.round(parseFloat(s.lineHeight) / parseFloat(s.fontSize) * 100) / 100; }), 1.6, 'Arabic body line height'); assert.equal(await page.locator('[data-gallery-list] li').first().evaluate(e => { const p = e.querySelector('.d-meta'); const s = getComputedStyle(p); return Math.round(parseFloat(s.lineHeight) / parseFloat(s.fontSize) * 100) / 100; }) >= 1.5, true, 'meta line too'); }
+   if (lang === 'ar') { assert.equal(await page.locator('[data-teacher-shell][data-lms-shell]').evaluate(e => { const s = getComputedStyle(e); return Math.round(parseFloat(s.lineHeight) / parseFloat(s.fontSize) * 100) / 100; }), 1.6, 'Arabic body line height'); assert.equal(await page.locator('[data-gallery-list] li').first().evaluate(e => { const p = e.querySelector('.d-meta'); const s = getComputedStyle(p); return Math.round(parseFloat(s.lineHeight) / parseFloat(s.fontSize) * 100) / 100; }) >= 1.5, true, 'meta line too'); }
    await context.close();
   }
  });
@@ -491,7 +522,7 @@ const helpers = () => {
    await narrow.page.locator('[data-sticky-primary] button').click(); assert.equal(await narrow.page.evaluate(() => window.__primary), 1);
    await narrow.page.getByRole('button', { name: 'More actions' }).click();
    assert.deepEqual(await narrow.page.locator('[role="menuitem"]').allInnerTexts(), ['Edit', 'Delete']);
-   await narrow.page.getByRole('menuitem', { name: 'Delete' }).click(); assert.equal(await narrow.page.evaluate(() => window.__destructive), true);
+   await narrow.page.getByRole('menuitem', { name: 'Delete' }).click(); await narrow.page.waitForFunction(() => window.__destructive === true); // the menu runs its action once it has closed and handed focus back
    await narrow.page.locator('[data-open-dialog]').click();
    await narrow.page.waitForTimeout(300); // the sheet has finished sliding up
    const sheet = await box(narrow.page, '[data-gallery-dialog]');
@@ -546,6 +577,27 @@ const helpers = () => {
 
  assert.deepEqual(errors, [], 'no page errors or console errors');
  assert.deepEqual(external, [], 'nothing left the loopback');
+ await step('Notifications in the teacher frame: the same reads and commands, drawn with the design components; nothing asks for permission on opening; a phone keeps Mark all behind the menu', async () => {
+  noteCalls.length = 0;
+  const { page, context } = await open(desktop, 'view=notifications', 'new'); await page.locator('[data-teacher-notifications] [data-notification-list]').waitFor();
+  assert.equal(await page.locator('[data-notification]').count(), 2); assert.equal(await page.locator('.d-note-dot--unread').count(), 1, 'one unread dot');
+  assert.equal(await page.locator('[data-notification] a[href="/support"]').count(), 1); assert.match(await page.locator('[data-teacher-notifications]').innerText(), /currently unavailable/i);
+  assert.equal(await page.evaluate(() => Notification.permission === 'default'), true, 'looking asks for nothing');
+  await page.getByRole('button', { name: 'Mark read', exact: true }).click(); await page.waitForFunction(() => document.querySelector('[data-notification]'));
+  await page.locator('[data-read-all]').click(); await page.waitForFunction(() => document.querySelector('[data-notification]'));
+  await page.locator('[data-pref-kind="in-app"]').first().click(); await page.waitForFunction(() => !document.querySelector('[data-pref-kind="in-app"][aria-disabled="true"]'));
+  await page.locator('[data-teacher-notifications] .d-seg button').nth(2).click(); await page.locator('[data-teacher-notifications] [data-state="empty"]').waitFor();
+  const made = noteCalls.map(c => c.action); for (const a of ['list', 'preferences', 'push-config', 'read', 'read-all', 'preference']) assert.ok(made.includes(a), 'calls ' + a);
+  assert.equal(noteCalls.find(c => c.action === 'read').data.id, 'a0000000-0000-4000-8000-000000000001'); assert.ok(noteCalls.some(c => c.action === 'list' && c.data.filter === 'read')); await context.close();
+  const ph = await open(phone, 'view=notifications&lang=ar', 'classic'); await ph.page.locator('[data-teacher-notifications] [data-notification-list]').waitFor(); assert.equal(await ph.page.locator('[data-read-all]').count(), 0, 'behind the menu'); await ph.context.close();
+ });
+ if (process.env.LMS_MATRIX) await step('Screen matrix: every look, theme, language and width, measured', async () => {
+  const findings = await shootMatrix({ label: 'notifications', open: ({ viewport, lang, theme, look, target }) => open(viewport, `view=${target}&theme=${theme}&lang=${lang}`, look), screens: [
+   { name: 'notifications', target: 'notifications', ready: '[data-teacher-notifications] [data-notification-list]' },
+  ] });
+  assert.deepEqual(findings, []);
+ });
+
  await browser.close(); server.close();
  console.log(`Design foundation browser checks passed: ${results.length} groups (real components, real stylesheet, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);
  process.exit(0);

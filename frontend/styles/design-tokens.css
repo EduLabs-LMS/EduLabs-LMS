@@ -28,7 +28,7 @@ html[lang="ar"] body {
   --d-font-title: var(--font-arabic-display), var(--font-arabic-body), sans-serif;
   --d-font-body: var(--font-arabic-body), system-ui, sans-serif;
 }
-html[data-design="new"] body { --d-section-font: var(--d-font-body); }
+html[data-design="new"]:has([data-teacher-shell]) body { --d-section-font: var(--d-font-body); }
 
 /* ---- Classic, light: today's values ---- */
 :root, html[data-design="classic"] {
@@ -50,6 +50,7 @@ html[data-design="new"] body { --d-section-font: var(--d-font-body); }
   --d-line: #000000;                /* border-black */
   --d-divider: rgb(0 0 0 / 0.15);   /* border-black/15 */
   --d-field-line: #000000;
+  --d-field-edge: #000000;
   --d-card-border-width: 2.5px;
   --d-control-border-width: 2px;
   --d-divider-width: 2px;
@@ -165,7 +166,7 @@ html[data-design="new"] body { --d-section-font: var(--d-font-body); }
 }
 
 /* ---- Classic, dark: what appearance.css makes those same classes today ---- */
-html.dark:not([data-design="new"]) {
+html.dark:not([data-design="new"]), html.dark:not(:has([data-teacher-shell])) {
   --d-canvas: hsl(140 14% 13%);     /* .bg-slate-50 -> --card */
   --d-surface: hsl(140 14% 13%);    /* .bg-white -> --card */
   --d-sidebar: hsl(140 14% 13%);
@@ -181,6 +182,7 @@ html.dark:not([data-design="new"]) {
   --d-line: hsl(100 15% 55%);       /* .border-black -> --lms-outline */
   --d-divider: rgb(0 0 0 / 0.15);
   --d-field-line: hsl(100 15% 55%);
+  --d-field-edge: hsl(100 15% 55%);
   --d-primary-border: hsl(100 15% 55%);
   --d-focus: hsl(102 63% 65%);      /* --ring */
   --d-focus-offset: 3px;
@@ -223,7 +225,8 @@ html.dark:not([data-design="new"]) {
 }
 
 /* ---- New, light: design v2 ---- */
-html[data-design="new"] {
+/* New belongs to the teacher app: a student's or a signed-out page has no teacher shell and keeps the Classic values, whatever the cookie or the default says. */
+html[data-design="new"]:has([data-teacher-shell]) {
   --d-canvas: #EDF1E8;
   --d-surface: #FBFDF8;
   --d-sidebar: #F3F7EE;
@@ -239,6 +242,7 @@ html[data-design="new"] {
   --d-line: #D3DEC9;
   --d-divider: #D3DEC9;
   --d-field-line: #B7C6AA;
+  --d-field-edge: #788A6D;           /* the edge of a text field or a list: 3:1 against the page (WCAG 1.4.11); the board's lighter line stays on buttons */
   --d-card-border-width: 1px;
   --d-control-border-width: 1px;
   --d-divider-width: 1px;
@@ -341,7 +345,7 @@ html[data-design="new"] {
 }
 
 /* ---- New, dark: the same roles. Depth comes from lighter surfaces, not shadows. ---- */
-html.dark[data-design="new"] {
+html.dark[data-design="new"]:has([data-teacher-shell]) {
   --d-canvas: #111813;
   --d-surface: #1C2620;
   --d-sidebar: #161F19;
@@ -357,6 +361,7 @@ html.dark[data-design="new"] {
   --d-line: #33423A;
   --d-divider: #33423A;
   --d-field-line: #4F6155;
+  --d-field-edge: #748678;
   --d-card-shadow: 0 3px 0 #33423A;
   --d-control-shadow: 0 2px 0 #33423A;
   --d-field-shadow: none;
@@ -415,7 +420,7 @@ html.dark[data-design="new"] {
 }
 
 /* Arabic body line height in the New look. */
-html[data-design="new"][lang="ar"] {
+html[data-design="new"][lang="ar"]:has([data-teacher-shell]) {
   --d-body-lh: 1.6;
   --d-label-lh: 1.6;
   --d-meta-lh: 1.6;

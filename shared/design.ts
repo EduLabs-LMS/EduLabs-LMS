@@ -1,11 +1,11 @@
 /**
- * The Classic / New look: a lasting personal preference, and both looks stay (owner decision, DECISIONS.md). It changes only the visual layer of the teacher app.
+ * The Classic / New look: a lasting personal preference, and both looks stay (owner decision, DECISIONS.md). It changes only the visual layer of the teacher app; a browser that has not chosen gets New (owner decision).
  * The value is a plain preference: it decides nothing about access and holds no user data.
  */
 export const designCookieKey = 'edulabs_design';
 export const designs = ['classic', 'new'] as const;
 export type Design = typeof designs[number];
-export const defaultDesign: Design = 'classic';
+export const defaultDesign: Design = 'new';
 export const isDesign = (value: unknown): value is Design => value === 'classic' || value === 'new';
 /** The value put on <html data-design>. Anything else in the cookie (old, edited, garbage) is the default and never reaches the page. */
 export const designFromCookie = (value: unknown): Design => (isDesign(value) ? value : defaultDesign);

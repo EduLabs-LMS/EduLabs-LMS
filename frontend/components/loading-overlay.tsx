@@ -48,7 +48,7 @@ export const FirstLoadLogo = ({ onPlayed }: { onPlayed?: () => void }) => {
 	}, []);
 	return (
 		<div ref={ref} data-first-load-logo className="flex flex-col items-center px-4">
-			<EduLabsMark grow shadow stagger={30} className="h-44 w-auto sm:h-56" />
+			<EduLabsMark grow shadow lightShadowOnly stagger={30} className="h-44 w-auto sm:h-56" />
 			<div dir="ltr" aria-hidden="true" className="mt-7 flex font-display text-5xl leading-none text-black dark:text-white sm:text-6xl">
 				{WORD.map((letter, i) => <span key={i} className="first-load-letter" style={{ '--i': i } as React.CSSProperties}>{letter}</span>)}
 			</div>
@@ -114,7 +114,7 @@ const LoadingOverlay = ({
 			)}
 		>
 			{firstLoad ? <FirstLoadLogo onPlayed={onPlayed} /> : <div className="flex flex-col items-center px-4">
-				<EduLabsMark grow shadow stagger={30} className="h-44 w-auto sm:h-56" />
+				<EduLabsMark grow shadow lightShadowOnly stagger={30} className="h-44 w-auto sm:h-56" />
 
 				<div
 					dir="ltr"

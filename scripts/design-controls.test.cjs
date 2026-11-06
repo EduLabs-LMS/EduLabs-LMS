@@ -11,8 +11,8 @@ function block(selector) {
   const body = tokens.slice(tokens.indexOf('{', at) + 1, tokens.indexOf('\n}', at)).replace(/\/\*[\s\S]*?\*\//g, '');
   return Object.fromEntries([...body.matchAll(/(--d-[\w-]+):\s*([^;]+);/g)].map(m => [m[1], m[2].trim()]));
 }
-const classicLight = block(':root, html[data-design="classic"]'), newLight = block('html[data-design="new"]');
-const sets = { 'Classic light': classicLight, 'Classic dark': { ...classicLight, ...block('html.dark:not([data-design="new"])') }, 'New light': newLight, 'New dark': { ...newLight, ...block('html.dark[data-design="new"]') } };
+const classicLight = block(':root, html[data-design="classic"]'), newLight = block('html[data-design="new"]:has([data-teacher-shell])');
+const sets = { 'Classic light': classicLight, 'Classic dark': { ...classicLight, ...block('html.dark:not([data-design="new"]), html.dark:not(:has([data-teacher-shell]))') }, 'New light': newLight, 'New dark': { ...newLight, ...block('html.dark[data-design="new"]:has([data-teacher-shell])') } };
 const parse = value => {
   value = value.trim();
   let m = /^#([0-9a-f]{6})$/i.exec(value); if (m) return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16));
