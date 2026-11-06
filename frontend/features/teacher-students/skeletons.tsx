@@ -22,18 +22,17 @@ export function StudentsSkeleton() {
 
 /** The student's name, course and status card, drawn with placeholders (the back link is the page's own). */
 export function StudentBodySkeleton() {
-  return <div role="status" data-state="loading" className="space-y-5">
-    <div aria-hidden="true" className="space-y-3"><Skeleton className="h-10 w-72 max-w-full" /><Skeleton className="h-5 w-64 max-w-full" /><Skeleton className="h-5 w-48" /></div>
-    <div aria-hidden="true" className="space-y-3 rounded-[24px] border-[2.5px] border-black bg-white p-5 shadow-hard"><Skeleton className="h-6 w-40" /><Skeleton className="h-5 w-full" /><Skeleton className="h-5 w-3/4" /></div>
-    <span className="sr-only"><L id="ts.student.loading" /></span>
+  return <div aria-hidden="true" className="d-stack-lg">
+    <div className="d-page-header-main"><DesignSkeleton className="h-9 w-64 max-w-full" /><DesignSkeleton className="h-5 w-48 max-w-full" /></div>
+    <div className="d-card d-card--pad d-stack-sm"><DesignSkeleton className="h-5 w-32" /><DesignSkeleton className="h-11 w-full" /></div>
+    <div className="d-card d-card--pad d-stack-sm"><DesignSkeleton className="h-5 w-32" />{[0, 1, 2].map(i => <DesignSkeleton key={i} className="h-11 w-full" />)}</div>
   </div>;
 }
 
 export function StudentSkeleton() {
-  return <SkeletonPage name="student" label={<L id="ts.student.loading" />} className="w-full max-w-3xl space-y-5">
-    <Skeleton className="h-6 w-40" />
-    <div aria-hidden="true" className="space-y-3"><Skeleton className="h-10 w-72 max-w-full" /><Skeleton className="h-5 w-64 max-w-full" /><Skeleton className="h-5 w-48" /></div>
-    <div aria-hidden="true" className="space-y-3 rounded-[24px] border-[2.5px] border-black bg-white p-5 shadow-hard"><Skeleton className="h-6 w-40" /><Skeleton className="h-5 w-full" /><Skeleton className="h-5 w-3/4" /></div>
+  return <SkeletonPage name="student" label={<L id="ts.student.loading" />} className="d-page">
+    <DesignSkeleton className="h-5 w-24" />
+    <StudentBodySkeleton />
   </SkeletonPage>;
 }
 
