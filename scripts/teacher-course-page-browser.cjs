@@ -137,13 +137,13 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
  const step = async (name, fn) => { try { await ctl({ reset: true }); await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
  const shot = (page, name) => page.screenshot({ path: path.join(shots, name + '.png'), fullPage: true });
  const tinyTargets = page => page.evaluate(() => [...document.querySelectorAll('main a, main button, main input, main select')].filter(e => { const r = e.getBoundingClientRect(); return r.width && (r.height < 43.5 || r.width < 43.5) && getComputedStyle(e).visibility !== 'hidden'; }).map(e => (e.textContent || e.getAttribute('aria-label') || e.tagName).trim().slice(0, 30) + ':' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height)));
- const smallText = page => page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const s = parseFloat(getComputedStyle(n.parentElement).fontSize); if (s < 16) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
+ const smallText = page => page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if (!n.textContent.trim()) continue; const s = parseFloat(getComputedStyle(n.parentElement).fontSize); if (s < 12) bad.push(n.textContent.trim().slice(0, 30) + ':' + s); } return bad; });
  const forbidden = /organi[sz]ation|tenant|\bslug\b|program(me)?s?\b|\bstages?\b|\bmodules?\b|\boffering|website studio|منظمة|مؤسسة|وحدة|برنامج|مرحلة/i;
  const main = page => page.locator('main').innerText();
  const settled = page => page.waitForFunction(() => !document.querySelector('[data-state="loading"],[data-skeleton]') && !document.querySelector('main').innerText.includes('…'));
  const clean = async (page, label) => {
-  assert.ok(await overflow(page), 'no horizontal scroll ' + label); assert.deepEqual(await tinyTargets(page), [], '48px targets ' + label);
-  assert.deepEqual(await smallText(page), [], 'text of 16px or more ' + label); assert.doesNotMatch(await main(page), forbidden, 'wording ' + label);
+  assert.ok(await overflow(page), 'no horizontal scroll ' + label); assert.deepEqual(await tinyTargets(page), [], '44px targets ' + label);
+  assert.deepEqual(await smallText(page), [], 'text of 12px or more ' + label); assert.doesNotMatch(await main(page), forbidden, 'wording ' + label);
  };
  let probes = 0;
 

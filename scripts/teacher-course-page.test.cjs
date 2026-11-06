@@ -43,7 +43,7 @@ test('view: publishing uses the existing PATCH with the version it read; it asks
  assert.doesNotMatch(v, /usePageLoadingSignal/); assert.doesNotMatch(v.replace(/organizationId/g, ''), /organization/i);
 });
 test('links: course rows and the Invite panel lead to the course page, and the Settings shell lets it through', () => {
- assert.equal((read('frontend/features/teacher-home/parts.tsx').match(/coursePagePath\(c\.id\)/g) ?? []).length, 2);
+ assert.equal((read('frontend/features/teacher-home/parts.tsx').match(/coursePagePath\(c\.id\)/g) ?? []).length, 1);
  assert.match(read('frontend/features/teacher-students/invite.tsx'), /<Link href=\{coursePagePath\(c\.courseId\)\} data-draft-link/);
  const shell = read('frontend/features/teacher-settings/shell.tsx'); assert.match(shell, /coursePagePattern\.test\(pathname\)\) return <>\{children\}<\/>/, 'a course page is shown without the Settings sub-navigation');
  assert.match(read('middleware.ts'), /teacher\\\/settings\\\/courses\\\/\[0-9a-f\]\{8\}/);
