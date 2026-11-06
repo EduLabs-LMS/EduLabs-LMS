@@ -537,6 +537,16 @@ html[lang="ar"] .d-section-label { letter-spacing: 0; }
 .d-student-body { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: var(--d-space-4); row-gap: 2px; }
 .d-student-body > .d-label { flex: 1 1 160px; min-width: 0; }
 
+/* ---- Courses: rows on a phone, cards from 768 px ---- */
+.d-course-card { display: flex; align-items: center; justify-content: space-between; gap: var(--d-space-3); min-height: 64px; padding: var(--d-space-3) 0; color: var(--d-ink); }
+@media (min-width: 768px) {
+  .d-course-card { flex: 1; min-width: 0; flex-direction: column; align-items: flex-start; min-height: 112px; padding: 20px; background: var(--d-surface); border: var(--d-card-border-width) solid var(--d-line); border-radius: var(--d-radius-card); box-shadow: var(--d-card-shadow); }
+}
+.d-card.d-stack > .d-btn { align-self: flex-start; }
+.d-confirm { display: flex; flex-direction: column; gap: var(--d-space-3); padding: var(--d-space-4); border-radius: var(--d-radius-field); background: var(--d-pill-warning-bg); color: var(--d-ink); }
+.d-card .d-dl--grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--d-space-4); }
+.d-dl-wide { grid-column: 1 / -1; }
+
 /* ---- Reduced motion: nothing moves ---- */
 @media (prefers-reduced-motion: reduce) {
   .d-btn, .d-btn:not([disabled]):hover, .d-btn:not([disabled]):active, .d-btn--primary:not([disabled]):active { transition: none; transform: none; }

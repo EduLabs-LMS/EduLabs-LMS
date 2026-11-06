@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { L } from '@/frontend/components/language-provider';
+import { Button, buttonClass } from '@/frontend/components/design/button';
+import { StatusPill, type Tone } from '@/frontend/components/design/status-pill';
 import { cn } from '@/shared/utils';
 import type { CourseStatus } from '@/shared/teacher-home';
 import { coursePagePath } from '@/shared/teacher-course-page';
@@ -22,47 +24,35 @@ export function useRetry() {
   return { pending, retry: () => start(() => router.refresh()) };
 }
 
-export function Section({ id, title, children, className, eyebrow = false }: { id: string; title: React.ReactNode; children: React.ReactNode; className?: string; eyebrow?: boolean }) {
-  return <section aria-labelledby={id} data-section={id} className={cn(card, 'space-y-4', className)}>
-    <h2 id={id} className={eyebrow ? 'text-base font-bold uppercase tracking-wider' : 'font-display text-2xl leading-tight'}>{title}</h2>
-    {children}
-  </section>;
-}
-
 /** A failed or unknown read is reported as such, never as an empty or "all clear" result. */
 export function SectionError({ status, onRetry, pending }: { status: number | null; onRetry: () => void; pending: boolean }) {
-  return <div role="alert" data-state="error" className="space-y-3 rounded-2xl border-2 border-black bg-rose-50 p-4 text-slate-900">
-    <p className="flex gap-2 text-base"><AlertCircle aria-hidden className="mt-1 h-5 w-5 shrink-0" /><span>
+  return <div role="alert" data-state="error" className="d-alert">
+    <p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span>
       {status === 401 ? <L id="th.state.error_401" /> : status === 403 ? <L id="th.state.error_403" /> : <L id="th.state.error" />}
     </span></p>
     {status === 401
-      ? <Link href="/sign-in" className={plainButton}><L id="th.state.signin" /></Link>
+      ? <Link href="/sign-in" className={buttonClass('secondary')}><L id="th.state.signin" /></Link>
       : status === 403 ? null
-      : <button type="button" onClick={onRetry} disabled={pending} className={plainButton}>{pending && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="th.state.retry" /></button>}
+      : <Button type="button" onClick={onRetry} disabled={pending}>{pending && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="th.state.retry" /></Button>}
   </div>;
 }
 
 export function Empty({ id, children }: { id: 'th.next.empty' | 'th.first.next' | 'th.updates.empty' | 'th.coming.empty' | 'th.courses.empty'; children?: React.ReactNode }) {
-  return <div data-state="empty" className="space-y-3"><p className="text-base text-slate-800"><L id={id} /></p>{children}</div>;
+  return <div data-state="empty" className="d-stack"><p className="d-body"><L id={id} /></p>{children}</div>;
 }
 
-const tone: Record<CourseStatus, string> = { draft: 'bg-amber-100', published: 'bg-primary', archived: 'bg-slate-200' };
+const tone: Record<CourseStatus, Tone> = { draft: 'warning', published: 'success', archived: 'neutral' };
 export function StatusBadge({ status }: { status: CourseStatus }) {
-  return <span data-status={status} className={cn('inline-flex w-fit min-h-[28px] items-center rounded-full border-2 border-black px-3 text-base font-bold text-black', tone[status])}><L id={`th.courses.${status}`} /></span>;
+  return <StatusPill tone={tone[status]} data-status={status}><L id={`th.courses.${status}`} /></StatusPill>;
 }
 
 export const sessionTime: Intl.DateTimeFormatOptions = { timeZone: 'Africa/Cairo', weekday: 'long', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' };
 
-export function CourseCards({ items, compact = false }: { items: { id: string; title: string; status: CourseStatus }[]; compact?: boolean }) {
-  if (compact) return <ul>{items.map(c => <li key={c.id} className="border-t-2 border-black/15 first:border-t-0">
-    <Link href={coursePagePath(c.id)} data-course={c.id} className="flex min-h-[48px] items-center justify-between gap-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black">
-      <span className="min-w-0 break-words text-base font-bold"><bdi dir="auto">{c.title}</bdi></span>
-      <StatusBadge status={c.status} />
-    </Link>
-  </li>)}</ul>;
-  return <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map(c => <li key={c.id}>
-    <Link href={coursePagePath(c.id)} data-course={c.id} className="flex min-h-[88px] flex-col justify-between gap-3 rounded-2xl border-2 border-black bg-white p-4 shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-black">
-      <span className="break-words text-lg font-bold leading-snug"><bdi dir="auto">{c.title}</bdi></span>
+/** The teacher's courses: cards on a desktop, rows on a phone. */
+export function CourseCards({ items }: { items: { id: string; title: string; status: CourseStatus }[] }) {
+  return <ul className="d-group-list">{items.map(c => <li key={c.id}>
+    <Link href={coursePagePath(c.id)} data-course={c.id} className="d-course-card d-focus">
+      <span className="d-label d-wrap"><bdi dir="auto">{c.title}</bdi></span>
       <StatusBadge status={c.status} />
     </Link>
   </li>)}</ul>;

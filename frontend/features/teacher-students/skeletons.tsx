@@ -1,6 +1,6 @@
 import { L } from '@/frontend/components/language-provider';
 import { DesignSkeleton } from '@/frontend/components/design/skeleton';
-import { Skeleton, SkeletonPage } from '@/frontend/components/skeleton';
+import { SkeletonPage } from '@/frontend/components/skeleton';
 
 export function StudentRowsSkeleton({ rows = 6 }: { rows?: number }) {
   return <ul aria-hidden="true" className="d-list d-card d-card--pad">
@@ -10,12 +10,9 @@ export function StudentRowsSkeleton({ rows = 6 }: { rows?: number }) {
 
 /** The Students route: the real heading, the filters and a list of placeholders. */
 export function StudentsSkeleton() {
-  return <SkeletonPage name="students" label={<L id="ts.students.loading" />} className="w-full space-y-5">
-    <header className="flex flex-wrap items-start justify-between gap-3">
-      <div className="min-w-0"><h1 className="font-display text-3xl leading-tight lg:text-4xl"><L id="ts.students.title" /></h1><p className="text-base text-slate-700"><L id="ts.students.intro" /></p></div>
-      <Skeleton className="h-12 w-44 rounded-2xl" />
-    </header>
-    <div aria-hidden="true" className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]"><Skeleton className="h-12 rounded-2xl" /><Skeleton className="h-12 rounded-2xl" /><Skeleton className="h-12 rounded-2xl" /></div>
+  return <SkeletonPage name="students" label={<L id="ts.students.loading" />} className="d-page">
+    <header className="d-page-header"><div className="d-page-header-main"><h1 className="d-title"><L id="ts.students.title" /></h1><p className="d-meta"><L id="ts.students.intro" /></p></div><DesignSkeleton className="h-11 w-44 max-md:hidden" /></header>
+    <div aria-hidden="true" className="d-filters-grid"><DesignSkeleton className="h-11 w-full" /><DesignSkeleton className="h-11 w-full" /><DesignSkeleton className="h-11 w-full" /></div>
     <StudentRowsSkeleton />
   </SkeletonPage>;
 }

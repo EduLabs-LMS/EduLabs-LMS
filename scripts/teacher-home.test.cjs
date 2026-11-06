@@ -144,7 +144,7 @@ test('layout contract: greeting, numbers and hero, then a column for what needs 
  assert.doesNotMatch(view, /CoursesLink|data-home-courses-link|th\.courses\.title/, 'Home has no courses block and no Courses link');
  assert.match(view, /href=\{`\/teacher\/groups\/\$\{next\.groupId\}`\}/, 'Open group opens the teacher Group page'); assert.doesNotMatch(view, /<Link href="\/teacher\/groups"/, 'no All sessions button on the Next session card');
  assert.doesNotMatch(home, /CreateCourse/, 'no Create a course button in the Home header');
- assert.match(view, /<CreateCourse targets=\{data\.createTargets\} ink className="min-h-\[48px\]" \/>/, 'the first-visit card keeps its Create a course step');
+ assert.match(view, /<CreateCourse targets=\{data\.createTargets\} \/>/, 'the first-visit card keeps its Create a course step');
  assert.match(view, /data\.firstVisit\) return <FirstVisit/);
  assert.doesNotMatch(view, /EduLabsMark/, 'the mark belongs to the shell, not to the page');
  assert.doesNotMatch(view, /attendance.{0,20}month|th\.summary\.attendance/i, 'the attendance-this-month tile is left out: no existing read scopes attendance by month');

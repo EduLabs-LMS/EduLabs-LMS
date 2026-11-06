@@ -94,8 +94,8 @@ function Groups({ studentId, offering, name }: { studentId: string; offering: Ad
   const loading = groups.data.state === 'loading' || members.loading;
   const failed = groups.data.state === 'error' || members.failedGroups.length > 0 || members.failedOfferings.has(offering.id);
   return <>
-    <section aria-labelledby="ts-student-groups" data-student-groups-section data-tour="student-groups" className="d-card d-card--pad">
-      <h2 id="ts-student-groups" className="d-section-label"><L id="ts.student.groups" /></h2>
+    <section aria-labelledby="ts-student-groups" data-student-groups-section data-tour="student-groups" className="d-card d-card--pad d-stack">
+      <h2 id="ts-student-groups" className="d-section"><L id="ts.student.groups" /></h2>
       {loading && <Loading label="tg.loading" className="h-12" />}
       {!loading && failed && <GroupError kind={groups.data.state === 'error' ? groups.data.error.kind : 'unavailable'} onRetry={() => { if (groups.data.state === 'error') groups.retry(); members.retry(); }} />}
       {!loading && !failed && (mine.length === 0
@@ -134,8 +134,8 @@ function Attendance({ studentId, groups }: { studentId: string; groups: { id: st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentId, groupsKey, revision]);
   const counts = useMemo(() => state.state === 'ready' ? attendanceCounts(state.value.entries) : null, [state]);
-  return <section aria-labelledby="ts-student-attendance" data-student-attendance data-tour="student-attendance" className="d-card d-card--pad">
-    <h2 id="ts-student-attendance" className="d-section-label"><L id="ts.student.attendance" /></h2>
+  return <section aria-labelledby="ts-student-attendance" data-student-attendance data-tour="student-attendance" className="d-card d-card--pad d-stack">
+    <h2 id="ts-student-attendance" className="d-section"><L id="ts.student.attendance" /></h2>
     {state.state === 'loading' && <Loading label="tg.loading" className="h-16" />}
     {state.state === 'error' && <GroupError kind={state.error.kind} onRetry={() => setRevision(v => v + 1)} />}
     {state.state === 'ready' && (state.value.entries.length === 0

@@ -2,17 +2,16 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Countdown } from '@/frontend/components/design/countdown';
-import { Card, CardHead, DateTile, Icon, IconBadge, ListRow, PageHeader, StatusPill, buttonClass } from '@/frontend/components/design';
+import { Button, Card, CardHead, DateTile, Icon, IconBadge, ListRow, PageHeader, StatusPill, buttonClass } from '@/frontend/components/design';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { useApplicationAuth, useWebsiteNavigation } from '@/frontend/components/providers/application-auth-provider';
 import { eventLabels } from '@/shared/contracts/communications';
-import { cn } from '@/shared/utils';
 import { cairoHour, greetingKey, sessionsTodayKey, type HomeSession, type HomeUnsaved, type TeacherHomeLoad } from '@/shared/teacher-home';
 import { attendanceHref } from '@/shared/teacher-attendance';
 import { useCountUp } from '@/frontend/lib/page-entry';
 import { useServerNow } from './use-server-now';
 import { CreateCourse } from './create-course';
-import { SectionError, plainButton, sessionTime, useRetry } from './parts';
+import { SectionError, sessionTime, useRetry } from './parts';
 
 type HomeData = TeacherHomeLoad;
 type Retry = ReturnType<typeof useRetry>;
@@ -180,16 +179,16 @@ function FirstVisit({ data }: { data: HomeData }) {
   const [how, setHow] = useState(false);
   return <div data-first-visit className="d-page">
     <PageHeader title={<L id="th.first.title" />} pill={data.demo ? <DemoLabel /> : undefined} meta={<L id="th.first.intro" />} />
-    <section aria-labelledby="th-first-step" data-first-hero className="flex flex-wrap items-center justify-between gap-6 rounded-[24px] border-[2.5px] border-black bg-primary p-5 shadow-hard sm:p-8">
-      <div className="max-w-xl space-y-2">
-        <p className="text-base font-bold uppercase tracking-wider"><L id="th.first.eyebrow" /></p>
-        <h2 id="th-first-step" className="font-display text-3xl leading-tight"><L id="th.first.step_title" /></h2>
-        <p className="text-lg"><L id="th.first.step_body" /></p>
-        {how && <p id="th-first-how" className="text-base font-bold"><L id="th.first.how_body" /></p>}
+    <section aria-labelledby="th-first-step" data-first-hero className="d-hero">
+      <div className="d-hero-text">
+        <p className="d-section-label"><L id="th.first.eyebrow" /></p>
+        <h2 id="th-first-step" className="d-hero-title"><L id="th.first.step_title" /></h2>
+        <p className="d-body"><L id="th.first.step_body" /></p>
+        {how && <p id="th-first-how" className="d-label"><L id="th.first.how_body" /></p>}
       </div>
-      <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap">
-        <CreateCourse targets={data.createTargets} ink className="min-h-[48px]" />
-        <button type="button" aria-expanded={how} aria-controls="th-first-how" onClick={() => setHow(v => !v)} className={cn(plainButton, 'min-h-[48px]')}><L id="th.first.how" /></button>
+      <div className="d-hero-actions">
+        <CreateCourse targets={data.createTargets} />
+        <Button type="button" aria-expanded={how} aria-controls="th-first-how" onClick={() => setHow(v => !v)}><L id="th.first.how" /></Button>
       </div>
     </section>
     <div className="grid gap-5 md:grid-cols-2">
