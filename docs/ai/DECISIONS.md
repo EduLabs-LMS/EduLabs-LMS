@@ -195,7 +195,7 @@ Audit of the Firebase/Supabase path for chapters (`course_modules`) and lessons.
 - **New read, `course_structure`:** chapters and lessons in order, with homework counts (a homework counts once, by its newest version) and each lesson's delete blockers. Course staff who cannot edit may read it and get `canEdit: false`. It is needed because the board shows Delete off with its reason before a click, and a course editor may have no right to read the student work behind that reason. It gives facts and counts, no student or homework content.
 - **An old rule changes:** "parent links never move" no longer holds for a lesson inside its course. A new trigger refuses leaving the course, even for the database owner, and there is still no client column grant on `module_id`. The lesson id, homework, progress and parts are untouched, and a move sends no notification.
 - **Refused deletes:** SQLSTATE 23503 with the detail `{"reasons":[...],"lessonIds":[...],"contentBlocks":n,"covers":n,"parts":n,"homework":n}`, so the screen words the reason in English and Arabic. Reasons: `student_work`, `homework`, `student_progress`, `parts`, `content`, `in_use` (any other restrict reference). Nothing is hidden and nothing can be forced.
-- **Draft state:** lessons have draft/published; chapters have none. The screen will show only a small Draft pill. **A lesson added here stays a draft, and students cannot see it, until the lesson editor exists:** publishing needs a published part, and parts have no screen.
+- **Draft state:** lessons have draft/published; chapters have none. The screen will show only a small Draft pill. **A lesson added here stays a draft, and students cannot see it, until the lesson editor exists:** publishing needs a published part, and parts have no screen. (Superseded 2026-11-10: a lesson needs no part to be published; see "A lesson is never tethered to one of its components".)
 
 **The owner's answers (2026-11-06).** They replace the open questions that were here.
 
@@ -334,3 +334,54 @@ The draft migration `20261109120000_homework_teacher_rules.sql` was amended in p
 
 No old assertion changed in this amendment. `homework-rules.sql` now also checks the new private table's RLS and grants and
 the new helper's revoke; the shape test lists `homework_release_many`; `database.types.ts` gains two additive lines.
+
+## A lesson is never tethered to one of its components (owner's rule, 2026-11-10, branch `claude/lesson-publish`)
+
+The owner, in their words: **"A lesson should never be tethered to one of its components."** Some teachers don't want videos, some
+don't want homework, some don't want exams. A lesson can be published with no parts, no videos, no content items, no cover and no
+homework. Draft migration `20261110120000_lesson_publish.sql`, **not applied anywhere**. Database only; no screen or route changed.
+
+- **Audit.** The rule lived in one place: `edit_learning_content`, action `edit_lesson` ("Publish a part first", 23514), first in
+  `20261013141230` and copied into `20261018091735` and `20261018092002`. No trigger, table check or policy asked for a part. The
+  part-level rule (a part needs a video, notes, a resource or a content item before it is published) stays.
+- **Removed:** that one line. `edit_learning_content` is otherwise byte-for-byte the `20261018092002` version, and `edit_lesson`
+  still writes the title, description and status (the scripts test both facts).
+- **New actions** `publish_lesson` and `unpublish_lesson` in `edit_course_structure`: `can_edit_course`, the course-root lock, the
+  `updated_at` the teacher read (stale: PT409), an archived course refused (PT409, `{"reasons":["archived"]}`), no options, no new
+  version and no copy. Asking for the state a lesson is already in writes nothing. `course_structure` already returns the status.
+- **Unpublish keeps everything:** tries, answers, corrections, marks, files and audit rows stay exactly as they were; students stop
+  seeing the lesson and its homework (homework visibility already requires a published lesson) until it is published again, when
+  they see their work as before. Student work never blocks an unpublish.
+- **The direct grant `update(status)` on `lessons` is revoked** (owner's answer 2), so a client publishes or unpublishes only
+  through the functions. Nothing relied on it: no app code updates `lessons` directly (a script test scans `app`, `server`,
+  `frontend` and `shared`), the demo functions and every other writer are security definer functions, and the SQL suites that set a
+  status directly do it as the database owner. `title`, `position`, `description` and `estimated_duration_seconds` keep their
+  grants.
+- **Notifications:** publishing a lesson with no part still sends "lesson published"; its link is empty (no error) until a part is
+  published, and then the same notification links to that part. No second notification is sent.
+- **Demo seed:** unchanged (owner's answer 3). The demo gets a published lesson with homework and no parts in the screens track,
+  once the student lesson page exists.
+- **Old assertions changed, both because of the owner's rule:** `course-content-tree.sql` asserted that `edit_lesson` refuses a
+  published lesson with no part (it now keeps it published), and used `publish_lesson` as its example of an unknown action (now
+  `archive_lesson`). Six script tests that list the migrations after theirs gained the new file, as every migration before it did.
+- This replaces "publishing needs a published part" in "Course content tree" above (the "Draft state" point).
+
+**The owner's answers (2026-11-10).** 1: build the database change now; the student lesson page addressed by the lesson id comes in
+the next run, the Homework screens track, as a plain page in the existing student styles. 2: revoke the direct status grant.
+3: no demo seed change in this run.
+
+**What the student lesson page needs (for the Homework screens track).** No new database read is needed:
+- **Today:** every student lesson page is addressed by a part (`/courses/<course>/chapters/<partId>?offering=<offering>`,
+  `SecureLessonPage`). A published lesson with no parts shows as a **Locked** card with no link (`v2Chapters`: `href: null`,
+  `status: 'Locked'`, `partsCount: 0`; `lesson-card.tsx` and `student-home.tsx` show Locked when there are no parts), Continue
+  Learning and previous/next skip it, and its homework is unreachable because `HomeworkAssignments` is rendered only on a part page.
+- **Reads it can use as they are:** `learningService(courseId).offering(offeringId)` (active, unexpired enrollment in an active
+  offering of a published course); `tree()` (lessons, parts, content items, all through RLS: `can_view_lesson` = staff, or a
+  published lesson of a course the student may view); the lesson's cover through `lessonThumbnails`; the homework list through
+  the existing `POST /api/homework/new/list` with `segmentId: null`, which returns every homework of the lesson the student may
+  see (RLS `homework_visible`, which needs a published homework, an active offering, a published course and a published lesson);
+  `get_homework` and `homework_work` for opening and handing in, unchanged.
+- **Visibility to keep:** a draft lesson, a draft course, an inactive offering or an ended enrollment shows "unavailable", as the
+  part page does. Unpublishing hides the lesson and its homework, never the student's stored work.
+- **Links to change:** the Locked card (and the Home lesson list) should link to the new page when the lesson has no published
+  part, and Continue Learning keeps linking to parts. A lesson that has parts keeps today's part page.

@@ -144,15 +144,17 @@ select pg_temp.denied($s$select pg_temp.edit('create_chapter',null,null,null,'{"
 select pg_temp.denied($s$select pg_temp.edit('create_chapter',null,null,null,jsonb_build_object('title','Bell'||chr(7)))$s$,'23514','a name with a control character is refused');
 select pg_temp.denied($s$select pg_temp.edit('create_chapter',null,null,null,'{"title":"x","position":0}')$s$,'23514','an unknown key is refused');
 select pg_temp.denied($s$select pg_temp.edit('create_chapter',null,null,null,null)$s$,'23514','no data is refused');
-select pg_temp.denied($s$select pg_temp.edit('publish_lesson',pg_temp.key('l11'),null,pg_temp.ls('l11'),'{}')$s$,'23514','an unknown action is refused');
+-- publish_lesson became a real action in 20261110120000_lesson_publish.sql, so the unknown action here is another name.
+select pg_temp.denied($s$select pg_temp.edit('archive_lesson',pg_temp.key('l11'),null,pg_temp.ls('l11'),'{}')$s$,'23514','an unknown action is refused');
 select pg_temp.denied($s$select pg_temp.edit('rename_chapter',pg_temp.key('ch1'),null,'2000-01-01','{"title":"Stale"}')$s$,'PT409','a stale chapter rename changes nothing');
 select pg_temp.denied($s$select pg_temp.edit('rename_chapter',pg_temp.key('ch1'),null,null,'{"title":"No version"}')$s$,'PT409','a rename with no version is refused');
 select pg_temp.denied($s$select pg_temp.edit('rename_lesson',pg_temp.key('l11'),null,'2000-01-01','{"title":"Stale"}')$s$,'PT409','a stale lesson rename changes nothing');
 select pg_temp.denied($s$select pg_temp.edit('rename_chapter',pg_temp.key('ch_b'),null,now(),'{"title":"x"}')$s$,'42501','a chapter of another space is not found from this course');
 select pg_temp.denied($s$select pg_temp.edit('rename_lesson',pg_temp.key('l_b'),null,now(),'{"title":"x"}')$s$,'42501','a lesson of another space is not found from this course');
 select pg_temp.denied($s$select pg_temp.edit('rename_lesson',pg_temp.key('l11'),null,pg_temp.ls('l11'),jsonb_build_object('title',repeat('x',201)))$s$,'23514','a lesson name over 200 is refused');
--- Why rename exists: the old edit_lesson refuses a published lesson with no published part, and must be sent the status and description.
-select pg_temp.denied($s$select public.edit_learning_content(pg_temp.key('course'),'edit_lesson',pg_temp.key('l11'),null,pg_temp.ls('l11'),'{"title":"New","status":"published"}')$s$,'23514','the old edit refuses a published lesson with no published part');
+-- Why rename exists: the old edit_lesson must be sent the status and description. It no longer refuses a published lesson with no published part
+-- (changed by 20261110120000_lesson_publish.sql, the owner's rule: a lesson is never tethered to one of its components).
+select pg_temp.ok(public.edit_learning_content(pg_temp.key('course'),'edit_lesson',pg_temp.key('l11'),null,pg_temp.ls('l11'),'{"title":"Ohm","status":"published","description":"Keep this text"}')=pg_temp.key('l11'),'the old edit keeps a published lesson with no published part published');
 select pg_temp.ok(pg_temp.edit('rename_lesson',pg_temp.key('l11'),null,pg_temp.ls('l11'),'{"title":" Ohm''s law "}')=pg_temp.key('l11'),'rename works on that lesson');
 select pg_temp.ok((pg_temp.lesson('l11')).title='Ohm''s law' and (pg_temp.lesson('l11')).status='published' and (pg_temp.lesson('l11')).description='Keep this text','rename changes the title only: status and description stay');
 select pg_temp.edit('rename_chapter',pg_temp.key('ch1'),null,pg_temp.cs('ch1'),'{"title":"Current"}');

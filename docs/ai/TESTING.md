@@ -180,3 +180,24 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
   changed only where the rules change them (DECISIONS.md lists each change).
 - Run just these: `LMS_SQL_ONLY=homework,homework-rules,homework-reads,demo-homework node scripts/exam-sql-local.cjs --postgres`
   (the races run with every `--postgres` run).
+
+## Lesson publish (`claude/lesson-publish`)
+
+- `supabase/tests/lesson-publish.sql` (51 checks, rolled back, every identity a Firebase identity): the direct status grant is gone
+  and the other grants stay; an empty lesson (no part, no content item, no cover, no homework) is published and unpublished by the
+  space owner, the course instructor and a course editor; stale, no version, options, assistant, a teacher who does not teach the
+  course, a student, another space's teacher (also naming their own course) and anonymous are refused, and an archived course is
+  refused with its reason; the old `edit_lesson` publishes a lesson with no part; a lesson with only homework: a student sees the
+  lesson and its homework only while it is published, hands in with a photo, is graded and released, then after unpublish sees
+  nothing and cannot start, while every try, answer, correction, mark, file and audit row is kept exactly, and after publishing
+  again sees their work; another space's student sees nothing; the notification of a lesson with no part has no link and no error,
+  and links to the part once one is published.
+- `scripts/lesson-publish-concurrency.cjs` (2 races on separate connections): publish against delete of the same lesson, both
+  orders (the delete is stale, or the publish finds the lesson gone).
+- `node --test scripts/lesson-publish.test.cjs` (part of `npm test`): the file's shape, that `edit_learning_content` lost exactly the
+  one line, that `edit_course_structure` only gained the two actions, that only the status grant is revoked, that no app code
+  writes a lesson status directly, and that the student models show a published lesson with no parts as Locked with no link and
+  never throw (Continue Learning offers nothing for it).
+- `course-content-tree.sql` changed in two assertions (DECISIONS.md lists both, with the reason).
+- Run just these: `LMS_SQL_ONLY=lesson-publish,course-content-tree node scripts/exam-sql-local.cjs --postgres` (the races run with
+  every `--postgres` run).
