@@ -12,10 +12,10 @@ const adminBefore = fn(prevAdmin, 'create function private.student_administratio
 const between = (s, a, b) => { const i = s.indexOf(a), j = b ? s.indexOf(b, i) : s.length; assert.ok(i >= 0 && j >= i, a); return s.slice(i, j); };
 const code = s => s.replace(/--.*$/gm, '');
 
-test('migration: LF only, pinned as text, the last migration, one transaction, nothing but the two functions', () => {
+test('migration: LF only, pinned as text, followed only by the course-content and homework rules migrations, one transaction, nothing but the two functions', () => {
  assert.ok(!newSql.includes('\r')); assert.match(read('.gitattributes'), /20261106120000_listing_performance\.sql -text/);
  const names = fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
- assert.equal(names.at(-2), NAME, 'only the course-content migration comes after it');
+ assert.deepEqual(names.slice(names.indexOf(NAME) + 1), ['20261106130000_course_content_tree.sql', '20261109120000_homework_teacher_rules.sql'], 'only the course-content and homework rules migrations come after it');
  assert.match(newSql, /\nbegin;\n/); assert.match(newSql, /\ncommit;\n$/);
  assert.equal((newSql.match(/create or replace function/g) ?? []).length, 2, 'exactly two functions are replaced');
  assert.doesNotMatch(code(newSql), /\b(grant\s+(execute|select|all|usage)|revoke\s+(execute|select|all|usage)|alter\s+(table|function)|create\s+(table|index|policy)|drop\s)/i, 'no grants, tables, indexes or policies change (create or replace keeps the privileges)');

@@ -138,7 +138,7 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 
 ## Course content tree (`claude/course-content`)
 
-- `supabase/tests/course-content-tree.sql` (215 checks, rolled back, every identity a Firebase identity) runs in `npm run test:exam-sql:postgres`: who may write and read, cross-space denial, stale requests, moving with everything attached, every refused delete with its reason and counts, a published unstarted lesson, the chapter label on create, reorder, move and delete, every refusal on an archived course, the read, demo seed 4 and Clear. It has NOT been run against any provider database.
+- `supabase/tests/course-content-tree.sql` (216 checks, rolled back, every identity a Firebase identity) runs in `npm run test:exam-sql:postgres`: who may write and read, cross-space denial, stale requests, moving with everything attached, every refused delete with its reason and counts, a published unstarted lesson, the chapter label on create, reorder, move and delete, every refusal on an archived course, the read, demo seed 4 and Clear. It has NOT been run against any provider database.
 - `supabase/tests/course-content-rewrite-before.sql` and `-after.sql` run around this one migration during the replay (8 checks): old-style rows, with gaps, custom labels and an archived course, are rewritten once.
 - `scripts/course-content-concurrency.cjs` runs in the same command when it uses PostgreSQL: 13 real two-tab races on separate connections, including the chapter numbers and archiving. Because `updated_at` is the transaction's time, staleness inside the single-transaction SQL suite is tested with an old stamp, and only this script proves it across transactions.
 - `node --test scripts/course-content-migration.test.cjs` (part of `npm test`) checks the file's shape.
@@ -155,3 +155,23 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `scripts/sign-in-browser.cjs` runs the real `FirebaseForm` with a synthetic Firebase SDK on a loopback server: the wording and behaviour of sign-in, sign-up, the show-password control, Forgot password, a failed sign-in, the unverified-email panel, the photo chooser, the Sign in button's contrast in both looks and themes, and that the marker is what opts the page into New. `LMS_MATRIX=1` adds the screen matrix for four sign-in screens (sign-in, sign-up, failed sign-in, unverified) to `.local/design-screens/<screen>/`.
 - `scripts/screen-matrix.cjs` no longer adds the teacher marker to a page that carries `data-auth-surface`, so the sign-in page is tested on its own marker. A visually hidden file input is measured through its 44 px label.
 - `scripts/teacher-website-gate.test.cjs` runs the real middleware for `/teacher/website`.
+
+## Homework rules (`claude/homework-db`)
+
+- `supabase/tests/homework-rules.sql` (124 checks, rolled back, every identity a Firebase identity): create and rules, deadline
+  edges (at, just after, late allowed for the first hand-in only), every tries mode, solutions visibility (also by storage
+  path), assistants with and without each right, Delete images (keeps grades, refuses before the deadline and for legacy and
+  exams, audited), the portal and the queue, cross-space denial (another teacher, a student of another course, anon), grants.
+- `supabase/tests/homework-reads.sql` (12 checks): a few hundred synthetic tries in two spaces. Every page of every tab of
+  `homework_portal` and `homework_queue` equals a naive query that authorizes every homework of the database one by one, for
+  five callers (owner, assistant, editor, a teacher of two spaces, the other space's owner).
+- `supabase/tests/demo-homework.sql` (38 checks): demo fill and clear at seed version 5, every homework row recorded, the reads
+  on demo data, and Clear refusing (removing nothing) with a real person's try or a stored file.
+- `scripts/homework-rules-concurrency.cjs` (7 races on separate connections): two graders, release against grade (both
+  orders), two tabs asking for the next try, two tabs handing in the same try, a hand-in waiting past the deadline (refused,
+  and flagged late when late is allowed), and no try after a late hand-in.
+- `node --test scripts/homework-rules-migration.test.cjs` (part of `npm test`) checks the file's shape and the stable refusals.
+- The old suites `homework`, `notifications-support`, `student-administration`, `course-content-tree` and the demo suites were
+  changed only where the rules change them (DECISIONS.md lists each change).
+- Run just these: `LMS_SQL_ONLY=homework,homework-rules,homework-reads,demo-homework node scripts/exam-sql-local.cjs --postgres`
+  (the races run with every `--postgres` run).

@@ -1218,61 +1218,82 @@ export type Database = {
           course_id: string
           created_at: string
           created_by: string
+          deadline_at: string | null
           family_id: string
           file_points: number
           id: string
           instructions: string
+          late_allowed: boolean
           lesson_id: string
+          max_tries: number | null
           mode: string
           offering_id: string
+          photos_allowed: boolean
           revision: number
           segment_id: string | null
+          solutions_open: string | null
           status: string
           supersedes_id: string | null
           title: string
+          tries_mode: string | null
           updated_at: string
           uses_marks: boolean
           version: number
+          workflow: string
         }
         Insert: {
           course_id: string
           created_at?: string
           created_by: string
+          deadline_at?: string | null
           family_id: string
           file_points?: number
           id?: string
           instructions?: string
+          late_allowed?: boolean
           lesson_id: string
+          max_tries?: number | null
           mode?: string
           offering_id: string
+          photos_allowed?: boolean
           revision?: number
           segment_id?: string | null
+          solutions_open?: string | null
           status?: string
           supersedes_id?: string | null
           title: string
+          tries_mode?: string | null
           updated_at?: string
           uses_marks?: boolean
           version?: number
+          workflow?: string
         }
         Update: {
           course_id?: string
           created_at?: string
           created_by?: string
+          deadline_at?: string | null
           family_id?: string
           file_points?: number
           id?: string
           instructions?: string
+          late_allowed?: boolean
           lesson_id?: string
+          max_tries?: number | null
           mode?: string
           offering_id?: string
+          photos_allowed?: boolean
           revision?: number
           segment_id?: string | null
+          solutions_open?: string | null
           status?: string
           supersedes_id?: string | null
           title?: string
+          tries_mode?: string | null
           updated_at?: string
           uses_marks?: boolean
           version?: number
+          workflow?: string
         }
         Relationships: [
           {
@@ -1473,6 +1494,7 @@ export type Database = {
           assignment_id: string
           created_at: string
           id: string
+          missed_deadline: boolean
           number: number
           revision: number
           status: string
@@ -1484,6 +1506,7 @@ export type Database = {
           assignment_id: string
           created_at?: string
           id?: string
+          missed_deadline?: boolean
           number: number
           revision?: number
           status?: string
@@ -1495,6 +1518,7 @@ export type Database = {
           assignment_id?: string
           created_at?: string
           id?: string
+          missed_deadline?: boolean
           number?: number
           revision?: number
           status?: string
@@ -2298,6 +2322,12 @@ export type Database = {
       notification_command: { Args: { p_action: string; p_data?: Json }; Returns: Json }
       support_command: { Args: { p_action: string; p_ticket?: string | null; p_version?: number | null; p_request?: string | null; p_data?: Json }; Returns: Json }
       notification_worker: { Args: { p_action: string; p_data?: Json }; Returns: Json }
+      homework_portal: { Args: { p_course?: string | null; p_page?: number; p_tab?: string }; Returns: Json }
+      homework_queue: { Args: { p_assignment: string; p_page?: number; p_tab?: string }; Returns: Json }
+      homework_delete_images: { Args: { p_assignment: string }; Returns: Json }
+      homework_storage_usage: { Args: { p_space: string }; Returns: Json }
+      homework_assistants: { Args: { p_course: string }; Returns: Json }
+      set_homework_assistant: { Args: { p_can_correct: boolean; p_can_release: boolean; p_course: string; p_updated_at: string | null; p_user: string }; Returns: Json }
       abandon_media_upload: { Args: { p_asset_id: string }; Returns: undefined }
       archive_unused_lesson_upload: {
         Args: { p_asset_id: string }

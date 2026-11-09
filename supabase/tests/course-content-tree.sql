@@ -481,13 +481,13 @@ select pg_temp.denied($s$select private.lesson_delete_counts(array[current_setti
 select pg_temp.denied($s$select private.close_chapter_gaps(current_setting('ccs.course')::uuid)$s$,'42501','the renumbering helper is not callable from outside');
 reset role;
 
--- ---------------------------------------------------------------- demo seed version 4
+-- ---------------------------------------------------------------- demo seed version 5 (version 4 plus homework)
 insert into public.organizations(id,name,slug) values(pg_temp.key('org_d'),'Synthetic demo','ccs-d-'||current_setting('ccs.run'));
 insert into public.organization_memberships(organization_id,user_id,role,status,joined_at) values(pg_temp.key('org_d'),pg_temp.uid('demoteacher'),'owner','active',now());
 insert into private.demo_spaces(organization_id,marked_by) values(pg_temp.key('org_d'),pg_temp.uid('admin'));
 select set_config('ccs.fill',private.demo_fill_core(pg_temp.key('org_d'),pg_temp.uid('admin'))::text,true);
-select pg_temp.ok(current_setting('ccs.fill')::jsonb=jsonb_build_object('seedVersion',4,'courses',2,'lessons',5,'groups',2,'sessions',9,'students',28),'fill reports seed version 4 and five lessons');
-select pg_temp.ok((select seed_version=4 from private.demo_spaces where organization_id=pg_temp.key('org_d')),'the space stores seed version 4');
+select pg_temp.ok(current_setting('ccs.fill')::jsonb=jsonb_build_object('seedVersion',5,'courses',2,'lessons',5,'groups',2,'sessions',9,'students',28,'homework',4),'fill reports seed version 5, five lessons and four homework');
+select pg_temp.ok((select seed_version=5 from private.demo_spaces where organization_id=pg_temp.key('org_d')),'the space stores seed version 5');
 select set_config('ccs.demo_course',(select id::text from public.courses where organization_id=pg_temp.key('org_d') and status='published'),true);
 select set_config('ccs.demo_draft',(select id::text from public.courses where organization_id=pg_temp.key('org_d') and status='draft'),true);
 select pg_temp.ok((select array_agg(m.title order by m.position)=array['Electric current','Magnetism','Electromagnetic induction'] from public.course_modules m where m.course_id=pg_temp.key('demo_course')),'the published demo course has the three chapters of the board');
@@ -496,11 +496,11 @@ select pg_temp.ok((select array_agg(l.title order by m.position,l.position)=arra
 select pg_temp.ok(pg_temp.labels('demo_course')='Electric current:Chapter:1:0|Magnetism:Chapter:2:1|Electromagnetic induction:Chapter:3:2','demo chapters are Chapter 1, 2 and 3, like ones a teacher adds');
 select pg_temp.ok((select count(*)=0 from public.course_modules where course_id=pg_temp.key('demo_draft')),'the draft demo course has no chapters, so the empty state can be tried');
 select pg_temp.ok((select count(*)=8 from private.demo_seed_rows where organization_id=pg_temp.key('org_d') and table_name in ('course_modules','lessons')),'every chapter and lesson is recorded');
-select pg_temp.ok((select count(*)=0 from public.homework_assignments where course_id=pg_temp.key('demo_course')),'demo data holds no homework, so every row says No homework');
+select pg_temp.ok((select array_agg(l.title||':'||(select count(*) from public.homework_assignments h where h.lesson_id=l.id) order by m.position,l.position)=array['Ohm''s law:2','Resistors in series and parallel:0','Kirchhoff''s laws:1','Magnetic field of a wire:1','Force on a wire:0'] from public.lessons l join public.course_modules m on m.id=l.module_id where m.course_id=pg_temp.key('demo_course')),'seed version 5 puts homework on three lessons of the published demo course (two on Ohm''s law)');
 select pg_temp.ok((select e.resource_id in (select row_id from private.demo_seed_rows where table_name='lessons') from private.notification_events e where e.event_key='demo:'||pg_temp.key('org_d')::text||':notification:2'),'the lesson_published notification points at a recorded lesson');
 set local role authenticated;
 select pg_temp.claim('admin');
-select pg_temp.ok((public.platform_demo_status(pg_temp.key('org_d'))->>'latestSeedVersion')::int=4,'the status reports seed version 4 as the latest');
+select pg_temp.ok((public.platform_demo_status(pg_temp.key('org_d'))->>'latestSeedVersion')::int=5,'the status reports seed version 5 as the latest');
 -- The teacher tries everything in the demo space, then Clear still removes it all.
 select pg_temp.claim('demoteacher');
 select set_config('ccs.dtree',public.course_structure(pg_temp.key('demo_course'))::text,true);
@@ -508,20 +508,23 @@ select pg_temp.ok(jsonb_array_length(current_setting('ccs.dtree')::jsonb->'chapt
 select set_config('ccs.dch',pg_temp.edit('create_chapter',null,null,null,'{"title":"Added by the teacher"}','demo_course')::text,true);
 select set_config('ccs.dl',public.edit_learning_content(pg_temp.key('demo_course'),'create_lesson',null,pg_temp.key('dch'),null,'{"title":"Added lesson"}')::text,true);
 select pg_temp.edit('rename_lesson',((current_setting('ccs.dtree')::jsonb->'lessons'->0->>'id')::uuid),null,(current_setting('ccs.dtree')::jsonb->'lessons'->0->>'updatedAt')::timestamptz,'{"title":"Renamed in the demo"}','demo_course');
-select pg_temp.edit('move_lesson',((current_setting('ccs.dtree')::jsonb->'lessons'->1->>'id')::uuid),pg_temp.key('dch'),(current_setting('ccs.dtree')::jsonb->'lessons'->1->>'updatedAt')::timestamptz,
- jsonb_build_object('items',pg_temp.items(pg_temp.key('dch'))||jsonb_build_object('id',current_setting('ccs.dtree')::jsonb->'lessons'->1->>'id','updated_at',current_setting('ccs.dtree')::jsonb->'lessons'->1->>'updatedAt')),'demo_course');
-select pg_temp.edit('delete_lesson',((current_setting('ccs.dtree')::jsonb->'lessons'->2->>'id')::uuid),null,(current_setting('ccs.dtree')::jsonb->'lessons'->2->>'updatedAt')::timestamptz,'{}','demo_course');
-select pg_temp.edit('delete_lesson',((current_setting('ccs.dtree')::jsonb->'lessons'->0->>'id')::uuid),null,(current_setting('ccs.dtree')::jsonb->'lessons'->0->>'updatedAt')::timestamptz,'{}','demo_course');
-select pg_temp.edit('delete_lesson',((current_setting('ccs.dtree')::jsonb->'lessons'->3->>'id')::uuid),null,(current_setting('ccs.dtree')::jsonb->'lessons'->3->>'updatedAt')::timestamptz,'{}','demo_course');
+-- Seed version 5: Kirchhoff's laws (a draft homework) is the lesson moved; the lessons deleted are the two with no homework. A lesson with demo
+-- homework is refused like any other lesson with homework.
+select pg_temp.edit('move_lesson',((current_setting('ccs.dtree')::jsonb->'lessons'->2->>'id')::uuid),pg_temp.key('dch'),(current_setting('ccs.dtree')::jsonb->'lessons'->2->>'updatedAt')::timestamptz,
+ jsonb_build_object('items',pg_temp.items(pg_temp.key('dch'))||jsonb_build_object('id',current_setting('ccs.dtree')::jsonb->'lessons'->2->>'id','updated_at',current_setting('ccs.dtree')::jsonb->'lessons'->2->>'updatedAt')),'demo_course');
+select pg_temp.edit('delete_lesson',((current_setting('ccs.dtree')::jsonb->'lessons'->1->>'id')::uuid),null,(current_setting('ccs.dtree')::jsonb->'lessons'->1->>'updatedAt')::timestamptz,'{}','demo_course');
+select pg_temp.edit('delete_lesson',((current_setting('ccs.dtree')::jsonb->'lessons'->4->>'id')::uuid),null,(current_setting('ccs.dtree')::jsonb->'lessons'->4->>'updatedAt')::timestamptz,'{}','demo_course');
+select pg_temp.refused(format($s$select public.edit_course_structure(%L,'delete_lesson',%L,null,%L,'{}')$s$,pg_temp.key('demo_course'),current_setting('ccs.dtree')::jsonb->'lessons'->0->>'id',current_setting('ccs.dtree')::jsonb->'lessons'->0->>'updatedAt'),
+ '["student_work", "homework"]','a demo lesson whose homework students handed in is refused, naming the student work');
 select pg_temp.ok(pg_temp.labels('demo_course') like '%Added by the teacher:Chapter:4:3','the demo teacher''s new chapter is Chapter 4');
 select pg_temp.denied($s$select pg_temp.edit('create_chapter',null,null,null,'{"title":"x"}')$s$,'42501','the demo teacher cannot reach another space');
 update public.courses set status='archived' where id=pg_temp.key('demo_course');
 reset role;
-select pg_temp.ok((private.demo_clear_core(pg_temp.key('org_d'),pg_temp.uid('admin'))->>'removedRows')::int>0,'Clear finishes after chapters and lessons were added, renamed, moved and deleted, published ones included, and the course archived');
+select pg_temp.ok((private.demo_clear_core(pg_temp.key('org_d'),pg_temp.uid('admin'))->>'removedRows')::int>0,'Clear finishes after chapters and lessons were added, renamed, moved and deleted, and the course archived, with the homework of seed version 5');
 select pg_temp.ok((select count(*)=0 from public.courses where organization_id=pg_temp.key('org_d')) and not pg_temp.has_chapter(pg_temp.key('dch')) and not pg_temp.has_lesson(pg_temp.key('dl')),'and removes every chapter and lesson');
 select pg_temp.ok((select count(*)=0 from private.demo_seed_rows where organization_id=pg_temp.key('org_d')),'nothing stays recorded');
 select pg_temp.ok(pg_temp.has_lesson(pg_temp.key('l13')) and pg_temp.has_lesson(pg_temp.key('l_b')) and pg_temp.has_chapter(pg_temp.key('ch_b')),'other spaces keep theirs');
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_d'),pg_temp.uid('admin'))->>'seedVersion')::int=4,'the space fills again');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_d'),pg_temp.uid('admin'))->>'seedVersion')::int=5,'the space fills again');
 
 select count(*) as course_content_tree_tests from ccs_results;
 rollback;

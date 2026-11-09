@@ -228,3 +228,69 @@ Audit of the Firebase/Supabase path for chapters (`course_modules`) and lessons.
    - **Not structure, so not refused by this rule:** a lesson's description and draft or published state, parts, blocks and covers. The screen shows them read-only there; the database does not refuse them.
 
 **Our call, beyond the four answers:** the client grants `insert` and `delete` on `course_modules`, `update(position)` on `course_modules` and `delete` on `lessons` are revoked. Otherwise a crafted request could leave a gap in the numbers or delete a lesson the function refuses. The app has never used them. The other direct grants stay.
+
+## Homework rules in the database: audit and draft migration (2026-11-09, branch `claude/homework-db`)
+
+Database only: no teacher screen, no route, no server change. The draft migration `20261109120000_homework_teacher_rules.sql`
+is **not applied anywhere**. The audit is `docs/ai/HOMEWORK_DB_AUDIT.md`. It applies the owner's rules in "Homework and course
+content" above to the existing homework backend and keeps every existing contract.
+
+- **Existing homework becomes `legacy`** (the default of the new `workflow` column; nothing is back-filled, no row is
+  rewritten). Legacy homework keeps today's behaviour exactly: no deadline, no limit on tries, the teacher's resubmit request,
+  solutions after the student's own hand-in, up to 4 files per essay, annotations. Inventing a deadline for old homework would
+  lock students out; changing when solutions open would expose or hide answers students already had.
+- **New homework is `questions`:** `save_homework(null, ...)` creates `PLATFORM_QUESTIONS` homework; FILE_UPLOAD is refused for
+  it and stays in the database for legacy rows. The rules travel in a `rules` object (`deadline`, `lateAllowed`, `tries`,
+  `maxTries`, `solutionsOpen`, `photosAllowed`); a partial object changes only what it names. A legacy row refuses `rules`.
+- **Deadline:** a draft may have none; publishing needs one ("Set a deadline before publishing"). A deadline in the past is
+  accepted (the screen warns). It must carry an explicit offset or `Z`: the screen converts Cairo time, the database never
+  guesses a zone. A hand-in exactly at the deadline is on time. Late hand-in covers the first hand-in only and stores
+  `missed_deadline`.
+- **Refusals the screens show:** `Deadline passed` and `No tries left`, both PT409 with the detail
+  `{"reason":"deadline_passed"|"no_tries_left"}`; `Homework is still open` (PT409, `still_open`) for Delete images; `File too
+  large` (PT413) above 5 MB; `Photo answers are off for this homework`, `A right answer from your last try cannot change` and
+  `Student images are never edited` (23514).
+- **Tries** are a new action `retry` (two tabs asking at once get the same try). One time = 1 try; fix mistakes and from zero
+  take 2 to 10 (fix mistakes defaults to 2). Fix mistakes keeps a choice answer that matches the key, and an essay only when it
+  has full marks in a released correction; kept answers cannot change and their marks are copied at hand-in. A finished try is
+  locked (as before). The resubmit request is refused for questions homework and kept for legacy.
+- **Solutions:** "after hand-in" opens them after the student's own hand-in, and with tries only after the last try or at the
+  deadline, whichever is first. "After the deadline" opens them at the deadline, only for students who handed in (a late
+  student sees them right after handing in). Tries never open them early in that mode. The same rule guards solution files in
+  Storage.
+- **Assistant rights:** `private.homework_assistant_permissions` (per assistant per course); `can_correct` and `can_release`
+  are on when there is no row. Only an owner, admin or course instructor sets them (`set_homework_assistant`, stale check
+  PT409), and only for offering staff who are not instructors. No screen yet.
+- **Delete images** (`homework_delete_images`): managers only (owner, admin, course or offering instructor), after the deadline
+  only, never legacy homework (it has no deadline), never exams (it takes a homework id). It marks the ready photos of handed-in
+  tries `deleted`, keeps every mark, score and correction, writes an `images_deleted` audit row and returns `deletedFiles`,
+  `bytesFreed` and the paths. **SQL never deletes a stored file:** the server removes the objects at the returned paths (not
+  built). Draft photos are left alone. `homework_storage_usage` gives the space owner the bytes and files per space and per
+  homework.
+- **Teacher reads, one call per view:** `homework_portal(course or null, tab, page)` (week stats, To correct, Open / Closed /
+  Drafts with bytes for closed homework, 25 per page) and `homework_queue(homework, tab, page)` (To correct / Done / Missing,
+  50 per page, with try number and late flag). The scope comes from the caller's memberships, never from authorizing each
+  homework of the database. A course editor who is not support staff sees the homework but no student numbers (null). A
+  version is listed when it is the newest of its family or has handed-in work.
+- **The week** runs Saturday 00:00 to Friday, Cairo time. "On time" is over first tries handed in this week; "handed in this
+  week" counts every try.
+- **Demo seed version 5** adds homework (`docs/ai/DEMO_DATA.md`, "Demo homework"). Photos are upload rows with no stored file.
+  Clear now removes demo homework and homework a teacher added, and refuses while a real person's try or a stored file is there.
+- **Old assertions changed, each because the rules changed:** three SQL suites and the old race script created homework with
+  `save_homework(null, ...)` as FILE_UPLOAD or without a deadline (now a legacy row, or a deadline); `homework.sql` asserted
+  that an assistant cannot release (the right is now turned off first); the demo suites expected seed version 4, no homework,
+  and the old row counts. Each baseline change is pinned in `scripts/teacher-foundation.test.cjs`.
+
+**Questions for the owner** (nothing was decided for these):
+1. May a teacher extend the deadline after students have started? Today the definition freezes once work exists (a new
+   version), and the deadline is part of it.
+2. Bulk release (all corrected tries at once)? Not built; release is per try.
+3. Is a Saturday-to-Friday week right for the stats?
+4. Should a course editor who is not support staff see the student numbers on the board? Today: no.
+5. Should assistants be able to Delete images? Today: managers only.
+6. The existing homework route (strict schema) cannot send `rules`, so it can create a draft but not publish new homework. The
+   new teacher route is a later track.
+7. Freeing the bytes needs a server step that deletes the objects at the returned paths.
+8. The server maps every PT409 to "Homework changed. Reload before saving." and drops the database message. Showing "Deadline
+   passed" and "No tries left" needs that mapping extended (a baseline file the teacher-foundation test protects).
+9. The student screen has no "try again" button, and the server's action list has no `retry`.

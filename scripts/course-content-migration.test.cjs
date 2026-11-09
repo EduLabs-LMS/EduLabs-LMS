@@ -6,10 +6,10 @@ const NAME = '20261106130000_course_content_tree.sql';
 const sql = read('supabase/migrations/' + NAME), code = sql.replace(/--.*$/gm, '');
 const names = () => fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
 
-test('the file: LF only, pinned as text and the newest migration', () => {
+test('the file: LF only, pinned as text, and only the homework rules migration comes after it', () => {
  assert.ok(!sql.includes('\r'), 'the staging manager hashes the Git blob');
  assert.match(read('.gitattributes'), /20261106130000_course_content_tree\.sql -text/);
- assert.equal(names().at(-1), NAME);
+ assert.deepEqual(names().slice(names().indexOf(NAME) + 1), ['20261109120000_homework_teacher_rules.sql']);
  assert.match(code, /^\s*begin;/); assert.match(code, /commit;\s*$/);
 });
 

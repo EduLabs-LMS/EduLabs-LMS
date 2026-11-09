@@ -109,7 +109,7 @@ select pg_temp.claim(31);
 select pg_temp.ok(exists(select 1 from public.study_groups where id=current_setting('sa.group')::uuid),'approved student can join real authorized group');
 select pg_temp.claim(2);
 select set_config('sa.hwinitial',public.student_administration('metrics')->>'pendingHomeworkCount',true);
-select set_config('sa.hw',public.save_homework(null,'60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001',null,null,'{"title":"Synthetic correction queue","instructions":"","mode":"PLATFORM_QUESTIONS","published":false,"usesMarks":true,"filePoints":10,"modelAnswer":"","solutionVideo":"","solutionVideoId":null,"referenceIds":[],"solutionIds":[],"questions":[{"id":"b8000000-0000-0000-0000-000000000001","type":"essay","text":"Explain","imageId":null,"points":2,"responseMode":"both","options":[],"correctIds":[],"modelAnswer":""}]}')::text,true);
+select set_config('sa.hw',public.save_homework(null,'60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001',null,null,'{"title":"Synthetic correction queue","instructions":"","mode":"PLATFORM_QUESTIONS","published":false,"rules":{"deadline":"2099-01-01T00:00:00Z"},"usesMarks":true,"filePoints":10,"modelAnswer":"","solutionVideo":"","solutionVideoId":null,"referenceIds":[],"solutionIds":[],"questions":[{"id":"b8000000-0000-0000-0000-000000000001","type":"essay","text":"Explain","imageId":null,"points":2,"responseMode":"both","options":[],"correctIds":[],"modelAnswer":""}]}')::text,true);
 select public.homework_lifecycle(current_setting('sa.hw')::uuid,'publish',1);
 select pg_temp.claim(31);
 select set_config('sa.hwsub',public.homework_work(current_setting('sa.hw')::uuid,'start')->>'id',true);

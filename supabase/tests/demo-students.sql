@@ -83,16 +83,16 @@ select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_a'),true)->>'d
 select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_e'),true)->>'demo')::boolean,'space E is marked');
 select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_f'),true)->>'demo')::boolean,'space F is marked');
 select pg_temp.denied(format('select public.platform_set_demo_space(%L,true)',pg_temp.id('org_d')),'PT409','a space with a real student cannot become a demo space');
-select pg_temp.ok((public.platform_demo_status(pg_temp.id('org_a'))->>'latestSeedVersion')::int=4,'the status reports the latest seed version (4)');
+select pg_temp.ok((public.platform_demo_status(pg_temp.id('org_a'))->>'latestSeedVersion')::int=5,'the status reports the latest seed version (5)');
 reset role;
 select pg_temp.ok(not exists(select 1 from private.demo_spaces where organization_id=pg_temp.id('org_d')),'the refused space is not marked');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_d'))=current_setting('dst.d_before'),'the refused space is unchanged');
 
 -- 2. Fill space A: seed version 2.
 select set_config('dst.a_fill',private.demo_fill_core(pg_temp.id('org_a'),(select id from dst_users where label='admin'))::text,true);
-select pg_temp.ok(current_setting('dst.a_fill')::jsonb=jsonb_build_object('seedVersion',4,'courses',2,'lessons',5,'groups',2,'sessions',9,'students',28),'fill reports seed version 4 (the version 2 data plus notifications): 2 courses, 5 lessons, 2 Groups, 9 sessions, 28 students');
-select pg_temp.ok((select seed_version=4 from private.demo_spaces where organization_id=pg_temp.id('org_a')),'the space stores the current seed version (4)');
-select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_a'))='2/3/5/1/2/9/0/2/28/28/56/108','fill state: 28 enrollments, 28 memberships, 56 attendance rows, 108 recorded rows');
+select pg_temp.ok(current_setting('dst.a_fill')::jsonb=jsonb_build_object('seedVersion',5,'courses',2,'lessons',5,'groups',2,'sessions',9,'students',28,'homework',4),'fill reports seed version 5 (the version 2 data plus notifications and homework): 2 courses, 5 lessons, 2 Groups, 9 sessions, 28 students, 4 homework');
+select pg_temp.ok((select seed_version=5 from private.demo_spaces where organization_id=pg_temp.id('org_a')),'the space stores the current seed version (5)');
+select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_a'))='2/3/5/1/2/9/0/2/28/28/56/666','fill state: 28 enrollments, 28 memberships, 56 attendance rows, 666 recorded rows (108, plus 558 homework rows of seed version 5)');
 select pg_temp.ok((select count(*) from private.demo_seed_rows where organization_id=pg_temp.id('org_a') and table_name='profiles')=28
  and (select count(*) from private.demo_seed_rows where organization_id=pg_temp.id('org_a') and table_name='enrollments')=28
  and (select count(*) from private.demo_seed_rows where organization_id=pg_temp.id('org_a') and table_name='group_memberships')=28,'every fake profile, enrollment and Group membership is recorded');
@@ -147,7 +147,7 @@ insert into public.enrollments(offering_id,user_id,status) select current_settin
 select pg_temp.ok(private.space_has_real_students(pg_temp.id('org_a')),'one real enrollment among 28 demo ones is enough to count as real students');
 select pg_temp.ok(pg_temp.refusal(format('select private.demo_clear_core(%L,%L)',pg_temp.id('org_a'),(select id from dst_users where label='admin'))) ilike '%enrolled students%','Clear refuses and names the real student');
 select pg_temp.denied(format('select private.demo_clear_core(%L,%L)',pg_temp.id('org_a'),(select id from dst_users where label='admin')),'PT409','the refusal is PT409');
-select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_a'))='2/3/5/1/2/9/0/2/29/28/56/108','a refused Clear removed nothing (the real enrollment is still there too)');
+select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_a'))='2/3/5/1/2/9/0/2/29/28/56/666','a refused Clear removed nothing (the real enrollment is still there too)');
 select pg_temp.ok(exists(select 1 from public.enrollments e join dst_users u on u.id=e.user_id and u.label='student' where e.offering_id=current_setting('dst.a_offering')::uuid),'the real student is untouched');
 delete from public.enrollments e using dst_users u where u.label='student' and u.id=e.user_id and e.offering_id=current_setting('dst.a_offering')::uuid;
 -- Content Clear does not remove still refuses (homework would, an exam is enough here), together with the real student.
@@ -164,12 +164,12 @@ insert into public.group_sessions(group_id,title,starts_at,ends_at,original_star
 insert into dst_ids select 'enroll_'||n,e.id from (select e.id,row_number() over(order by e.id) n from public.enrollments e where e.offering_id=current_setting('dst.a_offering')::uuid) e where n<=3;
 select set_config('dst.a_profiles',array_to_string(pg_temp.demo_profiles(pg_temp.id('org_a')),','),true);
 select set_config('dst.a_result',private.demo_clear_core(pg_temp.id('org_a'),(select id from dst_users where label='admin'))::text,true);
-select pg_temp.ok((current_setting('dst.a_result')::jsonb->>'removedRows')::int=109,'removedRows: 108 recorded rows plus the Session the teacher added');
+select pg_temp.ok((current_setting('dst.a_result')::jsonb->>'removedRows')::int=667,'removedRows: 666 recorded rows plus the Session the teacher added');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_a'))='0/0/0/0/0/0/0/0/0/0/0/0','Clear leaves nothing (including enrollments, memberships, attendance and the registry)');
 select pg_temp.ok(not exists(select 1 from public.profiles where id=any(string_to_array(current_setting('dst.a_profiles'),',')::uuid[])) and not exists(select 1 from public.profiles where display_name like 'Demo Student %'),'every fake profile is gone');
 select pg_temp.ok(not exists(select 1 from public.notifications n where n.recipient_id=any(string_to_array(current_setting('dst.a_profiles'),',')::uuid[])),'no notification for a demo student remains');
 select pg_temp.ok(not exists(select 1 from private.notification_events e where e.resource_id in (select id from dst_ids where label like 'enroll\_%')),'no notice about a demo enrollment remains');
-select pg_temp.ok((select (detail->>'removedRows')::int=109 and (detail->'removedByTable'->>'profiles')::int=28 and (detail->'removedByTable'->>'enrollments')::int=28 and (detail->'removedByTable'->>'group_memberships')::int=28
+select pg_temp.ok((select (detail->>'removedRows')::int=667 and (detail->'removedByTable'->>'profiles')::int=28 and (detail->'removedByTable'->>'enrollments')::int=28 and (detail->'removedByTable'->>'group_memberships')::int=28
   from private.platform_audit where organization_id=pg_temp.id('org_a') and action='demo.clear' order by id desc limit 1),'the audit row says what was removed, students included');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_d'))=current_setting('dst.d_before') and exists(select 1 from public.profiles p join dst_users u on u.id=p.id where u.label in ('student','teacher','admin')),'an ordinary space and the real people are untouched');
 select pg_temp.ok((select count(*) from public.enrollments e join dst_users u on u.id=e.user_id where u.label='student')=2,'the real student keeps the enrollments in spaces D and E');
@@ -177,11 +177,20 @@ select pg_temp.ok((select count(*) from public.enrollments e join dst_users u on
 -- 8. Fill again (the same slugs are free), then clear again with exactly the recorded rows.
 select pg_temp.ok((private.demo_fill_core(pg_temp.id('org_a'),(select id from dst_users where label='admin'))->>'students')::int=28,'a cleared space can be filled again with 28 new demo students');
 select pg_temp.ok((select count(distinct id)=28 from public.profiles where display_name like 'Demo Student %') and not exists(select 1 from public.profiles where id=any(string_to_array(current_setting('dst.a_profiles'),',')::uuid[])),'the new fake profiles have new ids');
-select pg_temp.ok((private.demo_clear_core(pg_temp.id('org_a'),(select id from dst_users where label='admin'))->>'removedRows')::int=108,'a plain Clear removes exactly the 108 recorded rows');
+select pg_temp.ok((private.demo_clear_core(pg_temp.id('org_a'),(select id from dst_users where label='admin'))->>'removedRows')::int=666,'a plain Clear removes exactly the 666 recorded rows');
 
 -- 9. A space filled at seed version 1 works with Clear, then Fill. Space F is filled, then reduced to what version 1 created.
 select private.demo_fill_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'));
 select set_config('dst.f_profiles',array_to_string(pg_temp.demo_profiles(pg_temp.id('org_f')),','),true);
+-- Seed version 5 homework is removed too (version 1 had none): its tries reference the demo students.
+do $$ declare t text; begin
+ delete from private.homework_carried where submission_id in (select row_id from private.demo_seed_rows where organization_id=pg_temp.id('org_f') and module='homework');
+ foreach t in array array['private.homework_marks','private.homework_corrections','public.homework_responses','public.homework_submission_files','private.homework_uploads',
+  'public.homework_submissions','private.homework_keys','public.homework_options','public.homework_questions','private.homework_solutions','public.homework_assignments'] loop
+  execute format('delete from %s where %I in (select row_id from private.demo_seed_rows where organization_id=%L and module=''homework'')',t,
+   case t when 'private.homework_keys' then 'question_id' when 'private.homework_corrections' then 'submission_id' when 'private.homework_solutions' then 'assignment_id' else 'id' end,pg_temp.id('org_f'));
+ end loop;
+end $$;
 delete from public.session_attendance where session_id in (select s.id from public.group_sessions s join private.demo_seed_rows r on r.row_id=s.id and r.module='attendance' where r.organization_id=pg_temp.id('org_f'));
 delete from public.group_memberships where id in (select row_id from private.demo_seed_rows where organization_id=pg_temp.id('org_f') and table_name='group_memberships');
 delete from public.enrollments where id in (select row_id from private.demo_seed_rows where organization_id=pg_temp.id('org_f') and table_name='enrollments');
@@ -189,12 +198,12 @@ delete from private.notification_deliveries where notification_id in (select id 
 delete from public.notifications where recipient_id=any(string_to_array(current_setting('dst.f_profiles'),',')::uuid[]);
 delete from public.profiles where id=any(string_to_array(current_setting('dst.f_profiles'),',')::uuid[]);
 delete from public.group_sessions where id in (select row_id from private.demo_seed_rows where organization_id=pg_temp.id('org_f') and module='attendance' and table_name='group_sessions');
-delete from private.demo_seed_rows where organization_id=pg_temp.id('org_f') and (module in ('students','attendance'));
+delete from private.demo_seed_rows where organization_id=pg_temp.id('org_f') and (module in ('students','attendance','homework'));
 update private.demo_spaces set seed_version=1 where organization_id=pg_temp.id('org_f');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_f'))='2/3/5/1/2/5/0/2/0/0/0/20','space F now looks like a seed version 1 space: 20 recorded rows, no students, 5 upcoming Sessions');
 select pg_temp.ok((private.demo_clear_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'))->>'removedRows')::int=20,'Clear works for a space filled at seed version 1');
-select pg_temp.ok((private.demo_fill_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'))->>'seedVersion')::int=4,'Fill then gives it the current seed version (4)');
-select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_f'))='2/3/5/1/2/9/0/2/28/28/56/108','and the full version 2 data');
+select pg_temp.ok((private.demo_fill_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'))->>'seedVersion')::int=5,'Fill then gives it the current seed version (5)');
+select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_f'))='2/3/5/1/2/9/0/2/28/28/56/666','and the full version 2 data');
 
 -- 10. Nothing here is callable by API roles.
 select pg_temp.ok((select bool_and(not has_function_privilege(r,f,'execute')) from unnest(array['anon','authenticated']) r
