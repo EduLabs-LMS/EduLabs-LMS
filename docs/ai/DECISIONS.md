@@ -281,7 +281,7 @@ content" above to the existing homework backend and keeps every existing contrac
   that an assistant cannot release (the right is now turned off first); the demo suites expected seed version 4, no homework,
   and the old row counts. Each baseline change is pinned in `scripts/teacher-foundation.test.cjs`.
 
-**Questions for the owner** (nothing was decided for these):
+**Questions for the owner** (answered below, "The owner's answers to the nine homework questions"):
 1. May a teacher extend the deadline after students have started? Today the definition freezes once work exists (a new
    version), and the deadline is part of it.
 2. Bulk release (all corrected tries at once)? Not built; release is per try.
@@ -294,3 +294,43 @@ content" above to the existing homework backend and keeps every existing contrac
 8. The server maps every PT409 to "Homework changed. Reload before saving." and drops the database message. Showing "Deadline
    passed" and "No tries left" needs that mapping extended (a baseline file the teacher-foundation test protects).
 9. The student screen has no "try again" button, and the server's action list has no `retry`.
+
+### The owner's answers to the nine homework questions (2026-11-09)
+
+The draft migration `20261109120000_homework_teacher_rules.sql` was amended in place (still **not applied anywhere**).
+
+1. **Change the deadline after students started: yes.** A new lifecycle action `reschedule`
+   (`homework_lifecycle(id, 'reschedule', revision, {"deadline": ..., "lateAllowed": ...})`) changes only the deadline and/or
+   late hand-in of new (`questions`) homework, with no new version, even after work started. Changing questions, marks, tries,
+   solutions or photos still freezes and clones. It needs the authoring right, the revision the screen read (stale: PT409),
+   a deadline with an explicit offset or `Z`, and takes the same homework lock as authoring. Legacy homework is refused
+   (23514). It is audited (`rescheduled`, before and after). A stored `missed_deadline` is history and is never recomputed.
+   - **The invariant** (a student who could already see the solutions never gets another try or hand-in) is stored in
+     `private.homework_solutions_seen` (homework, student, when, the deadline then). Under the homework lock and before the
+     deadline moves, the reschedule records every student with a hand-in whose solutions are open under the current rules.
+     A recorded student keeps the solutions (their visibility, Storage included, is "the rules say open, or recorded"), and
+     is refused `No tries left` (PT409, `no_tries_left`) in start, retry, save, submit and the photo upload intent;
+     `get_homework` gives them `triesLeft` 0, `canStart`/`canRetry` false and `triesEnded` true.
+   - **Solutions never open early because of a reschedule:** the new deadline must be in the future (23514), so moving it
+     never makes it passed. Students who are not recorded follow the rules with the new deadline: a student with no hand-in
+     may start or hand in the first time on time. Records only accumulate; Clear removes them with the demo homework.
+   - `homework_portal` and `homework_queue` read the deadline column, so they use the new deadline.
+2. **Bulk release: yes.** `homework_release_many(homework, [{submissionId, revision}])`: 1 to 500 items, no duplicates, one
+   homework, all or nothing. Every item needs the release right and passes the checks of a single release (a handed-in try of
+   this homework, the correction finished) and must not be released yet; re-releasing an edited correction stays single, with
+   its reason. Released as `approved`. Any stale revision (PT409, `stale`) or failed check (23514 `unfinished` /
+   `already_released`, 42501 for another homework's try) refuses the whole call. Tries and then corrections are locked in
+   submission id order, the order single grade and release use, so it cannot deadlock or half-apply. One `release` audit row
+   per try (reason `bulk release`). Returns `{released, items: [{submissionId, revision}]}`. `homework_queue` gains
+   `readyToRelease` (count) and `releasable` (at most 500 `{submissionId, revision}`, by id) for "Release 12 grades".
+3. **The Saturday-to-Friday week (Cairo):** yes, as built.
+4. **Course editors who are not support staff:** keep null student numbers, as built.
+5. **Delete images:** stays managers only, as built.
+6. **The old route cannot publish new homework:** fine; the screens track adds the new teacher route.
+7. **The server step that removes the files at the returned paths:** yes, in the screens track.
+8. **Student error mapping for "Deadline passed" / "No tries left":** yes, in the screens track.
+9. **Student "Try again":** yes, in the screens track: a plain button plus the `retry` action on the existing student
+   homework screen, no redesign.
+
+No old assertion changed in this amendment. `homework-rules.sql` now also checks the new private table's RLS and grants and
+the new helper's revoke; the shape test lists `homework_release_many`; `database.types.ts` gains two additive lines.

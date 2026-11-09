@@ -1,7 +1,8 @@
 // Only called by the localhost disposable database harness. No development access.
 // The owner's homework rules (migration 20261109120000_homework_teacher_rules.sql) under real waits, on separate connections, with Firebase
 // identities: two graders, a release against a grade, two tabs handing in the same try, two tabs asking for the next try, and a hand-in that
-// waits past the deadline (refused when late hand-ins are off, flagged late when they are on).
+// waits past the deadline (refused when late hand-ins are off, flagged late when they are on). The owner's answers 1 and 2: a bulk release
+// against a grade (both orders), two bulk releases sharing a try, and a reschedule against a hand-in at the old deadline (both orders).
 const assert = require('node:assert/strict'), { randomUUID } = require('node:crypto');
 module.exports = async function (makeClient, admin) {
   const clients = [], run = randomUUID();
@@ -21,10 +22,10 @@ module.exports = async function (makeClient, admin) {
   const refused = p => p.then(() => null, e => ({ code: e.code, message: e.message, detail: e.detail }));
   const work = (c, id, action, sub = null, revision = null, data = {}) => c.query('select public.homework_work($1,$2,$3,$4,$5) value', [id, action, sub, revision, data]);
   const one = async (sql, args) => (await admin.query(sql, args)).rows[0];
-  const teacher = await tab('teacher'), ta = await tab('ta'), s1 = await tab('s1'), s1b = await tab('s1'), s2 = await tab('s2');
+  const teacher = await tab('teacher'), ta = await tab('ta'), s1 = await tab('s1'), s1b = await tab('s1'), s2 = await tab('s2'), s3 = await tab('s3');
   try {
     const ids = {};
-    for (const [label, c] of [['teacher', teacher], ['ta', ta], ['s1', s1], ['s2', s2]]) { await c.claim(); ids[label] = (await c.query('select public.onboard_firebase_profile() id')).rows[0].id; await c.query('commit'); }
+    for (const [label, c] of [['teacher', teacher], ['ta', ta], ['s1', s1], ['s2', s2], ['s3', s3]]) { await c.claim(); ids[label] = (await c.query('select public.onboard_firebase_profile() id')).rows[0].id; await c.query('commit'); }
     const org = randomUUID(), course = randomUUID(), chapter = randomUUID(), lesson = randomUUID(), off = randomUUID();
     await admin.query("insert into public.organizations(id,name,slug) values($1,'Synthetic homework races',$2)", [org, 'hrc-' + run]);
     await admin.query("insert into public.organization_memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'owner','active',now()),($1,$3,'assistant','active',now())", [org, ids.teacher, ids.ta]);
@@ -33,7 +34,7 @@ module.exports = async function (makeClient, admin) {
     await admin.query("insert into public.lessons(id,module_id,title,position,status) values($1,$2,'Lesson',0,'published')", [lesson, chapter]);
     await admin.query("insert into public.course_offerings(id,course_id,name,delivery_mode,status) values($1,$2,'Run','scheduled','active')", [off, course]);
     await admin.query("insert into public.offering_staff(offering_id,user_id,role) values($1,$2,'teaching_assistant')", [off, ids.ta]);
-    await admin.query("insert into public.enrollments(offering_id,user_id,status) values($1,$2,'active'),($1,$3,'active')", [off, ids.s1, ids.s2]);
+    await admin.query("insert into public.enrollments(offering_id,user_id,status) values($1,$2,'active'),($1,$3,'active'),($1,$4,'active')", [off, ids.s1, ids.s2, ids.s3]);
 
     // One questions-only homework: a textbook question (A to D, B right) and an essay.
     const make = async rules => {
@@ -169,7 +170,99 @@ module.exports = async function (makeClient, admin) {
     await s2.query('rollback');
     assert.equal(noMore.code, 'PT409'); assert.equal(noMore.message, 'Deadline passed');
     console.log('PASS homework rules race: after a late hand-in no further try opens');
-    console.log('All 7 independent-session homework rules races passed.');
+    // The owner's answers 1 and 2: bulk release and reschedule, under real waits.
+    const bulk = (c, hw, items) => c.query('select public.homework_release_many($1,$2) value', [hw.id, JSON.stringify(items)]);
+    const item = async s => ({ submissionId: s, revision: await crev(s) });
+    const released = async list => (await admin.query('select submission_id from private.homework_corrections where submission_id=any($1::uuid[]) and released_at is not null', [list])).rows.map(r => r.submission_id).sort();
+    // Three students hand in and the teacher grades them, unreleased.
+    const corrected = async () => {
+      const h = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_deadline' });
+      const t = [await hand(s1, h, 'B', 'Bulk one'), await hand(s2, h, 'B', 'Bulk two'), await hand(s3, h, 'B', 'Bulk three')];
+      for (const s of t) { await teacher.claim(); await work(teacher, h.id, 'grade', s, await crev(s), grading(h, 3)); await teacher.query('commit'); }
+      return { h, t: [...t].sort() };
+    };
+
+    // 8. A bulk release against a grade of one of its tries, both orders: whichever commits first stands, nothing is half-applied.
+    let b = await corrected();
+    let [t1, t2, t3] = b.t;
+    let items = [await item(t1), await item(t3)];
+    await teacher.claim(); await ta.claim();
+    await work(teacher, b.h.id, 'grade', t3, items[1].revision, grading(b.h, 5));
+    let pending = refused(bulk(ta, b.h, items));
+    await blocked(ta); await teacher.query('commit');
+    let failed = await pending; await ta.query('rollback');
+    assert.equal(failed.code, 'PT409'); assert.equal(JSON.parse(failed.detail).reason, 'stale');
+    assert.deepEqual(await released(b.t), [], 'the grade stands and the bulk release released nothing, not even its other try');
+    assert.equal((await one('select score::int s from private.homework_corrections where submission_id=$1', [t3])).s, 7);
+    items = [await item(t1), await item(t2)];
+    await ta.claim(); await teacher.claim();
+    const done = value(await bulk(ta, b.h, items));
+    pending = refused(work(teacher, b.h.id, 'grade', t2, items[1].revision, grading(b.h, 6)));
+    await blocked(teacher); await ta.query('commit');
+    failed = await pending; await teacher.query('rollback');
+    assert.equal(done.released, 2); assert.equal(failed.code, 'PT409');
+    assert.deepEqual(await released(b.t), [t1, t2].sort());
+    assert.equal((await one('select score::int s from private.homework_corrections where submission_id=$1', [t2])).s, 5, 'the stale grade changed nothing');
+    console.log('PASS homework rules race: a bulk release and a grade of the same try, whichever commits first stands, both orders');
+
+    // 9. Two bulk releases sharing a try, the second listing them in the other order: no deadlock, the second is refused whole.
+    b = await corrected();
+    [t1, t2, t3] = b.t;
+    const first = [await item(t1), await item(t2)], other = [await item(t3), await item(t2)];
+    await ta.claim(); await teacher.claim();
+    assert.equal(value(await bulk(ta, b.h, first)).released, 2);
+    pending = refused(bulk(teacher, b.h, other));
+    await blocked(teacher); await ta.query('commit');
+    failed = await pending; await teacher.query('rollback');
+    assert.equal(failed.code, 'PT409');
+    assert.deepEqual(await released(b.t), [t1, t2].sort(), 'the third try stays unreleased');
+    assert.equal(Number((await one("select count(*) n from private.homework_audit where assignment_id=$1 and action='release' and reason='bulk release'", [b.h.id])).n), 2);
+    console.log('PASS homework rules race: two bulk releases sharing a try, the first stands and the second releases nothing');
+
+    // 10. A reschedule holds the homework while the old deadline passes; the waiting hand-in counts under the new deadline (late off).
+    const resched = (hw, deadline) => one('select revision from public.homework_assignments where id=$1', [hw.id])
+      .then(r => teacher.query("select public.homework_lifecycle($1,'reschedule',$2,$3) value", [hw.id, r.revision, { deadline }]));
+    const moved = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_deadline', lateAllowed: false });
+    await s2.claim();
+    const st = value(await work(s2, moved.id, 'start'));
+    await work(s2, moved.id, 'save', st.id, st.revision, answer(moved.q, 'B', 'At the old deadline'));
+    await s2.query('commit');
+    await admin.query("update public.homework_assignments set deadline_at=clock_timestamp()+interval '1.5 seconds' where id=$1", [moved.id]);
+    const sr = await rev(st.id);
+    await teacher.claim();
+    await resched(moved, new Date(Date.now() + 86400000).toISOString());
+    await s2.claim();
+    const waiting = work(s2, moved.id, 'submit', st.id, sr);
+    await blocked(s2);
+    await new Promise(r => setTimeout(r, 1800));
+    await teacher.query('commit');
+    assert.equal(value(await waiting).missedDeadline, false); await s2.query('commit');
+    assert.deepEqual(await one('select status,missed_deadline from public.homework_submissions where id=$1', [st.id]), { status: 'submitted', missed_deadline: false });
+    console.log('PASS homework rules race: a hand-in waiting on a reschedule past the old deadline is on time under the new one');
+
+    // 11. The other order: a hand-in holds the homework past the old deadline, the reschedule waits, then records that student
+    // (solutions opened at the old deadline), so the extension gives them no further try.
+    const held = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_deadline', lateAllowed: false });
+    await s3.claim();
+    const st3 = value(await work(s3, held.id, 'start'));
+    await work(s3, held.id, 'save', st3.id, st3.revision, answer(held.q, 'A', 'Just before'));
+    await s3.query('commit');
+    await admin.query("update public.homework_assignments set deadline_at=clock_timestamp()+interval '1.5 seconds' where id=$1", [held.id]);
+    await s3.claim();
+    await work(s3, held.id, 'submit', st3.id, await rev(st3.id));
+    await new Promise(r => setTimeout(r, 1800));
+    await teacher.claim();
+    pending = resched(held, new Date(Date.now() + 86400000).toISOString());
+    await blocked(teacher); await s3.query('commit');
+    await pending; await teacher.query('commit');
+    assert.equal(Number((await one('select count(*) n from private.homework_solutions_seen where assignment_id=$1 and user_id=$2', [held.id, ids.s3])).n), 1);
+    await s3.claim();
+    const ended = await refused(work(s3, held.id, 'retry', st3.id));
+    await s3.query('rollback');
+    assert.equal(ended.code, 'PT409'); assert.deepEqual(JSON.parse(ended.detail), { reason: 'no_tries_left' });
+    assert.equal((await one('select missed_deadline from public.homework_submissions where id=$1', [st3.id])).missed_deadline, false);
+    console.log('PASS homework rules race: a reschedule waiting on a hand-in past the old deadline ends that student\'s tries');
+    console.log('All 11 independent-session homework rules races passed.');
   } finally {
     await Promise.all(clients.map(async c => { try { await c.query('rollback'); } finally { await c.end(); } }));
   }

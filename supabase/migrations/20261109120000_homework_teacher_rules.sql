@@ -10,6 +10,11 @@
 -- teacher reads (portal, correcting queue), and demo seed version 5 (homework). The caller is always private.current_app_user_id().
 -- Refusals: 42501 denied, 23514 invalid, 23503 in use, PT409 stale or closed, PT413 too large. "Deadline passed" and "No tries left"
 -- are stable messages with the JSON detail {"reason":"deadline_passed"} / {"reason":"no_tries_left"}.
+--
+-- The owner's answers (2026-11-09): the deadline and "allow after the deadline" of a 'questions' homework can change after students
+-- started (lifecycle action 'reschedule', no new version), and many corrected tries of one homework can be released in one call
+-- (homework_release_many). A student whose solutions were open when the deadline changed never gets another try or hand-in, and their
+-- solutions never close again (private.homework_solutions_seen).
 begin;
 
 -- ---------------------------------------------------------------------------------------
@@ -60,8 +65,21 @@ create table private.homework_carried (
 );
 create index homework_carried_question_idx on private.homework_carried(question_id);
 create index homework_carried_source_idx on private.homework_carried(source_submission_id);
+
+-- Solutions already open for a student when the deadline was changed (written by the 'reschedule' action, under the authoring lock,
+-- from the rules and the deadline in force just before the change). For such a student the tries are over for good (start, retry,
+-- save, submit and the photo upload refuse "No tries left"), and the solutions stay open whatever the new deadline. Never deleted
+-- while the homework exists; deadline_at is the deadline that was in force.
+create table private.homework_solutions_seen (
+ assignment_id uuid not null references public.homework_assignments(id) on delete restrict,
+ user_id uuid not null references public.profiles(id) on delete restrict,
+ opened_at timestamptz not null default now(),
+ deadline_at timestamptz,
+ primary key(assignment_id,user_id)
+);
+create index homework_solutions_seen_user_idx on private.homework_solutions_seen(user_id);
 do $$ declare n text;begin
- foreach n in array array['homework_assistant_permissions','homework_carried'] loop
+ foreach n in array array['homework_assistant_permissions','homework_carried','homework_solutions_seen'] loop
   execute format('alter table private.%I enable row level security',n);
   execute format('revoke all on private.%I from public,anon,authenticated,service_role',n);
  end loop;
@@ -112,12 +130,19 @@ $$;
 --   * 'after_deadline': once the deadline has passed (a late student sees them right after handing in);
 --   * 'after_hand_in': right after the last try (one time = the first hand-in), or at the deadline, whichever comes first.
 -- Storage reads of solution files use this function too (private.homework_upload_visible).
-create or replace function private.homework_unlocked(p_assignment uuid) returns boolean language sql stable security definer set search_path='' as $$
- select private.homework_staff(p_assignment) or (private.homework_enrolled(p_assignment) and exists(
-  select 1 from public.homework_assignments a
-  cross join lateral (select count(*) n from public.homework_submissions s where s.assignment_id=a.id and s.user_id=(select private.current_app_user_id()) and s.status='submitted') h
+-- The rule for one student at this moment (no staff or enrollment check). Internal: the reschedule snapshot uses it for every student.
+create function private.homework_solutions_rule(p_assignment uuid,p_user uuid) returns boolean language sql stable security definer set search_path='' as $$
+ select exists(select 1 from public.homework_assignments a
+  cross join lateral (select count(*) n from public.homework_submissions s where s.assignment_id=a.id and s.user_id=p_user and s.status='submitted') h
   where a.id=p_assignment and h.n>0 and (a.workflow='legacy' or private.homework_is_late(clock_timestamp(),a.deadline_at)
-   or (a.solutions_open='after_hand_in' and h.n>=a.max_tries))))
+   or (a.solutions_open='after_hand_in' and h.n>=a.max_tries)))
+$$;
+revoke all on function private.homework_solutions_rule(uuid,uuid) from public,anon,authenticated,service_role;
+-- A student who could see the solutions before a reschedule keeps them (homework_solutions_seen).
+create or replace function private.homework_unlocked(p_assignment uuid) returns boolean language sql stable security definer set search_path='' as $$
+ select private.homework_staff(p_assignment) or (private.homework_enrolled(p_assignment) and (
+  private.homework_solutions_rule(p_assignment,(select private.current_app_user_id()))
+  or exists(select 1 from private.homework_solutions_seen x where x.assignment_id=p_assignment and x.user_id=(select private.current_app_user_id()))))
 $$;
 
 -- Storage: unchanged, plus a manager may remove the object of a student upload that Delete images marked 'deleted'.
@@ -258,6 +283,7 @@ end $$;
 --   save / submit - after the deadline only a FIRST hand-in, and only when late hand-ins are allowed; it is flagged missed_deadline.
 --            Kept answers cannot change. One photo per essay. A finished try is locked (as before).
 --   grade / annotate need 'correct', release needs 'release'. Annotate and the teacher's resubmit request are not used for them.
+--   A student in private.homework_solutions_seen gets no new try and no further save or hand-in ("No tries left").
 -- The time is taken once, after the locks, and the same instant is stored as submitted_at.
 -- ---------------------------------------------------------------------------------------
 create or replace function private.homework_work(p_assignment uuid,p_action text,p_submission uuid default null,p_revision bigint default null,p_data jsonb default '{}') returns jsonb
@@ -281,6 +307,7 @@ begin
   if s.status='draft' then return private.homework_submission_json(s.id);end if;
   if a.workflow='questions' then
    if s.id is not null then return private.homework_submission_json(s.id);end if;
+   if exists(select 1 from private.homework_solutions_seen x where x.assignment_id=a.id and x.user_id=u) then raise exception 'No tries left' using errcode='PT409',detail='{"reason":"no_tries_left"}';end if;
    at_:=clock_timestamp();
    if private.homework_is_late(at_,a.deadline_at) and not a.late_allowed then raise exception 'Deadline passed' using errcode='PT409',detail='{"reason":"deadline_passed"}';end if;
    insert into public.homework_submissions(assignment_id,user_id,number) values(a.id,u,1) returning * into s;
@@ -301,6 +328,8 @@ begin
   -- A second tab asking for the same next try gets it.
   if latest.status='draft' and latest.number=s.number+1 then return private.homework_submission_json(latest.id);end if;
   if latest.id<>s.id or s.status<>'submitted' then raise exception 'Homework changed; reload' using errcode='PT409';end if;
+  -- The solutions were open for this student when the deadline changed: the tries ended then.
+  if exists(select 1 from private.homework_solutions_seen x where x.assignment_id=a.id and x.user_id=u) then raise exception 'No tries left' using errcode='PT409',detail='{"reason":"no_tries_left"}';end if;
   at_:=clock_timestamp();
   if private.homework_is_late(at_,a.deadline_at) then raise exception 'Deadline passed' using errcode='PT409',detail='{"reason":"deadline_passed"}';end if;
   if s.number>=a.max_tries then raise exception 'No tries left' using errcode='PT409',detail='{"reason":"no_tries_left"}';end if;
@@ -331,6 +360,7 @@ begin
   if p_action='submit' and s.status='submitted' then return private.homework_submission_json(s.id);end if;
   if s.status<>'draft' then raise exception 'Submitted work is immutable' using errcode='PT409';end if;
   if p_revision is null or s.revision<>p_revision then raise exception 'Answers changed; reload' using errcode='PT409';end if;
+  if a.workflow='questions' and exists(select 1 from private.homework_solutions_seen x where x.assignment_id=a.id and x.user_id=u) then raise exception 'No tries left' using errcode='PT409',detail='{"reason":"no_tries_left"}';end if;
   at_:=clock_timestamp();
   if a.workflow='questions' and private.homework_is_late(at_,a.deadline_at) and (not a.late_allowed or s.number>1
    or exists(select 1 from public.homework_submissions x where x.assignment_id=a.id and x.user_id=u and x.status='submitted')) then
@@ -437,10 +467,11 @@ end $$;
 
 -- ---------------------------------------------------------------------------------------
 -- The homework read: unchanged, plus workflow, rules (also inside definition, so a screen can save it back), deadline, deadlinePassed,
--- triesUsed / triesLeft / canStart / canRetry, solutionsOpen, canManage. canGrade now means "may correct".
+-- triesUsed / triesLeft / canStart / canRetry, triesEnded (the solutions were open when the deadline changed), solutionsOpen, canManage.
+-- canGrade now means "may correct".
 -- ---------------------------------------------------------------------------------------
 create or replace function private.get_homework(p_assignment uuid,p_submission uuid default null) returns jsonb language plpgsql stable security definer set search_path='' as $$
-declare a public.homework_assignments;staff boolean;unlocked boolean;solution private.homework_solutions;result jsonb;rules jsonb;passed boolean;used integer;top integer;drafting boolean;
+declare a public.homework_assignments;staff boolean;unlocked boolean;solution private.homework_solutions;result jsonb;rules jsonb;passed boolean;used integer;top integer;drafting boolean;ended boolean;
 begin
  select * into a from public.homework_assignments where id=p_assignment;
  if a.id is null or not private.homework_visible(a.id) then raise exception 'Homework unavailable' using errcode='42501';end if;
@@ -463,27 +494,59 @@ begin
  if p_submission is not null and not exists(select 1 from public.homework_submissions where id=p_submission and assignment_id=a.id) then raise exception 'Submission assignment mismatch' using errcode='42501';end if;
  passed:=private.homework_is_late(clock_timestamp(),a.deadline_at);
  select count(*) filter(where status='submitted'),max(number),coalesce(bool_or(status='draft'),false) into used,top,drafting from public.homework_submissions where assignment_id=a.id and user_id=(select private.current_app_user_id());
+ ended:=exists(select 1 from private.homework_solutions_seen x where x.assignment_id=a.id and x.user_id=(select private.current_app_user_id()));
  if a.workflow='questions' then
   rules:=jsonb_build_object('deadline',a.deadline_at,'lateAllowed',a.late_allowed,'tries',a.tries_mode,'maxTries',a.max_tries,'solutionsOpen',a.solutions_open,'photosAllowed',a.photos_allowed);
   result:=jsonb_set(result,'{definition,rules}',rules);
  end if;
  return result||jsonb_build_object('workflow',a.workflow,'rules',rules,'deadline',a.deadline_at,'deadlinePassed',passed,'solutionsOpen',unlocked,'canManage',private.homework_staff(a.id,'manage'),
-  'triesUsed',used,
-  'triesLeft',case when a.workflow='questions' then case when passed then case when top is null and a.late_allowed then 1 else 0 end else greatest(a.max_tries-coalesce(top,0)+case when drafting then 1 else 0 end,0) end end,
-  'canStart',top is null and (a.workflow='legacy' or not passed or a.late_allowed),
-  'canRetry',a.workflow='questions' and not passed and not drafting and used>0 and coalesce(top,0)<a.max_tries);
+  'triesUsed',used,'triesEnded',ended,
+  'triesLeft',case when a.workflow='questions' then case when ended then 0 when passed then case when top is null and a.late_allowed then 1 else 0 end else greatest(a.max_tries-coalesce(top,0)+case when drafting then 1 else 0 end,0) end end,
+  'canStart',top is null and not ended and (a.workflow='legacy' or not passed or a.late_allowed),
+  'canRetry',a.workflow='questions' and not ended and not passed and not drafting and used>0 and coalesce(top,0)<a.max_tries);
 end $$;
 
 -- ---------------------------------------------------------------------------------------
--- Lifecycle: unchanged, plus publish needs a deadline (questions) and a clone copies the rules.
+-- Lifecycle: unchanged, plus publish needs a deadline (questions), a clone copies the rules, and 'reschedule'.
+-- 'reschedule' (questions homework only, the 'author' capability, the revision the screen read, the same exclusive root lock as
+-- authoring): p_data is {deadline, lateAllowed}, either or both. The deadline is ISO 8601 with an explicit offset or Z and must be in
+-- the future, so a reschedule never opens solutions for anyone. It makes no new version, even after work started, and never rewrites
+-- a stored missed_deadline. Before the change, every student whose solutions are open under the rules in force is recorded in
+-- private.homework_solutions_seen: their tries are over and their solutions stay open. Audited with before and after.
+-- The function gains p_data (default '{}'), so it is dropped and created again with the same grants; three-argument calls still work.
 -- ---------------------------------------------------------------------------------------
-create or replace function private.homework_lifecycle(p_assignment uuid,p_action text,p_revision bigint) returns uuid language plpgsql security definer set search_path='' as $$
+drop function public.homework_lifecycle(uuid,text,bigint);
+drop function private.homework_lifecycle(uuid,text,bigint);
+create function private.homework_lifecycle(p_assignment uuid,p_action text,p_revision bigint,p_data jsonb default '{}') returns uuid language plpgsql security definer set search_path='' as $$
 declare a public.homework_assignments;cloned_id uuid;q public.homework_questions;opt public.homework_options;qid uuid;oid uuid;ids uuid[];k private.homework_keys;source_upload private.homework_uploads;copied_id uuid;next_version integer;
+ v_deadline timestamptz;v_late boolean;n integer;
 begin
+ if not private.is_active_user() then raise exception 'Authentication required' using errcode='42501';end if;
  select * into a from public.homework_assignments where id=p_assignment for update;
  if a.id is null or not private.homework_staff(a.id,'author') then raise exception 'Authoring denied' using errcode='42501';end if;
  if p_revision is null or a.revision<>p_revision then raise exception 'Homework changed' using errcode='PT409';end if;
- if p_action='unpublish' then update public.homework_assignments set status='draft',revision=revision+1,updated_at=clock_timestamp() where id=a.id;return a.id;
+ if p_action='reschedule' then
+  if a.workflow<>'questions' then raise exception 'Only new homework has a deadline to change' using errcode='23514';end if;
+  if p_data is null or jsonb_typeof(p_data)<>'object' or not (p_data ? 'deadline' or p_data ? 'lateAllowed')
+   or exists(select 1 from jsonb_object_keys(p_data) x where x not in ('deadline','lateAllowed'))
+   or (p_data ? 'deadline' and (jsonb_typeof(p_data->'deadline')<>'string' or p_data->>'deadline' !~ '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$'))
+   or (p_data ? 'lateAllowed' and jsonb_typeof(p_data->'lateAllowed')<>'boolean') then raise exception 'Invalid new deadline' using errcode='23514';end if;
+  v_deadline:=a.deadline_at;v_late:=coalesce((p_data->>'lateAllowed')::boolean,a.late_allowed);
+  if p_data ? 'deadline' then
+   begin v_deadline:=(p_data->>'deadline')::timestamptz; exception when others then raise exception 'Invalid new deadline' using errcode='23514'; end;
+   if v_deadline<=clock_timestamp() then raise exception 'The new deadline must be in the future' using errcode='23514';end if;
+  end if;
+  if v_deadline is null then raise exception 'Set a deadline' using errcode='23514';end if;
+  insert into private.homework_solutions_seen(assignment_id,user_id,opened_at,deadline_at)
+   select a.id,x.user_id,clock_timestamp(),a.deadline_at from (select distinct s.user_id from public.homework_submissions s where s.assignment_id=a.id and s.status='submitted') x
+   where private.homework_solutions_rule(a.id,x.user_id) on conflict(assignment_id,user_id) do nothing;
+  get diagnostics n=row_count;
+  update public.homework_assignments set deadline_at=v_deadline,late_allowed=v_late,revision=revision+1,updated_at=clock_timestamp() where id=a.id;
+  insert into private.homework_audit(assignment_id,actor,action,before_value,after_value) values(a.id,(select private.current_app_user_id()),'rescheduled',
+   jsonb_build_object('deadline',a.deadline_at,'lateAllowed',a.late_allowed,'revision',a.revision),
+   jsonb_build_object('deadline',v_deadline,'lateAllowed',v_late,'revision',a.revision+1,'triesEnded',n));
+  return a.id;
+ elsif p_action='unpublish' then update public.homework_assignments set status='draft',revision=revision+1,updated_at=clock_timestamp() where id=a.id;return a.id;
  elsif p_action='publish' then
   if a.workflow='questions' and a.deadline_at is null then raise exception 'Set a deadline before publishing' using errcode='23514';end if;
   if a.mode='PLATFORM_QUESTIONS' and (not exists(select 1 from public.homework_questions where assignment_id=a.id) or exists(select 1 from public.homework_questions question_row join private.homework_keys key_row on key_row.question_id=question_row.id where question_row.assignment_id=a.id and question_row.type<>'essay' and cardinality(key_row.correct_ids)=0)) then raise exception 'Complete question keys' using errcode='23514';end if;
@@ -518,6 +581,11 @@ begin
  insert into private.homework_materials(assignment_id,upload_id,purpose) select cloned_id,case when m.purpose='reference' then m.upload_id else (select copy.upload_id from private.homework_clone_sources copy join private.homework_uploads target on target.id=copy.upload_id where copy.source_id=m.upload_id and target.assignment_id=cloned_id) end,m.purpose from private.homework_materials m where m.assignment_id=a.id;
  insert into private.homework_audit(assignment_id,actor,action,before_value) values(cloned_id,(select private.current_app_user_id()),'cloned',to_jsonb(a));return cloned_id;
 end $$;
+revoke all on function private.homework_lifecycle(uuid,text,bigint,jsonb) from public,anon;
+grant execute on function private.homework_lifecycle(uuid,text,bigint,jsonb) to authenticated;
+create function public.homework_lifecycle(p_assignment uuid,p_action text,p_revision bigint,p_data jsonb default '{}') returns uuid language sql security invoker set search_path='' as $$select private.homework_lifecycle(p_assignment,p_action,p_revision,p_data)$$;
+revoke all on function public.homework_lifecycle(uuid,text,bigint,jsonb) from public,anon;
+grant execute on function public.homework_lifecycle(uuid,text,bigint,jsonb) to authenticated;
 
 -- ---------------------------------------------------------------------------------------
 -- Uploads: unchanged, plus for a 'questions' student photo: images only, refused when photos are off or after the deadline (unless it
@@ -539,6 +607,7 @@ begin
    if a.workflow='questions' then
     if mime not in ('image/png','image/jpeg','image/webp') then raise exception 'Photo answers are images only' using errcode='23514';end if;
     if not a.photos_allowed then raise exception 'Photo answers are off for this homework' using errcode='23514';end if;
+    if exists(select 1 from private.homework_solutions_seen x where x.assignment_id=a.id and x.user_id=u) then raise exception 'No tries left' using errcode='PT409',detail='{"reason":"no_tries_left"}';end if;
     if private.homework_is_late(clock_timestamp(),a.deadline_at) and (not a.late_allowed or exists(select 1 from public.homework_submissions s where s.assignment_id=a.id and s.user_id=u and s.status='submitted')) then
      raise exception 'Deadline passed' using errcode='PT409',detail='{"reason":"deadline_passed"}';end if;
    end if;
@@ -698,6 +767,7 @@ begin
 end $$;
 
 -- The correcting queue of one homework: To correct / Done / Missing, by each student's latest handed-in try. Support staff of the offering.
+-- readyToRelease and releasable (at most 500 {submissionId, revision}, by submission id) feed 'Release 12 grades' without another read.
 create function private.homework_queue(p_assignment uuid,p_tab text default 'to_correct',p_page integer default 0) returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare a public.homework_assignments;at_ timestamptz:=clock_timestamp();result jsonb;
 begin
@@ -712,8 +782,13 @@ begin
   done as materialized (select l.*,p.display_name,c.status,c.released_at is not null as released,c.score,c.revision,lt.user_id is not null as is_late,
     coalesce(e.n,0)+case when a.mode='FILE_UPLOAD' and c.status='under_correction' then 1 else 0 end as waiting
    from latest l join private.homework_corrections c on c.submission_id=l.id join public.profiles p on p.id=l.user_id left join empties e on e.submission_id=l.id left join late lt on lt.user_id=l.user_id),
-  missing as materialized (select r.user_id,p.display_name from roster r join public.profiles p on p.id=r.user_id where not exists(select 1 from latest l where l.user_id=r.user_id))
+  missing as materialized (select r.user_id,p.display_name from roster r join public.profiles p on p.id=r.user_id where not exists(select 1 from latest l where l.user_id=r.user_id)),
+  -- Ready to release together: a latest try whose correction is finished and not released (what homework_release_many accepts).
+  ready as materialized (select d.id,d.revision from done d where d.status='corrected' and not d.released and d.waiting=0 and (not a.uses_marks or d.score is not null)
+   and not exists(select 1 from private.homework_marks m where m.submission_id=d.id and m.points is null))
  select jsonb_build_object('tab',p_tab,'page',p_page,'pageSize',50,'serverNow',at_,
+  'readyToRelease',(select count(*) from ready),
+  'releasable',coalesce((select jsonb_agg(jsonb_build_object('submissionId',x.id,'revision',x.revision) order by x.id) from (select * from ready order by id limit 500) x),'[]'::jsonb),
   'homework',jsonb_build_object('id',a.id,'title',a.title,'courseId',a.course_id,'offeringId',a.offering_id,'lessonId',a.lesson_id,'version',a.version,'workflow',a.workflow,'mode',a.mode,'status',a.status,
    'deadline',a.deadline_at,'lateAllowed',a.late_allowed,'tries',a.tries_mode,'maxTries',a.max_tries,'solutionsOpen',a.solutions_open,'photosAllowed',a.photos_allowed,
    'canCorrect',private.homework_staff(a.id,'correct'),'canRelease',private.homework_staff(a.id,'release')),
@@ -727,9 +802,51 @@ begin
  return result;
 end $$;
 
+-- Release many corrected tries of ONE homework, all or nothing. p_items is the [{submissionId, revision}] the screen read: 1 to 500
+-- items, no duplicates. Every item passes the checks of a single release (the 'release' capability, a handed-in try of this homework,
+-- the correction finished) and must not be released yet: re-releasing an edited correction stays a single release with its reason.
+-- Released as 'approved' (the resubmit request is never part of it). Any stale revision (PT409) or failed check refuses the whole call
+-- and nothing is released. Locks: the homework shared (as student work and single corrections), then the tries and then their
+-- corrections, each in submission id order, so it cannot deadlock with a grade, a single release or another bulk release.
+-- One audit row per released try. Returns the released count and each try's new correction revision.
+create function private.homework_release_many(p_assignment uuid,p_items jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
+declare a public.homework_assignments;u uuid:=(select private.current_app_user_id());ids uuid[];c private.homework_corrections;want bigint;n integer:=0;out_ jsonb:='[]'::jsonb;previous jsonb;
+begin
+ if u is null or not private.is_active_user() then raise exception 'Sign in required' using errcode='42501';end if;
+ if p_items is null or jsonb_typeof(p_items)<>'array' or jsonb_array_length(p_items)<1 then raise exception 'Choose the grades to release' using errcode='23514';end if;
+ if jsonb_array_length(p_items)>500 then raise exception 'At most 500 grades at once' using errcode='23514',detail='{"max":500}';end if;
+ if exists(select 1 from jsonb_array_elements(p_items) e where jsonb_typeof(e)<>'object' or exists(select 1 from jsonb_object_keys(e) k where k not in ('submissionId','revision'))
+   or jsonb_typeof(e->'submissionId')<>'string' or e->>'submissionId' !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+   or jsonb_typeof(e->'revision')<>'number' or e->>'revision' !~ '^\d{1,15}$') then raise exception 'Invalid grade list' using errcode='23514';end if;
+ ids:=array(select (e->>'submissionId')::uuid from jsonb_array_elements(p_items) e);
+ if cardinality(ids)<>(select count(distinct x) from unnest(ids) x) then raise exception 'A grade is listed twice' using errcode='23514';end if;
+ select * into a from public.homework_assignments where id=p_assignment for share;
+ if a.id is null or not private.homework_staff(a.id,'release') then raise exception 'Correction denied' using errcode='42501';end if;
+ perform 1 from public.homework_submissions s where s.id=any(ids) order by s.id for update;
+ if (select count(*) from public.homework_submissions s where s.id=any(ids) and s.assignment_id=a.id and s.status='submitted')<>cardinality(ids) then raise exception 'Correction denied' using errcode='42501';end if;
+ perform 1 from private.homework_corrections x where x.submission_id=any(ids) order by x.submission_id for update;
+ if (select count(*) from private.homework_corrections x where x.submission_id=any(ids))<>cardinality(ids) then raise exception 'Finish correction before release' using errcode='23514';end if;
+ -- Every check first; nothing is written until all pass.
+ for c in select * from private.homework_corrections x where x.submission_id=any(ids) order by x.submission_id loop
+  want:=(select (e->>'revision')::bigint from jsonb_array_elements(p_items) e where (e->>'submissionId')::uuid=c.submission_id);
+  if c.revision<>want then raise exception 'Correction changed; reload' using errcode='PT409',detail=jsonb_build_object('reason','stale','submissionId',c.submission_id)::text;end if;
+  if c.released_at is not null then raise exception 'Only corrected grades that are not released yet can be released together' using errcode='23514',detail=jsonb_build_object('reason','already_released','submissionId',c.submission_id)::text;end if;
+  if c.status<>'corrected' or (a.uses_marks and c.score is null) or exists(select 1 from private.homework_marks m where m.submission_id=c.submission_id and m.points is null) then
+   raise exception 'Finish correction before release' using errcode='23514',detail=jsonb_build_object('reason','unfinished','submissionId',c.submission_id)::text;end if;
+ end loop;
+ for c in select * from private.homework_corrections x where x.submission_id=any(ids) order by x.submission_id loop
+  previous:=to_jsonb(c)||jsonb_build_object('marks',(select jsonb_agg(to_jsonb(m)) from private.homework_marks m where m.submission_id=c.submission_id));
+  update private.homework_corrections set status='approved',released_at=clock_timestamp(),released_by=u,revision=revision+1 where submission_id=c.submission_id returning * into c;
+  insert into private.homework_audit(assignment_id,submission_id,actor,action,reason,before_value,after_value) values(a.id,c.submission_id,u,'release','bulk release',previous,
+   to_jsonb(c)||jsonb_build_object('marks',(select jsonb_agg(to_jsonb(m)) from private.homework_marks m where m.submission_id=c.submission_id)));
+  n:=n+1;out_:=out_||jsonb_build_array(jsonb_build_object('submissionId',c.submission_id,'revision',c.revision));
+ end loop;
+ return jsonb_build_object('released',n,'items',out_);
+end $$;
+
 -- Grants: the private definers to authenticated (the public wrappers run as the caller), never to public or anon.
 do $$ declare f text;begin
- foreach f in array array['homework_delete_images(uuid)','homework_storage_usage(uuid)','homework_assistants(uuid)','set_homework_assistant(uuid,uuid,boolean,boolean,timestamptz)','homework_portal(uuid,text,integer)','homework_queue(uuid,text,integer)'] loop
+ foreach f in array array['homework_delete_images(uuid)','homework_storage_usage(uuid)','homework_assistants(uuid)','set_homework_assistant(uuid,uuid,boolean,boolean,timestamptz)','homework_portal(uuid,text,integer)','homework_queue(uuid,text,integer)','homework_release_many(uuid,jsonb)'] loop
   execute format('revoke all on function private.%s from public,anon',f);
   execute format('grant execute on function private.%s to authenticated',f);
  end loop;
@@ -740,8 +857,9 @@ create function public.homework_assistants(p_course uuid) returns jsonb language
 create function public.set_homework_assistant(p_course uuid,p_user uuid,p_can_correct boolean,p_can_release boolean,p_updated_at timestamptz) returns jsonb language sql security invoker set search_path='' as $$select private.set_homework_assistant(p_course,p_user,p_can_correct,p_can_release,p_updated_at)$$;
 create function public.homework_portal(p_course uuid default null,p_tab text default 'open',p_page integer default 0) returns jsonb language sql stable security invoker set search_path='' as $$select private.homework_portal(p_course,p_tab,p_page)$$;
 create function public.homework_queue(p_assignment uuid,p_tab text default 'to_correct',p_page integer default 0) returns jsonb language sql stable security invoker set search_path='' as $$select private.homework_queue(p_assignment,p_tab,p_page)$$;
+create function public.homework_release_many(p_assignment uuid,p_items jsonb) returns jsonb language sql security invoker set search_path='' as $$select private.homework_release_many(p_assignment,p_items)$$;
 do $$ declare f text;begin
- foreach f in array array['homework_delete_images(uuid)','homework_storage_usage(uuid)','homework_assistants(uuid)','set_homework_assistant(uuid,uuid,boolean,boolean,timestamptz)','homework_portal(uuid,text,integer)','homework_queue(uuid,text,integer)'] loop
+ foreach f in array array['homework_delete_images(uuid)','homework_storage_usage(uuid)','homework_assistants(uuid)','set_homework_assistant(uuid,uuid,boolean,boolean,timestamptz)','homework_portal(uuid,text,integer)','homework_queue(uuid,text,integer)','homework_release_many(uuid,jsonb)'] loop
   execute format('revoke all on function public.%s from public,anon',f);
   execute format('grant execute on function public.%s to authenticated',f);
  end loop;
@@ -1082,6 +1200,8 @@ begin
  delete from private.homework_corrections where submission_id=any(subs_);
  get diagnostics cnt = row_count; n_hw := n_hw+cnt;
  delete from private.homework_carried where submission_id=any(subs_);
+ get diagnostics cnt = row_count; n_support := n_support+cnt;
+ delete from private.homework_solutions_seen where assignment_id=any(hws_);
  get diagnostics cnt = row_count; n_support := n_support+cnt;
  delete from public.homework_responses where submission_id=any(subs_);
  get diagnostics cnt = row_count; n_hw := n_hw+cnt;

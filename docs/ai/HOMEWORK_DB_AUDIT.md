@@ -127,3 +127,20 @@ homework rows directly (`course-content-tree`, `group-presentation-summary`, `gr
 - The student counts in the student Home: unchanged (they count published homework not handed in; a late-allowed or closed
   homework still counts as not handed in until handed in, as before).
 - Exams: no exam table or function is touched. `homework_delete_images` takes a homework id only; an exam id is "unavailable".
+
+## 5. Amendment: the owner's answers 1 and 2 (same file, not applied)
+
+- **Reschedule** is a branch of `private.homework_lifecycle`, which gains an optional `p_data jsonb default '{}'` (the
+  three-argument function is dropped and recreated with four; the public invoker wrapper too; the server's existing
+  three-argument call resolves unchanged). It locks the homework `for update`, like authoring and the other lifecycle
+  actions, so a hand-in (which holds the homework `for share`) either finishes first or waits and then sees the new deadline.
+- **`private.homework_solutions_seen`** (RLS on, no grants): written only by the reschedule, read by `homework_unlocked`,
+  `homework_work` (start, retry, save, submit), `homework_upload` (submission intent) and `get_homework`. The rule that was
+  inline in `homework_unlocked` moved to `private.homework_solutions_rule(homework, student)` (internal, revoked from
+  everyone) so the reschedule can evaluate it for every student.
+- **`private.homework_release_many`** (definer) + `public.homework_release_many` (invoker), same grants as the others.
+  Validation before any lock; then the homework `for share`, the tries `for update` by id, the corrections `for update` by
+  submission id; every check before the first write.
+- **`homework_queue`** gains `readyToRelease` and `releasable`, outside `counts`.
+- **Demo Clear** also deletes the records of the demo homework (counted with the other support rows).
+- Not changed: `missed_deadline` is never rewritten; the single release, grade and resubmit rules; exams.

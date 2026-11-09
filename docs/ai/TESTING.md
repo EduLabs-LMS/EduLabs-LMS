@@ -158,18 +158,23 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 
 ## Homework rules (`claude/homework-db`)
 
-- `supabase/tests/homework-rules.sql` (124 checks, rolled back, every identity a Firebase identity): create and rules, deadline
+- `supabase/tests/homework-rules.sql` (179 checks, rolled back, every identity a Firebase identity): create and rules, deadline
   edges (at, just after, late allowed for the first hand-in only), every tries mode, solutions visibility (also by storage
   path), assistants with and without each right, Delete images (keeps grades, refuses before the deadline and for legacy and
-  exams, audited), the portal and the queue, cross-space denial (another teacher, a student of another course, anon), grants.
+  exams, audited), the portal and the queue, cross-space denial (another teacher, a student of another course, anon), grants;
+  reschedule (before and after the old deadline, who is recorded, no try or hand-in for them, a first hand-in for the
+  others, solutions neither re-close nor open early, stale, past deadline, legacy, rights, audit, `missed_deadline` kept)
+  and bulk release (all or nothing on a stale, unfinished or released item, 500 cap, duplicates, rights, audit, the
+  queue's release list).
 - `supabase/tests/homework-reads.sql` (12 checks): a few hundred synthetic tries in two spaces. Every page of every tab of
   `homework_portal` and `homework_queue` equals a naive query that authorizes every homework of the database one by one, for
   five callers (owner, assistant, editor, a teacher of two spaces, the other space's owner).
 - `supabase/tests/demo-homework.sql` (38 checks): demo fill and clear at seed version 5, every homework row recorded, the reads
   on demo data, and Clear refusing (removing nothing) with a real person's try or a stored file.
-- `scripts/homework-rules-concurrency.cjs` (7 races on separate connections): two graders, release against grade (both
+- `scripts/homework-rules-concurrency.cjs` (11 races on separate connections): two graders, release against grade (both
   orders), two tabs asking for the next try, two tabs handing in the same try, a hand-in waiting past the deadline (refused,
-  and flagged late when late is allowed), and no try after a late hand-in.
+  and flagged late when late is allowed), no try after a late hand-in, a bulk release against a grade (both orders),
+  two bulk releases sharing a try, and a reschedule against a hand-in at the old deadline (both orders).
 - `node --test scripts/homework-rules-migration.test.cjs` (part of `npm test`) checks the file's shape and the stable refusals.
 - The old suites `homework`, `notifications-support`, `student-administration`, `course-content-tree` and the demo suites were
   changed only where the rules change them (DECISIONS.md lists each change).

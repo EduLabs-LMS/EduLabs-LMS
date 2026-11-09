@@ -2324,6 +2324,7 @@ export type Database = {
       notification_worker: { Args: { p_action: string; p_data?: Json }; Returns: Json }
       homework_portal: { Args: { p_course?: string | null; p_page?: number; p_tab?: string }; Returns: Json }
       homework_queue: { Args: { p_assignment: string; p_page?: number; p_tab?: string }; Returns: Json }
+      homework_release_many: { Args: { p_assignment: string; p_items: Json }; Returns: Json }
       homework_delete_images: { Args: { p_assignment: string }; Returns: Json }
       homework_storage_usage: { Args: { p_space: string }; Returns: Json }
       homework_assistants: { Args: { p_course: string }; Returns: Json }
@@ -2461,6 +2462,7 @@ export type Database = {
       }
       homework_lifecycle: {
         Args: { p_action: string; p_assignment: string; p_revision: number }
+          & { p_data?: Json }
         Returns: string
       }
       homework_revisions: {
