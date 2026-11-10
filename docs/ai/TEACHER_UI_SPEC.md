@@ -132,3 +132,36 @@ Boards: `docs/design/homework-content/`. Build with the design components in bot
 - **Correcting:** one student at a time with Save and next. Student photos are shown, never edited or drawn on; the annotation feature is not used in the UI.
 - **Assistants:** correct and release are per-assistant permissions, on by default; the switches come with the assistants screen.
 - **Not in scope for now:** the student side, which must keep working.
+
+## Homework screens, part 1 (built on `claude/homework-ui`, awaiting owner approval)
+
+Routes: `/teacher/homework` (the page), `/teacher/homework/new` (`?course=<id>` preselects a course the teacher may edit) and
+`/teacher/homework/<id>` (the wizard on one homework). Exact paths in `middleware.ts`, no referrer, private no-store. Both looks,
+English and Arabic, phone first. Screenshots: `docs/design/screenshots/homework-ui/` (list in its README).
+
+- **Menu:** Homework is a real item after Courses on the desktop menu and in the phone More sheet; it no longer says Soon.
+- **Page:** this week's numbers (essays to correct, corrected, handed in, on time %), the week Saturday to Friday in Cairo as the
+  database gives it; To correct (essays only) where Correct is shown but off (`aria-disabled`, "Correcting comes in the next
+  update"); Open / Closed / Drafts with counts and paging (25 a page, Previous/Next only when there is somewhere to go); a course
+  filter when there is more than one course; "+ New homework" only for a teacher who can edit a course. On a phone the numbers are
+  2 by 2 and "All homework" opens the list. Empty, loading, error (Try again) and signed-out states.
+- **Row menu:** Edit; Change deadline (questions homework, not drafts); Publish or Unpublish; Delete images (Closed tab, managers of
+  that run; shows the image space; off with "No images" when there are none). Each action reads the homework first for its
+  revision (the page read has none) and sends it unchanged.
+- **Change deadline:** a Cairo date and time, which must be in the future (checked on screen and again by the database), and "Allow
+  after the deadline". The note: "Students who already saw the solutions keep them and get no more tries." It changes the date for
+  everyone without a new version.
+- **Delete images:** confirms that grades and notes are kept; sends only `{ confirm: true }`.
+- **Wizard:** Details (title, course, lesson grouped by chapter; a draft lesson is allowed with "Students see it when this lesson is
+  published" and Publish lesson for an editor; optional instructions), Questions (Choice / Essay, marks stepper, add, remove,
+  reorder from the question menu, textbook switch for A to D with one right answer and no text, a picture per question through the
+  existing upload flow once the draft exists, model answer for an essay, the photo answers switch for the whole homework), Rules
+  (Cairo deadline, late allowed, One time / Fix mistakes / From zero with 2 to 10 tries), Solutions (when they open with the plain
+  rule, solution text, an optional video or PDF), Review (a summary with Edit links, then Publish, which needs a deadline, or Save
+  as draft). A draft saves itself a moment after typing ("Draft saved"); a save that finds it changed keeps what was typed and offers
+  Reload. Course and lesson are fixed once saved. Homework that students started says that saving makes a new version and points to
+  Change deadline for a new date. Every off control is `aria-disabled` with its reason; no native checkbox; 44 px targets.
+- **Content section:** Publish lesson (a draft lesson, at once) and Unpublish lesson (asks first: "Students won't see this lesson or
+  its homework until you publish it again. Their answers and grades are kept."). On the phone sheet Move up, Move down and Move to
+  another chapter are off with their reason ("Already the first lesson", "Already the last lesson", "No other chapter").
+- **Not in part 1:** correcting, the Home card, the student side, Preview as student, the assistants' switches.

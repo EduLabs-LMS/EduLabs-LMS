@@ -16,6 +16,8 @@ export const contentEdit = z.discriminatedUnion('action', [
   z.object({ action: z.literal('create_lesson'), parentId: id, title: lessonTitle }).strict(),
   z.object({ action: z.literal('rename_lesson'), id, updatedAt: version, title: lessonTitle }).strict(),
   z.object({ action: z.literal('delete_lesson'), id, updatedAt: version }).strict(),
+  z.object({ action: z.literal('publish_lesson'), id, updatedAt: version }).strict(),
+  z.object({ action: z.literal('unpublish_lesson'), id, updatedAt: version }).strict(),
   z.object({ action: z.literal('move_lesson'), id, parentId: id, updatedAt: version, items }).strict(),
   z.object({ action: z.literal('reorder_lessons'), parentId: id, items }).strict(),
 ]);

@@ -385,3 +385,32 @@ the next run, the Homework screens track, as a plain page in the existing studen
   part page does. Unpublishing hides the lesson and its homework, never the student's stored work.
 - **Links to change:** the Locked card (and the Home lesson list) should link to the new page when the lesson has no published
   part, and Continue Learning keeps linking to parts. A lesson that has parts keeps today's part page.
+
+## Teacher Homework screens, part 1 (2026-11-10, branch `claude/homework-ui`)
+
+- **Routes.** `GET /api/teacher/homework` (homework_portal), `GET /api/teacher/homework/<id>` (get_homework, staff only), `POST
+  /api/teacher/homework/<id|new>/save` (save_homework), `POST .../<id>/lifecycle` (publish, unpublish, clone, reschedule) and `POST
+  .../<id>/delete-images`. Each checks Firebase staging, the origin (reads: Sec-Fetch-Site same-origin, and an Origin when sent),
+  JSON content type, a streamed body cap (600 000 bytes for save, 4 096 otherwise) and a strict zod schema; the user is always the
+  signed-in one; revisions are whole numbers passed through unchanged; deadlines are ISO 8601 with an offset. Writes run a server
+  pre-check (`editableTeacherCourse`) and then the database function, which authorizes again. Refusals: 42501 and PGRST116 are 403;
+  23514, 22P02 and 23505 are 400 with a named reason when the message has one; 23503 is 409 `in_use`; PT409 is 409 with its detail
+  reason (`still_open`, `deadline_passed`, `no_tries_left`), `started` for "Work has started", otherwise `changed`; PT413 is 413.
+  The old `/api/homework/*` routes stay for the upload flow and the student side.
+- **Delete images, how the files go.** `homework_delete_images` (managers of that homework, after its deadline) marks the student
+  photos `deleted` in `private.homework_uploads` and returns their paths; grades, marks, notes and answers are untouched. The server
+  then removes the objects from the `lms-homework` bucket through the Storage API with the same signed-in (RLS-bound) client, in
+  chunks of 100, which the storage policy allows only for a `deleted` submission photo and a manager of that homework. Only paths
+  under `<homework id>/` without `..` are sent. SQL never deletes an object. If the removal fails or is cut short, the reply says
+  `storage: 'retry'`, the rows stay `deleted` (students and teachers already see the photos as deleted), and
+  `private.expired_homework_uploads` keeps listing them; `node scripts/lms-storage-maintenance.cjs` (operator-only, dry run by
+  default, `--apply` to act) now also removes `deleted` homework files that are still in Storage. There is no automatic retry in
+  the app: one would need a queue or a scheduled job, which is a new migration or a provider change.
+- **Course runs.** Homework belongs to a run (offering). The wizard's Course list shows each course once, or "course · run" when a
+  course has several runs; course and lesson are fixed after the first save (save_homework refuses a change).
+- **Row actions read first.** The page read has no revision, so Publish, Unpublish, Change deadline and Edit read the homework and
+  send the revision they got.
+- **Started homework.** Saving makes a new version through the existing clone; a new date for everyone is Change deadline, which
+  makes no version. On the clone, question and option ids are taken from the copy by position.
+- **Pending owner questions.** An in-app retry for image removal (needs a migration); whether to show Preview as student; whether
+  rows should show question count and marks (the page read does not return them).

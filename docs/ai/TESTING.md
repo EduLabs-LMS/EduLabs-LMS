@@ -201,3 +201,34 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `course-content-tree.sql` changed in two assertions (DECISIONS.md lists both, with the reason).
 - Run just these: `LMS_SQL_ONLY=lesson-publish,course-content-tree node scripts/exam-sql-local.cjs --postgres` (the races run with
   every `--postgres` run).
+
+## Homework screens, part 1 (`claude/homework-ui`)
+
+- `node --test scripts/teacher-homework.test.cjs` (part of `npm test`, 23 tests): Cairo times (+02:00 winter, +03:00 summer, the
+  spring gap has no time, the autumn fold takes the later instant, round trip), the Saturday to Friday week; the wizard's state
+  (step issues, the textbook rule, options and answers, photos off makes every essay text, tries 2 to 10 and one time sent as 1, the
+  deadline with its offset, what a draft needs, read back unchanged); the contract (extra keys, a client-named user, string,
+  fractional, negative and unsafe revisions refused; revisions kept exactly); every refusal code and reason mapped and read back by
+  the screen; the five routes with a stubbed viewer and database client (signed out is 401 before any call, foreign origin, wrong
+  content type, bad JSON, oversized bodies, repeated query keys, `new` only for save, the server pre-check refusing another space's
+  teacher or an assistant before the write, the signed-in user only, versions round-tripped, a student refused); Delete images (the
+  paths filtered to the homework, removal in chunks of 100 with the signed-in client, a failed removal reported as `retry`, nothing
+  removed while open); the middleware's exact paths; the menu; static rules (no native checkbox or disabled attribute, only the
+  homework and content routes); every `hw.*` text in both languages with the same holes and no ruled-out word.
+- `scripts/teacher-homework-sql.cjs` (in `npm run test:exam-sql:postgres`, after the lesson-publish races): the real functions under
+  Firebase identities through the contract and the reply mapper: a wizard draft saved and read back (Cairo wall time and revision
+  round trip), a stale save; another space's teacher and an assistant without editing refused by the database; publish without a
+  deadline refused with `no_deadline`; the page read's shape, counts, rights and a week that starts on Saturday in Cairo; Change
+  deadline stale, past and saved; Delete images while open (`still_open`), by an assistant (denied) and after the deadline; a student
+  is never staff on the teacher's routes.
+- `scripts/teacher-homework-browser.cjs` (Chromium, synthetic loopback server checked against the real contract and the real
+  middleware): the page, filter, row menus by tab, publish from the menu with the revision read, Change deadline with the Cairo
+  offset and a past time caught on screen, Delete images, the phone list, empty/error/signed-out states, the wizard from nothing to
+  published (autosave, the draft lesson note and Publish lesson, textbook, photos off, tries capped at 10 with the reason, the
+  deadline offset), a stale save keeping the typed text, and started homework. Then 112 pictures: every screen and dialog at 1360
+  and 390, Classic and New, English and Arabic, each measured (no sideways scroll, 44 px targets, 12 px text, no native disabled
+  or checkbox, no ruled-out word, nothing says Soon). `LMS_COPY_SHOTS=1` copies them to `docs/design/screenshots/homework-ui/`.
+- `scripts/teacher-course-content-browser.cjs` gained Publish and Unpublish lesson (the confirm, cancel sends nothing, the exact
+  version) and checks the phone sheet's reasons.
+- Runs: `source .local/pa-env.sh` (esbuild may need its own folder: `LMS_ESBUILD_RUNTIME`), a Firebase-mode build for fonts; CSS
+  is compiled fresh by `scripts/harness-css.cjs`.

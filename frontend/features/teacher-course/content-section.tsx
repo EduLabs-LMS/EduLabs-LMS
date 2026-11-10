@@ -25,8 +25,9 @@ type RowKind = 'chapter' | 'lesson';
 type Form = { type: 'add_chapter' } | { type: 'add_lesson'; chapterId: string } | { type: 'rename'; kind: RowKind; id: string };
 type Shown = { failure: ContentFailure; at: string; scope: RowKind };
 type Target = { id: string; part: 'menu' | 'handle' | 'input' | 'button' };
-type Popup = { type: 'sheet'; kind: RowKind; id: string } | { type: 'confirm'; kind: RowKind; id: string } | { type: 'move'; id: string; target: string };
-type RowAction = { key: string; label: string; sheetLabel?: string; onSelect: () => void; destructive?: boolean; disabled?: boolean; unavailable?: boolean; note?: string };
+type Popup = { type: 'sheet'; kind: RowKind; id: string } | { type: 'confirm'; kind: RowKind; id: string } | { type: 'move'; id: string; target: string } | { type: 'unpublish'; id: string };
+/** `disabled` (with `reason`): nothing to do here right now, such as Move up on the first row. `unavailable` (with `note`): refused, such as Delete of a lesson students started. */
+type RowAction = { key: string; label: string; sheetLabel?: string; onSelect: () => void; destructive?: boolean; disabled?: boolean; reason?: string; unavailable?: boolean; note?: string };
 
 const ADD_CHAPTER = 'add-chapter';
 const failureWords: Partial<Record<ContentFailure['kind'], MessageKey>> = {
@@ -201,6 +202,20 @@ export function CourseContent({ courseId }: { courseId: string }) {
     closePopup();
   }
 
+  /** Publish or unpublish one lesson with the version read. Nothing else changes: its parts, homework and every student's work stay as they are. */
+  async function setLessonStatus(lesson: TreeLesson, action: 'publish_lesson' | 'unpublish_lesson') {
+    focusOn({ id: lesson.id, part: 'menu' });
+    const id = await send({ action, id: lesson.id, updatedAt: lesson.updatedAt }, { at: lesson.id, scope: 'lesson' });
+    focusOn({ id: lesson.id, part: 'menu' });
+    if (id) say(t(action === 'publish_lesson' ? 'tc.content.live.published' : 'tc.content.live.unpublished', { title: lesson.title }));
+  }
+  async function confirmUnpublish() {
+    if (popup?.type !== 'unpublish') return;
+    const lesson = tree.flatMap(c => c.lessons).find(l => l.id === popup.id);
+    if (lesson) await setLessonStatus(lesson, 'unpublish_lesson');
+    closePopup();
+  }
+
   async function confirmDelete() {
     if (popup?.type !== 'confirm') return;
     if (popup.kind === 'lesson') {
@@ -229,23 +244,26 @@ export function CourseContent({ courseId }: { courseId: string }) {
   });
   const chapterActions = (chapter: TreeChapter, index: number): RowAction[] => [
     { key: 'rename', label: t('tc.content.rename'), onSelect: () => openForm({ type: 'rename', kind: 'chapter', id: chapter.id }, chapter.title) },
-    { key: 'up', label: t('tc.content.move_up'), disabled: index === 0, onSelect: () => void moveChapter(index, index - 1, 'menu') },
-    { key: 'down', label: t('tc.content.move_down'), disabled: index === tree.length - 1, onSelect: () => void moveChapter(index, index + 1, 'menu') },
+    { key: 'up', label: t('tc.content.move_up'), disabled: index === 0, reason: t('tc.content.first_chapter'), onSelect: () => void moveChapter(index, index - 1, 'menu') },
+    { key: 'down', label: t('tc.content.move_down'), disabled: index === tree.length - 1, reason: t('tc.content.last_chapter'), onSelect: () => void moveChapter(index, index + 1, 'menu') },
     deleteAction(chapterRefusal(chapter), 'chapter', () => openPopup({ type: 'confirm', kind: 'chapter', id: chapter.id })),
   ];
   const lessonActions = (chapter: TreeChapter, lesson: TreeLesson, index: number): RowAction[] => {
     const others = tree.filter(c => c.id !== chapter.id);
     return [
       { key: 'rename', label: t('tc.content.rename'), onSelect: () => openForm({ type: 'rename', kind: 'lesson', id: lesson.id }, lesson.title) },
-      { key: 'up', label: t('tc.content.move_up'), disabled: index === 0, onSelect: () => void moveLesson(chapter, index, index - 1, 'menu') },
-      { key: 'down', label: t('tc.content.move_down'), disabled: index === chapter.lessons.length - 1, onSelect: () => void moveLesson(chapter, index, index + 1, 'menu') },
-      { key: 'other', label: t('tc.content.move_other'), disabled: !others.length, onSelect: () => openPopup({ type: 'move', id: lesson.id, target: others[0]?.id ?? '' }) },
+      lesson.status === 'draft'
+        ? { key: 'publish', label: t('tc.content.publish'), onSelect: () => void setLessonStatus(lesson, 'publish_lesson') }
+        : { key: 'unpublish', label: t('tc.content.unpublish'), onSelect: () => openPopup({ type: 'unpublish', id: lesson.id }) },
+      { key: 'up', label: t('tc.content.move_up'), disabled: index === 0, reason: t('tc.content.first_lesson'), onSelect: () => void moveLesson(chapter, index, index - 1, 'menu') },
+      { key: 'down', label: t('tc.content.move_down'), disabled: index === chapter.lessons.length - 1, reason: t('tc.content.last_lesson'), onSelect: () => void moveLesson(chapter, index, index + 1, 'menu') },
+      { key: 'other', label: t('tc.content.move_other'), disabled: !others.length, reason: t('tc.content.no_other_chapter'), onSelect: () => openPopup({ type: 'move', id: lesson.id, target: others[0]?.id ?? '' }) },
       deleteAction(lessonRefusal(lesson), 'lesson', () => openPopup({ type: 'confirm', kind: 'lesson', id: lesson.id })),
     ];
   };
 
   // ---- rendering
-  const dialog = <RowPopups popup={popup} tree={tree} busy={busy} onClosed={onPopupClosed} close={closePopup} setPopup={setPopup} confirmDelete={confirmDelete} confirmMove={confirmMove} chapterActions={chapterActions} lessonActions={lessonActions} />;
+  const dialog = <RowPopups popup={popup} tree={tree} busy={busy} onClosed={onPopupClosed} close={closePopup} setPopup={setPopup} confirmDelete={confirmDelete} confirmMove={confirmMove} confirmUnpublish={confirmUnpublish} chapterActions={chapterActions} lessonActions={lessonActions} />;
 
   const failureBox = (at: string) => shown && shown.at === at ? <FailureBox shown={shown} reload={() => void reload()} reading={reading} /> : null;
   const rowIds = new Set([ADD_CHAPTER, ...tree.flatMap(c => [c.id, ...c.lessons.map(l => l.id)])]);
@@ -362,14 +380,14 @@ function FailureBox({ shown, reload, reading }: { shown: Shown; reload: () => vo
   </div>;
 }
 
-function RowPopups({ popup, tree, busy, onClosed, close, setPopup, confirmDelete, confirmMove, chapterActions, lessonActions }: {
-  popup: Popup | null; tree: TreeChapter[]; busy: boolean; onClosed: () => void; close: (then?: () => void) => void; setPopup: (popup: Popup) => void; confirmDelete: () => Promise<void>; confirmMove: () => Promise<void>;
+function RowPopups({ popup, tree, busy, onClosed, close, setPopup, confirmDelete, confirmMove, confirmUnpublish, chapterActions, lessonActions }: {
+  popup: Popup | null; tree: TreeChapter[]; busy: boolean; onClosed: () => void; close: (then?: () => void) => void; setPopup: (popup: Popup) => void; confirmDelete: () => Promise<void>; confirmMove: () => Promise<void>; confirmUnpublish: () => Promise<void>;
   chapterActions: (chapter: TreeChapter, index: number) => RowAction[]; lessonActions: (chapter: TreeChapter, lesson: TreeLesson, index: number) => RowAction[];
 }) {
   const { t } = useLanguage();
-  const chapterIndex = popup && popup.type !== 'move' && popup.kind === 'chapter' ? tree.findIndex(c => c.id === popup.id) : -1;
+  const chapterIndex = popup && popup.type !== 'move' && popup.type !== 'unpublish' && popup.kind === 'chapter' ? tree.findIndex(c => c.id === popup.id) : -1;
   const chapter = chapterIndex >= 0 ? tree[chapterIndex] : undefined;
-  const lessonId = popup && (popup.type === 'move' || popup.kind === 'lesson') ? popup.id : null;
+  const lessonId = popup && (popup.type === 'move' || popup.type === 'unpublish' || popup.kind === 'lesson') ? popup.id : null;
   const parent = lessonId ? tree.find(c => c.lessons.some(l => l.id === lessonId)) : undefined;
   const lessonIndex = parent?.lessons.findIndex(l => l.id === lessonId) ?? -1;
   const lesson = parent?.lessons[lessonIndex];
@@ -381,9 +399,13 @@ function RowPopups({ popup, tree, busy, onClosed, close, setPopup, confirmDelete
     const eyebrow = chapter ? t('tc.content.chapter_n', { n: chapter.number }) : t('tc.content.lesson_n', { n: lesson!.label });
     return <Dialog open onOpenChange={dismiss} onClosed={onClosed} data-content-sheet="" title={<><span className="d-content-eyebrow">{eyebrow}</span><br /><bdi dir="auto">{(chapter ?? lesson)!.title}</bdi></>}>
       <div className="d-sheet-list">
-        {actions.map(a => <button key={a.key} type="button" data-action={a.key} disabled={a.disabled} aria-disabled={a.unavailable || undefined} className={cn('d-sheet-item', a.destructive && 'd-sheet-item--danger')} onClick={() => { if (!a.unavailable) close(a.onSelect); }}>{a.sheetLabel ?? a.label}</button>)}
+        {/* Off is aria-disabled, never the disabled attribute: the row stays reachable and says why ("Already the first lesson"). */}
+        {actions.map(a => { const off = Boolean(a.unavailable || a.disabled), why = a.disabled && a.reason ? `sheet-why-${a.key}` : a.unavailable && a.note ? `sheet-note-${a.key}` : undefined;
+          return <button key={a.key} type="button" data-action={a.key} aria-disabled={off || undefined} aria-describedby={off ? why : undefined} className={cn('d-sheet-item', a.destructive && !off && 'd-sheet-item--danger')} onClick={() => { if (!off) close(a.onSelect); }}>
+            <span className="d-stack-xs"><span>{a.sheetLabel ?? a.label}</span>{a.disabled && a.reason && <span id={`sheet-why-${a.key}`} data-action-reason={a.key} className="d-meta">{a.reason}</span>}</span>
+          </button>; })}
       </div>
-      {actions.filter(a => a.note).map(a => <p key={a.key} data-action-note={a.key} className="d-meta">{a.note}</p>)}
+      {actions.filter(a => a.note).map(a => <p key={a.key} id={`sheet-note-${a.key}`} data-action-note={a.key} className="d-meta">{a.note}</p>)}
       {!chapter && !actions.some(a => a.note) && <p className="d-meta"><L id="tc.content.sheet_note" /></p>}
     </Dialog>;
   }
@@ -394,6 +416,11 @@ function RowPopups({ popup, tree, busy, onClosed, close, setPopup, confirmDelete
       ? (chapter.lessons.length ? t('tc.content.confirm_chapter_lessons', { lessons: countWord(t, 'lesson', chapter.lessons.length) }) : t('tc.content.confirm_chapter'))
       : (lesson!.status === 'published' ? t('tc.content.confirm_lesson_published') : t('tc.content.confirm_lesson'))}
       footer={<><Button data-confirm-no disabled={busy} onClick={() => close()}><L id="tc.cancel" /></Button><Button variant="destructive" data-confirm-yes disabled={busy} onClick={() => void confirmDelete()}>{busy && danger}<L id="tc.content.delete" /></Button></>} />;
+  }
+
+  if (popup?.type === 'unpublish' && lesson) {
+    return <Dialog open onOpenChange={dismiss} onClosed={onClosed} data-content-unpublish="" title={t('tc.content.unpublish_title', { title: lesson.title })} description={t('tc.content.unpublish_body')}
+      footer={<><Button data-unpublish-no aria-disabled={busy || undefined} onClick={() => { if (!busy) close(); }}><L id="tc.cancel" /></Button><Button variant="primary" data-unpublish-yes aria-disabled={busy || undefined} aria-busy={busy || undefined} onClick={() => { if (!busy) void confirmUnpublish(); }}>{busy && danger}<L id="tc.content.unpublish" /></Button></>} />;
   }
 
   if (popup?.type === 'move' && lesson && parent) {

@@ -90,8 +90,8 @@ test('create targets and course names: owners, admins and teachers may create; n
  for (const title of ['Physics 10', '  Chemistry & Lab!! ', 'فيزياء الصف العاشر', 'Café Élève', '---', 'x'.repeat(300)]) { const slug = home.courseSlug(title, () => 'AbC123-zzz'); assert.match(slug, rule, title); assert.ok(slug.length <= 100); }
  assert.match(home.courseSlug('فيزياء', () => 'abc123'), /^course-abc123$/);
 });
-test('navigation: Home, Groups, Students, Courses in that order, for active staff of the Firebase build only; Homework, Exams and Reports stay hidden until they are built', () => {
- assert.deepEqual([...home.teacherNav.map(n => n.key)], ['home', 'groups', 'students', 'courses']);
+test('navigation: Home, Groups, Students, Courses, Homework in that order, for active staff of the Firebase build only; Exams and Reports are Soon until they are built', () => {
+ assert.deepEqual([...home.teacherNav.map(n => n.key)], ['home', 'groups', 'students', 'courses', 'homework']);
  assert.equal(home.showTeacherNav(true, [uuid(50)]), true);
  assert.equal(home.showTeacherNav(true, []), false, 'a student has no staff organizations');
  assert.equal(home.showTeacherNav(true, undefined), false); assert.equal(home.showTeacherNav(true, null), false);
@@ -113,7 +113,8 @@ test('navigation: every link is a real page; what is not built yet is shown as S
  for (const key of ['groups', 'students', 'courses']) assert.ok(fs.existsSync('app/(dashboard)/(routes)' + byKey[key] + '/page.tsx'), key);
  assert.equal(home.teacherNav.some(n => n.href === null), false);
  // Owner decision (DECISIONS.md, "Owner feedback on the New look"): this replaces hiding them. V1 needs them gone, each one by becoming a real link (V1.md).
- assert.deepEqual([...home.teacherNavSoon], ['homework', 'exams', 'reports']);
+ assert.deepEqual([...home.teacherNavSoon], ['exams', 'reports']);
+ assert.deepEqual(JSON.parse(JSON.stringify(home.teacherNav.filter(n => n.key === 'homework').map(n => [n.href, n.match('/teacher/homework'), n.match('/teacher/homework/new'), n.match('/teacher/homeworks')]))), [['/teacher/homework', true, true, false]], 'Homework is built: a link, no Soon');
  assert.equal(home.teacherNav.some(n => home.teacherNavSoon.includes(n.key)), false, 'never both a link and Soon');
  assert.match(read('frontend/features/teacher-home/teacher-nav.tsx'), /teacherNavSoon\.map\(key => <span key=\{key\} role="link" aria-disabled="true"/);
  assert.doesNotMatch(read('middleware.ts') + read('shared/website-routes.ts'), /teacher\/analytics/, 'no legacy path is allow-listed');
@@ -173,7 +174,7 @@ test('render: the Courses page states and the section errors render accessible, 
 test('frame: Help stays reachable for staff through the existing /support route, in both languages', () => {
  const frame = read('frontend/features/teacher-frame/teacher-frame.tsx');
  assert.match(frame, /const HELP = '\/support'/); assert.match(frame, /data-teacher-support/); assert.match(frame, /data-more-item="help"/);
- assert.equal(home.teacherNav.length, 4, 'four main links');
+ assert.equal(home.teacherNav.length, 5, 'five main links (Homework joined on claude/homework-ui)');
  assert.ok(messages.en['th.nav.help'] && messages.ar['th.nav.help'], 'Help label exists in en and ar');
  assert.equal(home.teacherNav.some(n => n.href === '/support'), false, 'Help is in the profile menu and in More, not in the main menu');
 });

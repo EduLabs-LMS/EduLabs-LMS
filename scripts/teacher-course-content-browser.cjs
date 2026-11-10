@@ -90,6 +90,7 @@ function apply(edit) {
   case 'create_lesson': { if (!S.chapters.some(c => c.id === edit.parentId)) refuse({ code: '42501', message: 'Module unavailable' }); const row = lessonRow(uuid(400 + ++tick), edit.parentId, edit.title, Math.max(-1, ...inChapter(edit.parentId).map(l => l.position)) + 5); S.lessons.push(row); return row.id; }
   case 'rename_chapter': { const row = check(chapter()); row.title = edit.title; row.updatedAt = stamp(); return row.id; }
   case 'rename_lesson': { const row = check(lesson()); row.title = edit.title; row.updatedAt = stamp(); return row.id; }
+  case 'publish_lesson': case 'unpublish_lesson': { const row = check(lesson()); row.status = edit.action === 'publish_lesson' ? 'published' : 'draft'; row.updatedAt = stamp(); return row.id; }
   case 'reorder_modules': sameStamps(S.chapters, edit.items); edit.items.forEach((it, i) => { const c = S.chapters.find(r => r.id === it.id); c.position = i; c.number = i + 1; c.updatedAt = stamp(); }); return COURSE;
   case 'reorder_lessons': sameStamps(inChapter(edit.parentId), edit.items); edit.items.forEach((it, i) => { const l = S.lessons.find(r => r.id === it.id); l.position = i; l.updatedAt = stamp(); }); return COURSE;
   case 'move_lesson': { const row = check(lesson()); if (row.chapterId === edit.parentId) refuse({ code: '23514', message: 'Same chapter' }); sameStamps([...inChapter(edit.parentId), row], edit.items); row.chapterId = edit.parentId; edit.items.forEach((it, i) => { const l = S.lessons.find(r => r.id === it.id); l.position = i; l.updatedAt = stamp(); }); return row.id; }
@@ -299,7 +300,7 @@ const structure = () => ({ archived: S.archived, canEdit: S.canEdit && !S.archiv
   // The menu, by keyboard alone: Enter opens, the first enabled item is focused, Move up skips nothing here; Move down is off on the last row.
   await menuOf(page, L.speed).focus(); await page.keyboard.press('Enter'); await page.locator('[role="menu"]').waitFor();
   assert.equal(await page.locator('[role="menu"] [data-action="down"]').getAttribute('data-disabled'), '', 'Move down is off on the last row');
-  await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'menuitem'); await page.keyboard.press('ArrowDown'); await page.waitForFunction(() => document.activeElement?.getAttribute('data-action') === 'up'); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'menuitem'); await page.keyboard.press('ArrowDown'); await page.waitForFunction(() => document.activeElement?.getAttribute('data-action') === 'unpublish', null, { timeout: 5000 }); await page.keyboard.press('ArrowDown'); await page.waitForFunction(() => document.activeElement?.getAttribute('data-action') === 'up'); await page.keyboard.press('Enter');
   await page.waitForFunction(id => document.querySelectorAll('[data-chapter] [data-lesson]')[1]?.getAttribute('data-lesson') === id, L.speed);
   await waitFocus(page, L.speed, 'menu');
   assert.deepEqual(await lessons(page, CH.motion), ['1.1 Velocity', '1.2 Speed', '1.3 Acceleration']);
@@ -370,6 +371,21 @@ const structure = () => ({ archived: S.archived, canEdit: S.canEdit && !S.archiv
   assert.equal(await page.locator('[data-content-summary]').count(), 0); await clean(page, 'empty'); await context.close();
  });
 
+ await step('Publish and unpublish a lesson: a draft publishes at once with its version; unpublishing asks first and says answers and grades are kept', async () => {
+  const { page, context } = await open(desktop); await ready(page);
+  await menuOf(page, L.velocity).click(); await page.locator('[role="menu"] [data-action="publish"]').click();
+  await page.locator(`[data-lesson="${L.velocity}"] [data-lesson-draft]`).waitFor({ state: 'detached' });
+  const sent = (await state()).posts.at(-1); assert.equal(sent.action, 'publish_lesson'); assert.equal(sent.id, L.velocity); assert.match(sent.updatedAt, /\.\d{6}\+00:00$/, 'the exact version read');
+  await menuOf(page, L.speed).click(); await page.locator('[role="menu"] [data-action="unpublish"]').click();
+  const ask = page.locator('[data-content-unpublish]'); await ask.waitFor();
+  assert.match(await ask.innerText(), /Students won't see this lesson or its homework until you publish it again\. Their answers and grades are kept\./);
+  const posts = (await state()).posts.length; await ask.locator('[data-unpublish-no]').click(); await ask.waitFor({ state: 'detached' }); assert.equal((await state()).posts.length, posts, 'cancel sends nothing');
+  await menuOf(page, L.speed).click(); await page.locator('[role="menu"] [data-action="unpublish"]').click(); await ask.waitFor(); await clean(page, 'unpublish confirm'); await shot(page, 'unpublish-confirm');
+  await ask.locator('[data-unpublish-yes]').click(); await ask.waitFor({ state: 'detached' });
+  assert.deepEqual(Object.keys((await state()).posts.at(-1)).sort(), ['action', 'id', 'updatedAt']); assert.equal((await state()).posts.at(-1).action, 'unpublish_lesson');
+  assert.equal((await state()).lessons.find(l => l.id === L.speed).status, 'draft'); await page.locator(`[data-lesson="${L.speed}"] [data-lesson-draft]`).waitFor();
+  await context.close();
+ });
  await step('Refused before trying: the menu\'s Delete is off, says why under it, stays reachable, and does nothing; for a lesson and for a chapter', async () => {
   const { page, context } = await open(desktop); await ready(page);
   await menuOf(page, L.speed).click(); const item = page.locator('[role="menu"] [data-action="delete"]'); await item.waitFor();
@@ -481,9 +497,11 @@ const structure = () => ({ archived: S.archived, canEdit: S.canEdit && !S.archiv
   await page.locator(`[data-chapter="${CH.energy}"] [data-chapter-toggle]`).click(); assert.equal(await page.locator(`[data-chapter="${CH.energy}"] [data-lesson]`).count(), 2);
   // The sheet for a lesson with room to move.
   await menuOf(page, L.acceleration).click(); const sheet = page.locator('[data-content-sheet]'); await sheet.waitFor();
-  assert.deepEqual(await sheet.locator('.d-sheet-item').allInnerTexts(), ['Rename', 'Move up', 'Move down', 'Move to another chapter', 'Delete lesson']);
+  assert.deepEqual((await sheet.locator('.d-sheet-item').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim()), ['Rename', 'Unpublish lesson', 'Move up', 'Move down Already the last lesson', 'Move to another chapter', 'Delete lesson']);
   const headText = await sheet.innerText(); assert.match(headText, /LESSON 1\.3|Lesson 1\.3/i); assert.match(headText, /Acceleration/); assert.match(headText, /Delete asks first\. A lesson whose homework students answered cannot be deleted\./);
-  assert.ok(await sheet.locator('[data-action="down"]').isDisabled(), 'the last row has no Move down'); await clean(page, 'phone sheet'); await shot(page, `phone-sheet-${look}`);
+  const down = sheet.locator('[data-action="down"]');
+  assert.equal(await down.getAttribute('aria-disabled'), 'true', 'the last row has no Move down'); assert.equal(await down.getAttribute('disabled'), null, 'reachable, not the disabled attribute');
+  assert.equal((await page.locator('#' + await down.getAttribute('aria-describedby')).innerText()).trim(), 'Already the last lesson', 'and it says why'); await clean(page, 'phone sheet'); await shot(page, `phone-sheet-${look}`);
   const box = await sheet.boundingBox(); assert.ok(box.y + box.height >= phone.height - 1, 'it sits at the bottom');
   await sheet.locator('[data-action="up"]').click(); await sheet.waitFor({ state: 'detached' });
   await page.waitForFunction(id => document.querySelectorAll('[data-chapter] [data-lesson]')[1]?.getAttribute('data-lesson') === id, L.acceleration);
@@ -498,7 +516,7 @@ const structure = () => ({ archived: S.archived, canEdit: S.canEdit && !S.archiv
   // Rename and delete from the sheet, and a chapter's sheet.
   await menuOf(page, L.power).click(); await sheet.locator('[data-action="rename"]').click(); await waitFocus(page, L.power, 'input'); await page.locator(`[data-lesson="${L.power}"] input`).fill('Power 2'); await page.keyboard.press('Enter'); await page.locator('[data-lesson-title]', { hasText: 'Power 2' }).waitFor(); await waitFocus(page, L.power, 'menu');
   await menuOf(page, L.power).click(); await sheet.locator('[data-action="delete"]').click(); const ask = page.locator('[data-content-confirm]'); await ask.waitFor(); await clean(page, 'phone confirm'); await ask.locator('[data-confirm-yes]').click(); await ask.waitFor({ state: 'detached' }); await waitFocus(page, L.work, 'menu');
-  await menuOf(page, CH.waves).click(); await sheet.waitFor(); assert.deepEqual(await sheet.locator('.d-sheet-item').allInnerTexts(), ['Rename', 'Move up', 'Move down', 'Delete chapter']); await page.waitForTimeout(150); await page.keyboard.press('Escape'); await sheet.waitFor({ state: 'detached' }); await waitFocus(page, CH.waves, 'menu');
+  await menuOf(page, CH.waves).click(); await sheet.waitFor(); assert.deepEqual((await sheet.locator('.d-sheet-item').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim()), ['Rename', 'Move up', 'Move down Already the last chapter', 'Delete chapter']); await page.waitForTimeout(150); await page.keyboard.press('Escape'); await sheet.waitFor({ state: 'detached' }); await waitFocus(page, CH.waves, 'menu');
   // Adding on a phone.
   await page.locator('[data-add-chapter]').click(); await waitFocus(page, 'add-chapter', 'input'); await clean(page, 'phone add'); await page.keyboard.press('Escape');
   assert.deepEqual((await state()).invalid, []); await context.close();

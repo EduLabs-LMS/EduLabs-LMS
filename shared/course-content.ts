@@ -121,7 +121,7 @@ export function contentCall(courseId: string, edit: ContentEdit) {
   switch (edit.action) {
     case 'create_chapter': return { fn: 'edit_course_structure' as const, args: args(edit.action, null, null, null, { title: edit.title }) };
     case 'rename_chapter': case 'rename_lesson': return { fn: 'edit_course_structure' as const, args: args(edit.action, edit.id, null, edit.updatedAt, { title: edit.title }) };
-    case 'delete_lesson': return { fn: 'edit_course_structure' as const, args: args(edit.action, edit.id, null, edit.updatedAt, {}) };
+    case 'delete_lesson': case 'publish_lesson': case 'unpublish_lesson': return { fn: 'edit_course_structure' as const, args: args(edit.action, edit.id, null, edit.updatedAt, {}) };
     case 'delete_chapter': return { fn: 'edit_course_structure' as const, args: args(edit.action, edit.id, null, edit.updatedAt, { items: edit.items }) };
     case 'move_lesson': return { fn: 'edit_course_structure' as const, args: args(edit.action, edit.id, edit.parentId, edit.updatedAt, { items: edit.items }) };
     case 'create_lesson': return { fn: 'edit_learning_content' as const, args: args(edit.action, null, edit.parentId, null, { title: edit.title }) };

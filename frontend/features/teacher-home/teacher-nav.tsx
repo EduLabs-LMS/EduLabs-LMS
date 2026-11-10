@@ -23,7 +23,7 @@ export function TeacherNav() {
   }, [router, pathname]);
   return <Localized as="nav" labels={{ 'aria-label': 'th.nav.label' }} data-teacher-nav className="d-nav-list">
     {teacherNav.map(item => <Link key={item.key} href={item.href} aria-current={item.match(pathname) ? 'page' : undefined} data-nav={item.key} className="d-nav">
-      <Icon name={item.key === 'home' ? 'home' : item.key} />
+      <Icon name={item.key} />
       <span><L id={`th.nav.${item.key}`} /></span>
     </Link>)}
     {/* Not links yet, so there is nothing to focus or follow. The tag says it to everyone; the tooltip adds the words on hover. */}
