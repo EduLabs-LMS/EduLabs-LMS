@@ -67,14 +67,14 @@ insert into private.teacher_invitations(organization_id,email,token_hash,status,
 set local role authenticated; select pg_temp.claim('admin');
 select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_a'),true)->>'demo')::boolean,'space A is marked');
 select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_b'),true)->>'demo')::boolean,'space B is marked');
-select pg_temp.ok((public.platform_demo_status(pg_temp.id('org_a'))->>'latestSeedVersion')::int=5,'the status reports seed version 5 as the latest');
+select pg_temp.ok((public.platform_demo_status(pg_temp.id('org_a'))->>'latestSeedVersion')::int=6,'the status reports seed version 6 as the latest');
 reset role;
 
 -- 1. Fill both spaces.
 select set_config('dn.a_fill',private.demo_fill_core(pg_temp.id('org_a'),(select id from dn_users where label='admin'))::text,true);
 select private.demo_fill_core(pg_temp.id('org_b'),(select id from dn_users where label='admin'));
-select pg_temp.ok((current_setting('dn.a_fill')::jsonb->>'seedVersion')::int=5 and (current_setting('dn.a_fill')::jsonb->>'students')::int=28,'fill reports seed version 5 and still creates the version 2 students');
-select pg_temp.ok((select seed_version=5 from private.demo_spaces where organization_id=pg_temp.id('org_a')),'the space stores seed version 5');
+select pg_temp.ok((current_setting('dn.a_fill')::jsonb->>'seedVersion')::int=6 and (current_setting('dn.a_fill')::jsonb->>'students')::int=28,'fill reports seed version 6 and still creates the version 2 students');
+select pg_temp.ok((select seed_version=6 from private.demo_spaces where organization_id=pg_temp.id('org_a')),'the space stores seed version 6');
 
 -- 2. The notifications: five, for the teacher only, one per event type that can reach a teacher.
 select pg_temp.ok((select count(*)=5 from public.notifications n join private.notification_events e on e.id=n.event_id where e.organization_id=pg_temp.id('org_a') and e.event_key like 'demo:%'),'five notifications in space A');

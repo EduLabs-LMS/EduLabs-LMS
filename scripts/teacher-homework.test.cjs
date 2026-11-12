@@ -542,11 +542,12 @@ test('middleware: the homework endpoints and pages pass by exact path, nothing n
 // --------------------------------------------------------------------------------------------------------------------------------
 // Screens: static rules
 // --------------------------------------------------------------------------------------------------------------------------------
-const screens = ['homework-page.tsx', 'homework-wizard.tsx'].map(f => read('frontend/features/teacher-homework/' + f)).join('\n');
+const screens = ['homework-page.tsx', 'homework-wizard.tsx', 'correct-screen.tsx'].map(f => read('frontend/features/teacher-homework/' + f)).join('\n');
 test('screens: no native checkbox, no disabled attribute, only the teacher homework and content routes, nothing decided by a role', () => {
  assert.doesNotMatch(screens, /type=["']checkbox["']/);
  assert.doesNotMatch(screens, /<(button|input|textarea|select)\b[^>]*\sdisabled[\s=>]/, 'aria-disabled with a reason instead (the design controls take `disabled` and render aria-disabled)');
- assert.match(screens, /aria-disabled/); assert.match(screens, /hw-correct-later/);
+ assert.match(screens, /aria-disabled/); assert.doesNotMatch(screens, /hw-correct-later|hw\.correct_later/, 'Correct is a real link now (homework-correct)');
+ assert.match(screens, /href=\{`\/teacher\/homework\/\$\{row\.id\}\/correct`\}[^>]*data-correct=\{row\.id\}/);
  const routes = [...new Set([...screens.matchAll(/['"`](\/api\/[^'"`?$]*)/g)].map(m => m[1]))].sort();
  for (const r of routes) assert.match(r, /^\/api\/(teacher\/homework|teacher\/courses\/|homework\/)/, r);
  assert.doesNotMatch(screens, /isTeacher|role ===|viewer\.role|service[_-]?role/);
@@ -574,7 +575,8 @@ test('locales: every Homework text in both languages, same holes, Arabic, plural
  }
  for (const noun of ['question', 'mark', 'essay', 'choice']) for (const form of ['one', 'two', 'few', 'many']) assert.ok(messages.en[`hw.count.${noun}.${form}`] && messages.ar[`hw.count.${noun}.${form}`], noun + form);
  const all = keys.map(k => messages.en[k]).join('\n');
- assert.match(all, /Correcting comes in the next update/);
+ assert.doesNotMatch(all, /Correcting comes in the next update/, 'correcting is built (homework-correct)');
+ assert.match(all, /Image deleted to free space/); assert.match(all, /Save and next student/);
  assert.match(all, /Students who already saw the solutions keep them and get no more tries\./);
  assert.match(all, /Students see it when this lesson is published/);
  assert.match(all, /grades and notes are kept/i);

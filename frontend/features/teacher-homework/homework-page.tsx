@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { ActionMenu, type MenuAction } from '@/frontend/components/design/action-menu';
-import { Button } from '@/frontend/components/design/button';
+import Link from 'next/link';
+import { Button, buttonClass } from '@/frontend/components/design/button';
 import { IconBadge } from '@/frontend/components/design/card';
 import { Select, Switch } from '@/frontend/components/design/controls';
 import { Dialog } from '@/frontend/components/design/dialog';
@@ -153,12 +154,10 @@ export function TeacherHomeworkPage({ load }: { load: HomeworkPageLoad }) {
   </div>;
 
   function toCorrect(rows: PortalRow[], small: boolean) {
-    const reasonId = 'hw-correct-later';
     return <section aria-labelledby="hw-correct" data-to-correct className="d-card d-card--pad d-stack-sm">
       <div className="d-stack-xs">
         <h2 id="hw-correct" className="d-section"><L id="hw.to_correct" /></h2>
         <p className="d-meta"><L id="hw.to_correct_note" /></p>
-        <p id={reasonId} data-correct-later className="d-content-line"><Icon name="info" /><span><L id="hw.correct_later" /></span></p>
       </div>
       {rows.length === 0 ? <p data-state="empty" className="d-body"><L id="hw.to_correct_empty" /></p>
         : <ul className="d-list">{rows.map(row => <li key={row.id} data-correct-row={row.id} className="d-row d-row--action">
@@ -172,7 +171,7 @@ export function TeacherHomeworkPage({ load }: { load: HomeworkPageLoad }) {
           </span>
           <span className="d-row-trailing">
             <StatusPill tone="warning" data-waiting={row.waiting ?? 0}>{t('hw.waiting', { n: row.waiting ?? 0 })}</StatusPill>
-            <Button variant={small ? 'secondary' : 'primary'} aria-disabled="true" aria-describedby={reasonId} data-correct={row.id} onClick={() => undefined}><L id="hw.correct" /></Button>
+            <Link href={`/teacher/homework/${row.id}/correct`} className={buttonClass(small ? 'secondary' : 'primary')} data-correct={row.id}><L id="hw.correct" /></Link>
           </span>
         </li>)}</ul>}
     </section>;

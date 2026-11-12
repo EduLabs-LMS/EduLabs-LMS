@@ -43,6 +43,7 @@ highest version in this table is the **latest seed version**.
 | Home Updates and Notifications | `notifications` | 3 | 5 notifications for the space's teacher, one per event type that can reach a teacher (see below) |
 | Course content tree | `courses` | 4 | The same 3 Chapters and 5 Lessons, now the tree on the board: in the published course 3, 2 and 0 lessons, named as on the board. The draft course has no chapters. |
 | Homework | `homework` | 5 | 4 questions-only homework in the published Physics course, for its whole offering: a draft, an open one, and two closed ones, with 58 tries by the demo students (waiting, corrected, released, late, a second try with a kept answer) and 20 photo rows with no stored file (see "Demo homework") |
+| Correcting, lesson page | `courses`, `homework` | 6 | A third Magnetism lesson, "Magnetism review", published with no part, and its homework (closed yesterday, late allowed): 14 tries for correcting (7 waiting, 2 of them late, 4 corrected and not released, 3 released), 3 photos, one deleted to free space (see "Correcting and a lesson with no parts") |
 
 Tables the seed may write (the `table_name` check of `private.demo_seed_rows`): `courses`, `course_modules`, `lessons`,
 `course_offerings`, `study_groups`, `group_staff`, `group_sessions`, and from seed version 2 (migration
@@ -84,6 +85,26 @@ question, and an essay (6 points, text and one photo). Deadlines are 20:00 Cairo
   file under one of those homework exists ("homework from real people", "homework files"). A homework a teacher added with
   photos uploaded is therefore removed only after Delete images and the server's file removal.
 - A space filled at an earlier seed version is not upgraded in place. To get the homework: Clear, then Fill again.
+
+## Correcting and a lesson with no parts (seed version 6, draft migration `20261113120000_homework_correct_demo.sql`, not applied anywhere)
+
+- The migration replaces `demo_fill_core` and `platform_demo_status` only (the v5 fill verbatim, then the v6 module). No table, grant
+  or allowed-table list changes, and `demo_clear_core` is not replaced: the lesson is a recorded `courses`/`lessons` row and the
+  homework rows are recorded like v5's, so Clear removes them and still refuses real people's work.
+- "Magnetism review" is the third lesson of Magnetism (position 2), published, with no part, video, content item or cover
+  (DECISIONS.md, "A lesson is never tethered to one of its components"). The student Locked card links to its lesson page.
+- "Magnetism review homework": a blank-answer question, a choice question and an essay, closed yesterday at 20:00 Cairo time,
+  late allowed, one time, solutions after hand-in. Students 1 to 14 handed in, 15 to 28 are missing:
+
+| Students | State |
+| --- | --- |
+| 1 to 5 | Waiting (1, 2 and 4 with a photo; student 1's photo deleted to free space) |
+| 6 to 9 | Corrected, not released: "Release 4 grades" |
+| 10 to 12 | Released (each notified once through the existing trigger) |
+| 13 and 14 | Handed in after the deadline, waiting: "Missed the deadline" |
+
+- The fill now answers `{seedVersion: 6, courses: 2, lessons: 6, groups: 2, sessions: 9, students: 28, homework: 5}`.
+- A space filled at an earlier seed version is not upgraded in place. To get it: Clear, then Fill again.
 
 ## Demo notifications (seed version 3)
 

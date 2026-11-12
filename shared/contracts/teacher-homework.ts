@@ -51,5 +51,23 @@ export const homeworkLifecycle = z.discriminatedUnion('action', [
 ]);
 /** Delete images takes nothing but the confirmation that the teacher saw what it does. */
 export const homeworkDeleteImages = z.object({ confirm: z.literal(true) }).strict();
+/** Correcting. The queue read: ?tab=to_correct|done|missing&page=n. */
+export const queueQuery = z.object({ tab: z.enum(['to_correct', 'done', 'missing']).default('to_correct'), page: page.default(0) }).strict();
+/**
+ * Correcting one try: save the marks (grade) or release it. The status is never sent: a release is always 'approved' (tries replace the old
+ * resubmit request). A released try is edited only with a reason of three or more characters (the database checks it again).
+ */
+const note = z.string().max(4000);
+export const tryWrite = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('grade'), revision, feedback: z.string().max(10000), reason: note,
+    marks: z.array(z.object({ questionId: id, points: z.number().int().min(0).max(100), feedback: note }).strict()).max(100)
+      .refine(m => new Set(m.map(x => x.questionId)).size === m.length) }).strict(),
+  z.object({ action: z.literal('release'), revision, reason: note }).strict(),
+]);
+/** Release many: the queue's list of {submissionId, revision}, 1 to 500, no try twice. All or nothing in the database. */
+export const releaseMany = z.object({ items: z.array(z.object({ submissionId: id, revision }).strict()).min(1).max(500)
+  .refine(items => new Set(items.map(i => i.submissionId)).size === items.length) }).strict();
+export type TryWrite = z.infer<typeof tryWrite>;
+export type ReleaseMany = z.infer<typeof releaseMany>;
 export type HomeworkSave = z.infer<typeof homeworkSave>;
 export type HomeworkLifecycle = z.infer<typeof homeworkLifecycle>;

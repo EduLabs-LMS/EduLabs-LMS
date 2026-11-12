@@ -43,11 +43,14 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (path === '/api/personalization') return NextResponse.next();
   if (path === '/api/student-academics') return NextResponse.next();
   if (path === '/api/learning-overview') return NextResponse.next();
+  // A student's lesson page addressed by the lesson id (a lesson with homework and no part). Exact path only.
+  if (/^\/courses\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/lessons\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)) return NextResponse.next();
   if (/^\/api\/teacher\/(website|academics|organizations|space|courses(?:\/[0-9a-f-]{36}(?:\/content)?)?)$/.test(path)) return NextResponse.next();
-  // Teacher Homework: the page read, one homework, save (a new one only at new/save), lifecycle and Delete images. Exact paths only.
-  if (path === '/api/teacher/homework' || /^\/api\/teacher\/homework\/(?:new\/save|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:save|lifecycle|delete-images))?)$/.test(path)) return NextResponse.next();
-  // The Homework page, New homework and one homework's editor. Titles and students' numbers are on them: kept out of caches and referrers.
-  if (path === '/teacher/homework' || path === '/teacher/homework/new' || /^\/teacher\/homework\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
+  // Teacher Homework: the page read, one homework, save (a new one only at new/save), lifecycle, Delete images, and correcting (the queue,
+  // one try read and written, Release N grades). Exact paths only.
+  if (path === '/api/teacher/homework' || /^\/api\/teacher\/homework\/(?:new\/save|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:save|lifecycle|delete-images|queue|release-many|tries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?)$/.test(path)) return NextResponse.next();
+  // The Homework page, New homework, one homework's editor and its correcting screen. Titles, names and students' numbers are on them: kept out of caches and referrers.
+  if (path === '/teacher/homework' || path === '/teacher/homework/new' || /^\/teacher\/homework\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/correct)?$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   if (/^\/api\/homework\/(new|[0-9a-f-]{36})\/(list|offerings|save|get|lifecycle|copy-media|assignments|revisions|inbox|history|work|upload-intent|finish-upload|cleanup|media)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(edit|progress|upload|media|cleanup|upload-intent|finish-upload)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(resources|blocks)\/[0-9a-f-]{36}$/.test(path)) return NextResponse.next();

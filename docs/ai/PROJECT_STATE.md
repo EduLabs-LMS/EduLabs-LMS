@@ -46,3 +46,8 @@ remain available here. Real provider/email/push acceptance has not run for this 
 - Verified with synthetic/loopback data and the real middleware only (scripts/teacher-settings-groups.test.cjs and
   scripts/teacher-settings-groups-browser.cjs); not real Firebase/Supabase acceptance. Not deployed.
 
+## Homework part 2 (`claude/homework-correct`, 2026-11-12)
+
+- Built, awaiting owner approval: correcting (`/teacher/homework/<id>/correct`), the Home card, the student lesson page by lesson id,
+  Try again and plain student refusals. Draft migration `20261113120000_homework_correct_demo.sql` (demo seed 6), not applied.
+- Release notifications come from the existing database trigger for single and bulk release alike (DECISIONS.md).

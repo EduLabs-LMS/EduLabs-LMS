@@ -169,3 +169,26 @@ English and Arabic, phone first. Screenshots: `docs/design/screenshots/homework-
   its homework until you publish it again. Their answers and grades are kept."). On the phone sheet Move up, Move down and Move to
   another chapter are off with their reason ("Already the first lesson", "Already the last lesson", "No other chapter").
 - **Not in part 1:** correcting, the Home card, the student side, Preview as student, the assistants' switches.
+
+## Homework screens, part 2 (built on `claude/homework-correct`, awaiting owner approval)
+
+Boards `Correct-Desktop` and `Correct-Phone` in `docs/design/homework-content/`; Home board in `docs/design/teacher-ui-v2/`.
+
+- **Correcting** (`/teacher/homework/<id>/correct`, opened by Correct on the Homework page and by the Home card; `?try=<id>` opens one
+  student). Tabs To correct / Done / Missing from `homework_queue` with the try number and Late. One student at a time: the choice
+  summary (right or wrong per question with the letters A to H, Arabic letters in Arabic), each essay's text and photo exactly as
+  sent (nothing drawn on it; a deleted photo says "Image deleted to free space"), a mark stepper 0 to the question's points and a note
+  per essay, one overall note, Save and Save and next student. Kept answers say so and are not editable. A released grade changes
+  only with a reason of three letters or more, and saving takes it back until it is released again. A change made elsewhere keeps
+  what the teacher typed and offers Reload. Release grade per student; "Release N grades" sends the queue's list exactly, all or
+  nothing, and explains a refusal plainly. Buttons follow `canGrade` / `canRelease` from `get_homework` (aria-disabled with the
+  reason); the database decides. Photos open through the existing signed-media route (five-minute links).
+- **Routes** (same pattern as the other teacher Homework routes: sign-in, origin, body cap, strict zod, no client user id, exact
+  middleware paths): `GET /api/teacher/homework/<id>/queue?tab=&page=`, `GET|POST /api/teacher/homework/<id>/tries/<submissionId>`
+  (grade or release), `POST /api/teacher/homework/<id>/release-many`.
+- **Home card "Homework to correct"**: up to five homework with essays waiting (title, course, count), each one tap to its
+  correcting screen, plus All homework. Hidden when nothing waits; a failed read shows the section error.
+- **Student side** (plain existing styles): the lesson page by lesson id; the homework shows its deadline (Cairo), tries left,
+  "Missed the deadline" on a late hand-in, "Try again" (the database's retry), kept answers locked, and "Your tries ended when the
+  deadline changed". Refusals are said plainly in English and Arabic ("The deadline has passed", "No tries left", changed, already
+  handed in, unavailable).

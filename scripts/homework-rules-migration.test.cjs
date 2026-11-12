@@ -11,7 +11,7 @@ const headers = [...code.matchAll(/create (?:or replace )?function (public|priva
 test('the file: LF only, pinned as text, followed only by the lesson publish migration, one transaction', () => {
  assert.ok(!sql.includes('\r'), 'the staging manager hashes the Git blob');
  assert.match(read('.gitattributes'), /20261109120000_homework_teacher_rules\.sql -text/);
- assert.deepEqual(names().slice(names().indexOf(NAME) + 1), ['20261110120000_lesson_publish.sql', '20261112120000_homework_move.sql']);
+ assert.deepEqual(names().slice(names().indexOf(NAME) + 1), ['20261110120000_lesson_publish.sql', '20261112120000_homework_move.sql', '20261113120000_homework_correct_demo.sql']);
  assert.match(code, /^\s*begin;/); assert.match(code, /commit;\s*$/);
 });
 
@@ -64,5 +64,5 @@ test('what it keeps', () => {
  assert.doesNotMatch(code, /(function|table|on|into|update) (public|private)\.(assessment|exam)[a-z_]*/i, 'no exam table or function is touched (Clear still refuses a space with exams)');
  assert.match(code, /public\.offering_assessments where offering_id=any\(offerings_\)\) then blockers_ := array_append\(blockers_,'exams'::text\)/);
  assert.match(code, /'latestSeedVersion',5/); assert.match(code, /update private\.demo_spaces set seed_version=5/);
- assert.match(read('shared/contracts/platform-demo.ts'), /latestDemoSeedVersion = 5/);
+ assert.match(read('shared/contracts/platform-demo.ts'), /latestDemoSeedVersion = 6/);
 });

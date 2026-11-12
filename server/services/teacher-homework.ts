@@ -3,7 +3,8 @@ import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import { homeworkService } from '@/server/services/homework';
 import { editableTeacherCourse } from '@/server/services/teacher-course';
 import type { Json } from '@/shared/contracts/database.types';
-import type { HomeworkLifecycle, HomeworkSave } from '@/shared/contracts/teacher-homework';
+import type { HomeworkLifecycle, HomeworkSave, ReleaseMany, TryWrite } from '@/shared/contracts/teacher-homework';
+import type { QueueTab } from '@/shared/teacher-homework-correct';
 import { homeworkReply, type PortalTab } from '@/shared/teacher-homework';
 
 export type HomeworkResult = { status: number; body: unknown };
@@ -112,4 +113,42 @@ export async function deleteHomeworkImages(id: string): Promise<HomeworkResult> 
     } catch { storage = 'retry'; console.error('Homework image removal deferred to maintenance', { files: chunk.length }); }
   }
   return { status: 200, body: { deletedFiles: typeof result?.deletedFiles === 'number' ? result.deletedFiles : 0, bytesFreed: typeof result?.bytesFreed === 'number' ? result.bytesFreed : 0, filesRemoved: removed, storage } };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Correcting. No pre-check here: correcting and releasing are the database's 'correct' and 'release' rights (managers, and assistants whose
+// right is on), which the server cannot see. homework_queue, get_homework, homework_work and homework_release_many decide every call.
+// ---------------------------------------------------------------------------------------------------------------------------------
+/** The student lists of one homework (homework_queue: support staff of its offering). */
+export async function readQueue(id: string, tab: QueueTab, page: number): Promise<HomeworkResult> {
+  const client = await getSupabaseServerClient();
+  const { data, error } = await client.rpc('homework_queue', { p_assignment: id, p_tab: tab, p_page: page });
+  if (error) return homeworkReply(error);
+  return { status: 200, body: data };
+}
+/** One try with its homework (get_homework with the try). Staff only: a student reading their own try here is told no. */
+export async function readTry(id: string, submissionId: string): Promise<HomeworkResult> {
+  const client = await getSupabaseServerClient();
+  const { data, error } = await client.rpc('get_homework', { p_assignment: id, p_submission: submissionId });
+  if (error) return homeworkReply(error);
+  const view = data as { staff?: unknown; submissions?: unknown } | null;
+  if (!view || view.staff !== true || !Array.isArray(view.submissions) || view.submissions.length !== 1) return denied;
+  return { status: 200, body: view };
+}
+/** Save the marks of a try, or release it. A release is always 'approved'. The reply is the try as the database now holds it. */
+export async function writeTry(id: string, submissionId: string, input: TryWrite): Promise<HomeworkResult> {
+  const client = await getSupabaseServerClient();
+  const data = input.action === 'grade'
+    ? { score: null, feedback: input.feedback, reason: input.reason, marks: input.marks }
+    : { status: 'approved', reason: input.reason };
+  const { data: saved, error } = await client.rpc('homework_work', { p_assignment: id, p_action: input.action, p_submission: submissionId, p_revision: input.revision, p_data: data as unknown as Json });
+  if (error) return homeworkReply(error);
+  return { status: 200, body: saved };
+}
+/** Release many corrected tries of one homework, all or nothing (homework_release_many). */
+export async function releaseManyTries(id: string, input: ReleaseMany): Promise<HomeworkResult> {
+  const client = await getSupabaseServerClient();
+  const { data, error } = await client.rpc('homework_release_many', { p_assignment: id, p_items: input.items as unknown as Json });
+  if (error) return homeworkReply(error);
+  return { status: 200, body: data };
 }

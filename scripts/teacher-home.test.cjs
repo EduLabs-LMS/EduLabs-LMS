@@ -42,11 +42,18 @@ test('sessions: coming up is capped and flags a partial view when more Groups or
  const out = build({ upcoming: ok({ rows: many, page: 0, hasMore: true }), groups: ok({ rows: [group(1)], page: 0, hasMore: true }) });
  assert.equal(out.sessions.data.comingUp.length, home.COMING_UP_LIMIT); assert.equal(out.sessions.data.partial, true);
 });
-test('there is no Homework to correct card or data on Home until the Homework screen is built, and nothing is filled from the per-Group summary', () => {
- assert.equal('homework' in build(), false, 'no homework section in the Home data');
- assert.doesNotMatch(read('frontend/features/teacher-home/home-view.tsx') + read('frontend/features/teacher-home/parts.tsx'), /<Homework|function Homework|th-homework|th\.hw\.|\/admin\/submissions|SectionUnavailable/, 'no card, no link to /admin/submissions');
- assert.doesNotMatch(read('frontend/locales/en.ts') + read('frontend/locales/ar.ts'), /"th\.hw\.|"th\.next\.all"/, 'its wording is removed too');
- assert.match(read('docs/ai/V1.md'), /Homework card returns on Home with the Homework build/);
+test('Homework to correct on Home: the Homework page read only (homework_portal), hidden when nothing waits, and nothing is filled from the per-Group summary', () => {
+ assert.equal('homework' in build(), false, 'not part of the pure Home build: the loader adds it from its own read');
+ const view = read('frontend/features/teacher-home/home-view.tsx'), loader = read('server/services/teacher-home.ts');
+ assert.match(loader, /readPortal\(null, 'open', 0\)/, 'the existing Homework page read'); assert.match(loader, /\.then\(mapHomework\)/);
+ assert.match(view, /function HomeworkToCorrect/); assert.match(view, /data\.state === 'ready' && !data\.data\.items\.length\)\) return null/, 'hidden when nothing waits');
+ assert.match(view, /href=\{`\/teacher\/homework\/\$\{h\.id\}\/correct`\}/, 'one tap to its correcting screen'); assert.match(view, /href="\/teacher\/homework" data-homework-all/);
+ assert.doesNotMatch(view + read('frontend/features/teacher-home/parts.tsx'), /th\.hw\.|\/admin\/submissions|SectionUnavailable/, 'no link to /admin/submissions');
+ const map = home.mapHomework;
+ assert.deepEqual(JSON.parse(JSON.stringify(map({ ok: true, value: { toCorrect: [{ id: 'a', title: 'A', courseTitle: 'Physics', waiting: 3 }, { id: 'b', title: 'B', courseTitle: 'Physics', waiting: 0 }] } }))), { state: 'ready', data: { items: [{ id: 'a', title: 'A', courseTitle: 'Physics', waiting: 3 }], more: 0 } });
+ assert.equal(map({ ok: true, value: { toCorrect: Array.from({ length: 7 }, (_, i) => ({ id: String(i), title: 'T', courseTitle: '', waiting: 1 })) } }).data.more, 2);
+ assert.deepEqual(JSON.parse(JSON.stringify(map({ ok: false, status: 503 }))), { state: 'error', status: 503 }, 'a failed read is an error, never empty');
+ assert.match(read('docs/ai/V1.md'), /Homework to correct card is on Home/);
  assert.doesNotMatch(read('server/services/teacher-home.ts') + read('shared/teacher-home.ts').replace(/\/\*\*[^]*?\*\//g, ''), /group_summary|'summary'|pendingHomework/);
 });
 test('updates: unread only, session changes first, then newest; links must be same-site paths', () => {

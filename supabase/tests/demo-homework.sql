@@ -1,5 +1,6 @@
 -- Disposable local PostgreSQL only. Synthetic verified-gateway claims; every change rolls back; no real account exists.
--- Covers demo seed version 5 (migration 20261109120000_homework_teacher_rules.sql): the homework of the Physics demo course in every state the
+-- Covers demo seed version 5 (migration 20261109120000_homework_teacher_rules.sql), as the version 6 fill (20261113120000_homework_correct_demo.sql,
+-- which adds "Magnetism review homework", covered in homework-correct.sql) still makes it: the homework of the Physics demo course in every state the
 -- teacher board shows, every row recorded under the `homework` module, the teacher reads on that data, no stored file, Clear removing the demo
 -- homework (and homework the teacher added), and Clear refusing, removing nothing, when a REAL person's try or a stored file is there.
 begin;
@@ -45,24 +46,25 @@ insert into public.organizations(id,name,slug) values(pg_temp.key('org'),'Synthe
 insert into public.organization_memberships(organization_id,user_id,role,status,joined_at) values(pg_temp.key('org'),pg_temp.uid('teacher'),'owner','active',now());
 insert into private.demo_spaces(organization_id,marked_by) values(pg_temp.key('org'),pg_temp.uid('admin'));
 
--- 1. Fill: seed version 5 with four homework.
-select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))=jsonb_build_object('seedVersion',5,'courses',2,'lessons',5,'groups',2,'sessions',9,'students',28,'homework',4),'fill reports seed version 5 and four homework');
-select pg_temp.ok((select seed_version=5 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 5');
+-- 1. Fill: seed version 6 (the version 5 homework, plus the version 6 one).
+select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))=jsonb_build_object('seedVersion',6,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5),'fill reports seed version 6 and five homework');
+select pg_temp.ok((select seed_version=6 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 6');
 set local role authenticated; select pg_temp.claim('admin');
-select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=5,'the status reports seed version 5 as the latest');
+select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=6,'the status reports seed version 6 as the latest');
 reset role;
 insert into dh_ids select 'course',id from public.courses where organization_id=pg_temp.key('org') and status='published';
 insert into dh_ids select 'off',o.id from public.course_offerings o where o.course_id=pg_temp.key('course');
-select pg_temp.ok((select count(*)=4 and bool_and(a.course_id=pg_temp.key('course') and a.offering_id=pg_temp.key('off') and a.workflow='questions' and a.mode='PLATFORM_QUESTIONS' and a.version=1)
- from public.homework_assignments a join public.courses c on c.id=a.course_id where c.organization_id=pg_temp.key('org')),'all four homework are questions-only homework of the published Physics course, for its whole offering');
+select pg_temp.ok((select count(*)=5 and bool_and(a.course_id=pg_temp.key('course') and a.offering_id=pg_temp.key('off') and a.workflow='questions' and a.mode='PLATFORM_QUESTIONS' and a.version=1)
+ from public.homework_assignments a join public.courses c on c.id=a.course_id where c.organization_id=pg_temp.key('org')),'all five homework are questions-only homework of the published Physics course, for its whole offering');
 select pg_temp.ok((select array_agg(a.title||'|'||a.status||'|'||a.tries_mode||'|'||a.max_tries||'|'||a.late_allowed||'|'||a.solutions_open||'|'||
   case when a.deadline_at>now() then 'future' else 'past' end order by a.title)
  =array['Kirchhoff''s laws practice|draft|from_zero|3|false|after_deadline|future','Magnetic field of a wire|published|from_zero|2|false|after_deadline|past',
+  'Magnetism review homework|published|one_time|1|true|after_hand_in|past',
   'Ohm''s law: practice set|published|fix_mistakes|2|true|after_deadline|future','Ohm''s law: textbook page 34|published|one_time|1|true|after_hand_in|past']
- from public.homework_assignments a join public.courses c on c.id=a.course_id where c.organization_id=pg_temp.key('org')),'a draft, an open one, a closed one-time one and a closed from-zero one');
+ from public.homework_assignments a join public.courses c on c.id=a.course_id where c.organization_id=pg_temp.key('org')),'a draft, an open one, two closed one-time ones and a closed from-zero one');
 select pg_temp.ok((select bool_and(extract(hour from deadline_at at time zone 'Africa/Cairo')=20 and extract(minute from deadline_at at time zone 'Africa/Cairo')=0) from public.homework_assignments where id in
  (pg_temp.hw('Kirchhoff''s laws practice'),pg_temp.hw('Ohm''s law: practice set'),pg_temp.hw('Ohm''s law: textbook page 34'),pg_temp.hw('Magnetic field of a wire'))),'every demo deadline is 20:00 Cairo time');
-select pg_temp.ok((select count(*)=4 and bool_and(q.type='single_choice' and (select count(*) from public.homework_options o where o.question_id=q.id and o.text='')=4)
+select pg_temp.ok((select count(*)=5 and bool_and(q.type='single_choice' and (select count(*) from public.homework_options o where o.question_id=q.id and o.text='')=4)
  from public.homework_questions q join public.homework_assignments a on a.id=q.assignment_id join public.courses c on c.id=a.course_id where c.organization_id=pg_temp.key('org') and q.position=0 and q.text=''),
  'each homework starts with a textbook question: blank A to D, one right');
 -- The states per homework: tries, waiting, corrected, released, late, carried answers.
@@ -91,9 +93,9 @@ select pg_temp.ok((select bool_and(s.user_id in (select row_id from private.demo
 select pg_temp.ok((select count(*)=1 from private.homework_carried c join public.homework_responses r on r.submission_id=c.submission_id and r.question_id=c.question_id
   join public.homework_responses o on o.submission_id=c.source_submission_id and o.question_id=c.question_id join private.homework_keys k on k.question_id=c.question_id
   where r.response=o.response and (r.response->'optionIds'->>0)::uuid=any(k.correct_ids)),'the kept answer is the right answer of the released try 1');
--- No real file: the photos are upload rows (1 to 2 MB) with no storage object.
-select pg_temp.ok((select count(*)=20 and bool_and(size_bytes between 1000000 and 2000000 and mime='image/jpeg' and path like assignment_id::text||'/%') from private.homework_uploads u
- where u.assignment_id in (select id from public.homework_assignments where course_id=pg_temp.key('course'))),'the 20 photos are 1 to 2 MB image rows');
+-- No real file: the photos are upload rows (1 to 2 MB) with no storage object (20 from version 5, 3 from version 6).
+select pg_temp.ok((select count(*)=23 and bool_and(size_bytes between 1000000 and 2000000 and mime='image/jpeg' and path like assignment_id::text||'/%') from private.homework_uploads u
+ where u.assignment_id in (select id from public.homework_assignments where course_id=pg_temp.key('course'))),'the 23 photos are 1 to 2 MB image rows');
 select pg_temp.ok(not exists(select 1 from storage.objects o where o.bucket_id='lms-homework' and split_part(o.name,'/',1) in (select id::text from public.homework_assignments where course_id=pg_temp.key('course'))),'no file is stored for demo homework');
 
 -- 2. Every homework row is recorded under the homework module, and nothing else is.
@@ -114,18 +116,18 @@ create function pg_temp.untracked(org uuid) returns bigint language sql security
   +(select count(*) from public.homework_submission_files where submission_id in (select id from s) and id not in (select row_id from r where table_name='homework_submission_files'))
 $$;
 select pg_temp.ok(pg_temp.untracked(pg_temp.key('org'))=0,'every homework row of the space is recorded');
-select pg_temp.ok(pg_temp.homework_rows(pg_temp.key('org'))='4/12/28/12/4/58/172/171/57/20/20/1','the homework rows: 4 homework, 12 questions, 28 options, 12 keys, 4 solutions, 58 tries, 172 answers, 171 marks, 57 corrections, 20 photos');
-select pg_temp.ok((select count(*)=558 from private.demo_seed_rows where organization_id=pg_temp.key('org') and module='homework')
- and not exists(select 1 from private.demo_seed_rows where organization_id=pg_temp.key('org') and module<>'homework' and table_name like 'homework%'),'558 recorded homework rows, all under the homework module');
+select pg_temp.ok(pg_temp.homework_rows(pg_temp.key('org'))='5/15/35/15/5/72/214/213/71/23/23/1','the homework rows: 5 homework, 15 questions, 35 options, 15 keys, 5 solutions, 72 tries, 214 answers, 213 marks, 71 corrections, 23 photos');
+select pg_temp.ok((select count(*)=691 from private.demo_seed_rows where organization_id=pg_temp.key('org') and module='homework')
+ and not exists(select 1 from private.demo_seed_rows where organization_id=pg_temp.key('org') and module<>'homework' and table_name like 'homework%'),'691 recorded homework rows, all under the homework module');
 
 -- 3. The demo teacher reads it with the new reads.
 set local role authenticated; select pg_temp.claim('teacher');
 select set_config('dh.portal',public.homework_portal(pg_temp.key('course'),'closed',0)::text,true);
-select pg_temp.ok(current_setting('dh.portal')::jsonb->'counts'=jsonb_build_object('open',1,'closed',2,'drafts',1),'the board: 1 open, 2 closed, 1 draft');
+select pg_temp.ok(current_setting('dh.portal')::jsonb->'counts'=jsonb_build_object('open',1,'closed',3,'drafts',1),'the board: 1 open, 3 closed, 1 draft');
 select pg_temp.ok((select array_agg((e->>'title')||'|'||(e->>'handedIn')||'/'||(e->>'total')||'|'||(e->>'late')||'|'||(e->>'waiting')||'|'||(e->>'imageBytes'>'0')) from jsonb_array_elements(current_setting('dh.portal')::jsonb->'rows') e)
- =array['Ohm''s law: textbook page 34|26/28|2|9|false','Magnetic field of a wire|20/28|0|0|true'],'Closed lists both, newest deadline first, with bytes only where photos are');
+ =array['Magnetism review homework|14/28|2|7|true','Ohm''s law: textbook page 34|26/28|2|9|false','Magnetic field of a wire|20/28|0|0|true'],'Closed lists all three, newest deadline first, with bytes only where photos are');
 select pg_temp.ok((public.homework_portal(pg_temp.key('course'),'open',0)->'rows'->0->>'waiting')::int=6 and (public.homework_portal(pg_temp.key('course'),'drafts',0)->'rows'->0->>'title')='Kirchhoff''s laws practice','Open and Drafts list theirs');
-select pg_temp.ok(jsonb_array_length(public.homework_portal(null,'open',0)->'toCorrect')=2 and (public.homework_portal(null,'open',0)->'stats'->>'essaysWaiting')::int=15,'To correct lists the two homework with essays waiting: 15 essays in all');
+select pg_temp.ok(jsonb_array_length(public.homework_portal(null,'open',0)->'toCorrect')=3 and (public.homework_portal(null,'open',0)->'stats'->>'essaysWaiting')::int=22,'To correct lists the three homework with essays waiting: 22 essays in all');
 select pg_temp.ok(public.homework_queue(pg_temp.hw('Ohm''s law: textbook page 34'))->'counts'=jsonb_build_object('toCorrect',9,'done',17,'missing',2,'handedIn',26,'total',28,'late',2),'the closed homework queue: 9 to correct, 17 done, 2 missing, 2 late');
 select pg_temp.ok(public.homework_queue(pg_temp.hw('Ohm''s law: practice set'))->'counts'=jsonb_build_object('toCorrect',6,'done',4,'missing',18,'handedIn',10,'total',28,'late',0),'the open homework queue counts the latest try of each student');
 select pg_temp.ok((select count(*)=1 from jsonb_array_elements(public.homework_queue(pg_temp.hw('Ohm''s law: practice set'),'to_correct',0)->'rows') e where (e->>'try')::int=2),'one student is on try 2 in To correct');
@@ -145,7 +147,7 @@ savepoint real_try;
 insert into public.homework_submissions(assignment_id,user_id,number,status) values(pg_temp.hw('Ohm''s law: practice set'),pg_temp.uid('real'),1,'draft');
 select pg_temp.ok(pg_temp.refusal(format('select private.demo_clear_core(%L,%L)',pg_temp.key('org'),pg_temp.uid('admin')))
  ='PT409 This demo space holds content that Clear does not remove: homework from real people. Remove it first.','Clear refuses homework from real people, by name');
-select pg_temp.ok(pg_temp.homework_rows(pg_temp.key('org'))=regexp_replace(current_setting('dh.before'),'^(\d+/\d+/\d+/\d+/\d+/)(\d+)','\1'||'59'),'and removes nothing (the 58 tries and the real one are there)');
+select pg_temp.ok(pg_temp.homework_rows(pg_temp.key('org'))=regexp_replace(current_setting('dh.before'),'^(\d+/\d+/\d+/\d+/\d+/)(\d+)','\1'||'73'),'and removes nothing (the 72 tries and the real one are there)');
 rollback to savepoint real_try;
 -- A stored file under a demo homework (SQL never deletes storage objects) also refuses.
 savepoint real_file;
@@ -163,18 +165,18 @@ select pg_temp.ok(public.save_homework(null,pg_temp.key('off'),(select l.id from
   'referenceIds','[]'::jsonb,'solutionIds','[]'::jsonb,'questions',jsonb_build_array(jsonb_build_object('id',pg_temp.key('q_own'),'type','essay','text','Explain Ohm''s law','imageId',null,'points',4,
    'responseMode','both','modelAnswer','','options','[]'::jsonb,'correctIds','[]'::jsonb)))) is not null,'the demo teacher adds a homework');
 reset role;
-select pg_temp.ok(pg_temp.homework_rows(pg_temp.key('org')) like '5/13/%','the space now has 5 homework');
+select pg_temp.ok(pg_temp.homework_rows(pg_temp.key('org')) like '6/16/%','the space now has 6 homework');
 select set_config('dh.clear',private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))::text,true);
 select pg_temp.ok(pg_temp.homework_rows(pg_temp.key('org'))='0/0/0/0/0/0/0/0/0/0/0/0','Clear removes all homework of the space, the teacher''s included');
 select pg_temp.ok(not exists(select 1 from public.courses where organization_id=pg_temp.key('org')) and not exists(select 1 from private.demo_seed_rows where organization_id=pg_temp.key('org')),'and everything else of the space');
-select pg_temp.ok((select (detail->'removedByTable'->>'homework')::int from private.platform_audit where organization_id=pg_temp.key('org') and action='demo.clear' order by id desc limit 1)=562,
- 'the audit row counts 562 homework rows: 558 recorded, plus the teacher''s homework, its question, its key and its solution row');
+select pg_temp.ok((select (detail->'removedByTable'->>'homework')::int from private.platform_audit where organization_id=pg_temp.key('org') and action='demo.clear' order by id desc limit 1)=695,
+ 'the audit row counts 695 homework rows: 691 recorded, plus the teacher''s homework, its question, its key and its solution row');
 select pg_temp.ok(not exists(select 1 from public.notifications n where n.recipient_id in (select id from public.profiles where display_name like 'Demo Student %')),'no notification of a released demo try remains');
 select pg_temp.ok(exists(select 1 from public.profiles where id=pg_temp.uid('real')),'the real person is untouched');
 
 -- 6. Fill again, then a plain Clear removes exactly the recorded rows.
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'homework')::int=4,'the space fills again with four homework');
-select pg_temp.ok((private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'removedRows')::int=666,'a plain Clear removes exactly the 666 recorded rows');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'homework')::int=5,'the space fills again with five homework');
+select pg_temp.ok((private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'removedRows')::int=800,'a plain Clear removes exactly the 800 recorded rows');
 
 -- 7. The seed helpers are not callable by anyone else.
 select pg_temp.ok((select bool_and(not has_function_privilege(r,f,'execute')) from unnest(array['anon','authenticated','service_role']) r,

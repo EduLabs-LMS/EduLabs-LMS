@@ -56,3 +56,11 @@ The owner applied `20261106130000_course_content_tree.sql` on dev and smoke-test
 ## Earlier on 2026-11-06: course content, stopped for review on `claude/course-content`
 
 The homework and content boards and the owner's decisions are committed. The backend audit found delete, move and a safe rename missing, so the work stopped at one draft migration and its tests, as the owner instructed: `20261106130000_course_content_tree.sql`, not applied anywhere. **Next:** the owner reviews it and applies it on dev. Then build the Content section: contract and service, reasons in English and Arabic, the screen, unit tests and a browser harness. The owner's four answers are in DECISIONS.md, "Course content tree", and the draft follows them. Pushed to `claude/course-content`; no merge, no PR, nothing applied.
+
+## Update 2026-11-12: homework part 2 on `claude/homework-correct`
+
+Correcting, the Home "Homework to correct" card, and the student side (lesson page with no parts, Try again, deadline, tries left,
+plain refusals) are built on `claude/homework-correct` (from `claude/homework-move` at be1d486). One draft migration,
+`20261113120000_homework_correct_demo.sql` (demo seed 6 only), is **not applied anywhere**. No merge, PR or deploy. The owner approved
+the three pinned baseline edits for the student refusal reasons, the retry action and the Locked card link. Next: owner review of the
+screens and the screenshots, then apply the migration on dev.

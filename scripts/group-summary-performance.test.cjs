@@ -10,7 +10,7 @@ const summary = f => { const a = f.indexOf("if p_section='summary' then"), b = f
 test('migration: LF only, pinned as text, not the last migration any more, not applied by anything in the app', () => {
  assert.ok(!newSql.includes('\r')); assert.match(read('.gitattributes'), /20261105120000_group_summary_performance\.sql -text/);
  const names = fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
- assert.equal(names.at(-7), '20261105120000_group_summary_performance.sql', 'only the space-name, listing-performance, course-content, homework rules, lesson publish and homework move migrations come after it');
+ assert.equal(names.at(-8), '20261105120000_group_summary_performance.sql', 'only the space-name, listing-performance, course-content, homework rules, lesson publish, homework move and homework correct migrations come after it');
  assert.match(newSql, /^-- Performance of private\.group_view[\s\S]*\nbegin;\n/); assert.match(newSql, /\ncommit;\n$/);
  assert.equal((newSql.match(/create or replace function/g) ?? []).length, 1, 'one function is replaced');
  assert.doesNotMatch(newSql.replace(/--.*$/gm, ''), /\b(grant|revoke|alter|create table|create index|drop)\b/i, 'no grants, tables or indexes change');

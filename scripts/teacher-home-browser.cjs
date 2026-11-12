@@ -59,7 +59,7 @@ const scenarios = {
 };
 const raw = { ...scenarios[scenario], now: NOW, metrics: q.get('metrics') === 'fail' ? bad(503) : q.get('metrics') === '1' ? ok({ totalStudents: 41, pendingWaitlistCount: 3 }) : undefined, nextFacts: q.get('facts') === 'marked' ? { kind: 'marked', marked: 9, total: 14 } : q.get('facts') === 'members' ? { kind: 'members', students: 14, more: false } : null };
 const targets = createTargets([{ id: uuid(50), name: 'Synthetic space', status: 'active' }, ...(q.get('spaces') === '2' ? [{ id: uuid(51), name: 'Second synthetic space', status: 'active' }] : [])], [{ organization_id: uuid(50), role: 'teacher', status: 'active' }, { organization_id: uuid(51), role: 'owner', status: 'active' }]);
-const home = { ...buildTeacherHome(raw), createTargets: targets, demo: q.get('demo') === '1' };
+const home = { ...buildTeacherHome(raw), createTargets: targets, demo: q.get('demo') === '1', homework: { state: 'unavailable' } }; // the Homework to correct card has its own harness (homework-correct-browser.cjs)
 function Body() {
  if (view === 'loading') return <TeacherCoursesLoading />;
  if (view === 'courses') return <TeacherCoursesView courses={mapCourses(raw.courses)} targets={targets} />;
@@ -146,7 +146,7 @@ createRoot(document.getElementById('root')).render(
  const sections = ['th-next', 'th-coming', 'th-updates'];
  const menuItems = ['Home', 'Groups', 'Students', 'Courses', 'Homework'];
 
- await step('Home with data, English desktop: the sections (no Homework card), real data, real tree mark, the menu', async () => {
+ await step('Home with data, English desktop: the sections (the Homework card hidden while its read is unavailable), real data, real tree mark, the menu', async () => {
   const { page, context } = await open(desktop, 'view=home&s=full');
   await page.locator('[data-teacher-home]').waitFor();
   assert.deepEqual((await page.locator('[data-section]').evaluateAll(n => n.map(e => e.dataset.section))).sort(), [...sections].sort());
@@ -155,7 +155,7 @@ createRoot(document.getElementById('root')).render(
   const next = page.locator('[data-next-session]'); assert.match(await next.innerText(), /Synthetic Group Alpha/); assert.match(await next.innerText(), /Synthetic lesson 1/);
   assert.match(await page.locator('[data-section="th-coming"]').innerText(), /مجموعة الصف العاشر/);
   assert.equal(await page.locator('[data-section="th-coming"] [data-session]').count(), 3);
-  assert.equal(await page.locator('[data-section="th-homework"]').count(), 0, 'no Homework card until the Homework screen exists'); assert.equal(await page.locator('main a[href="/admin/submissions"]').count(), 0, 'and no link to the old submissions page');
+  assert.equal(await page.locator('[data-section="th-homework"]').count(), 0, 'the Homework to correct card is hidden when its read is unavailable (it is checked in homework-correct-browser.cjs)'); assert.equal(await page.locator('main a[href="/admin/submissions"]').count(), 0, 'and no link to the old submissions page');
   assert.equal(await page.locator('[data-section="th-next"] a').count(), 1, 'the Next session card has only Open group before the session starts (no All sessions)'); assert.equal(await page.getByRole('link', { name: 'All sessions' }).count(), 0);
   const updates = await page.locator('[data-update]').allInnerTexts(); assert.equal(updates.length, 3); assert.match(updates[0], /Session change/); assert.match(updates[1], /Session change/); assert.doesNotMatch(updates[2], /Session change/);
   assert.equal(await page.locator('[data-create-course]').count(), 0, 'no "Create a course" button on a returning teacher\'s Home, in the header or anywhere');
@@ -225,7 +225,7 @@ createRoot(document.getElementById('root')).render(
    const { page, context } = await open(viewport, 'view=home&s=full&lang=ar');
    await page.locator('[data-teacher-home]').waitFor();
    assert.equal(await page.locator('html').getAttribute('dir'), 'rtl');
-   const body = await text(page); assert.match(body, /الحصة القادمة/); assert.doesNotMatch(body, /واجبات تنتظر التصحيح/, 'no Homework card yet'); assert.match(body, /التحديثات/); assert.doesNotMatch(body, /أنشئ دورة/, 'no Create a course on a returning Home in Arabic either');
+   const body = await text(page); assert.match(body, /الحصة القادمة/); assert.doesNotMatch(body, /واجبات تنتظر التصحيح/, 'the Homework card is hidden while its read is unavailable'); assert.match(body, /التحديثات/); assert.doesNotMatch(body, /أنشئ دورة/, 'no Create a course on a returning Home in Arabic either');
    assert.ok(await overflow(page));
    if (viewport === desktop) { await page.locator('[data-teacher-profile]').click(); assert.match(await page.locator('[data-teacher-support]').innerText(), /المساعدة/); await page.keyboard.press('Escape'); }
    else { await page.locator('[data-bottom-tab="more"]').click(); assert.match(await page.locator('[data-more-item="help"]').innerText(), /المساعدة/); await page.keyboard.press('Escape'); await page.locator('[data-more-sheet]').waitFor({ state: 'detached' }); }

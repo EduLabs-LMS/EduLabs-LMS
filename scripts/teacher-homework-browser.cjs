@@ -256,14 +256,15 @@ function portal(q) {
  };
 
  // ---- behaviour
- await step('Page: numbers, To correct (Correct is off with its reason), tabs with counts, rows and the menu by tab', async () => {
+ await step('Page: numbers, To correct (Correct opens the correcting screen), tabs with counts, rows and the menu by tab', async () => {
   const { page, context } = await open(desktop);
   await page.locator('[data-stat]').first().waitFor();
   assert.deepEqual(await page.locator('[data-stat]').evaluateAll(t => t.map(x => x.getAttribute('data-stat'))), ['waiting', 'corrected', 'handed', 'on_time']);
   assert.match(await page.locator('[data-stat="on_time"]').innerText(), /84/);
+  // Correcting is built (claude/homework-correct, scripts/homework-correct-browser.cjs): Correct is a link to it, no longer off with a reason.
   const correct = page.locator('[data-correct]').first();
-  assert.equal(await correct.getAttribute('aria-disabled'), 'true'); assert.equal(await correct.getAttribute('disabled'), null);
-  assert.match(await page.locator('#' + await correct.getAttribute('aria-describedby')).innerText(), /Correcting comes in the next update/);
+  assert.equal(await correct.getAttribute('aria-disabled'), null); assert.equal(await correct.getAttribute('href'), `/teacher/homework/${await correct.getAttribute('data-correct')}/correct`);
+  assert.equal(gate(await correct.getAttribute('href')).kind, 'next', 'the middleware lets the correcting screen through');
   assert.match(await page.locator('[data-tab="open"]').innerText(), /3/); assert.match(await page.locator('[data-tab="closed"]').innerText(), /2/); assert.match(await page.locator('[data-tab="drafts"]').innerText(), /1/);
   await page.locator(`[data-row-menu="${H.open}"]`).click();
   assert.deepEqual(await page.locator('[role="menu"] [data-action]').evaluateAll(a => a.map(x => x.getAttribute('data-action'))), ['edit', 'deadline', 'unpublish']);

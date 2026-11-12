@@ -8,7 +8,7 @@ import { academicsHTTP } from './academics';
 import { createCoursePOST } from './teacher-course';
 import { updateCoursePATCH } from './teacher-course';
 import { courseContentGET, courseContentPOST } from './course-content';
-import { homeworkDeleteImagesPOST, homeworkGET, homeworkLifecyclePOST, homeworkPortalGET, homeworkSavePOST } from './teacher-homework';
+import { homeworkDeleteImagesPOST, homeworkGET, homeworkLifecyclePOST, homeworkPortalGET, homeworkQueueGET, homeworkReleaseManyPOST, homeworkSavePOST, homeworkTryGET, homeworkTryPOST } from './teacher-homework';
 
 /** Every API route's handler with the optional Server-Timing header (LMS_SERVER_TIMING=1, staging only). The route files stay one-line adapters. */
 export const timedCommunicationsPOST = withServerTiming(communicationsPOST);
@@ -25,3 +25,7 @@ export const timedHomeworkGET = withServerTiming(homeworkGET);
 export const timedHomeworkSavePOST = withServerTiming(homeworkSavePOST);
 export const timedHomeworkLifecyclePOST = withServerTiming(homeworkLifecyclePOST);
 export const timedHomeworkDeleteImagesPOST = withServerTiming(homeworkDeleteImagesPOST);
+export const timedHomeworkQueueGET = withServerTiming(homeworkQueueGET);
+export const timedHomeworkTryGET = withServerTiming(homeworkTryGET);
+export const timedHomeworkTryPOST = withServerTiming(homeworkTryPOST);
+export const timedHomeworkReleaseManyPOST = withServerTiming(homeworkReleaseManyPOST);

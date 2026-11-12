@@ -2,7 +2,7 @@
 import { getFirebaseAuth,restoreFirebaseAuth } from '@/frontend/lib/firebase';
 import { getSupabaseConfig } from '@/shared/supabase-config';
 import { lessonFileFormats,validLessonFile } from '@/shared/contracts/lessons';
-export async function homeworkApi<T>(id:string,action:string,body:unknown):Promise<T>{const r=await fetch(`/api/homework/${id}/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const v=await r.json();if(!r.ok)throw new Error(v.error||'Homework request failed');return v as T;}
+export async function homeworkApi<T>(id:string,action:string,body:unknown):Promise<T>{const r=await fetch(`/api/homework/${id}/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const v=await r.json();if(!r.ok)throw Object.assign(new Error(v.error||'Homework request failed'),{status:r.status,reason:typeof v.reason==='string'?v.reason:undefined});return v as T;}
 export async function uploadHomeworkFile(assignmentId:string,file:File,purpose:'reference'|'question'|'solution'|'submission',submissionId:string|null,onProgress:(percent:number)=>void) {
  const format=lessonFileFormats[file.type];if(!Object.prototype.hasOwnProperty.call(lessonFileFormats,file.type)||!format||file.size>format.limit||!validLessonFile(new Uint8Array(await file.arrayBuffer()),file.type))throw new Error('Use a supported, valid PDF/image (or solution MP4) within the file limit.');
  const intent=await homeworkApi<{id:string;path:string}>(assignmentId,'upload-intent',{purpose,submissionId,name:file.name,mime:file.type});

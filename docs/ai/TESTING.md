@@ -252,3 +252,32 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `scripts/teacher-homework-browser.cjs` adds the move step (unlocked, locked with the reason, another course clears the lesson and
   nothing saves until one is picked, a refused move keeps the typed text) and the row counts; `LMS_COPY_SHOTS=move` copies the
   `move-*` pictures to `docs/design/screenshots/homework-move/`.
+
+## Homework correcting (`claude/homework-correct`, migration `20261113120000_homework_correct_demo.sql`)
+
+- `supabase/tests/homework-correct.sql` (`LMS_SQL_ONLY=homework-correct`): demo v6 fill and clear (the lesson with no part, the
+  homework's states, recorded rows, Clear refusing a real person's try), the queue's counts and `readyToRelease` against a naive
+  query, a try as staff sees it (deleted photo, keys, Missed the deadline), another space's teacher and an assistant with correct
+  and release off refused by the database, single grade/release/stale/marks above the points/reason required/withdrawn, bulk release
+  (stale refuses all, releases five, the same notifications as a single release, audit rows, no push delivery, already released).
+- `scripts/teacher-homework-correct.test.cjs`: every new route (signed out, wrong origin, another space's teacher and an assistant
+  as the database answers them, bad and oversized bodies, every code and reason mapped, revisions round-tripped), the exact
+  middleware paths, the correcting logic, the Home card mapping, the student lesson page decisions, Try again and the plain
+  refusals in both languages.
+- `scripts/homework-correct-browser.cjs` (`LMS_COPY_SHOTS=correct`): the correcting screen (one student, Save and next, a deleted photo,
+  stale with Reload kept typing, release one, a released grade needing a reason, Release N grades refused on a change, the phone list and
+  Reload reachable above the sticky bar), the Home card, and the student lesson page (Try again, the kept answer locked, a refusal in
+  Arabic), with the real middleware and contract; 92 screenshots in `docs/design/screenshots/homework-correct/`. The student pictures
+  keep the existing student styles and are checked for sideways scroll only.
+- Seed version 6 changed totals in older suites (the version 5 assertions by title are unchanged): `demo-homework.sql` (5 homework,
+  rows `5/15/35/15/5/72/214/213/71/23/23/1`, 691 recorded, 3 closed, 22 essays waiting, 695 and 800 cleared), `demo-students.sql`
+  (6 lessons, 800 recorded, 801 with the teacher's Session; space F also drops the version 6 lesson to look like version 1),
+  `demo-clear-robust.sql` (808 and 800), `course-content-tree.sql` (Magnetism has 3 lessons, 9 recorded chapters and lessons, 6 read),
+  `demo-notifications.sql` and `demo-students-screen.sql` (seed version 6).
+- `teacher-homework-browser.cjs`: Correct is now a link to the correcting screen (it was off with "Correcting comes in the next update").
+  `teacher-home-browser.cjs` and `design-foundation-browser.cjs` give Home `homework: {state: 'unavailable'}` (what the loader sends
+  outside Firebase), so the card stays hidden there and their pictures do not change.
+- Known, not from this change: `design-foundation-browser.cjs` steps "Desktop frame, both looks" and "Homework, Exams and Reports" still
+  expect four links and Homework as Soon (true before the Homework page); `student-academics-browser-components.cjs` (its
+  `next/navigation` stub lacks `usePathname`) and `student-access-browser.cjs` (sign-in heading) fail on the base as well; the web-push
+  unit test needs `node_modules/web-push`.

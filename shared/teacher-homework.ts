@@ -96,10 +96,15 @@ const reasonByMessage: [RegExp, string][] = [
   [/^Work has started/, 'started'], [/^Set a deadline/, 'no_deadline'], [/^The new deadline must be in the future/, 'deadline_past'],
   [/^Photo answers are off/, 'photos_off'], [/^A model answer picture/, 'model_image'], [/^A homework stays in its teaching space/, 'other_space'], [/^Complete question keys/, 'keys'], [/^Tries must be/, 'tries'],
   [/^Finish (cloned|this version|original)/, 'media'], [/^Only new homework has a deadline/, 'legacy'],
+  // Correcting (homework_work grade and release, homework_release_many).
+  [/^Released correction requires an audit reason/, 'reason_required'], [/^Invalid written marks/, 'marks'], [/^Finish correction before release/, 'unfinished'],
+  [/^At most 500 grades/, 'too_many'], [/^A grade is listed twice/, 'duplicate'], [/^Choose the grades to release/, 'empty'],
 ];
+const reasonPattern = /^[a-z_]{1,40}$/;
 /**
  * HTTP status and body of a database refusal. PT409 carries its detail reason when it has one (deadline_passed, no_tries_left, still_open, and
- * for a refused move started or versioned).
+ * for a refused move started or versioned); a bulk release's {"reason":"stale"} is a change made elsewhere. A 23514 carries its detail reason
+ * when it has one (a bulk release's already_released or unfinished), otherwise the one its message names.
  */
 export function homeworkReply(error: DatabaseError): { status: number; body: { kind: string; reason?: string } } {
   const code = error.code ?? '', message = error.message ?? '';
@@ -107,11 +112,13 @@ export function homeworkReply(error: DatabaseError): { status: number; body: { k
   try { const parsed = JSON.parse(error.details ?? ''); detail = parsed && typeof parsed === 'object' ? parsed : null; } catch { detail = null; }
   const named = reasonByMessage.find(([pattern]) => pattern.test(message))?.[1];
   if (code === 'PT409') {
-    if (typeof detail?.reason === 'string' && /^[a-z_]{1,40}$/.test(detail.reason)) return { status: 409, body: { kind: 'refused', reason: detail.reason } };
+    if (detail?.reason === 'stale') return { status: 409, body: { kind: 'changed' } };
+    if (typeof detail?.reason === 'string' && reasonPattern.test(detail.reason)) return { status: 409, body: { kind: 'refused', reason: detail.reason } };
     return named === 'started' ? { status: 409, body: { kind: 'refused', reason: 'started' } } : { status: 409, body: { kind: 'changed' } };
   }
   if (code === '23503') return { status: 409, body: { kind: 'refused', reason: 'in_use' } };
   if (code === '42501' || code === 'PGRST116') return { status: 403, body: { kind: 'denied' } };
+  if (code === '23514' && typeof detail?.reason === 'string' && reasonPattern.test(detail.reason)) return { status: 400, body: { kind: 'invalid', reason: detail.reason } };
   if (code === '23514' || code === '22P02' || code === '23505') return { status: 400, body: named ? { kind: 'invalid', reason: named } : { kind: 'invalid' } };
   if (code === 'PT413') return { status: 413, body: { kind: 'too_large' } };
   return { status: 503, body: { kind: 'failed' } };

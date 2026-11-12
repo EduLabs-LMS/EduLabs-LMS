@@ -28,7 +28,7 @@ export function v2Chapters(scope: Scope, offeringId?: string): SelfLearningChapt
         const next=parts.find(s=>progress.some(p=>p.segment_id===s.id&&p.status==='in_progress'))??parts.find(s=>!isComplete(s.id))??parts[0];
         const description=('description' in lesson&&typeof lesson.description==='string')?lesson.description.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim():null;
         return {id:lesson.id,title:lesson.title,chapterType:module.group_type??'Module',chapterNumber:module.chapter_number??index+1,description,imageUrl:lesson.cover_url??null,partsCount:parts.length,
-          href:offeringId&&next?`/courses/${module.course_id}/chapters/${next.id}?offering=${offeringId}`:null,
+          href:offeringId&&next?`/courses/${module.course_id}/chapters/${next.id}?offering=${offeringId}`:offeringId?`/courses/${module.course_id}/lessons/${lesson.id}?offering=${offeringId}`:null,
           chapters:parts.map(s=>({id:s.id,title:s.title,isCompleted:isComplete(s.id)})),
           status:!parts.length?'Locked':scope.progressAvailable === false?'Open Lesson':parts.every(s=>isComplete(s.id))?'Completed':parts.some(s=>progress.some(p=>p.segment_id===s.id))?'In Progress':'Not Started'};
       }

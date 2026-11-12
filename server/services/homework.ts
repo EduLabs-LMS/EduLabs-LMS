@@ -8,10 +8,11 @@ import { getSupabaseConfig } from '@/shared/supabase-config';
 import { validateHomeworkBytes } from '@/server/services/homework-file-validation';
 import type { Database,Json } from '@/shared/contracts/database.types';
 import { copyHomeworkCloneTasks, type HomeworkCloneTask } from '@/server/services/homework-clone-media';
+import { studentHomeworkReason,studentReasonText } from '@/shared/student-homework';
 import type { HomeworkView } from '@/shared/contracts/homework';
 export const homeworkFailure=(message:string,status=400)=>Object.assign(new Error(message),{status});
 export async function homeworkChecked<T>(query:PromiseLike<{data:T|null;error:{code?:string}|null}>) {
- const {data,error}=await query;if(error||data===null){if(error)console.error('Homework database request rejected',{code:error.code});const code=error?.code,status=code==='42501'?403:code==='PT409'?409:['23514','23505','22P02','22023','22003'].includes(code??'')?400:503;throw homeworkFailure(status===409?'Homework changed. Reload before saving.':status===403?'Homework unavailable or permission denied':status===400?'Check the homework structure, files and correction state.':'Homework requires its approved database update or is temporarily unavailable.',status);}return data;
+ const {data,error}=await query;if(error||data===null){if(error)console.error('Homework database request rejected',{code:error.code});const code=error?.code,status=code==='42501'?403:code==='PT409'?409:['23514','23505','22P02','22023','22003'].includes(code??'')?400:503;const reason=studentHomeworkReason(error);throw Object.assign(homeworkFailure(reason?studentReasonText[reason]:status===409?'Homework changed. Reload before saving.':status===403?'Homework unavailable or permission denied':status===400?'Check the homework structure, files and correction state.':'Homework requires its approved database update or is temporarily unavailable.',status),reason?{reason}:{});}return data;
 }
 export async function homeworkService() {
  const client=await getSupabaseServerClient();

@@ -10,7 +10,7 @@ const body = (src, start) => { const i = src.indexOf(start); assert.ok(i >= 0, s
 test('the file: LF only, pinned as text, followed only by the homework move migration, one transaction, the caller from current_app_user_id', () => {
   assert.ok(!sql.includes('\r'), 'the staging manager hashes the Git blob');
   assert.match(read('.gitattributes'), /20261110120000_lesson_publish\.sql -text/);
-  assert.deepEqual(fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort().slice(-2), [NAME, '20261112120000_homework_move.sql']);
+  assert.deepEqual(fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort().slice(-3), [NAME, '20261112120000_homework_move.sql', '20261113120000_homework_correct_demo.sql']);
   assert.match(code, /^\s*begin;/); assert.match(code, /commit;\s*$/);
   assert.doesNotMatch(code, /auth\.uid/);
   assert.match(code, /private\.current_app_user_id\(\) is null/);
@@ -58,7 +58,7 @@ test('no app code writes a lesson status directly (only definer functions do)', 
   for (const f of files) assert.doesNotMatch(read(f), /from\(['"]lessons['"]\)\s*\.\s*(update|upsert|insert)/, f);
 });
 
-test('student models: a published lesson with no parts shows Locked with no link, and nothing throws', () => {
+test('student models: a published lesson with no parts shows Locked and links to its lesson page, and nothing throws', () => {
   const model = load('shared/v2-learning-model.ts'), { resumeLearning } = load('shared/continue-learning.ts');
   const scope = { courses: [{ id: 'c', title: 'Physics' }], modules: [{ id: 'm', course_id: 'c', title: 'Chapter', position: 0, group_type: 'Chapter', chapter_number: 1 }],
     lessons: [{ id: 'empty', module_id: 'm', title: 'Homework only', status: 'published', cover_url: null }, { id: 'full', module_id: 'm', title: 'With a part', status: 'published', cover_url: null }],
@@ -66,10 +66,10 @@ test('student models: a published lesson with no parts shows Locked with no link
     segments: [{ id: 's', lesson_id: 'full', title: 'Part', position: 0, status: 'published' }], segmentProgress: [] };
   const lessons = model.v2Chapters(scope, 'o')[0].lessons;
   const empty = lessons.find(l => l.id === 'empty'), full = lessons.find(l => l.id === 'full');
-  assert.equal(empty.status, 'Locked'); assert.equal(empty.href, null); assert.equal(empty.partsCount, 0); assert.equal(empty.chapters.length, 0);
+  assert.equal(empty.status, 'Locked'); assert.equal(empty.href, '/courses/c/lessons/empty?offering=o', 'its lesson page (homework-correct)'); assert.equal(empty.partsCount, 0); assert.equal(empty.chapters.length, 0);
   assert.equal(full.href, '/courses/c/chapters/s?offering=o', 'the lesson beside it is unchanged');
   const student = model.v2StudentLessons(scope).find(l => l.id === 'o:empty');
-  assert.equal(student.status, 'Locked'); assert.equal(student.href, null);
+  assert.equal(student.status, 'Locked'); assert.equal(student.href, '/courses/c/lessons/empty?offering=o');
   const resume = resumeLearning({ limited: false, courses: [{ id: 'c', organization_id: 'org', title: 'Physics', status: 'published' }], offerings: [{ id: 'o', course_id: 'c', name: 'Run', status: 'active' }],
     enrollments: [{ offering_id: 'o', status: 'active', enrolled_at: null, expires_at: null }], modules: scope.modules, lessons: scope.lessons, segments: [], segmentProgress: [], progress: [] }, [{ id: 'org', status: 'active' }], Date.now());
   assert.equal(resume.items.length, 0, 'Continue Learning offers nothing for it');

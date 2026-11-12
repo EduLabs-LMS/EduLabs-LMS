@@ -3,15 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z, type ZodTypeAny } from 'zod';
 import { validFirebaseOrigin } from '@/server/http/firebase/route';
 import { getApplicationViewer } from '@/server/services/application-auth';
-import { deleteHomeworkImages, homeworkLifecycle, readHomework, readPortal, saveHomework, type HomeworkResult } from '@/server/services/teacher-homework';
+import { deleteHomeworkImages, homeworkLifecycle, readHomework, readPortal, readQueue, readTry, releaseManyTries, saveHomework, writeTry, type HomeworkResult } from '@/server/services/teacher-homework';
 import { isFirebaseStaging } from '@/shared/auth-config';
-import { homeworkDeleteImages, homeworkLifecycle as lifecycleBody, homeworkSave, portalQuery } from '@/shared/contracts/teacher-homework';
+import { homeworkDeleteImages, homeworkLifecycle as lifecycleBody, homeworkSave, portalQuery, queueQuery, releaseMany, tryWrite } from '@/shared/contracts/teacher-homework';
 
 type Context = { params: Promise<{ homeworkId: string }> };
 const reply = (body: unknown, status: number) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
 const id = z.string().uuid();
 /** A homework of 100 questions with long texts stays well inside this; save_homework refuses a definition over 500 000 bytes. */
 const SAVE_LIMIT = 600000, SMALL_LIMIT = 4096;
+/** A grade: up to 100 essays with a note each (4 000) and an overall note (10 000). Release many: 500 items of about 90 bytes. */
+const CORRECT_LIMIT = 600000, RELEASE_LIMIT = 64000;
 
 /** A read is same-origin: a browser says so in Sec-Fetch-Site, and an Origin, when one is sent, must be ours. */
 function sameOriginRead(request: NextRequest) {
@@ -107,5 +109,65 @@ export function homeworkDeleteImagesPOST(request: NextRequest, context: Context)
     const body = await readBody(request, homeworkDeleteImages, SMALL_LIMIT);
     if ('failure' in body) return body.failure;
     return send(await deleteHomeworkImages(homeworkId as string));
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Correcting. The same gates as above; the database decides who may correct or release (the 'correct' and 'release' rights).
+// ---------------------------------------------------------------------------------------------------------------------------------
+type TryContext = { params: Promise<{ homeworkId: string; submissionId: string }> };
+async function ids(context: Context | TryContext) {
+  const p = await context.params as { homeworkId: string; submissionId?: string };
+  const homework = id.safeParse(p.homeworkId), submission = p.submissionId === undefined ? null : id.safeParse(p.submissionId);
+  if (!homework.success || (submission && !submission.success)) return null;
+  return { homeworkId: homework.data, submissionId: submission?.success ? submission.data : null };
+}
+
+/** GET /api/teacher/homework/<id>/queue?tab=&page= : the student lists (homework_queue). */
+export async function homeworkQueueGET(request: NextRequest, context: Context) {
+  if (!isFirebaseStaging()) return reply({ kind: 'denied' }, 404);
+  if (!sameOriginRead(request)) return reply({ kind: 'denied' }, 403);
+  const target = await ids(context);
+  const keys = Array.from(request.nextUrl.searchParams.keys());
+  const query = queueQuery.safeParse(Object.fromEntries(request.nextUrl.searchParams));
+  if (!target || !query.success || keys.length !== new Set(keys).size) return reply({ kind: 'invalid' }, 400);
+  try {
+    if (!await signedIn()) return reply({ kind: 'signin' }, 401);
+    return send(await readQueue(target.homeworkId, query.data.tab, query.data.page));
+  } catch { return reply({ kind: 'failed' }, 503); }
+}
+
+/** GET /api/teacher/homework/<id>/tries/<submissionId> : the homework and that one try (get_homework, staff only). */
+export async function homeworkTryGET(request: NextRequest, context: TryContext) {
+  if (!isFirebaseStaging()) return reply({ kind: 'denied' }, 404);
+  if (!sameOriginRead(request)) return reply({ kind: 'denied' }, 403);
+  const target = await ids(context);
+  if (!target || request.nextUrl.searchParams.size > 0) return reply({ kind: 'invalid' }, 400);
+  try {
+    if (!await signedIn()) return reply({ kind: 'signin' }, 401);
+    return send(await readTry(target.homeworkId, target.submissionId as string));
+  } catch { return reply({ kind: 'failed' }, 503); }
+}
+
+/** POST /api/teacher/homework/<id>/tries/<submissionId> : save the marks of a try (grade) or release it. */
+export async function homeworkTryPOST(request: NextRequest, context: TryContext) {
+  if (!isFirebaseStaging()) return reply({ kind: 'denied' }, 404);
+  if (!validFirebaseOrigin(request)) return reply({ kind: 'denied' }, 403);
+  const target = await ids(context);
+  if (!target) return reply({ kind: 'invalid' }, 400);
+  try {
+    if (!await signedIn()) return reply({ kind: 'signin' }, 401);
+    const body = await readBody(request, tryWrite, CORRECT_LIMIT);
+    if ('failure' in body) return body.failure;
+    return send(await writeTry(target.homeworkId, target.submissionId as string, body.data));
+  } catch { return reply({ kind: 'failed' }, 503); }
+}
+
+/** POST /api/teacher/homework/<id>/release-many : "Release N grades", the queue's list, all or nothing. */
+export function homeworkReleaseManyPOST(request: NextRequest, context: Context) {
+  return write(request, context, false, async (_userId, homeworkId) => {
+    const body = await readBody(request, releaseMany, RELEASE_LIMIT);
+    if ('failure' in body) return body.failure;
+    return send(await releaseManyTries(homeworkId as string, body.data));
   });
 }

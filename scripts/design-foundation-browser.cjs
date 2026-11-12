@@ -52,7 +52,7 @@ const raw = {
  metrics: ok({ totalStudents: 41, pendingWaitlistCount: 3 }), nextFacts: { kind: 'marked', marked: 9, total: 14 },
 };
 const targets = createTargets([{ id: uuid(50), name: 'Synthetic space', status: 'active' }], [{ organization_id: uuid(50), role: 'teacher', status: 'active' }]);
-const home = { ...buildTeacherHome(raw), createTargets: targets, demo: false };
+const home = { ...buildTeacherHome(raw), createTargets: targets, demo: false, homework: { state: 'unavailable' } }; // the Homework to correct card has its own harness (homework-correct-browser.cjs)
 
 function Gallery() {
  const [dialog, setDialog] = useState(false), [tab, setTab] = useState('one'), [seg, setSeg] = useState('a');

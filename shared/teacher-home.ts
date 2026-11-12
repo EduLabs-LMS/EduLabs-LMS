@@ -65,7 +65,20 @@ export type TeacherHomeData = {
   firstVisit: boolean;
 };
 
-export type TeacherHomeLoad = TeacherHomeData & { createTargets: CreateTarget[]; demo: boolean };
+export type TeacherHomeLoad = TeacherHomeData & { createTargets: CreateTarget[]; demo: boolean; homework: Section<HomeHomework> };
+
+/** Homework to correct on Home: the homework with essays waiting (homework_portal's To correct list), at most HOMEWORK_HOME_LIMIT of them. */
+export type HomeHomeworkRow = { id: string; title: string; courseTitle: string; waiting: number };
+export type HomeHomework = { items: HomeHomeworkRow[]; more: number };
+export const HOMEWORK_HOME_LIMIT = 5;
+export function mapHomework(raw: Settled<{ toCorrect?: unknown }>): Section<HomeHomework> {
+  if (!raw.ok) return { state: 'error', status: raw.status };
+  const list = Array.isArray(raw.value?.toCorrect) ? raw.value.toCorrect as Record<string, unknown>[] : [];
+  const rows = list
+    .filter(r => typeof r?.id === 'string' && typeof r.title === 'string' && typeof r.waiting === 'number' && r.waiting > 0)
+    .map(r => ({ id: r.id as string, title: r.title as string, courseTitle: typeof r.courseTitle === 'string' ? r.courseTitle : '', waiting: r.waiting as number }));
+  return { state: 'ready', data: { items: rows.slice(0, HOMEWORK_HOME_LIMIT), more: Math.max(0, rows.length - HOMEWORK_HOME_LIMIT) } };
+}
 
 const fail = <T>(r: Settled<unknown>): Section<T> => ({ state: 'error', status: r.ok ? null : r.status });
 

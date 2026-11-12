@@ -717,3 +717,14 @@ html[dir="rtl"] .d-auth-arrow { transform: scaleX(-1); }
 /* Blank choice answers: a compact row of letters the teacher taps to mark every right one. */
 .d-hw-chips { display: flex; flex-wrap: wrap; gap: var(--d-space-2); }
 .d-hw-option-actions { display: flex; flex-wrap: wrap; gap: var(--d-space-1); }
+/* Correcting homework: the student list beside one try (desktop), one thing at a time (phone). */
+.d-correct-split { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: var(--d-space-4); align-items: start; }
+.d-correct-student { padding-inline: var(--d-space-2); text-align: start; }
+.d-correct-student[aria-current="true"] { background: var(--d-surface); box-shadow: inset 3px 0 0 var(--d-logo-tree); }
+[dir="rtl"] .d-correct-student[aria-current="true"] { box-shadow: inset -3px 0 0 var(--d-logo-tree); }
+.d-correct-block { padding-block-start: var(--d-space-3); border-block-start: var(--d-divider-width) solid var(--d-divider); }
+.d-correct-answer { white-space: pre-wrap; overflow-wrap: anywhere; }
+.d-correct-photo { display: block; inline-size: fit-content; max-inline-size: 100%; border-radius: var(--d-radius-field); }
+.d-correct-photo img { display: block; max-inline-size: 100%; max-block-size: 420px; border-radius: var(--d-radius-field); border: var(--d-divider-width) solid var(--d-divider); }
+.d-correct-ready { padding-block-start: var(--d-space-4); border-block-start: 0; }
+@media (max-width: 767px) { .d-correct-photo img { max-block-size: 260px; } }

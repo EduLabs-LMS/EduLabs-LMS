@@ -4,11 +4,13 @@ import { groupService } from '@/server/services/groups';
 import { communicationService } from '@/server/services/communications';
 import { spaceIsDemo } from '@/server/services/demo-space';
 import { studentAdministration } from '@/server/services/student-administration';
+import { readPortal } from '@/server/services/teacher-homework';
+import { isFirebaseStaging } from '@/shared/auth-config';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import type { GroupPage, GroupRow, GroupSession, StudyGroup } from '@/shared/contracts/groups';
 import type { NotificationPage } from '@/shared/contracts/communications';
 import { groupCourseChoices } from '@/shared/teacher-groups';
-import { DEMO_CHECK_LIMIT, UNSAVED_GROUP_LIMIT, buildTeacherHome, mapGroups, mapSessions, createTargets, mapCourses, showDemoLabel, teachingSpaceIds, type HomeMetrics, type HomeNextFacts, type RawCourse, type RawInputs, type Settled, type TeacherHomeLoad } from '@/shared/teacher-home';
+import { DEMO_CHECK_LIMIT, UNSAVED_GROUP_LIMIT, buildTeacherHome, mapHomework, mapGroups, mapSessions, createTargets, mapCourses, showDemoLabel, teachingSpaceIds, type HomeMetrics, type HomeNextFacts, type RawCourse, type RawInputs, type Settled, type TeacherHomeLoad } from '@/shared/teacher-home';
 
 /** Reads run independently; one failing read marks only its own section as failed. Uses the existing services, which stay authoritative. */
 export async function settle<T>(read: () => PromiseLike<T>): Promise<Settled<T>> {
@@ -45,8 +47,14 @@ export async function loadTeacherHome(context: WebsiteContext, now = Date.now())
   // The existing counts the database scopes to what the caller may support.
   const metrics = settle(() => studentAdministration<HomeMetrics>('metrics', {}));
   const nextFacts = Promise.all([groups, upcoming]).then(([g, u]) => readNextFacts(g, u, now));
-  const [g, u, n, a, m, facts, demoShown] = await Promise.all([groups, upcoming, notifications, unsaved, metrics, nextFacts, demo]);
-  return { ...buildTeacherHome({ courses: ownCourses, groups: g, upcoming: u, notifications: n, unsaved: a, metrics: m, nextFacts: facts, now }), createTargets: targets, demo: demoShown };
+  // Homework to correct: the Homework page's own read (homework_portal, which the database scopes to what the caller may correct).
+  const homework = isFirebaseStaging() ? settle(async () => {
+    const read = await readPortal(null, 'open', 0);
+    if (read.status !== 200) throw Object.assign(new Error('Homework read failed'), { status: read.status });
+    return read.body as { toCorrect?: unknown };
+  }).then(mapHomework) : Promise.resolve({ state: 'unavailable' as const });
+  const [g, u, n, a, m, facts, demoShown, hw] = await Promise.all([groups, upcoming, notifications, unsaved, metrics, nextFacts, demo, homework]);
+  return { ...buildTeacherHome({ courses: ownCourses, groups: g, upcoming: u, notifications: n, unsaved: a, metrics: m, nextFacts: facts, now }), createTargets: targets, demo: demoShown, homework: hw };
 }
 
 /**

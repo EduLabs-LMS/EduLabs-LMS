@@ -143,6 +143,20 @@ function NeedsAttention({ unsaved, waiting, retry }: { unsaved: HomeData['unsave
   </Card>;
 }
 
+/** Homework to correct: each homework with essays waiting, one tap to its correcting screen, and All homework. Hidden when nothing waits. */
+function HomeworkToCorrect({ data, retry }: { data: HomeData['homework']; retry: Retry }) {
+  const { t, number } = useLanguage();
+  if (data.state === 'unavailable' || (data.state === 'ready' && !data.data.items.length)) return null;
+  return <Card list aria-labelledby="th-homework" data-section="th-homework">
+    <CardHead id="th-homework" title={<L id="th.homework.title" />} action={<Link href="/teacher/homework" data-homework-all className={buttonClass('tertiary')}><L id="th.homework.all" /></Link>} />
+    {data.state === 'error' ? <div className="pb-3"><SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} /></div>
+      : <ul className="d-list">{data.data.items.map(h => <ListRow key={h.id} data-homework-correct={h.id} href={`/teacher/homework/${h.id}/correct`} leading={<IconBadge name="homework" tone="warning" />}
+        title={<bdi dir="auto">{h.title}</bdi>} meta={<bdi dir="auto">{h.courseTitle}</bdi>}
+        trailing={<StatusPill tone="warning" aria-label={t('th.homework.waiting_label', { count: number(h.waiting), title: h.title })}><L id="th.homework.waiting" values={{ count: number(h.waiting) }} /></StatusPill>} />)}</ul>}
+    {data.state === 'ready' && data.data.more > 0 && <p className="d-meta pb-3" data-homework-more><L id="th.homework.more" values={{ count: number(data.data.more) }} /></p>}
+  </Card>;
+}
+
 function ComingUp({ data, retry, now }: { data: HomeData['sessions']; retry: Retry; now: number }) {
   if (data.state === 'unavailable') return null;
   return <Card list aria-labelledby="th-coming" data-section="th-coming">
@@ -201,7 +215,7 @@ function FirstVisit({ data }: { data: HomeData }) {
 
 /**
  * Greeting, the small numbers, the hero, then two columns on a desktop (what needs you and what is coming | updates). A phone stacks the same order.
- * Homework to correct returns here with the Homework build. Courses are not on Home: they have their own menu item.
+ * Homework to correct sits under Needs attention when essays wait. Courses are not on Home: they have their own menu item.
  */
 export function TeacherHomeView({ data }: { data: HomeData }) {
   if (data.firstVisit) return <FirstVisit data={data} />;
@@ -218,6 +232,7 @@ function ReturningHome({ data }: { data: HomeData }) {
     <div className="d-home-grid">
       <div className="d-home-col">
         <NeedsAttention unsaved={data.unsaved} waiting={data.waiting} retry={retry} />
+        <HomeworkToCorrect data={data.homework} retry={retry} />
         <ComingUp data={data.sessions} retry={retry} now={now} />
       </div>
       <div className="d-home-col"><Updates data={data.updates} retry={retry} /></div>

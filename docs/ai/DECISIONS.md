@@ -460,3 +460,28 @@ tests became the tap-to-mark, derived-type, letters and lock tests; a contract c
 and one answer; letter(5) is F, not 6); `teacher-homework-sql.cjs` (no `setTextbook`); `teacher-course-content-browser.cjs` (the
 desktop Move up is `aria-disabled` with its reason inside, not Radix `data-disabled`; the sheet reads "Move down (already last)");
 the migration-order tests (the new file is the newest).
+
+## Correcting homework, the Home card and the student lesson page (2026-11-12, branch `claude/homework-correct`)
+
+Draft migration `20261113120000_homework_correct_demo.sql`, **not applied anywhere**: demo seed version 6 only (DEMO_DATA.md).
+
+- **No new database read.** `homework_queue` (lists, counts, `readyToRelease`, `releasable` with revisions), `get_homework` with one
+  submission (keys for staff, the try, `canGrade`, `canRelease`) and `homework_portal` (the Home card) are enough. Writes are the
+  existing `homework_work` grade/release and `homework_release_many`.
+- **How a release notifies (audited).** Neither route sends anything. The row trigger `notification_homework` on
+  `private.homework_corrections` (`private.notification_business_event`) emits `homework_released` to the student when
+  `released_at` is set, keyed `homework:<submission>:<released_at>`. A single release and "Release N grades" both set `released_at`
+  on each try, so both notify identically: one notice per released try, never a push delivery from SQL. A grade withdrawn and
+  released again notifies again (new `released_at`). `supabase/tests/homework-correct.sql` proves it. Nothing needed changing.
+- **A released grade changes only with a reason** (three characters or more), which the database writes to the audit; saving
+  withdraws the release until it is released again. The screen says so before saving.
+- **Stale is not a failure.** PT409 on a save keeps what the teacher typed; Reload reads the new revision and keeps the typing.
+- **Bulk release is all or nothing**, the queue's list sent unchanged: `{"reason":"stale"}` (changed elsewhere), `already_released`,
+  `unfinished` and a denial are explained and nothing is released.
+- **Student refusals carry their reason.** The owner approved extending the protected baseline for this: `homeworkChecked` keeps the
+  reason the database names (`deadline_passed`, `no_tries_left`) or the message it raises (`stale`, `submitted`, `unavailable`),
+  the work route returns it with the English text and accepts `retry`, and the screen says it in the student's language. The
+  three baseline edits are pinned pair by pair in `scripts/teacher-foundation.test.cjs`.
+- **The lesson page** (`/courses/<course>/lessons/<lesson>?offering=<group>`) runs the part page's checks (signed in, published course,
+  active group, active unexpired enrollment, published lesson in the student's own tree). With a published part it opens that part
+  (the one Continue Learning would); without one it shows the lesson and its homework. Continue Learning still links parts only.

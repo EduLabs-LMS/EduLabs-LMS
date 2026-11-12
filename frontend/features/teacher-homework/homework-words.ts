@@ -17,6 +17,8 @@ export async function homeworkCall<B>(url: string, body?: unknown): Promise<Outc
 const reasons: Record<string, MessageKey> = {
   started: 'hw.fail.started', still_open: 'hw.fail.still_open', no_deadline: 'hw.fail.no_deadline', deadline_past: 'hw.fail.deadline_past', keys: 'hw.fail.keys',
   versioned: 'hw.fail.versioned', other_space: 'hw.fail.other_space', model_image: 'hw.fail.model_image', photos_off: 'hw.fail.photos_off', tries: 'hw.fail.tries', media: 'hw.fail.media', legacy: 'hw.fail.legacy',
+  reason_required: 'hw.fail.reason_required', marks: 'hw.fail.marks', unfinished: 'hw.fail.unfinished', too_many: 'hw.fail.too_many', duplicate: 'hw.fail.duplicate', empty: 'hw.fail.empty',
+  already_released: 'hw.fail.already_released',
 };
 const kinds: Record<HomeworkFailure['kind'], MessageKey> = {
   signin: 'tc.error.signin', denied: 'hw.fail.denied', changed: 'hw.fail.changed', too_large: 'hw.fail.too_large', failed: 'hw.fail.failed', unknown: 'tc.error.unknown', refused: 'hw.fail.denied', invalid: 'hw.fail.invalid',
