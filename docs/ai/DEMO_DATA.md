@@ -153,4 +153,5 @@ the fake demo students above. Demo data is synthetic and is never copied from a 
 - Tested by `supabase/tests/demo-students-screen.sql` (rolled back, 19 checks) and `scripts/demo-spaces.test.cjs`.
 
 Model answer pictures (`homework_keys.model_image_id`, migration `20261112120000`) are not seeded: demo data never writes Storage,
-so a picture row would point at no file. The demo homework keeps `model_image_id` null.
+so a picture row would point at no file. The demo homework keeps `model_image_id` null. The owner confirmed this (2026-11-12): no
+model answer pictures in the demo.

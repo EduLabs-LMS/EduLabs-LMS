@@ -1,6 +1,7 @@
 'use client';
 
-import { L, Localized } from '@/frontend/components/language-provider';
+import { L, Localized, useLanguage } from '@/frontend/components/language-provider';
+import { letter } from '@/shared/teacher-homework';
 import { useEffect,useState } from 'react';
 
 import { Button } from '@/frontend/components/ui/button';
@@ -20,6 +21,7 @@ import { HomeworkFileReview } from './homework-file-review';
 import { HomeworkHistory } from './homework-history';
 
 export function HomeworkStudent({initial,preview=false}:{initial:HomeworkView;preview?:boolean}) {
+ const { language }=useLanguage(), lang=language==='ar'?'ar':'en';
 
  const [view,setView]=useState(initial),[submission,setSubmission]=useState(initial.submissions[0]??null),[answers,setAnswers]=useState<HomeworkAnswer[]>(initial.submissions[0]?.answers??[]),[files,setFiles]=useState<HomeworkFile[]>(initial.submissions[0]?.files??[]),[dirty,setDirty]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[uploadProgress,setUploadProgress]=useState<number|null>(null);
 
@@ -70,7 +72,7 @@ export function HomeworkStudent({initial,preview=false}:{initial:HomeworkView;pr
 
   {!preview&&submission?.status==='submitted'&&<HomeworkHistory assignmentId={view.id} submissionId={submission.id} files={submission.files}/>}
 
-  <section className="border-t pt-4 space-y-3"><h3 className="font-bold text-sm"><L id="homework.model_answers_solution_walkthrough"/></h3>{!preview&&view.solutions?<><p className="whitespace-pre-wrap text-sm">{view.solutions.text||<L id="homework.noModel"/>}</p>{view.solutions.videoId?<HomeworkMedia assignmentId={view.id} id={view.solutions.videoId} video/>:view.solutions.video?<HomeworkSolutionVideo url={view.solutions.video}/>:null}{view.solutions.files.map(f=><HomeworkMedia key={f.id} assignmentId={view.id} id={f.id}/>)}{view.solutions.keys.map(k=><div className="text-sm" key={k.questionId}><strong><L id="homework.q"/>{d.questions.findIndex(q=>q.id===k.questionId)+1}:</strong> {k.correctIds.map(id=>String.fromCharCode(65+(d.questions.find(q=>q.id===k.questionId)?.options.findIndex(o=>o.id===id)??0))).join(', ')}{k.modelAnswer&&<p className="whitespace-pre-wrap">{k.modelAnswer}</p>}{'modelImageId' in k&&typeof k.modelImageId==='string'&&<div data-model-picture><HomeworkMedia assignmentId={view.id} id={k.modelImageId}/></div>}</div>)}</>:<p className="text-sm text-slate-500"><L id="homework.submit_your_homework_successfully_to"/></p>}</section>
+  <section className="border-t pt-4 space-y-3"><h3 className="font-bold text-sm"><L id="homework.model_answers_solution_walkthrough"/></h3>{!preview&&view.solutions?<><p className="whitespace-pre-wrap text-sm">{view.solutions.text||<L id="homework.noModel"/>}</p>{view.solutions.videoId?<HomeworkMedia assignmentId={view.id} id={view.solutions.videoId} video/>:view.solutions.video?<HomeworkSolutionVideo url={view.solutions.video}/>:null}{view.solutions.files.map(f=><HomeworkMedia key={f.id} assignmentId={view.id} id={f.id}/>)}{view.solutions.keys.map(k=><div className="text-sm" key={k.questionId}><strong><L id="homework.q"/>{d.questions.findIndex(q=>q.id===k.questionId)+1}:</strong> {k.correctIds.map(id=>letter(d.questions.find(q=>q.id===k.questionId)?.options.findIndex(o=>o.id===id)??0,lang)).join(lang==='ar'?'، ':', ')}{k.modelAnswer&&<p className="whitespace-pre-wrap">{k.modelAnswer}</p>}{'modelImageId' in k&&typeof k.modelImageId==='string'&&<div data-model-picture><HomeworkMedia assignmentId={view.id} id={k.modelImageId}/></div>}</div>)}</>:<p className="text-sm text-slate-500"><L id="homework.submit_your_homework_successfully_to"/></p>}</section>
 
  </section>;
 

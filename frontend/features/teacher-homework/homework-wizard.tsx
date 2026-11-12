@@ -17,7 +17,7 @@ import type { MessageKey } from '@/frontend/locales/messages';
 import { buildTree, contentFailure, type CourseStructure, type TreeLesson } from '@/shared/course-content';
 import {
   addOption, allIssues, blankAnswers, cairoDay, cairoTime, cairoToday, choiceType, chooseCourse, clampMarks, clampTries, draftSavable, fromView, letter, MAX_OPTIONS, MAX_QUESTIONS, MAX_TRIES, MIN_OPTIONS, MIN_TRIES, moveQuestion, newQuestion, newWizard,
-  placeLocked, removeOption, setKind, solutionsRule, stepIssues, toDefinition, toggleCorrect, totalMarks, wizardDeadline, WIZARD_STEPS,
+  placeCourses, placeLocked, removeOption, setKind, solutionsRule, stepIssues, toDefinition, toggleCorrect, totalMarks, wizardDeadline, WIZARD_STEPS,
   type HomeworkFailure, type HomeworkPageLoad, type Issue, type TeacherHomeworkView, type WizardQuestion, type WizardState, type WizardStep,
 } from '@/shared/teacher-homework';
 import { countText, failureWords, homeworkCall, triesText } from './homework-words';
@@ -117,7 +117,7 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
       const reply = await homeworkCall<{ id: string; revision: number | null }>(`${API}/${s.id ?? 'new'}/save`, { offeringId: s.offeringId, lessonId: s.lessonId, revision: s.revision, definition: toDefinition(s, published) });
       if (!reply.ok) {
         setFailure(reply.failure);
-        const refused = reply.failure.kind === 'refused' && (reply.failure.reason === 'started' || reply.failure.reason === 'versioned');
+        const refused = reply.failure.kind === 'refused' && (reply.failure.reason === 'started' || reply.failure.reason === 'versioned' || reply.failure.reason === 'other_space');
         setMoveRefused(refused && Boolean(s.id) && (placed.current?.offeringId !== s.offeringId || placed.current?.lessonId !== s.lessonId));
         setSave(reply.failure.kind === 'changed' || refused ? 'stale' : 'failed');
         return null;
@@ -215,7 +215,8 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
   const status = state.locked || state.status === 'published' ? null : saveText[save];
   const issueList = issues.length > 0 && <div role="alert" data-issues className="d-alert"><ul className="d-stack-xs">{issues.map((issue, i) => <li key={i} data-issue={issue.key} className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" />{t(`hw.w.issue.${issue.key}` as MessageKey, { n: (issue.question ?? 0) + 1 })}</li>)}</ul></div>;
 
-  const courseOptions = editable.flatMap(c => c.offerings.map(o => ({ value: `${c.id}:${o.id}`, label: <bdi dir="auto">{c.offerings.length > 1 ? `${c.title} · ${o.name}` : c.title}</bdi> })));
+  // A saved homework is offered only the courses of its own teaching space.
+  const courseOptions = placeCourses(editable, courses, state).flatMap(c => c.offerings.map(o => ({ value: `${c.id}:${o.id}`, label: <bdi dir="auto">{c.offerings.length > 1 ? `${c.title} · ${o.name}` : c.title}</bdi> })));
   const currentCourse = courses.find(c => c.id === state.courseId);
   if (currentCourse && !courseOptions.some(o => o.value === `${currentCourse.id}:${state.offeringId}`)) courseOptions.push({ value: `${currentCourse.id}:${state.offeringId}`, label: <bdi dir="auto">{currentCourse.title}</bdi> });
 
@@ -303,8 +304,9 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
         {q.options.length <= MIN_OPTIONS && <p id="hw-min-options" className="d-meta"><L id="hw.w.min_options" /></p>}
         {q.options.length >= MAX_OPTIONS && <p id="hw-max-options" className="d-meta"><L id="hw.w.max_options" /></p>}
       </fieldset>}
-      {q.kind === 'essay' && <div className="d-stack-xs" data-model>
-        <TextArea label={<><L id="hw.w.model_answer" /> <span className="d-meta"><L id="hw.w.model_answer_hint" /></span></>} value={q.modelAnswer} maxLength={10000} rows={2} onChange={v => setQ(x => ({ ...x, modelAnswer: v }))} data="model-answer" />
+      {/* Every question: an essay's model answer, a choice's explanation, each with an optional picture. Students see both when the solutions open. */}
+      <div className="d-stack-xs" data-model={q.kind}>
+        <TextArea label={<><L id={q.kind === 'essay' ? 'hw.w.model_answer' : 'hw.w.explanation'} /> <span className="d-meta"><L id="hw.w.model_answer_hint" /></span></>} value={q.modelAnswer} maxLength={10000} rows={2} onChange={v => setQ(x => ({ ...x, modelAnswer: v }))} data="model-answer" />
         {/* The model answer picture: images only, the same limit as a question picture; students see it when the solutions open. */}
         {q.modelImageId ? <div className="d-hw-file" data-model-picture>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -314,7 +316,7 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
         </div> : <FilePick at={modelAt} accept="image/png,image/jpeg,image/webp" label={upload?.at === modelAt ? t('hw.w.uploading', { n: upload.percent }) : t('hw.w.model_picture_add')} blocked={!state.id ? t('hw.w.picture_wait') : upload ? t('hw.w.uploading', { n: upload.percent }) : null}
           onFile={file => { if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { setUploadFailure({ at: modelAt, text: t('hw.w.picture_failed') }); return; } void uploadTo(modelAt, file, 'solution', row => setQ(x => ({ ...x, modelImageId: row.id }))); }} />}
         {uploadFailure?.at === modelAt && <p role="alert" className="d-field-error">{uploadFailure.text}</p>}
-      </div>}
+      </div>
     </section>
   </div>;
 
@@ -394,7 +396,7 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
   return <Frame title={step === 'review' ? <L id="hw.w.review_title" /> : state.title.trim() && step !== 'details' ? <bdi dir="auto">{state.title}</bdi> : <L id={homeworkId ? 'hw.w.edit' : 'hw.w.new'} />} status={status} phone={phone} step={index} onStep={i => go(WIZARD_STEPS[i])}>
     {state.locked && step !== 'review' && <div className="d-notice" data-locked-note><p className="d-content-line"><Icon name="info" /><span><L id="hw.w.locked_body" /></span></p></div>}
     {(save === 'stale' || (save === 'failed' && failure)) && <div role="alert" data-save-failure={save} className="d-alert">
-      <p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span>{save === 'stale' ? t(moveRefused ? (failure && 'reason' in failure && failure.reason === 'versioned' ? 'hw.w.move_versioned' : 'hw.w.move_started') : 'hw.w.stale') : failureWords(t, failure!)}</span></p>
+      <p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span>{save === 'stale' ? t(moveRefused ? (failure && 'reason' in failure && failure.reason === 'versioned' ? 'hw.w.move_versioned' : failure && 'reason' in failure && failure.reason === 'other_space' ? 'hw.w.move_other_space' : 'hw.w.move_started') : 'hw.w.stale') : failureWords(t, failure!)}</span></p>
       {save === 'stale' ? <Button data-reload onClick={() => void reload()}><L id="tc.reload" /></Button> : <Button data-retry-save onClick={() => void send(false)}><L id="th.state.retry" /></Button>}
     </div>}
     {failure && save !== 'stale' && save !== 'failed' && <div role="alert" className="d-alert"><p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span>{failureWords(t, failure)}</span></p></div>}

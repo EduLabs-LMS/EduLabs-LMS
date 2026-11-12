@@ -432,24 +432,27 @@ Draft migration `20261112120000_homework_move.sql`, **not applied anywhere** (on
   submissions (so never for a movable homework); demo Clear selects homework by the space's current courses and the seed ledger by
   space, so a moved homework is cleared by whichever space now holds it; course structure counts, the group summary and lesson delete
   blockers are computed live. Nothing needed rewriting.
-- **Cross-space moves** are allowed when the caller edits both courses (as asked). Open question for the owner.
+- **A move stays inside one teaching space** (owner's answer, 2026-11-12): a course in another space (organization) is refused with
+  PT409 `{"reason":"other_space"}` even when the caller edits both: by `save_homework`, by the integrity trigger for every writer,
+  and by the save route before the write. The wizard offers a saved homework only the courses of its own space.
 - **Choice questions:** no textbook switch. A choice starts with four blank answers A to D; question text and answer texts are
   optional; 2 to 8 answers. The teacher taps every right answer: one is `single_choice`, more than one `multiple_choice` (derived;
   no type control). Students are told "Choose the right answer" or "Choose every right answer". The database's textbook rule is
   dropped; 2 to 8 options, no duplicate keys and at least one right answer to publish stay.
-- **Letters** run A to H (never numbers); Arabic: أ ب ج د هـ و ز ح on the teacher's screen. The student screen keeps its Latin letters
-  for now (open question).
+- **Letters** run A to H (never numbers); Arabic: أ ب ج د هـ و ز ح, on the teacher's screen and on the student's (owner's answer).
 - **Model answer picture:** one per question in `private.homework_keys.model_image_id` (an image, uploaded through the existing flow
   with purpose `solution`, the question-picture limit). Students see it only when the solutions open for them
   (`homework_unlocked`, so also after `solutions_seen`), in `get_homework`, `homework_upload get` and Storage
-  (`homework_upload_visible`). It is copied on clone. The screen offers it on essays; the database accepts it on any question.
+  (`homework_upload_visible`). It is copied on clone. Offered on every question (owner's answer): beside an essay's model answer and beside a choice
+  question's explanation.
 - **"Photo answers for essays"** moved to the Rules step under "How students answer"; off switches photo essays to text, with a
   one-line note.
 - **Off menu items** show their reason inside the item, small and muted: "Move up (already first)", `aria-disabled` kept, on the
   question menu and the Content section (desktop menu and phone sheet).
 - **Rows** on the Homework page show "N questions · M marks" from `homework_portal` (`questionCount`, `totalMarks`, computed for the
   listed rows only).
-- **Demo data:** not extended for model pictures: demo data never writes Storage, so a model picture row would point at no file.
+- **Demo data:** not extended for model pictures (owner confirmed): demo data never writes Storage, so a model picture row would point
+  at no file.
 
 Old assertions changed: `homework-rules.sql` ("a textbook question has exactly the letters A to D" became "a question with three
 blank answers saves", and the following revisions moved up by one); `teacher-homework.test.cjs` (the textbook and one-or-several

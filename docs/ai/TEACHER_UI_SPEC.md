@@ -157,11 +157,11 @@ English and Arabic, phone first. Screenshots: `docs/design/screenshots/homework-
   reorder from the question menu (an off item says why inside it: "Move up (already first)"), a choice starts with four blank
   answers A to D (A to H, 2 to 8; Arabic أ to ح), texts optional; blank answers show as a row of letters, any text as a list; the
   teacher taps every right answer and the type follows (one: "Choose the right answer", more: "Choose every right answer"), a
-  picture per question through the existing upload flow once the draft exists, model answer text and picture for an essay),
+  picture per question through the existing upload flow once the draft exists, model answer text and picture for an essay, an explanation and picture for a choice),
   Rules ("How students answer": the photo answers switch for the whole homework, a one-line note when off; Cairo deadline, late allowed, One time / Fix mistakes / From zero with 2 to 10 tries), Solutions (when they open with the plain
   rule, solution text, an optional video or PDF), Review (a summary with Edit links, then Publish, which needs a deadline, or Save
   as draft). A draft saves itself a moment after typing ("Draft saved"); a save that finds it changed keeps what was typed and offers
-  Reload. Course and lesson stay editable until a student starts or for a later version (then `aria-disabled` with "A student has
+  Reload. A saved homework is offered only the courses of its own teaching space. Course and lesson stay editable until a student starts or for a later version (then `aria-disabled` with "A student has
   started this homework, so it stays in this lesson."); another course clears the lesson and nothing saves until one is picked; a
   move refused because a student started meanwhile keeps what was typed and offers Reload. Rows show "N questions · M marks". Homework that students started says that saving makes a new version and points to
   Change deadline for a new date. Every off control is `aria-disabled` with its reason; no native checkbox; 44 px targets.

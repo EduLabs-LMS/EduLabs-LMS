@@ -4,12 +4,15 @@
 -- 1. Move. save_homework may now change a homework's lesson and/or its course run (offering, and with it the course) when no student
 --    has a try of any status AND it is the only version of its family (it supersedes nothing and nothing supersedes it). Otherwise the
 --    move is refused: PT409 "Work has started; this homework stays in its lesson" {"reason":"started"} or PT409 "A later version stays in
---    its lesson" {"reason":"versioned"}. The caller must be able to edit BOTH courses (the target offering's course before any lock, the
+--    its lesson" {"reason":"versioned"}. A move stays inside one teaching space (organization): a course in another space is refused,
+--    PT409 "A homework stays in its teaching space" {"reason":"other_space"}, even for a caller who can edit both (the owner's answer,
+--    2026-11-12). The caller must be able to edit BOTH courses (the target offering's course before any lock, the
 --    homework's own course through homework_staff 'author'). Both offerings are locked FOR SHARE in id order, then the homework FOR
 --    UPDATE, the order a student's start takes them in (the homework FOR SHARE); a start and a move therefore serialize, and whichever
 --    comes second sees the other. The move is audited ('moved', before and after course, offering and lesson). homework_integrity still
 --    checks that the lesson belongs to the course and the offering to the course; it now lets course, offering and lesson change only for
---    a homework without tries and without other versions (for every writer, the database owner included). The segment, the family, the
+--    a homework without tries and without other versions, and the course only within its space (for every writer, the database owner
+--    included). The segment, the family, the
 --    version and supersedes still never change.
 -- 2. homework_portal rows (and the To correct rows) gain questionCount and totalMarks, read only for the homework already listed.
 -- 3. A choice question may have blank answer texts with any number of answers from 2 to 8 and one or more right answers: the rule "A
@@ -45,6 +48,9 @@ begin
  if tg_op='UPDATE' and (new.course_id<>old.course_id or new.offering_id<>old.offering_id or new.lesson_id<>old.lesson_id)
   and (exists(select 1 from public.homework_submissions s where s.assignment_id=old.id) or exists(select 1 from public.homework_assignments v where v.family_id=old.family_id and v.id<>old.id)) then
   raise exception 'Homework cannot be reparented' using errcode='23514';end if;
+ -- A homework never leaves its teaching space.
+ if tg_op='UPDATE' and new.course_id<>old.course_id and (select c.organization_id from public.courses c where c.id=new.course_id) is distinct from (select c.organization_id from public.courses c where c.id=old.course_id) then
+  raise exception 'A homework stays in its teaching space' using errcode='PT409',detail='{"reason":"other_space"}';end if;
  return new;
 end $$;
 revoke all on function private.homework_integrity() from public,anon,authenticated;
@@ -103,6 +109,9 @@ begin
  if a.revision<>coalesce(p_revision,0) then raise exception 'Homework changed; reload' using errcode='PT409';end if;
  moving:=a.offering_id<>p_offering or a.lesson_id<>p_lesson;
  if moving then
+  -- One space: a course in another teaching space is refused even when the caller can edit both.
+  if (select c.organization_id from public.courses c where c.id=o.course_id) is distinct from (select c.organization_id from public.courses c where c.id=a.course_id) then
+   raise exception 'A homework stays in its teaching space' using errcode='PT409',detail='{"reason":"other_space"}';end if;
   if exists(select 1 from public.homework_submissions where assignment_id=a.id) then raise exception 'Work has started; this homework stays in its lesson' using errcode='PT409',detail='{"reason":"started"}';end if;
   if exists(select 1 from public.homework_assignments v where v.family_id=a.family_id and v.id<>a.id) then raise exception 'A later version stays in its lesson' using errcode='PT409',detail='{"reason":"versioned"}';end if;
  end if;

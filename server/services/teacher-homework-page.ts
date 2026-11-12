@@ -19,7 +19,7 @@ export function loadHomeworkPage(context: WebsiteContext): HomeworkPageLoad {
         const membership = active(c.organization_id), staff = context.courseStaff.find(s => s.course_id === c.id) ?? null;
         const manager = Boolean(membership && (['owner', 'admin'].includes(membership.role) || (staff && ['owner', 'instructor'].includes(staff.role))));
         return {
-          id: c.id, title: c.title, status: c.status, canEdit: c.status !== 'archived' && canEditTeacherCourse(membership, staff),
+          id: c.id, spaceId: c.organization_id, title: c.title, status: c.status, canEdit: c.status !== 'archived' && canEditTeacherCourse(membership, staff),
           offerings: runs(c.id).map(o => ({ id: o.id, name: o.name ?? '', canManage: manager || context.offeringStaff.some(s => s.offering_id === o.id && s.role === 'instructor') })),
         };
       })

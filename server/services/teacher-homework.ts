@@ -37,6 +37,11 @@ async function courseOfOffering(offeringId: string) {
   const { data } = await client.from('course_offerings').select('course_id').eq('id', offeringId).maybeSingle();
   return data?.course_id ?? null;
 }
+async function spaceOfCourse(courseId: string) {
+  const client = await getSupabaseServerClient();
+  const { data } = await client.from('courses').select('organization_id').eq('id', courseId).maybeSingle();
+  return data?.organization_id ?? null;
+}
 async function courseOfHomework(id: string) {
   const client = await getSupabaseServerClient();
   const { data } = await client.from('homework_assignments').select('course_id').eq('id', id).maybeSingle();
@@ -47,6 +52,8 @@ async function courseOfHomework(id: string) {
  * Save the wizard (a new draft when id is null). The reply carries the new revision from a fresh read, so the next autosave sends it.
  * A save may move the homework to another lesson or course: the caller must edit the course it goes to and the course it is in now. The
  * database checks both again and refuses a move once a student started ({"reason":"started"}) or for a later version ({"reason":"versioned"}).
+ * A move stays inside one teaching space: a course in another space is refused here, before the write, with {"reason":"other_space"}, even
+ * for a teacher who edits both (the database refuses it too).
  */
 export async function saveHomework(userId: string, id: string | null, input: HomeworkSave): Promise<HomeworkResult> {
   const courseId = await courseOfOffering(input.offeringId);
@@ -54,6 +61,10 @@ export async function saveHomework(userId: string, id: string | null, input: Hom
   if (id) {
     const from = await courseOfHomework(id);
     if (!from || (from !== courseId && !await editableTeacherCourse(userId, from))) return denied;
+    if (from !== courseId) {
+      const [here, there] = await Promise.all([spaceOfCourse(from), spaceOfCourse(courseId)]);
+      if (here !== there) return { status: 409, body: { kind: 'refused', reason: 'other_space' } };
+    }
   }
   const client = await getSupabaseServerClient();
   const { data, error } = await client.rpc('save_homework', { p_assignment: id, p_offering: input.offeringId, p_lesson: input.lessonId, p_segment: null, p_revision: input.revision, p_definition: input.definition as unknown as Json, p_confirm_mode_change: false });

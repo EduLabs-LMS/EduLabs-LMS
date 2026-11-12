@@ -120,6 +120,16 @@ test('wizard: answers are lettered A to H in English and in the Arabic abjad ord
  assert.equal(hw.letter(5), 'F'); assert.equal(hw.letter(4, 'ar'), 'هـ');
  for (const i of [-1, 8, 99]) assert.doesNotMatch(hw.letter(i) + hw.letter(i, 'ar'), /\d/, 'out of range is still a letter');
 });
+test('wizard: a saved homework is offered only the courses of its own teaching space; a new one any', () => {
+ const all = [{ id: uuid(1), spaceId: 'a' }, { id: uuid(8), spaceId: 'a' }, { id: uuid(20), spaceId: 'b' }];
+ assert.deepEqual(plain(hw.placeCourses(all, all, { id: null, courseId: '' }).map(c => c.id)), [uuid(1), uuid(8), uuid(20)], 'new: every editable course');
+ assert.deepEqual(plain(hw.placeCourses(all, all, { id: uuid(50), courseId: uuid(1) }).map(c => c.id)), [uuid(1), uuid(8)], 'saved in space a: space a only');
+ assert.deepEqual(plain(hw.placeCourses(all, all, { id: uuid(50), courseId: uuid(20) }).map(c => c.id)), [uuid(20)]);
+ assert.deepEqual(plain(hw.placeCourses(all.slice(1), all, { id: uuid(50), courseId: uuid(1) }).map(c => c.id)), [uuid(8)], 'the space comes from every course, editable or not');
+ assert.deepEqual(plain(hw.placeCourses(all, all, { id: uuid(50), courseId: uuid(99) })), [], 'an unknown course offers nothing to move to');
+ assert.match(read('frontend/features/teacher-homework/homework-wizard.tsx'), /placeCourses\(editable, courses, state\)/);
+ assert.match(read('server/services/teacher-homework-page.ts'), /spaceId: c\.organization_id/);
+});
 test('wizard: course and lesson move until a student starts or for a later version; another course empties the lesson', () => {
  const s = { ...complete(), id: uuid(50), revision: 3 };
  assert.equal(hw.placeLocked(s), false, 'a saved homework nobody started may move');
@@ -189,8 +199,13 @@ test('wizard: what is saved reads back as the same wizard', () => {
  const s = { ...complete(), id: uuid(50), revision: 7, tries: 'fix_mistakes', maxTries: 4, photos: false, lateAllowed: true, solutionsOpen: 'after_deadline', solutionText: 'Look at page 12' };
  const def = hw.toDefinition(s, false);
  s.questions[2] = { ...s.questions[2], modelImageId: uuid(60) };
+ s.questions[0] = { ...s.questions[0], modelAnswer: 'B: the current halves', modelImageId: uuid(61) };
  const def2 = hw.toDefinition(s, false);
- assert.equal(def2.questions[2].modelImageId, uuid(60)); assert.equal(def2.questions[0].modelImageId, null, 'a choice has no model picture');
+ assert.equal(def2.questions[2].modelImageId, uuid(60)); assert.equal(def2.questions[0].modelImageId, uuid(61), 'a choice question has a model answer picture too');
+ assert.equal(def2.questions[0].modelAnswer, 'B: the current halves', 'and its explanation is sent');
+ assert.equal(def2.questions[1].modelImageId, null, 'a question without one sends none');
+ assert.ok(contract.teacherHomeworkDefinition.safeParse(plain(def2)).success);
+ const swapped = hw.setKind(s.questions[0], 'essay', ids()); assert.equal(swapped.modelImageId, uuid(61)); assert.equal(swapped.modelAnswer, 'B: the current halves', 'changing the kind keeps the model answer and its picture');
  const back = hw.fromView({ id: uuid(50), offeringId: uuid(2), lessonId: uuid(3), segmentId: null, revision: 7, version: 1, locked: false, staff: true, canManage: true, workflow: 'questions', deadline: def2.rules.deadline, definition: def2 }, uuid(1));
  assert.deepEqual(plain(back), plain(s));
  assert.equal(hw.fromView({ id: uuid(50), offeringId: uuid(2), lessonId: uuid(3), segmentId: null, revision: 7, version: 3, locked: false, staff: true, canManage: true, workflow: 'questions', deadline: null, definition: def }, uuid(1)).version, 3);
@@ -257,6 +272,7 @@ test('refusals: every database code and reason maps to one status and body, and 
   [{ code: '23514', message: 'A model answer picture is an image' }, 400, { kind: 'invalid', reason: 'model_image' }],
   [{ code: 'PT409', message: 'Work has started; this homework stays in its lesson', details: '{"reason":"started"}' }, 409, { kind: 'refused', reason: 'started' }],
   [{ code: 'PT409', message: 'A later version stays in its lesson', details: '{"reason":"versioned"}' }, 409, { kind: 'refused', reason: 'versioned' }],
+  [{ code: 'PT409', message: 'A homework stays in its teaching space', details: '{"reason":"other_space"}' }, 409, { kind: 'refused', reason: 'other_space' }],
   [{ code: '23514', message: 'Complete question keys before publishing' }, 400, { kind: 'invalid', reason: 'keys' }],
   [{ code: '23514', message: 'Tries must be 2 to 10' }, 400, { kind: 'invalid', reason: 'tries' }],
   [{ code: '23514', message: 'Finish cloned media first' }, 400, { kind: 'invalid', reason: 'media' }],
@@ -282,7 +298,7 @@ test('refusals: every database code and reason maps to one status and body, and 
  assert.deepEqual(plain(hw.homeworkFailure(415, { kind: 'invalid' })), { kind: 'invalid', reason: null });
  assert.deepEqual(plain(hw.homeworkFailure(500, {})), { kind: 'failed' });
  const words = read('frontend/features/teacher-homework/homework-words.ts');
- for (const reason of ['started', 'versioned', 'still_open', 'no_deadline', 'deadline_past', 'keys', 'model_image', 'photos_off', 'tries', 'media', 'legacy']) {
+ for (const reason of ['started', 'versioned', 'other_space', 'still_open', 'no_deadline', 'deadline_past', 'keys', 'model_image', 'photos_off', 'tries', 'media', 'legacy']) {
   assert.match(words, new RegExp(`${reason}: 'hw\\.fail\\.${reason}'`), reason); assert.ok(messages.en['hw.fail.' + reason] && messages.ar['hw.fail.' + reason], reason);
  }
 });
@@ -407,7 +423,8 @@ test('routes: the user is the signed-in one; a teacher who cannot edit the cours
 });
 test('routes: a move checks the course it goes to and the course it is in; started and versioned come back as plain refusals', async () => {
  // uuid(1) is Physics (offering uuid(2)); uuid(8) is Chemistry (offering uuid(9)). The homework uuid(5) is in Physics.
- const from = { course_offerings: { [uuid(2)]: { course_id: uuid(1) }, [uuid(9)]: { course_id: uuid(8) } }, homework_assignments: { [uuid(5)]: { course_id: uuid(1) } } };
+ const from = { course_offerings: { [uuid(2)]: { course_id: uuid(1) }, [uuid(9)]: { course_id: uuid(8) } }, homework_assignments: { [uuid(5)]: { course_id: uuid(1) } },
+  courses: { [uuid(1)]: { organization_id: uuid(90) }, [uuid(8)]: { organization_id: uuid(90) } } };
  const move = (s, offeringId = uuid(9)) => s.http.homeworkSavePOST(request(`/api/teacher/homework/${uuid(5)}/save`, { body: { ...saveBody(4), offeringId } }), params(uuid(5)));
  const view = { id: uuid(5), revision: 5, staff: true };
  const both = server({ rpc: { save_homework: { data: uuid(5), error: null }, get_homework: { data: view, error: null } }, from });
@@ -429,6 +446,20 @@ test('routes: a move checks the course it goes to and the course it is in; start
  assert.equal((await move(same, uuid(2))).status, 200);
  assert.deepEqual(same.calls.filter(c => c[0] === 'editable').map(c => c[2]), [uuid(1)], 'an edit in place checks its course once');
 
+ // One space (the owner's answer): a course in another space is refused before the write, even for a teacher who edits both.
+ const spaces = { ...from, courses: { [uuid(1)]: { organization_id: uuid(90) }, [uuid(8)]: { organization_id: uuid(91) } } };
+ const across = server({ rpc: { save_homework: { data: uuid(5), error: null } }, from: spaces });
+ const away = await move(across);
+ assert.equal(away.status, 409); assert.deepEqual(plain(away.body), { kind: 'refused', reason: 'other_space' });
+ assert.deepEqual(across.calls.filter(c => c[0] === 'editable').map(c => c[2]), [uuid(8), uuid(1)], 'after both courses were checked');
+ assert.ok(!across.calls.some(c => c[0] === 'rpc'), 'no write was tried');
+ assert.deepEqual(plain(hw.homeworkFailure(away.status, away.body)), { kind: 'refused', reason: 'other_space' });
+ assert.ok(messages.en['hw.fail.other_space'] && messages.ar['hw.fail.other_space'] && messages.en['hw.w.move_other_space'] && messages.ar['hw.w.move_other_space'], 'the screen names it');
+ assert.match(read('frontend/features/teacher-homework/homework-wizard.tsx'), /reply\.failure\.reason === 'other_space'/, 'and keeps what was typed with Reload');
+ const inside = server({ rpc: { save_homework: { data: uuid(5), error: null }, get_homework: { data: view, error: null } }, from: spaces });
+ assert.equal((await move(inside, uuid(2))).status, 200, 'a move inside its course never asks about spaces');
+ const dbSaysSo = server({ rpc: { save_homework: { data: null, error: { code: 'PT409', message: 'A homework stays in its teaching space', details: '{"reason":"other_space"}' } } }, from });
+ assert.deepEqual(plain((await move(dbSaysSo)).body), { kind: 'refused', reason: 'other_space' }, 'the database\'s own refusal maps the same way');
  for (const reason of ['started', 'versioned']) {
   const refused = server({ rpc: { save_homework: { data: null, error: { code: 'PT409', message: reason === 'started' ? 'Work has started; this homework stays in its lesson' : 'A later version stays in its lesson', details: JSON.stringify({ reason }) } } }, from });
   const r = await move(refused);

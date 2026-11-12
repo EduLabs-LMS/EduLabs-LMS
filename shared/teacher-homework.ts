@@ -68,7 +68,8 @@ export type Portal = {
   counts: Record<PortalTab, number>; toCorrect: PortalRow[]; rows: PortalRow[];
 };
 /** What the page knows about each course before any homework read (from the signed-in teacher's own context; the database decides again). */
-export type HomeworkCourse = { id: string; title: string; status: string; canEdit: boolean; offerings: { id: string; name: string; canManage: boolean }[] };
+/** `spaceId`: the teaching space (organization) the course belongs to; a homework never moves out of its space. */
+export type HomeworkCourse = { id: string; spaceId: string; title: string; status: string; canEdit: boolean; offerings: { id: string; name: string; canManage: boolean }[] };
 export type HomeworkPageLoad = { state: 'ready'; courses: HomeworkCourse[] } | { state: 'error' };
 
 export const pageCount = (count: number, size: number) => Math.max(1, Math.ceil(count / size));
@@ -93,7 +94,7 @@ export function rowActions(row: Pick<PortalRow, 'status' | 'deadline' | 'workflo
 type DatabaseError = { code?: string | null; message?: string | null; details?: string | null };
 const reasonByMessage: [RegExp, string][] = [
   [/^Work has started/, 'started'], [/^Set a deadline/, 'no_deadline'], [/^The new deadline must be in the future/, 'deadline_past'],
-  [/^Photo answers are off/, 'photos_off'], [/^A model answer picture/, 'model_image'], [/^Complete question keys/, 'keys'], [/^Tries must be/, 'tries'],
+  [/^Photo answers are off/, 'photos_off'], [/^A model answer picture/, 'model_image'], [/^A homework stays in its teaching space/, 'other_space'], [/^Complete question keys/, 'keys'], [/^Tries must be/, 'tries'],
   [/^Finish (cloned|this version|original)/, 'media'], [/^Only new homework has a deadline/, 'legacy'],
 ];
 /**
@@ -134,7 +135,7 @@ export function homeworkFailure(status: number | null, body: unknown): HomeworkF
 /**
  * A question on screen. A choice question has 2 to 8 answers, each with optional text, and the teacher marks every right one: one right
  * answer is single choice, more than one is multiple choice (derived, never chosen). Its question text is optional too. An essay may have a
- * model answer text and a model answer picture, which students see when the solutions open for them.
+ * model answer text and a choice an explanation; either may carry a model answer picture. Students see them when the solutions open.
  */
 export type WizardQuestion = {
   id: string; kind: 'choice' | 'essay'; text: string; imageId: string | null; points: number;
@@ -164,7 +165,7 @@ export function newWizard(id: Ids, defaults: Partial<Pick<WizardState, 'courseId
 export function setKind(q: WizardQuestion, kind: 'choice' | 'essay', id: Ids): WizardQuestion {
   if (q.kind === kind) return q;
   const fresh = newQuestion(kind, id);
-  return { ...fresh, id: q.id, text: q.text, imageId: q.imageId, points: q.points };
+  return { ...fresh, id: q.id, text: q.text, imageId: q.imageId, points: q.points, modelAnswer: q.modelAnswer, modelImageId: q.modelImageId };
 }
 /** Single choice with one right answer (or none yet), multiple choice with more than one. What students are told follows from it. */
 export const choiceType = (q: Pick<WizardQuestion, 'correctIds'>) => q.correctIds.length > 1 ? 'multiple_choice' as const : 'single_choice' as const;
@@ -193,6 +194,15 @@ export const letter = (i: number, lang: Lang = 'en') => LETTERS[lang][Math.max(0
 
 /** Course and lesson are fixed once a student has started (locked) or for a later version; until then a saved homework may move. */
 export const placeLocked = (s: Pick<WizardState, 'locked' | 'version'>) => s.locked || s.version > 1;
+/**
+ * The courses a homework may be placed in: any of the given ones while it is new; once saved, only those of its own teaching space (the
+ * owner's rule: a move never leaves its space; the route and the database refuse it with {"reason":"other_space"} anyway).
+ */
+export function placeCourses<C extends Pick<HomeworkCourse, 'id' | 'spaceId'>>(courses: C[], all: readonly Pick<HomeworkCourse, 'id' | 'spaceId'>[], s: Pick<WizardState, 'id' | 'courseId'>): C[] {
+  if (!s.id) return courses;
+  const space = all.find(c => c.id === s.courseId)?.spaceId;
+  return courses.filter(c => space ? c.spaceId === space : c.id === s.courseId);
+}
 /** Choosing another course empties the lesson (it belongs to the old course); another run of the same course keeps it. */
 export function chooseCourse(s: WizardState, courseId: string, offeringId: string): WizardState {
   if (placeLocked(s)) return s;
@@ -245,8 +255,7 @@ export function toDefinition(s: WizardState, published: boolean) {
       id: q.id, type: q.kind === 'essay' ? 'essay' as const : choiceType(q),
       text: q.text, imageId: q.imageId, points: clampMarks(q.points), responseMode: q.kind === 'essay' ? (s.photos ? 'both' as const : 'text' as const) : 'text' as const,
       options: q.kind === 'essay' ? [] : q.options.map(o => ({ id: o.id, text: o.text })),
-      correctIds: q.kind === 'essay' ? [] : q.correctIds, modelAnswer: q.kind === 'essay' ? q.modelAnswer : '',
-      modelImageId: q.kind === 'essay' ? q.modelImageId : null,
+      correctIds: q.kind === 'essay' ? [] : q.correctIds, modelAnswer: q.modelAnswer, modelImageId: q.modelImageId,
     })),
     modelAnswer: s.solutionText, solutionVideo: '', solutionVideoId: s.solutionVideoId, referenceIds: s.referenceIds, solutionIds: s.solutionIds,
     rules: { deadline: wizardDeadline(s), lateAllowed: s.lateAllowed, tries: s.tries, maxTries: s.tries === 'one_time' ? 1 : clampTries(s.maxTries), solutionsOpen: s.solutionsOpen, photosAllowed: s.photos },

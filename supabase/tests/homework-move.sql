@@ -1,6 +1,6 @@
 -- Disposable local PostgreSQL only. Synthetic verified-gateway claims exercise database authorization, not token signatures. Every change rolls back; no real account exists.
 -- Covers migration 20261112120000_homework_move.sql: moving a homework to another lesson, run or course before any student starts, and the refusals
--- (started, versioned, rights, another space, stale, a lesson of another course); the relaxed choice rule; the model answer picture (who sees it, by
+-- (started, versioned, rights, another space, a course in another space even for a teacher of both, stale, a lesson of another course); the relaxed choice rule; the model answer picture (who sees it, by
 -- get_homework, by the upload read and by Storage path, before and after the solutions open, after a reschedule, a student of another course, the clone
 -- copy); question counts and marks on the Homework page against a naive count. EVERY identity is a Firebase identity (a non-UUID subject, created by
 -- onboard_firebase_profile). Moves raced against a student's start on separate connections are in scripts/homework-move-concurrency.cjs.
@@ -82,7 +82,7 @@ create function pg_temp.set_deadline(p_label text,i interval) returns void langu
 -- Everyone signs in with Firebase first, so each has a profile.
 set local role authenticated;
 do $$ declare label text; begin
- foreach label in array array['owner','teacher','physonly','chemonly','ta','s1','s2','s3','s4','outsider'] loop
+ foreach label in array array['owner','teacher','physonly','chemonly','ta','s1','s2','s3','s4','outsider','both'] loop
   perform pg_temp.claim(label);
   insert into pg_temp.hm_users values(label,public.onboard_firebase_profile());
  end loop;
@@ -90,17 +90,20 @@ end $$;
 reset role;
 -- Space A: Physics (two runs, two chapters), Chemistry and Art. teacher instructs Physics and Chemistry; physonly edits Physics only; chemonly
 -- edits Chemistry only; nobody but the owner edits Art. Space B: outsider's own course. s1, s2 study Physics run 1, s4 Physics run 2, s3 Chemistry.
+-- both teaches in both spaces: an instructor of Physics (space A) and of the foreign course (space B).
 insert into public.organizations(id,name,slug) values(pg_temp.key('org_a'),'Synthetic move A','hm-a-'||current_setting('hm.run')),(pg_temp.key('org_b'),'Synthetic move B','hm-b-'||current_setting('hm.run'));
 insert into public.organization_memberships(organization_id,user_id,role,status,joined_at)
  select pg_temp.key('org_a'),pg_temp.uid(l),r,'active',now() from (values('owner','owner'),('teacher','teacher'),('physonly','teacher'),('chemonly','teacher'),('ta','assistant')) x(l,r)
- union all select pg_temp.key('org_b'),pg_temp.uid('outsider'),'owner','active',now();
+ union all select pg_temp.key('org_b'),pg_temp.uid('outsider'),'owner','active',now()
+ union all select pg_temp.key('org_a'),pg_temp.uid('both'),'teacher','active',now() union all select pg_temp.key('org_b'),pg_temp.uid('both'),'teacher','active',now();
 insert into public.courses(id,organization_id,title,slug,status,visibility,created_by) values
  (pg_temp.key('phys'),pg_temp.key('org_a'),'Synthetic Physics','hm-phys','published','private',pg_temp.uid('owner')),
  (pg_temp.key('chem'),pg_temp.key('org_a'),'Synthetic Chemistry','hm-chem','published','private',pg_temp.uid('owner')),
  (pg_temp.key('art'),pg_temp.key('org_a'),'Synthetic Art','hm-art','published','private',pg_temp.uid('owner')),
  (pg_temp.key('foreign'),pg_temp.key('org_b'),'Foreign course','hm-foreign','published','private',pg_temp.uid('outsider'));
 insert into public.course_staff(course_id,user_id,role) values(pg_temp.key('phys'),pg_temp.uid('teacher'),'instructor'),(pg_temp.key('chem'),pg_temp.uid('teacher'),'instructor'),
- (pg_temp.key('phys'),pg_temp.uid('physonly'),'editor'),(pg_temp.key('chem'),pg_temp.uid('chemonly'),'editor');
+ (pg_temp.key('phys'),pg_temp.uid('physonly'),'editor'),(pg_temp.key('chem'),pg_temp.uid('chemonly'),'editor'),
+ (pg_temp.key('phys'),pg_temp.uid('both'),'instructor'),(pg_temp.key('foreign'),pg_temp.uid('both'),'instructor');
 insert into public.course_offerings(id,course_id,name,delivery_mode,status) values(pg_temp.key('off1'),pg_temp.key('phys'),'Run 1','scheduled','active'),(pg_temp.key('off2'),pg_temp.key('phys'),'Run 2','scheduled','active'),
  (pg_temp.key('offc'),pg_temp.key('chem'),'Chem run','scheduled','active'),(pg_temp.key('offa'),pg_temp.key('art'),'Art run','scheduled','active'),(pg_temp.key('offf'),pg_temp.key('foreign'),'Foreign run','scheduled','active');
 insert into public.offering_staff(offering_id,user_id,role) values(pg_temp.key('off1'),pg_temp.uid('ta'),'teaching_assistant');
@@ -187,6 +190,19 @@ select pg_temp.denied($s$select pg_temp.move('rights','offf','lf')$s$,'42501','a
 select pg_temp.denied($s$select pg_temp.move('rights','off1','l2')$s$,'42501','nor inside its course');
 select pg_temp.claim('ta');
 select pg_temp.denied($s$select pg_temp.move('rights','off1','l2')$s$,'42501','an assistant cannot move a homework');
+-- One space (the owner's answer): a teacher who edits a course in each space still cannot move a homework across.
+select pg_temp.claim('both');
+select pg_temp.ok(private.can_edit_course(pg_temp.key('phys')) and private.can_edit_course(pg_temp.key('foreign')),'both edits a course in each space');
+select pg_temp.make('spaces',false);
+select pg_temp.ok(pg_temp.refusal($s$select pg_temp.move('spaces','offf','lf')$s$)=jsonb_build_object('code','PT409','message','A homework stays in its teaching space','reason','other_space'),
+ 'a move to a course in another space is refused even for a teacher of both: PT409 {"reason":"other_space"}');
+select pg_temp.move('spaces','off2','l2');
+select pg_temp.ok(pg_temp.place('spaces')='phys/off2/l2','the same teacher moves it within its space');
+select pg_temp.claim('outsider');
+select pg_temp.make('foreign_hw',false,'offf','lf');
+select pg_temp.claim('both');
+select pg_temp.ok(pg_temp.refusal($s$select pg_temp.move('foreign_hw','off1','l1')$s$)->>'reason'='other_space','and from the other space into this one');
+select pg_temp.ok(pg_temp.place('foreign_hw')='foreign/offf/lf','where it was');
 reset role;
 select pg_temp.ok(pg_temp.place('rights')='phys/off1/l1' and (select count(*)=0 from pg_temp.audits('rights','moved')),'refused moves left it where it was, with no move audit');
 set local role authenticated;
@@ -203,6 +219,8 @@ select pg_temp.denied($s$update public.homework_assignments set lesson_id=pg_tem
 select pg_temp.denied($s$update public.homework_assignments set lesson_id=pg_temp.key('lc') where id=pg_temp.h('rights')$s$,'23514','the trigger still checks the lesson belongs to the course');
 update public.homework_assignments set course_id=pg_temp.key('art'),offering_id=pg_temp.key('offa'),lesson_id=pg_temp.key('la') where id=pg_temp.h('rights');
 select pg_temp.ok(pg_temp.place('rights')='art/offa/la','the database owner may move a homework with no work and no other version');
+select pg_temp.ok(pg_temp.refusal($s$update public.homework_assignments set course_id=pg_temp.key('foreign'),offering_id=pg_temp.key('offf'),lesson_id=pg_temp.key('lf') where id=pg_temp.h('rights')$s$)
+ =jsonb_build_object('code','PT409','message','A homework stays in its teaching space','reason','other_space'),'but not into another space: the trigger holds for every writer');
 
 -- ---------------------------------------------------------------- 3. The relaxed choice rule
 set local role authenticated;
@@ -294,6 +312,25 @@ select pg_temp.ok(pg_temp.reads(current_setting('hm.pic2')::uuid) and pg_temp.mo
 select pg_temp.claim('s2');
 select pg_temp.hand('later');
 select pg_temp.ok(not pg_temp.reads(current_setting('hm.pic2')::uuid) and pg_temp.model_key('later') is null,'a student who hands in after the reschedule waits for the new deadline');
+-- A choice question's model answer may carry a picture too, opened the same way.
+select pg_temp.claim('teacher');
+select pg_temp.make('cmodel',false,'off1','l1',jsonb_build_object('deadline',pg_temp.at('3 days'),'solutionsOpen','after_hand_in'));
+reset role;
+select set_config('hm.cpic',pg_temp.upload('cmodel','solution','image/webp')::text,true);
+set local role authenticated;
+select pg_temp.claim('teacher');
+select public.save_homework(pg_temp.h('cmodel'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('cmodel'),
+ jsonb_set(jsonb_set(pg_temp.def('cmodel',true),'{questions,0,modelImageId}',to_jsonb(current_setting('hm.cpic'))),'{questions,0,modelAnswer}','"B, because the current halves"'));
+select pg_temp.ok(((public.get_homework(pg_temp.h('cmodel'))->'definition'->'questions'->0->>'modelImageId'))::uuid=current_setting('hm.cpic')::uuid,'a choice question keeps its model answer picture');
+create function pg_temp.choice_key(p_label text) returns jsonb language sql as $$
+ select k from jsonb_array_elements(public.get_homework(pg_temp.h(p_label))->'solutions'->'keys') k where (k->>'questionId')::uuid=pg_temp.q(p_label,'q1')$$;
+select pg_temp.claim('s1');
+select pg_temp.ok(not pg_temp.reads(current_setting('hm.cpic')::uuid) and not pg_temp.gets('cmodel',current_setting('hm.cpic')::uuid),'before the solutions open a student cannot read a choice question''s picture');
+select pg_temp.hand('cmodel');
+select pg_temp.ok((pg_temp.choice_key('cmodel')->>'modelImageId')::uuid=current_setting('hm.cpic')::uuid and pg_temp.choice_key('cmodel')->>'modelAnswer'='B, because the current halves'
+ and pg_temp.reads(current_setting('hm.cpic')::uuid),'once they open: its explanation, its picture id and the picture by path');
+select pg_temp.claim('s2');
+select pg_temp.ok(not pg_temp.reads(current_setting('hm.cpic')::uuid),'not for a classmate who has not handed in');
 -- The clone copies it to a new path, like the other solution media.
 select pg_temp.claim('teacher');
 select set_config('hm.model2',public.homework_lifecycle(pg_temp.h('model'),'clone',pg_temp.rev('model'))::text,true);
@@ -324,7 +361,7 @@ select pg_temp.ok(exists(select 1 from jsonb_array_elements(public.homework_port
 select pg_temp.claim('physonly');
 select pg_temp.ok(not exists(select 1 from jsonb_array_elements(pg_temp.portal_rows()) r where (r->>'courseId')::uuid<>pg_temp.key('phys')),'a Physics editor still sees only Physics homework');
 select pg_temp.claim('outsider');
-select pg_temp.ok(jsonb_array_length(pg_temp.portal_rows())=0,'another space''s teacher sees none of it');
+select pg_temp.ok(not exists(select 1 from jsonb_array_elements(pg_temp.portal_rows()) r where (r->>'courseId')::uuid<>pg_temp.key('foreign')),'another space''s teacher sees none of it (only their own space''s homework)');
 reset role;
 
 -- ---------------------------------------------------------------- 6. Shape and grants

@@ -235,7 +235,9 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 
 ## Homework move (`claude/homework-move`, migration `20261112120000_homework_move.sql`)
 
-- `supabase/tests/homework-move.sql` (`LMS_SQL_ONLY=homework-move`, 86 checks, Firebase identities): a draft and a published
+- `supabase/tests/homework-move.sql` (`LMS_SQL_ONLY=homework-move`, 96 checks, Firebase identities): a move to a course in another
+  space refused (`other_space`) for a teacher who edits both, in both directions and by the trigger, and allowed within the space; a
+  choice question's model answer picture opened with the solutions; a draft and a published
   homework moved to another lesson and to another course (the audit row before and after); refused after a student's draft and
   after a hand-in (`started`), for a later version (`versioned`), for a teacher who cannot edit the target and for another space's
   teacher; the trigger's own refusals; the relaxed choice rule (2 to 8 blank answers, at least one key to publish, no duplicate keys);

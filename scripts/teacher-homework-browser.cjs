@@ -63,8 +63,8 @@ const H = { open: uuid(301), late: uuid(302), closed: uuid(303), draft: uuid(304
 const DAY = 86400000, NOW = Date.now(), iso = ms => new Date(ms).toISOString();
 const cairoAt = (days, time) => hw.cairoIso(hw.cairoFields(iso(NOW + days * DAY)).date, time);
 const load = { state: 'ready', courses: [
- { id: C.physics, title: 'Synthetic Physics 9', status: 'published', canEdit: true, offerings: [{ id: OFF.physics, name: 'Synthetic run', canManage: true }] },
- { id: C.arabic, title: 'لغة عربية — الصف التاسع', status: 'published', canEdit: true, offerings: [{ id: OFF.arabic, name: 'Synthetic run', canManage: true }] },
+ { id: C.physics, spaceId: 'synthetic-space', title: 'Synthetic Physics 9', status: 'published', canEdit: true, offerings: [{ id: OFF.physics, name: 'Synthetic run', canManage: true }] },
+ { id: C.arabic, spaceId: 'synthetic-space', title: 'لغة عربية — الصف التاسع', status: 'published', canEdit: true, offerings: [{ id: OFF.arabic, name: 'Synthetic run', canManage: true }] },
 ] };
 let tick = 0; const stamp = () => `2026-11-06T10:00:${String(++tick % 60).padStart(2, '0')}.${String(100000 + tick)}+00:00`;
 const structure = () => ({ archived: false, canEdit: true,
@@ -350,6 +350,8 @@ function portal(q) {
   await page.locator('[data-options="chips"] [data-option="D"]').click();
   assert.equal(await page.locator('[data-options]').getAttribute('data-choice-type'), 'single_choice', 'tapping again unmarks it');
   assert.equal(await page.locator('[data-photos-switch]').count(), 0, 'photo answers are not on the Questions step');
+  assert.equal(await page.locator('[data-model="choice"] [data-field="model-answer"] .d-field-label').innerText(), 'Explanation (students see it when solutions open)');
+  assert.match(await page.locator('[data-model="choice"] [data-file-pick]').innerText(), /Add a model answer picture/, 'a choice question offers the model answer picture too');
   await page.locator('[data-add-question]').click(); await page.locator('[data-kind="essay"]').click();
   await page.locator('[data-question] textarea').first().fill('Explain friction in two lines.');
   await page.locator('[data-step-next]').click(); await page.locator('[data-homework-wizard][data-step="rules"]').waitFor();
@@ -491,7 +493,7 @@ function portal(q) {
   const moves = pictures.filter(p => p.startsWith('move-'));
   fs.mkdirSync(moveDocs, { recursive: true }); for (const f of fs.readdirSync(moveDocs)) if (f.endsWith('.png')) fs.unlinkSync(path.join(moveDocs, f));
   for (const f of moves) fs.copyFileSync(path.join(shots, f), path.join(moveDocs, f));
-  fs.writeFileSync(path.join(moveDocs, 'README.md'), '# Homework move screenshots\n\nSynthetic harness data (scripts/teacher-homework-browser.cjs): the real screens, middleware and CSS, a fictional server checked against the real contract. Light theme; desktop 1360 and phone 390; Classic and New; English and Arabic.\n\n- move-details-unlocked: Details, course and lesson editable (nobody started)\n- move-details-locked: Details, a student started; course and lesson aria-disabled with the reason\n- move-rows: Homework rows with "N questions · M marks"\n- move-questions-chips: blank answers as a row of letters\n- move-questions-list: answers with text as a list\n- move-question-menu: "Move up (already first)" inside the item\n- move-rules-photos / move-rules-photos-off: photo answers under How students answer, and the one-line note when off\n\n' + moves.map(p => `- ${p}`).join('\n') + '\n');
+  fs.writeFileSync(path.join(moveDocs, 'README.md'), '# Homework move screenshots\n\nSynthetic harness data (scripts/teacher-homework-browser.cjs): the real screens, middleware and CSS, a fictional server checked against the real contract. Light theme; desktop 1360 and phone 390; Classic and New; English and Arabic.\n\n- move-details-unlocked: Details, course and lesson editable (nobody started)\n- move-details-locked: Details, a student started; course and lesson aria-disabled with the reason\n- move-rows: Homework rows with "N questions · M marks"\n- move-questions-chips: blank answers as a row of letters, the explanation and the model answer picture below\n- move-questions-list: answers with text as a list\n- move-question-menu: "Move up (already first)" inside the item\n- move-rules-photos / move-rules-photos-off: photo answers under How students answer, and the one-line note when off\n\n' + moves.map(p => `- ${p}`).join('\n') + '\n');
  }
  if (process.env.LMS_COPY_SHOTS && process.env.LMS_COPY_SHOTS !== 'move') { fs.mkdirSync(docs, { recursive: true }); for (const f of fs.readdirSync(docs)) if (f.endsWith('.png')) fs.unlinkSync(path.join(docs, f)); for (const f of pictures) fs.copyFileSync(path.join(shots, f), path.join(docs, f)); fs.writeFileSync(path.join(docs, 'README.md'), '# Homework UI screenshots\n\nSynthetic harness data (scripts/teacher-homework-browser.cjs): the real screens, middleware and CSS, a fictional server checked against the real contract. Light theme; desktop 1360 and phone 390; Classic and New; English and Arabic.\n\n' + pictures.map(p => `- ${p}`).join('\n') + '\n'); }
  console.log(`Homework browser checks passed: ${results.length} groups, ${pictures.length} pictures (real middleware, real contract and reply mapper, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);

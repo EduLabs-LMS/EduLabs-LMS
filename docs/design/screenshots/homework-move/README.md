@@ -5,7 +5,7 @@ Synthetic harness data (scripts/teacher-homework-browser.cjs): the real screens,
 - move-details-unlocked: Details, course and lesson editable (nobody started)
 - move-details-locked: Details, a student started; course and lesson aria-disabled with the reason
 - move-rows: Homework rows with "N questions · M marks"
-- move-questions-chips: blank answers as a row of letters
+- move-questions-chips: blank answers as a row of letters, the explanation and the model answer picture below
 - move-questions-list: answers with text as a list
 - move-question-menu: "Move up (already first)" inside the item
 - move-rules-photos / move-rules-photos-off: photo answers under How students answer, and the one-line note when off
