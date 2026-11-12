@@ -18,12 +18,12 @@ const { messages } = require('./localization-test-loader.cjs').load('frontend/lo
 const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
 const ids = () => { let n = 100; return () => uuid(++n); };
 const NOW = Date.parse('2026-11-09T10:00:00Z');
-/** A complete wizard: a textbook question (B right), a written choice and an essay, a deadline next week. */
+/** A complete wizard: a blank-answer question (B right), a written choice and an essay, a deadline next week. */
 function complete() {
  const id = ids();
  const s = hw.newWizard(id, { courseId: uuid(1), offeringId: uuid(2), lessonId: uuid(3) });
  s.title = 'Forces'; s.deadlineDate = '2026-11-16'; s.deadlineTime = '23:59';
- let book = hw.setTextbook(s.questions[0], true, id); book = hw.toggleCorrect(book, book.options[1].id);
+ const book = hw.toggleCorrect(s.questions[0], s.questions[0].options[1].id);
  let written = hw.newQuestion('choice', id); written.text = 'Which is a force?'; written.options = written.options.map((o, i) => ({ ...o, text: ['Push', 'Mass', 'Time', 'Length'][i] })); written = hw.toggleCorrect(written, written.options[0].id);
  const essay = { ...hw.newQuestion('essay', id), text: 'Explain friction', modelAnswer: 'It opposes motion' };
  s.questions = [book, written, essay];
@@ -57,7 +57,8 @@ test('the week runs Saturday to Friday in Cairo: the screen shows the Friday bef
 test('wizard: each step names what stops it, in order; a complete homework has none', () => {
  const empty = hw.newWizard(ids());
  assert.deepEqual(plain(hw.stepIssues(empty, 'details', NOW).map(i => i.key)), ['title', 'course', 'lesson']);
- assert.deepEqual(plain(hw.stepIssues(empty, 'questions', NOW)), [{ step: 'questions', key: 'question_text', question: 0 }, { step: 'questions', key: 'option_text', question: 0 }, { step: 'questions', key: 'correct', question: 0 }]);
+ assert.deepEqual(plain(hw.stepIssues(empty, 'questions', NOW)), [{ step: 'questions', key: 'correct', question: 0 }], 'a choice needs only a right answer: its texts are optional');
+ assert.deepEqual(plain(hw.stepIssues({ ...empty, questions: [hw.newQuestion('essay', ids())] }, 'questions', NOW).map(i => i.key)), ['question_text'], 'an essay still needs its question');
  assert.deepEqual(plain(hw.stepIssues(empty, 'rules', NOW).map(i => i.key)), ['deadline']);
  assert.deepEqual(plain(hw.stepIssues(empty, 'solutions', NOW)), [], 'solutions are optional');
  const s = complete();
@@ -68,34 +69,21 @@ test('wizard: each step names what stops it, in order; a complete homework has n
  assert.deepEqual(plain(hw.stepIssues({ ...s, deadlineDate: '2026-04-24', deadlineTime: '00:30' }, 'rules', NOW).map(i => i.key)), ['deadline_invalid']);
  assert.equal(hw.WIZARD_STEPS.join(), 'details,questions,rules,solutions,review');
 });
-test('wizard: a textbook question is A to D, one answer, no text; switching it off lets text back in', () => {
+test('wizard: a choice starts with four blank answers A to D; texts are optional; 2 to 8 answers; tap marks and unmarks any number', () => {
  const id = ids(); let q = hw.newQuestion('choice', id);
- q = hw.addOption(q, id); q.options = q.options.map((o, i) => ({ ...o, text: 'Option ' + i })); q = hw.setMultiple(q, true);
- q = hw.toggleCorrect(q, q.options[1].id); q = hw.toggleCorrect(q, q.options[4].id);
- assert.equal(q.options.length, 5); assert.equal(q.correctIds.length, 2);
- const book = hw.setTextbook(q, true, id);
- assert.equal(book.options.length, 4); assert.ok(book.options.every(o => o.text === '')); assert.equal(book.multiple, false);
- assert.deepEqual(plain(book.correctIds), [q.options[1].id], 'a kept answer among A to D stays, the fifth is gone');
- assert.equal(hw.addOption(book, id), book, 'no fifth letter'); assert.equal(hw.removeOption(book, book.options[0].id), book, 'no fewer letters');
- assert.equal(hw.setMultiple(book, true).multiple, false, 'one correct answer');
- assert.equal(hw.toggleCorrect(book, book.options[3].id).correctIds.join(), book.options[3].id, 'choosing another replaces it');
- assert.deepEqual(plain(hw.stepIssues({ ...complete(), questions: [book] }, 'questions', NOW)), [], 'no question text needed: it is in the book');
- const def = hw.toDefinition({ ...complete(), questions: [{ ...book, options: book.options.map(o => ({ ...o, text: 'leaked' })) }] }, false);
- assert.ok(def.questions[0].options.every(o => o.text === ''), 'nothing typed before is sent');
- assert.equal(hw.setTextbook(book, false, id).textbook, false);
- assert.equal(hw.setTextbook(hw.newQuestion('essay', id), true, id).textbook, false, 'an essay is never a textbook question');
-});
-test('wizard: choices, option limits, one or several answers, kinds and reordering', () => {
- const id = ids(); let q = hw.newQuestion('choice', id);
+ assert.equal(q.options.length, 4); assert.ok(q.options.every(o => o.text === '')); assert.equal(q.text, ''); assert.ok(hw.blankAnswers(q));
+ assert.ok(!('textbook' in q) && !('multiple' in q), 'no textbook switch and no type control');
  for (let i = 0; i < 10; i++) q = hw.addOption(q, id);
  assert.equal(q.options.length, hw.MAX_OPTIONS);
  for (let i = 0; i < 10; i++) q = hw.removeOption(q, q.options[0].id);
  assert.equal(q.options.length, hw.MIN_OPTIONS);
  q = hw.toggleCorrect(q, q.options[0].id); q = hw.toggleCorrect(q, q.options[1].id);
- assert.deepEqual(plain(q.correctIds), [q.options[1].id], 'one answer: the last chosen');
- q = hw.setMultiple(q, true); q = hw.toggleCorrect(q, q.options[0].id);
- assert.equal(q.correctIds.length, 2); assert.equal(hw.toggleCorrect(q, uuid(999)), q, 'an unknown option changes nothing');
- assert.equal(hw.setMultiple(q, false).correctIds.length, 1);
+ assert.equal(q.correctIds.length, 2, 'a second tap adds a second right answer');
+ assert.equal(hw.toggleCorrect(q, q.options[0].id).correctIds.join(), q.options[1].id, 'tapping a right answer again unmarks it');
+ assert.equal(hw.toggleCorrect(q, uuid(999)), q, 'an unknown option changes nothing');
+ assert.equal(hw.removeOption(q, q.options[0].id), q, 'never fewer than two');
+ const typed = { ...q, options: q.options.map((o, i) => ({ ...o, text: i ? 'Mass' : '' })) };
+ assert.ok(!hw.blankAnswers(typed), 'any answer text shows the list'); assert.ok(hw.blankAnswers({ ...q, options: q.options.map(o => ({ ...o, text: '  ' })) }));
  q.text = 'Kept'; const essay = hw.setKind(q, 'essay', id);
  assert.equal(essay.id, q.id); assert.equal(essay.text, 'Kept'); assert.equal(essay.options.length, 0); assert.equal(essay.correctIds.length, 0);
  assert.equal(hw.setKind(essay, 'choice', id).options.length, 4);
@@ -104,10 +92,57 @@ test('wizard: choices, option limits, one or several answers, kinds and reorderi
  assert.equal(hw.moveQuestion(list, 0, 3), list); assert.equal(hw.moveQuestion(list, -1, 0), list);
  assert.equal(hw.clampMarks(-3), 0); assert.equal(hw.clampMarks(1000), 100); assert.equal(hw.clampMarks(2.6), 3);
  assert.equal(hw.totalMarks(complete()), 1 + 1 + 2);
- assert.equal(hw.letter(0), 'A'); assert.equal(hw.letter(3), 'D'); assert.equal(hw.letter(5), '6');
+});
+test('wizard: the type follows the right answers: one is single choice, more than one multiple choice; nothing else is sent', () => {
+ const id = ids(); let q = hw.newQuestion('choice', id);
+ assert.equal(hw.choiceType(q), 'single_choice', 'none marked yet');
+ q = hw.toggleCorrect(q, q.options[2].id); assert.equal(hw.choiceType(q), 'single_choice');
+ q = hw.toggleCorrect(q, q.options[0].id); assert.equal(hw.choiceType(q), 'multiple_choice');
+ const def = hw.toDefinition({ ...complete(), questions: [q] }, true);
+ assert.equal(def.questions[0].type, 'multiple_choice'); assert.deepEqual(plain(def.questions[0].correctIds), [q.options[2].id, q.options[0].id]);
+ assert.ok(contract.teacherHomeworkDefinition.safeParse(plain(def)).success, 'blank answers and a blank question publish once marked');
+ assert.equal(hw.toDefinition({ ...complete(), questions: [hw.toggleCorrect(q, q.options[0].id)] }, true).questions[0].type, 'single_choice');
+ for (const n of [2, 3, 5, 8]) {
+  let many = hw.newQuestion('choice', id); while (many.options.length < n) many = hw.addOption(many, id); while (many.options.length > n) many = hw.removeOption(many, many.options[0].id);
+  many = hw.toggleCorrect(many, many.options[n - 1].id);
+  assert.ok(contract.teacherHomeworkDefinition.safeParse(plain(hw.toDefinition({ ...complete(), questions: [many] }, true))).success, n + ' blank answers');
+ }
+ const forged = plain(def); forged.questions[0].type = 'single_choice';
+ assert.ok(!contract.teacherHomeworkDefinition.safeParse(forged).success, 'single choice with two keys is refused');
+ const unkeyed = plain(hw.toDefinition({ ...complete(), questions: [hw.newQuestion('choice', id)] }, true));
+ assert.ok(!contract.teacherHomeworkDefinition.safeParse(unkeyed).success, 'publishing needs a right answer');
+ const dup = plain(def); dup.questions[0].options[1].id = dup.questions[0].options[0].id;
+ assert.ok(!contract.teacherHomeworkDefinition.safeParse(dup).success, 'no duplicate answer keys');
+});
+test('wizard: answers are lettered A to H in English and in the Arabic abjad order, never numbers', () => {
+ assert.equal(Array.from({ length: 8 }, (_, i) => hw.letter(i)).join(''), 'ABCDEFGH');
+ assert.deepEqual(Array.from({ length: 8 }, (_, i) => hw.letter(i, 'ar')), ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح']);
+ assert.equal(hw.letter(5), 'F'); assert.equal(hw.letter(4, 'ar'), 'هـ');
+ for (const i of [-1, 8, 99]) assert.doesNotMatch(hw.letter(i) + hw.letter(i, 'ar'), /\d/, 'out of range is still a letter');
+});
+test('wizard: course and lesson move until a student starts or for a later version; another course empties the lesson', () => {
+ const s = { ...complete(), id: uuid(50), revision: 3 };
+ assert.equal(hw.placeLocked(s), false, 'a saved homework nobody started may move');
+ assert.equal(hw.placeLocked({ ...s, status: 'published' }), false, 'published too');
+ assert.equal(hw.placeLocked({ ...s, locked: true }), true, 'a student started (get_homework locked)');
+ assert.equal(hw.placeLocked({ ...s, version: 2 }), true, 'a later version');
+ assert.equal(hw.placeLocked(hw.newWizard(ids())), false);
+ const other = hw.chooseCourse(s, uuid(8), uuid(9));
+ assert.deepEqual([other.courseId, other.offeringId, other.lessonId], [uuid(8), uuid(9), ''], 'another course clears the lesson');
+ assert.ok(!hw.draftSavable(other), 'so nothing autosaves until a lesson is picked');
+ assert.ok(hw.draftSavable({ ...other, lessonId: uuid(10) }));
+ const run = hw.chooseCourse(s, uuid(1), uuid(11));
+ assert.deepEqual([run.offeringId, run.lessonId], [uuid(11), uuid(3)], 'another run of the same course keeps the lesson');
+ const locked = { ...s, locked: true };
+ assert.equal(hw.chooseCourse(locked, uuid(8), uuid(9)), locked, 'locked: nothing changes'); assert.equal(hw.chooseCourse({ ...s, version: 2 }, uuid(8), uuid(9)).courseId, uuid(1));
+ const wizard = read('frontend/features/teacher-homework/homework-wizard.tsx');
+ assert.match(wizard, /const fixed = placeLocked\(state\)/); assert.match(wizard, /chooseCourse\(s, c, o\)/);
+ assert.match(wizard, /reason === 'started' \|\| reply\.failure\.reason === 'versioned'/, 'a refused move keeps what was typed and offers Reload');
+ assert.equal(messages.en['hw.w.fixed'], 'A student has started this homework, so it stays in this lesson.');
 });
 test('wizard: photo answers off make every essay text only; on, essays take text or a photo; choices are always chosen', () => {
  const s = complete();
+ assert.match(read('frontend/features/teacher-homework/homework-wizard.tsx'), /data-photos>\n\s*<legend className="d-field-label"><L id="hw.w.answer_heading" \/>/, 'the switch is on the Rules step under How students answer');
  assert.deepEqual(plain(hw.toDefinition(s, true).questions.map(q => q.responseMode)), ['text', 'text', 'both']);
  const off = hw.toDefinition({ ...s, photos: false }, true);
  assert.ok(off.questions.every(q => q.responseMode === 'text')); assert.equal(off.rules.photosAllowed, false);
@@ -144,8 +179,8 @@ test('wizard: a draft saves once it has a title, a course, a lesson and question
  assert.ok(!hw.draftSavable({ ...s, title: '  ' })); assert.ok(!hw.draftSavable({ ...s, lessonId: '' })); assert.ok(!hw.draftSavable({ ...s, offeringId: '' })); assert.ok(!hw.draftSavable({ ...s, questions: [] }));
  assert.ok(!hw.draftSavable({ ...s, deadlineDate: '2026-04-24', deadlineTime: '00:30' }), 'an impossible time is not stored');
  const id = ids(); const blankFive = hw.addOption(hw.newQuestion('choice', id), id);
- assert.ok(!hw.draftSavable({ ...s, questions: [blankFive] }), 'five blank options would be refused as a textbook question');
- assert.ok(hw.draftSavable({ ...s, questions: [hw.newQuestion('choice', id)] }), 'four blank options are a textbook question in the making');
+ assert.ok(hw.draftSavable({ ...s, questions: [blankFive] }), 'five blank answers save (no textbook rule)');
+ assert.ok(hw.draftSavable({ ...s, questions: [hw.newQuestion('choice', id)] }), 'four blank answers save');
  const def = plain(hw.toDefinition({ ...s, questions: [hw.newQuestion('choice', id)] }, false));
  assert.ok(contract.teacherHomeworkDefinition.safeParse(def).success, 'and the contract takes it as a draft');
  assert.ok(!contract.teacherHomeworkDefinition.safeParse({ ...def, published: true }).success, 'but not published without a key');
@@ -153,9 +188,12 @@ test('wizard: a draft saves once it has a title, a course, a lesson and question
 test('wizard: what is saved reads back as the same wizard', () => {
  const s = { ...complete(), id: uuid(50), revision: 7, tries: 'fix_mistakes', maxTries: 4, photos: false, lateAllowed: true, solutionsOpen: 'after_deadline', solutionText: 'Look at page 12' };
  const def = hw.toDefinition(s, false);
- const back = hw.fromView({ id: uuid(50), offeringId: uuid(2), lessonId: uuid(3), segmentId: null, revision: 7, version: 1, locked: false, staff: true, canManage: true, workflow: 'questions', deadline: def.rules.deadline, definition: def }, uuid(1));
- const strip = x => plain({ ...x, questions: x.questions.map(q => ({ ...q, options: q.options })) });
- assert.deepEqual(strip(back), strip({ ...s, questions: s.questions.map(q => q.kind === 'essay' ? q : { ...q, options: q.textbook ? q.options.map(o => ({ ...o, text: '' })) : q.options }) }));
+ s.questions[2] = { ...s.questions[2], modelImageId: uuid(60) };
+ const def2 = hw.toDefinition(s, false);
+ assert.equal(def2.questions[2].modelImageId, uuid(60)); assert.equal(def2.questions[0].modelImageId, null, 'a choice has no model picture');
+ const back = hw.fromView({ id: uuid(50), offeringId: uuid(2), lessonId: uuid(3), segmentId: null, revision: 7, version: 1, locked: false, staff: true, canManage: true, workflow: 'questions', deadline: def2.rules.deadline, definition: def2 }, uuid(1));
+ assert.deepEqual(plain(back), plain(s));
+ assert.equal(hw.fromView({ id: uuid(50), offeringId: uuid(2), lessonId: uuid(3), segmentId: null, revision: 7, version: 3, locked: false, staff: true, canManage: true, workflow: 'questions', deadline: null, definition: def }, uuid(1)).version, 3);
  assert.equal(back.revision, 7, 'the revision is the exact number read');
 });
 
@@ -174,7 +212,8 @@ test('contract: the wizard\'s save is accepted; extra keys, a client-named user,
   { ...save, definition: { ...definition, title: '' } }, { ...save, definition: { ...definition, title: 'a\nb' } }, { ...save, definition: { ...definition, questions: [] } },
   { ...save, definition: { ...definition, questions: Array.from({ length: 101 }, (_, i) => ({ ...definition.questions[2], id: uuid(500 + i) })) } },
   { ...save, definition: { ...definition, questions: [definition.questions[0], definition.questions[0]] } },
-  { ...save, definition: { ...definition, questions: [{ ...definition.questions[0], options: definition.questions[0].options.slice(0, 3) }] } },
+  { ...save, definition: { ...definition, questions: [{ ...definition.questions[0], options: Array.from({ length: 9 }, (_, i) => ({ id: uuid(600 + i), text: '' })), correctIds: [uuid(600)] }] } },
+  { ...save, definition: { ...definition, questions: [{ ...definition.questions[0], options: [{ id: uuid(600), text: '' }], correctIds: [uuid(600)] }] } },
   { ...save, definition: { ...definition, questions: [{ ...definition.questions[1], type: 'single_choice', correctIds: definition.questions[1].options.slice(0, 2).map(o => o.id) }] } },
   { ...save, definition: { ...definition, questions: [{ ...definition.questions[2], options: [{ id: uuid(77), text: 'x' }] }] } },
   { ...save, definition: { ...definition, questions: [{ ...definition.questions[1], responseMode: 'both' }] } },
@@ -215,7 +254,9 @@ test('refusals: every database code and reason maps to one status and body, and 
   [{ code: '23514', message: 'Set a deadline before publishing' }, 400, { kind: 'invalid', reason: 'no_deadline' }],
   [{ code: '23514', message: 'The new deadline must be in the future' }, 400, { kind: 'invalid', reason: 'deadline_past' }],
   [{ code: '23514', message: 'Photo answers are off: every essay is answered in text' }, 400, { kind: 'invalid', reason: 'photos_off' }],
-  [{ code: '23514', message: 'A textbook question has options A to D and one answer' }, 400, { kind: 'invalid', reason: 'textbook' }],
+  [{ code: '23514', message: 'A model answer picture is an image' }, 400, { kind: 'invalid', reason: 'model_image' }],
+  [{ code: 'PT409', message: 'Work has started; this homework stays in its lesson', details: '{"reason":"started"}' }, 409, { kind: 'refused', reason: 'started' }],
+  [{ code: 'PT409', message: 'A later version stays in its lesson', details: '{"reason":"versioned"}' }, 409, { kind: 'refused', reason: 'versioned' }],
   [{ code: '23514', message: 'Complete question keys before publishing' }, 400, { kind: 'invalid', reason: 'keys' }],
   [{ code: '23514', message: 'Tries must be 2 to 10' }, 400, { kind: 'invalid', reason: 'tries' }],
   [{ code: '23514', message: 'Finish cloned media first' }, 400, { kind: 'invalid', reason: 'media' }],
@@ -241,7 +282,7 @@ test('refusals: every database code and reason maps to one status and body, and 
  assert.deepEqual(plain(hw.homeworkFailure(415, { kind: 'invalid' })), { kind: 'invalid', reason: null });
  assert.deepEqual(plain(hw.homeworkFailure(500, {})), { kind: 'failed' });
  const words = read('frontend/features/teacher-homework/homework-words.ts');
- for (const reason of ['started', 'still_open', 'no_deadline', 'deadline_past', 'keys', 'textbook', 'photos_off', 'tries', 'media', 'legacy']) {
+ for (const reason of ['started', 'versioned', 'still_open', 'no_deadline', 'deadline_past', 'keys', 'model_image', 'photos_off', 'tries', 'media', 'legacy']) {
   assert.match(words, new RegExp(`${reason}: 'hw\\.fail\\.${reason}'`), reason); assert.ok(messages.en['hw.fail.' + reason] && messages.ar['hw.fail.' + reason], reason);
  }
 });
@@ -269,6 +310,7 @@ test('page: row actions follow the tab and the teacher\'s rights; sizes and page
 // --------------------------------------------------------------------------------------------------------------------------------
 const ORIGIN = 'https://lms.test';
 function server({ viewer = { id: uuid(70), backend: 'firebase' }, rpc = {}, editable = true, from = {}, remove } = {}) {
+ // `editable` is a yes for every course, or a function of the course.
  const calls = [];
  const client = {
   rpc: async (name, args) => { calls.push(['rpc', name, args]); const r = rpc[name]; return typeof r === 'function' ? r(args) : r ?? { data: null, error: null }; },
@@ -278,7 +320,7 @@ function server({ viewer = { id: uuid(70), backend: 'firebase' }, rpc = {}, edit
  const service = load('server/services/teacher-homework.ts', {
   'server-only': {}, '@/server/integrations/supabase': { getSupabaseServerClient: async () => client },
   '@/server/services/homework': { homeworkService: async () => ({ client, copyCloneMedia: async id => calls.push(['copy', id]) }) },
-  '@/server/services/teacher-course': { editableTeacherCourse: async (user, course) => { calls.push(['editable', user, course]); return editable; } },
+  '@/server/services/teacher-course': { editableTeacherCourse: async (user, course) => { calls.push(['editable', user, course]); return typeof editable === 'function' ? editable(course) : editable; } },
   '@/shared/teacher-homework': hw,
  });
  class NextResponse { constructor(body, init) { this.body = body; this.status = init.status; this.headers = new Map(Object.entries(init.headers ?? {})); } static json(body, init) { return new NextResponse(body, init); } }
@@ -336,7 +378,7 @@ test('routes: bad, oversized, wrongly typed and repeated input is refused before
 });
 test('routes: the user is the signed-in one; a teacher who cannot edit the course is refused before the write; versions go and come back exactly', async () => {
  const view = { id: uuid(5), offeringId: uuid(2), lessonId: uuid(3), revision: 9007199254740991, staff: true, locked: false };
- const s = server({ rpc: { save_homework: { data: uuid(5), error: null }, get_homework: { data: view, error: null } }, from: { course_offerings: { [uuid(2)]: { course_id: uuid(1) } } } });
+ const s = server({ rpc: { save_homework: { data: uuid(5), error: null }, get_homework: { data: view, error: null } }, from: { course_offerings: { [uuid(2)]: { course_id: uuid(1) } }, homework_assignments: { [uuid(5)]: { course_id: uuid(1) } } } });
  const r = await s.http.homeworkSavePOST(request(`/api/teacher/homework/${uuid(5)}/save`, { body: saveBody(9007199254740990) }), params(uuid(5)));
  assert.equal(r.status, 200); assert.deepEqual(plain(r.body), { id: uuid(5), revision: 9007199254740991 });
  assert.deepEqual(s.calls[0], ['editable', uuid(70), uuid(1)], 'the signed-in user, the course of the offering');
@@ -362,6 +404,56 @@ test('routes: the user is the signed-in one; a teacher who cannot edit the cours
  const thrown = server({ rpc: { homework_portal: () => { throw Error('network'); } } });
  const failed = await thrown.http.homeworkPortalGET(request('/api/teacher/homework?tab=closed&page=2', { method: 'GET', headers: { origin: null } }));
  assert.equal(failed.status, 503); assert.deepEqual(plain(failed.body), { kind: 'failed' });
+});
+test('routes: a move checks the course it goes to and the course it is in; started and versioned come back as plain refusals', async () => {
+ // uuid(1) is Physics (offering uuid(2)); uuid(8) is Chemistry (offering uuid(9)). The homework uuid(5) is in Physics.
+ const from = { course_offerings: { [uuid(2)]: { course_id: uuid(1) }, [uuid(9)]: { course_id: uuid(8) } }, homework_assignments: { [uuid(5)]: { course_id: uuid(1) } } };
+ const move = (s, offeringId = uuid(9)) => s.http.homeworkSavePOST(request(`/api/teacher/homework/${uuid(5)}/save`, { body: { ...saveBody(4), offeringId } }), params(uuid(5)));
+ const view = { id: uuid(5), revision: 5, staff: true };
+ const both = server({ rpc: { save_homework: { data: uuid(5), error: null }, get_homework: { data: view, error: null } }, from });
+ assert.equal((await move(both)).status, 200);
+ assert.deepEqual(both.calls.filter(c => c[0] === 'editable').map(c => c[2]), [uuid(8), uuid(1)], 'the target course, then the course it is in now');
+ assert.equal(both.calls.find(c => c[1] === 'save_homework')[2].p_offering, uuid(9));
+
+ const sourceOnly = server({ editable: course => course === uuid(1), rpc: { save_homework: { data: uuid(5), error: null } }, from });
+ assert.equal((await move(sourceOnly)).status, 404, 'a teacher who cannot edit the target course');
+ const targetOnly = server({ editable: course => course === uuid(8), rpc: { save_homework: { data: uuid(5), error: null } }, from });
+ assert.equal((await move(targetOnly)).status, 404, 'a teacher who cannot edit the course it is in (another space\'s teacher moving it in)');
+ const outsider = server({ editable: false, rpc: { save_homework: { data: uuid(5), error: null } }, from });
+ assert.equal((await move(outsider)).status, 404, 'another space\'s teacher');
+ const missing = server({ rpc: { save_homework: { data: uuid(5), error: null } }, from: { course_offerings: from.course_offerings } });
+ assert.equal((await move(missing)).status, 404, 'a homework the teacher cannot see');
+ for (const s of [sourceOnly, targetOnly, outsider, missing]) assert.ok(!s.calls.some(c => c[0] === 'rpc'), 'no write was tried');
+
+ const same = server({ rpc: { save_homework: { data: uuid(5), error: null }, get_homework: { data: view, error: null } }, from });
+ assert.equal((await move(same, uuid(2))).status, 200);
+ assert.deepEqual(same.calls.filter(c => c[0] === 'editable').map(c => c[2]), [uuid(1)], 'an edit in place checks its course once');
+
+ for (const reason of ['started', 'versioned']) {
+  const refused = server({ rpc: { save_homework: { data: null, error: { code: 'PT409', message: reason === 'started' ? 'Work has started; this homework stays in its lesson' : 'A later version stays in its lesson', details: JSON.stringify({ reason }) } } }, from });
+  const r = await move(refused);
+  assert.equal(r.status, 409, reason); assert.deepEqual(plain(r.body), { kind: 'refused', reason });
+  assert.deepEqual(plain(hw.homeworkFailure(r.status, r.body)), { kind: 'refused', reason });
+  assert.ok(messages.en['hw.w.move_' + reason] && messages.ar['hw.w.move_' + reason], 'the screen names it: ' + reason);
+ }
+});
+test('rows and the student screen: counts read "N questions · M marks"; students are told to choose one or every right answer; the model picture shows with the solutions', () => {
+ const page = read('frontend/features/teacher-homework/homework-page.tsx');
+ assert.match(page, /data-counts>\{countText\(t, 'question', row\.questionCount\)\} · \{countText\(t, 'mark', row\.totalMarks\)\}/);
+ const words = load('frontend/features/teacher-homework/homework-words.ts', { '@/frontend/features/teacher-course/content-words': { countForm: n => n === 1 ? 'one' : n === 2 ? 'two' : n >= 3 && n <= 10 ? 'few' : 'many' }, '@/shared/teacher-homework': hw });
+ const t = lang => (key, values = {}) => messages[lang][key].replace(/\{(\w+)\}/g, (_, k) => String(values[k]));
+ const row = (lang, q, m) => `${words.countText(t(lang), 'question', q)} · ${words.countText(t(lang), 'mark', m)}`;
+ assert.equal(row('en', 1, 1), '1 question · 1 mark'); assert.equal(row('en', 3, 12), '3 questions · 12 marks');
+ assert.equal(row('ar', 1, 2), [messages.ar['hw.count.question.one'], messages.ar['hw.count.mark.two']].join(' · '));
+ assert.equal(messages.en['homework.choose_one'], 'Choose the right answer'); assert.equal(messages.en['homework.choose_many'], 'Choose every right answer');
+ assert.match(messages.ar['homework.choose_one'], /[؀-ۿ]/); assert.match(messages.ar['homework.choose_many'], /[؀-ۿ]/);
+ const student = read('frontend/features/courses/lesson/homework-question.tsx');
+ assert.match(student, /homework\.choose_one'.*'homework\.choose_many'/);
+ assert.match(read('frontend/features/courses/lesson/homework-student.tsx'), /'modelImageId' in k&&typeof k\.modelImageId==='string'&&<div data-model-picture><HomeworkMedia assignmentId=\{view\.id\} id=\{k\.modelImageId\}\/>/, 'only inside view.solutions, which the database fills when they open');
+ const menu = read('frontend/components/design/action-menu.tsx');
+ assert.match(menu, /\{item\.label\}\{item\.reason && <>\{' '\}<span data-menu-note=\{item\.key\} className="d-menu-reason">\(\{item\.reason\}\)<\/span><\/>\}<\/Menu\.Item>/, 'the reason is inside the item: "Move up (already first)"');
+ assert.equal(`${messages.en['hw.w.q_up']} (${messages.en['hw.w.q_first']})`, 'Move up (already first)');
+ assert.match(read('frontend/features/teacher-course/content-section.tsx'), /unavailable: a\.unavailable \|\| a\.disabled, reason: a\.disabled \? a\.reason : undefined/);
 });
 test('Delete images: the database marks and lists the photos, the files are removed with the signed-in client in chunks, a failure is left for maintenance', async () => {
  const paths = Array.from({ length: 150 }, (_, i) => `${uuid(5)}/sub/${i}.jpg`);

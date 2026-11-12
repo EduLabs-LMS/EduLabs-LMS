@@ -278,7 +278,7 @@ export function CourseContent({ courseId }: { courseId: string }) {
 
   const menu = (id: string, kind: RowKind, label: string, actions: RowAction[]) => phone
     ? <Button variant="icon" aria-label={label} aria-haspopup="dialog" data-focus-id={id} data-focus-part="menu" data-row-menu="" onClick={() => openPopup({ type: 'sheet', kind, id })}><Icon name="more" size={20} /></Button>
-    : <ActionMenu label={label} triggerData={{ 'data-focus-id': id, 'data-focus-part': 'menu', 'data-row-menu': '' }} items={actions.map((a): MenuAction => ({ key: a.key, label: a.label, onSelect: a.onSelect, destructive: a.destructive, disabled: a.disabled, unavailable: a.unavailable, note: a.note, data: { 'data-action': a.key } }))} />;
+    : <ActionMenu label={label} triggerData={{ 'data-focus-id': id, 'data-focus-part': 'menu', 'data-row-menu': '' }} items={actions.map((a): MenuAction => ({ key: a.key, label: a.label, onSelect: a.onSelect, destructive: a.destructive, unavailable: a.unavailable || a.disabled, reason: a.disabled ? a.reason : undefined, note: a.note, data: { 'data-action': a.key } }))} />;
 
   const lessonRow = (chapter: TreeChapter, lesson: TreeLesson, index: number) => {
     const renaming = form?.type === 'rename' && form.id === lesson.id;
@@ -399,10 +399,10 @@ function RowPopups({ popup, tree, busy, onClosed, close, setPopup, confirmDelete
     const eyebrow = chapter ? t('tc.content.chapter_n', { n: chapter.number }) : t('tc.content.lesson_n', { n: lesson!.label });
     return <Dialog open onOpenChange={dismiss} onClosed={onClosed} data-content-sheet="" title={<><span className="d-content-eyebrow">{eyebrow}</span><br /><bdi dir="auto">{(chapter ?? lesson)!.title}</bdi></>}>
       <div className="d-sheet-list">
-        {/* Off is aria-disabled, never the disabled attribute: the row stays reachable and says why ("Already the first lesson"). */}
+        {/* Off is aria-disabled, never the disabled attribute: the row stays reachable and says why ("Move up (already first)"). */}
         {actions.map(a => { const off = Boolean(a.unavailable || a.disabled), why = a.disabled && a.reason ? `sheet-why-${a.key}` : a.unavailable && a.note ? `sheet-note-${a.key}` : undefined;
           return <button key={a.key} type="button" data-action={a.key} aria-disabled={off || undefined} aria-describedby={off ? why : undefined} className={cn('d-sheet-item', a.destructive && !off && 'd-sheet-item--danger')} onClick={() => { if (!off) close(a.onSelect); }}>
-            <span className="d-stack-xs"><span>{a.sheetLabel ?? a.label}</span>{a.disabled && a.reason && <span id={`sheet-why-${a.key}`} data-action-reason={a.key} className="d-meta">{a.reason}</span>}</span>
+            <span>{a.sheetLabel ?? a.label}{a.disabled && a.reason && ' '}{a.disabled && a.reason && <span id={`sheet-why-${a.key}`} data-action-reason={a.key} className="d-menu-reason">({a.reason})</span>}</span>
           </button>; })}
       </div>
       {actions.filter(a => a.note).map(a => <p key={a.key} id={`sheet-note-${a.key}`} data-action-note={a.key} className="d-meta">{a.note}</p>)}

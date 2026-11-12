@@ -11,7 +11,7 @@ const headers = [...code.matchAll(/create (?:or replace )?function (public|priva
 test('the file: LF only, pinned as text, followed only by the lesson publish migration, one transaction', () => {
  assert.ok(!sql.includes('\r'), 'the staging manager hashes the Git blob');
  assert.match(read('.gitattributes'), /20261109120000_homework_teacher_rules\.sql -text/);
- assert.deepEqual(names().slice(names().indexOf(NAME) + 1), ['20261110120000_lesson_publish.sql']);
+ assert.deepEqual(names().slice(names().indexOf(NAME) + 1), ['20261110120000_lesson_publish.sql', '20261112120000_homework_move.sql']);
  assert.match(code, /^\s*begin;/); assert.match(code, /commit;\s*$/);
 });
 

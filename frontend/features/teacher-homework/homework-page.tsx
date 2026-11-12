@@ -18,7 +18,7 @@ import { useLoadingRouter } from '@/frontend/components/providers/use-loading-ro
 import { actionToast } from '@/frontend/lib/action-toast';
 import { SectionError } from '@/frontend/features/teacher-home/parts';
 import { cairoDay, cairoFields, cairoIso, cairoTime, cairoToday, deadlineInFuture, pageCount, PORTAL_TABS, rowActions, storageSize, weekRange, type HomeworkFailure, type HomeworkPageLoad, type Portal, type PortalRow, type PortalTab } from '@/shared/teacher-homework';
-import { failureWords, homeworkCall, triesText } from './homework-words';
+import { countText, failureWords, homeworkCall, triesText } from './homework-words';
 
 type Popup = { type: 'deadline'; row: PortalRow } | { type: 'delete'; row: PortalRow };
 const API = '/api/teacher/homework';
@@ -184,6 +184,7 @@ export function TeacherHomeworkPage({ load }: { load: HomeworkPageLoad }) {
       <span className="d-row-body d-stack-xs">
         <span className="d-label"><bdi dir="auto">{row.title}</bdi>{row.version > 1 && <span className="d-meta"> · {t('hw.version', { n: row.version })}</span>}</span>
         <span className="d-meta"><bdi dir="auto">{row.courseTitle}</bdi> · <bdi dir="auto">{row.lessonTitle}</bdi></span>
+        {row.workflow === 'questions' && <span className="d-meta" data-counts>{countText(t, 'question', row.questionCount)} · {countText(t, 'mark', row.totalMarks)}</span>}
         {row.workflow === 'questions' && <span className="d-meta" data-rules>
           {row.deadline ? t('hw.due', { day: cairoDay(row.deadline, lang), time: cairoTime(row.deadline, lang) }) : t('hw.no_deadline')}
           {row.lateAllowed && <> · {t('hw.late_allowed')}</>} · {triesText(t, row.tries, row.maxTries)} · {t(row.solutionsOpen === 'after_deadline' ? 'hw.solutions.after_deadline' : 'hw.solutions.after_hand_in')}

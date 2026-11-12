@@ -28,3 +28,4 @@ supabase/migrations/20261106120000_listing_performance.sql -text
 supabase/migrations/20261106130000_course_content_tree.sql -text
 supabase/migrations/20261109120000_homework_teacher_rules.sql -text
 supabase/migrations/20261110120000_lesson_publish.sql -text
+supabase/migrations/20261112120000_homework_move.sql -text

@@ -42,13 +42,13 @@ module.exports = async function (makeClient, admin) {
     await admin.query("insert into public.offering_staff(offering_id,user_id,role) values($1,$2,'teaching_assistant')", [off, ids.ta]);
     await admin.query("insert into public.enrollments(offering_id,user_id,status) values($1,$2,'active')", [off, ids.student]);
 
-    // The wizard: a textbook question (B), a written choice, an essay; Cairo deadline next week, sent with its offset.
+    // The wizard: a question with four blank answers (B right), an essay; Cairo deadline next week, sent with its offset.
     const id = () => randomUUID();
     const state = hw.newWizard(id, { courseId: course, offeringId: off, lessonId: lesson });
     state.title = 'Synthetic forces homework';
     const next = new Date(Date.now() + 7 * 86400000), day = hw.cairoFields(next.toISOString()).date;
     state.deadlineDate = day; state.deadlineTime = '23:59';
-    let book = hw.setTextbook(state.questions[0], true, id); book = hw.toggleCorrect(book, book.options[1].id);
+    const book = hw.toggleCorrect(state.questions[0], state.questions[0].options[1].id);
     const essay = { ...hw.newQuestion('essay', id), text: 'Explain friction' };
     state.questions = [book, essay];
     assert.deepEqual(plain(hw.allIssues(state, Date.now())), []);
@@ -60,7 +60,8 @@ module.exports = async function (makeClient, admin) {
     assert.equal(v.staff, true); assert.equal(typeof v.revision, 'number');
     const back = hw.fromView(v, course);
     assert.equal(back.deadlineDate, day); assert.equal(back.deadlineTime, '23:59', 'the Cairo wall time reads back unchanged');
-    assert.equal(back.questions[0].textbook, true); assert.equal(back.questions[1].kind, 'essay');
+    assert.ok(hw.blankAnswers(back.questions[0])); assert.equal(hw.choiceType(back.questions[0]), 'single_choice'); assert.equal(back.questions[1].kind, 'essay');
+    assert.equal(hw.placeLocked(back), false, 'nobody started: it may still move');
     const r0 = v.revision;
     await save(who.teacher, hwId, { offeringId: off, lessonId: lesson, revision: r0, definition: hw.toDefinition({ ...back, title: 'Synthetic forces homework, edited' }, false) });
     v = await view(who.teacher, hwId);

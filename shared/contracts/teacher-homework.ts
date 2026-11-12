@@ -18,13 +18,14 @@ const option = z.object({ id, text: z.string().max(2000) }).strict();
 const question = z.object({
   id, type: z.enum(['single_choice', 'multiple_choice', 'essay']), text: z.string().max(10000), imageId: id.nullable(), points: z.number().int().min(0).max(100),
   responseMode: z.enum(['text', 'both']), options: z.array(option).max(8), correctIds: z.array(id).max(8), modelAnswer: z.string().max(10000),
+  // The model answer picture, shown to students only when the solutions open for them. Absent means none.
+  modelImageId: id.nullable().default(null),
 }).strict().superRefine((q, c) => {
   if (new Set(q.options.map(o => o.id)).size !== q.options.length) c.addIssue({ code: 'custom', message: 'option ids' });
   if (q.type === 'essay') { if (q.options.length || q.correctIds.length) c.addIssue({ code: 'custom', message: 'essay has no options' }); return; }
   if (q.responseMode !== 'text') c.addIssue({ code: 'custom', message: 'a choice is answered by choosing' });
   if (q.options.length < 2 || new Set(q.correctIds).size !== q.correctIds.length || q.correctIds.some(v => !q.options.some(o => o.id === v)) || (q.type === 'single_choice' && q.correctIds.length > 1)) c.addIssue({ code: 'custom', message: 'options and key' });
-  // A textbook question (every option blank) is A to D with one answer: the database's rule, refused here first.
-  if (q.options.every(o => !o.text.trim()) && (q.type !== 'single_choice' || q.options.length !== 4)) c.addIssue({ code: 'custom', message: 'textbook' });
+  // Question and answer texts are optional: blank answers are lettered A to H (2 to 8 of them).
 });
 export const homeworkRules = z.object({
   deadline: deadline.nullable(), lateAllowed: z.boolean(), tries: z.enum(['one_time', 'fix_mistakes', 'from_zero']), maxTries: z.number().int().min(1).max(10),

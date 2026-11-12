@@ -206,7 +206,7 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 
 - `node --test scripts/teacher-homework.test.cjs` (part of `npm test`, 23 tests): Cairo times (+02:00 winter, +03:00 summer, the
   spring gap has no time, the autumn fold takes the later instant, round trip), the Saturday to Friday week; the wizard's state
-  (step issues, the textbook rule, options and answers, photos off makes every essay text, tries 2 to 10 and one time sent as 1, the
+  (step issues, blank answers and the derived type, letters A to H and Arabic, the move lock rules, options and answers, photos off makes every essay text, tries 2 to 10 and one time sent as 1, the
   deadline with its offset, what a draft needs, read back unchanged); the contract (extra keys, a client-named user, string,
   fractional, negative and unsafe revisions refused; revisions kept exactly); every refusal code and reason mapped and read back by
   the screen; the five routes with a stubbed viewer and database client (signed out is 401 before any call, foreign origin, wrong
@@ -224,7 +224,7 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `scripts/teacher-homework-browser.cjs` (Chromium, synthetic loopback server checked against the real contract and the real
   middleware): the page, filter, row menus by tab, publish from the menu with the revision read, Change deadline with the Cairo
   offset and a past time caught on screen, Delete images, the phone list, empty/error/signed-out states, the wizard from nothing to
-  published (autosave, the draft lesson note and Publish lesson, textbook, photos off, tries capped at 10 with the reason, the
+  published (autosave, the draft lesson note and Publish lesson, blank answers as letters and the derived type, photos off on Rules, tries capped at 10 with the reason, the
   deadline offset), a stale save keeping the typed text, and started homework. Then 112 pictures: every screen and dialog at 1360
   and 390, Classic and New, English and Arabic, each measured (no sideways scroll, 44 px targets, 12 px text, no native disabled
   or checkbox, no ruled-out word, nothing says Soon). `LMS_COPY_SHOTS=1` copies them to `docs/design/screenshots/homework-ui/`.
@@ -232,3 +232,21 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
   version) and checks the phone sheet's reasons.
 - Runs: `source .local/pa-env.sh` (esbuild may need its own folder: `LMS_ESBUILD_RUNTIME`), a Firebase-mode build for fonts; CSS
   is compiled fresh by `scripts/harness-css.cjs`.
+
+## Homework move (`claude/homework-move`, migration `20261112120000_homework_move.sql`)
+
+- `supabase/tests/homework-move.sql` (`LMS_SQL_ONLY=homework-move`, 86 checks, Firebase identities): a draft and a published
+  homework moved to another lesson and to another course (the audit row before and after); refused after a student's draft and
+  after a hand-in (`started`), for a later version (`versioned`), for a teacher who cannot edit the target and for another space's
+  teacher; the trigger's own refusals; the relaxed choice rule (2 to 8 blank answers, at least one key to publish, no duplicate keys);
+  the model answer picture before and after solutions open, by Storage path, through `homework_upload get` and `get_homework`, for a
+  student of another course, an outsider, after the deadline and after a reschedule; the copy on clone; `homework_portal` counts
+  against a naive query; grants and shapes.
+- `scripts/homework-move-concurrency.cjs` (every `--postgres` run): a move first then a start (the start waits, then starts in the
+  new lesson); a start first then a move (refused `started`, nothing moves); a move to another course first then a start (refused,
+  no try left behind).
+- `scripts/teacher-homework.test.cjs` adds the letters, the derived type, the lock rules, and route tests for a move (both courses
+  checked before the write, `started` and `versioned` as plain refusals, another space's teacher denied).
+- `scripts/teacher-homework-browser.cjs` adds the move step (unlocked, locked with the reason, another course clears the lesson and
+  nothing saves until one is picked, a refused move keeps the typed text) and the row counts; `LMS_COPY_SHOTS=move` copies the
+  `move-*` pictures to `docs/design/screenshots/homework-move/`.

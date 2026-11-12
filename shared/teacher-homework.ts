@@ -9,7 +9,8 @@ export type PortalTab = 'open' | 'closed' | 'drafts';
 export const PORTAL_TABS: readonly PortalTab[] = ['open', 'closed', 'drafts'];
 export const MIN_TRIES = 2, MAX_TRIES = 10, MAX_QUESTIONS = 100, MAX_OPTIONS = 8, MIN_OPTIONS = 2, MAX_MARKS = 100;
 export const PHOTO_LIMIT_BYTES = 5 * 1024 * 1024;
-const LETTERS = ['A', 'B', 'C', 'D'] as const;
+/** Answer letters: A to H in English, the abjad order in Arabic. Never numbers. */
+const LETTERS = { en: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'], ar: ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح'] } as const;
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Cairo time
@@ -58,7 +59,7 @@ export function weekRange(weekStart: string, weekEnd: string, lang: Lang) {
 export type PortalRow = {
   id: string; title: string; courseId: string; courseTitle: string; offeringId: string; lessonId: string; lessonTitle: string; version: number;
   workflow: 'legacy' | 'questions'; mode: string; status: 'draft' | 'published'; deadline: string | null; lateAllowed: boolean; tries: Tries; maxTries: number;
-  solutionsOpen: SolutionsOpen; photosAllowed: boolean; updatedAt: string;
+  solutionsOpen: SolutionsOpen; photosAllowed: boolean; updatedAt: string; questionCount: number; totalMarks: number;
   handedIn: number | null; total: number | null; late: number | null; waiting: number | null; imageBytes: number | null;
 };
 export type Portal = {
@@ -92,10 +93,13 @@ export function rowActions(row: Pick<PortalRow, 'status' | 'deadline' | 'workflo
 type DatabaseError = { code?: string | null; message?: string | null; details?: string | null };
 const reasonByMessage: [RegExp, string][] = [
   [/^Work has started/, 'started'], [/^Set a deadline/, 'no_deadline'], [/^The new deadline must be in the future/, 'deadline_past'],
-  [/^Photo answers are off/, 'photos_off'], [/^A textbook question/, 'textbook'], [/^Complete question keys/, 'keys'], [/^Tries must be/, 'tries'],
+  [/^Photo answers are off/, 'photos_off'], [/^A model answer picture/, 'model_image'], [/^Complete question keys/, 'keys'], [/^Tries must be/, 'tries'],
   [/^Finish (cloned|this version|original)/, 'media'], [/^Only new homework has a deadline/, 'legacy'],
 ];
-/** HTTP status and body of a database refusal. PT409 carries its detail reason when it has one (deadline_passed, no_tries_left, still_open). */
+/**
+ * HTTP status and body of a database refusal. PT409 carries its detail reason when it has one (deadline_passed, no_tries_left, still_open, and
+ * for a refused move started or versioned).
+ */
 export function homeworkReply(error: DatabaseError): { status: number; body: { kind: string; reason?: string } } {
   const code = error.code ?? '', message = error.message ?? '';
   let detail: Record<string, unknown> | null = null;
@@ -127,12 +131,18 @@ export function homeworkFailure(status: number | null, body: unknown): HomeworkF
 // ---------------------------------------------------------------------------------------------------------------------------------
 // The wizard
 // ---------------------------------------------------------------------------------------------------------------------------------
+/**
+ * A question on screen. A choice question has 2 to 8 answers, each with optional text, and the teacher marks every right one: one right
+ * answer is single choice, more than one is multiple choice (derived, never chosen). Its question text is optional too. An essay may have a
+ * model answer text and a model answer picture, which students see when the solutions open for them.
+ */
 export type WizardQuestion = {
-  id: string; kind: 'choice' | 'essay'; multiple: boolean; textbook: boolean; text: string; imageId: string | null; points: number;
-  options: { id: string; text: string }[]; correctIds: string[]; modelAnswer: string;
+  id: string; kind: 'choice' | 'essay'; text: string; imageId: string | null; points: number;
+  options: { id: string; text: string }[]; correctIds: string[]; modelAnswer: string; modelImageId: string | null;
 };
 export type WizardState = {
-  id: string | null; revision: number | null; status: 'draft' | 'published'; locked: boolean;
+  /** `locked`: a student has a try (get_homework's locked). `version` above 1: a later version. Either keeps course and lesson where they are. */
+  id: string | null; revision: number | null; version: number; status: 'draft' | 'published'; locked: boolean;
   courseId: string; offeringId: string; lessonId: string; title: string; instructions: string;
   questions: WizardQuestion[]; photos: boolean;
   deadlineDate: string; deadlineTime: string; lateAllowed: boolean; tries: Tries; maxTries: number;
@@ -142,11 +152,12 @@ export const WIZARD_STEPS = ['details', 'questions', 'rules', 'solutions', 'revi
 export type WizardStep = (typeof WIZARD_STEPS)[number];
 type Ids = () => string;
 
+/** A new choice question starts with four blank answers, A to D. */
 export function newQuestion(kind: 'choice' | 'essay', id: Ids): WizardQuestion {
-  return { id: id(), kind, multiple: false, textbook: false, text: '', imageId: null, points: kind === 'essay' ? 2 : 1, options: kind === 'choice' ? Array.from({ length: 4 }, () => ({ id: id(), text: '' })) : [], correctIds: [], modelAnswer: '' };
+  return { id: id(), kind, text: '', imageId: null, points: kind === 'essay' ? 2 : 1, options: kind === 'choice' ? Array.from({ length: 4 }, () => ({ id: id(), text: '' })) : [], correctIds: [], modelAnswer: '', modelImageId: null };
 }
 export function newWizard(id: Ids, defaults: Partial<Pick<WizardState, 'courseId' | 'offeringId' | 'lessonId'>> = {}): WizardState {
-  return { id: null, revision: null, status: 'draft', locked: false, courseId: '', offeringId: '', lessonId: '', title: '', instructions: '', questions: [newQuestion('choice', id)], photos: true,
+  return { id: null, revision: null, version: 1, status: 'draft', locked: false, courseId: '', offeringId: '', lessonId: '', title: '', instructions: '', questions: [newQuestion('choice', id)], photos: true,
     deadlineDate: '', deadlineTime: '23:59', lateAllowed: false, tries: 'one_time', maxTries: 2, solutionsOpen: 'after_hand_in', solutionText: '', solutionVideoId: null, solutionIds: [], referenceIds: [], ...defaults };
 }
 /** Choice or Essay. A choice keeps nothing of an essay and the other way round, except the question text and picture. */
@@ -155,29 +166,20 @@ export function setKind(q: WizardQuestion, kind: 'choice' | 'essay', id: Ids): W
   const fresh = newQuestion(kind, id);
   return { ...fresh, id: q.id, text: q.text, imageId: q.imageId, points: q.points };
 }
-/** A textbook question: letters A to D only, one correct answer, no option text (the question is in the book). */
-export function setTextbook(q: WizardQuestion, on: boolean, id: Ids): WizardQuestion {
-  if (q.kind !== 'choice') return q;
-  if (!on) return { ...q, textbook: false };
-  const options = LETTERS.map((_, i) => ({ id: q.options[i]?.id ?? id(), text: '' }));
-  const kept = q.correctIds.find(c => options.some(o => o.id === c));
-  return { ...q, textbook: true, multiple: false, options, correctIds: kept ? [kept] : [] };
-}
-/** One correct answer, or several (multiple choice). Going back to one keeps the first that was marked. */
-export function setMultiple(q: WizardQuestion, multiple: boolean): WizardQuestion {
-  if (q.kind !== 'choice' || q.textbook) return { ...q, multiple: false };
-  return { ...q, multiple, correctIds: multiple ? q.correctIds : q.correctIds.slice(0, 1) };
-}
+/** Single choice with one right answer (or none yet), multiple choice with more than one. What students are told follows from it. */
+export const choiceType = (q: Pick<WizardQuestion, 'correctIds'>) => q.correctIds.length > 1 ? 'multiple_choice' as const : 'single_choice' as const;
+/** Every answer text is empty: the screen shows the answers as a row of letters. */
+export const blankAnswers = (q: Pick<WizardQuestion, 'options'>) => q.options.every(o => !o.text.trim());
+/** Tap an answer to mark it right, tap it again to unmark it. Any number of answers may be right. */
 export function toggleCorrect(q: WizardQuestion, optionId: string): WizardQuestion {
   if (!q.options.some(o => o.id === optionId)) return q;
-  if (!q.multiple) return { ...q, correctIds: [optionId] };
   return { ...q, correctIds: q.correctIds.includes(optionId) ? q.correctIds.filter(c => c !== optionId) : [...q.correctIds, optionId] };
 }
 export function addOption(q: WizardQuestion, id: Ids): WizardQuestion {
-  return q.kind !== 'choice' || q.textbook || q.options.length >= MAX_OPTIONS ? q : { ...q, options: [...q.options, { id: id(), text: '' }] };
+  return q.kind !== 'choice' || q.options.length >= MAX_OPTIONS ? q : { ...q, options: [...q.options, { id: id(), text: '' }] };
 }
 export function removeOption(q: WizardQuestion, optionId: string): WizardQuestion {
-  return q.kind !== 'choice' || q.textbook || q.options.length <= MIN_OPTIONS ? q : { ...q, options: q.options.filter(o => o.id !== optionId), correctIds: q.correctIds.filter(c => c !== optionId) };
+  return q.kind !== 'choice' || q.options.length <= MIN_OPTIONS ? q : { ...q, options: q.options.filter(o => o.id !== optionId), correctIds: q.correctIds.filter(c => c !== optionId) };
 }
 export const clampMarks = (n: number) => Math.min(MAX_MARKS, Math.max(0, Math.round(n)));
 export const clampTries = (n: number) => Math.min(MAX_TRIES, Math.max(MIN_TRIES, Math.round(n)));
@@ -186,7 +188,16 @@ export function moveQuestion(list: WizardQuestion[], from: number, to: number) {
   const next = list.slice(); const [row] = next.splice(from, 1); next.splice(to, 0, row); return next;
 }
 export const totalMarks = (state: Pick<WizardState, 'questions'>) => state.questions.reduce((n, q) => n + q.points, 0);
-export const letter = (i: number) => LETTERS[i] ?? String(i + 1);
+/** The letter of the answer at position i (0 to 7). */
+export const letter = (i: number, lang: Lang = 'en') => LETTERS[lang][Math.max(0, Math.min(MAX_OPTIONS - 1, i))];
+
+/** Course and lesson are fixed once a student has started (locked) or for a later version; until then a saved homework may move. */
+export const placeLocked = (s: Pick<WizardState, 'locked' | 'version'>) => s.locked || s.version > 1;
+/** Choosing another course empties the lesson (it belongs to the old course); another run of the same course keeps it. */
+export function chooseCourse(s: WizardState, courseId: string, offeringId: string): WizardState {
+  if (placeLocked(s)) return s;
+  return { ...s, courseId, offeringId, lessonId: s.courseId === courseId ? s.lessonId : '' };
+}
 
 /** The deadline the wizard will send: ISO with Cairo's offset, or null while the date is empty or impossible. */
 export const wizardDeadline = (s: Pick<WizardState, 'deadlineDate' | 'deadlineTime'>) => s.deadlineDate ? cairoIso(s.deadlineDate, s.deadlineTime) : null;
@@ -204,8 +215,7 @@ export function stepIssues(s: WizardState, step: WizardStep, now: number): Issue
     if (!s.questions.length) out.push({ step, key: 'no_questions' });
     s.questions.forEach((q, i) => {
       if (q.kind === 'essay') { if (!q.text.trim()) out.push({ step, key: 'question_text', question: i }); return; }
-      if (!q.textbook && !q.text.trim()) out.push({ step, key: 'question_text', question: i });
-      if (!q.textbook && q.options.some(o => !o.text.trim())) out.push({ step, key: 'option_text', question: i });
+      // A choice question's text and answer texts are optional (the question may be in the book); it needs a right answer.
       if (!q.correctIds.length) out.push({ step, key: 'correct', question: i });
     });
   }
@@ -224,7 +234,7 @@ export const allIssues = (s: WizardState, now: number) => (['details', 'question
 export function draftSavable(s: WizardState) {
   if (!s.title.trim() || !s.offeringId || !s.lessonId || !s.questions.length) return false;
   if (s.deadlineDate && !wizardDeadline(s)) return false;
-  return s.questions.every(q => q.kind === 'essay' || (q.options.length >= MIN_OPTIONS && q.options.length <= MAX_OPTIONS && (q.options.some(o => o.text.trim()) || (q.options.length === 4 && !q.multiple))));
+  return s.questions.every(q => q.kind === 'essay' || (q.options.length >= MIN_OPTIONS && q.options.length <= MAX_OPTIONS));
 }
 
 /** What save_homework receives. Photos off makes every essay text only; one time is one try; the deadline carries its offset. */
@@ -232,10 +242,11 @@ export function toDefinition(s: WizardState, published: boolean) {
   return {
     title: s.title.trim(), instructions: s.instructions, mode: 'PLATFORM_QUESTIONS' as const, published, usesMarks: true, filePoints: 0,
     questions: s.questions.map(q => ({
-      id: q.id, type: q.kind === 'essay' ? 'essay' as const : q.multiple ? 'multiple_choice' as const : 'single_choice' as const,
+      id: q.id, type: q.kind === 'essay' ? 'essay' as const : choiceType(q),
       text: q.text, imageId: q.imageId, points: clampMarks(q.points), responseMode: q.kind === 'essay' ? (s.photos ? 'both' as const : 'text' as const) : 'text' as const,
-      options: q.kind === 'essay' ? [] : q.options.map(o => ({ id: o.id, text: q.textbook ? '' : o.text })),
-      correctIds: q.kind === 'essay' ? [] : q.multiple ? q.correctIds : q.correctIds.slice(0, 1), modelAnswer: q.kind === 'essay' ? q.modelAnswer : '',
+      options: q.kind === 'essay' ? [] : q.options.map(o => ({ id: o.id, text: o.text })),
+      correctIds: q.kind === 'essay' ? [] : q.correctIds, modelAnswer: q.kind === 'essay' ? q.modelAnswer : '',
+      modelImageId: q.kind === 'essay' ? q.modelImageId : null,
     })),
     modelAnswer: s.solutionText, solutionVideo: '', solutionVideoId: s.solutionVideoId, referenceIds: s.referenceIds, solutionIds: s.solutionIds,
     rules: { deadline: wizardDeadline(s), lateAllowed: s.lateAllowed, tries: s.tries, maxTries: s.tries === 'one_time' ? 1 : clampTries(s.maxTries), solutionsOpen: s.solutionsOpen, photosAllowed: s.photos },
@@ -249,17 +260,17 @@ export type TeacherHomeworkView = {
   workflow: 'legacy' | 'questions'; deadline: string | null;
   definition: {
     title: string; instructions: string; mode: string; published: boolean; modelAnswer: string; solutionVideoId: string | null; referenceIds: string[]; solutionIds: string[];
-    questions: { id: string; type: 'single_choice' | 'multiple_choice' | 'essay'; text: string; imageId: string | null; points: number; responseMode: string; options: { id: string; text: string }[]; correctIds: string[]; modelAnswer: string }[];
+    questions: { id: string; type: 'single_choice' | 'multiple_choice' | 'essay'; text: string; imageId: string | null; points: number; responseMode: string; options: { id: string; text: string }[]; correctIds: string[]; modelAnswer: string; modelImageId?: string | null }[];
     rules?: { deadline: string | null; lateAllowed: boolean; tries: Tries; maxTries: number; solutionsOpen: SolutionsOpen; photosAllowed: boolean };
   };
 };
 export function fromView(v: TeacherHomeworkView, courseId: string): WizardState {
   const d = v.definition, r = d.rules, at = r?.deadline ? cairoFields(r.deadline) : null;
   return {
-    id: v.id, revision: v.revision, status: d.published ? 'published' : 'draft', locked: v.locked, courseId, offeringId: v.offeringId, lessonId: v.lessonId,
+    id: v.id, revision: v.revision, version: v.version, status: d.published ? 'published' : 'draft', locked: v.locked, courseId, offeringId: v.offeringId, lessonId: v.lessonId,
     title: d.title, instructions: d.instructions,
-    questions: d.questions.map(q => ({ id: q.id, kind: q.type === 'essay' ? 'essay' : 'choice', multiple: q.type === 'multiple_choice', textbook: q.type !== 'essay' && q.options.length === 4 && q.options.every(o => !o.text.trim()),
-      text: q.text, imageId: q.imageId, points: q.points, options: q.options, correctIds: q.correctIds, modelAnswer: q.modelAnswer })),
+    questions: d.questions.map(q => ({ id: q.id, kind: q.type === 'essay' ? 'essay' : 'choice',
+      text: q.text, imageId: q.imageId, points: q.points, options: q.options, correctIds: q.correctIds, modelAnswer: q.modelAnswer, modelImageId: q.modelImageId ?? null })),
     photos: r?.photosAllowed ?? true, deadlineDate: at?.date ?? '', deadlineTime: at?.time ?? '23:59', lateAllowed: r?.lateAllowed ?? false,
     tries: r?.tries ?? 'one_time', maxTries: r && r.tries !== 'one_time' ? r.maxTries : 2, solutionsOpen: r?.solutionsOpen ?? 'after_hand_in',
     solutionText: d.modelAnswer, solutionVideoId: d.solutionVideoId, solutionIds: d.solutionIds, referenceIds: d.referenceIds,

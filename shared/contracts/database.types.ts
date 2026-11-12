@@ -2322,6 +2322,8 @@ export type Database = {
       notification_command: { Args: { p_action: string; p_data?: Json }; Returns: Json }
       support_command: { Args: { p_action: string; p_ticket?: string | null; p_version?: number | null; p_request?: string | null; p_data?: Json }; Returns: Json }
       notification_worker: { Args: { p_action: string; p_data?: Json }; Returns: Json }
+      // Rows carry questionCount and totalMarks (20261112120000_homework_move). save_homework may move a homework to another lesson or
+      // course (PT409 detail started | versioned); its definition's questions take modelImageId, private.homework_keys.model_image_id.
       homework_portal: { Args: { p_course?: string | null; p_page?: number; p_tab?: string }; Returns: Json }
       homework_queue: { Args: { p_assignment: string; p_page?: number; p_tab?: string }; Returns: Json }
       homework_release_many: { Args: { p_assignment: string; p_items: Json }; Returns: Json }

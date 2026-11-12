@@ -165,7 +165,7 @@ This section replaces older lines where they disagree: "Only Home and the frame 
 The approved look is in `docs/design/homework-content/` (12 boards and `canvas.json`). Build with the existing design components, in both looks; do not copy board markup. These are decisions only: Homework is not built by recording them.
 
 - **File system (from the 2026-10-24 handoff):** teachers see Course > Chapter > Lesson. Homework belongs to exactly one Lesson. Exams belong to the course (later).
-- **Homework is a list of questions:** Multiple choice (auto-graded, including "textbook" questions with letters only) and Essay (a text box, plus ONE photo per question, max 5 MB, if the teacher allows photos; a per-homework switch).
+- **Homework is a list of questions:** Multiple choice (auto-graded; answer texts are optional, so a question from the book is letters only; see "Homework move" below) and Essay (a text box, plus ONE photo per question, max 5 MB, if the teacher allows photos; a per-homework switch).
 - **Every homework has a deadline.** "Allow after the deadline": a student who has not handed in can still hand in; it is stored and shown as "Missed the deadline". It covers a first hand-in only.
 - **Solutions open** right after the student hands in, OR after the deadline (per homework). After the deadline, solutions show only to students who handed in. With tries on, solutions open after the student's last try or at the deadline, whichever comes first. Unused tries end at the deadline.
 - **Tries:** one time / try again, fix mistakes (right answers stay, only wrong ones reopen) / try again, from zero; with a number of tries. The latest try counts; every try stays in history.
@@ -414,3 +414,46 @@ the next run, the Homework screens track, as a plain page in the existing studen
   makes no version. On the clone, question and option ids are taken from the copy by position.
 - **Pending owner questions.** An in-app retry for image removal (needs a migration); whether to show Preview as student; whether
   rows should show question count and marks (the page read does not return them).
+
+## Homework move, answer letters and model answer pictures (2026-11-12, branch `claude/homework-move`)
+
+Draft migration `20261112120000_homework_move.sql`, **not applied anywhere** (one migration for all of it).
+
+- **A homework moves until a student starts.** `save_homework` may change a homework's lesson and/or course (offering) only when no
+  submission of any status exists AND it is the only row of its family. Otherwise PT409 with `{"reason":"started"}` or
+  `{"reason":"versioned"}`. The caller must edit both courses (`can_edit_course` on the target, `homework_staff` author on the
+  source); the route checks both too, before the write. Both offerings are locked FOR SHARE in id order, then the homework FOR UPDATE,
+  so a student's start (homework FOR SHARE) and a move are serialised. The integrity trigger allows course/offering/lesson to change
+  only under the same two conditions and still checks that the lesson belongs to the course. Each move writes a `moved` audit row
+  with course, offering and lesson before and after.
+- **What else is keyed by course (checked):** `homework_assistant_permissions` is per course and is read through the homework's
+  current course, so a moved homework follows the new course's assistant rules; the `homework_assignments_course_status` index
+  follows the row; Storage paths are keyed by homework id, not course; notifications exist only for `homework_released`, which needs
+  submissions (so never for a movable homework); demo Clear selects homework by the space's current courses and the seed ledger by
+  space, so a moved homework is cleared by whichever space now holds it; course structure counts, the group summary and lesson delete
+  blockers are computed live. Nothing needed rewriting.
+- **Cross-space moves** are allowed when the caller edits both courses (as asked). Open question for the owner.
+- **Choice questions:** no textbook switch. A choice starts with four blank answers A to D; question text and answer texts are
+  optional; 2 to 8 answers. The teacher taps every right answer: one is `single_choice`, more than one `multiple_choice` (derived;
+  no type control). Students are told "Choose the right answer" or "Choose every right answer". The database's textbook rule is
+  dropped; 2 to 8 options, no duplicate keys and at least one right answer to publish stay.
+- **Letters** run A to H (never numbers); Arabic: أ ب ج د هـ و ز ح on the teacher's screen. The student screen keeps its Latin letters
+  for now (open question).
+- **Model answer picture:** one per question in `private.homework_keys.model_image_id` (an image, uploaded through the existing flow
+  with purpose `solution`, the question-picture limit). Students see it only when the solutions open for them
+  (`homework_unlocked`, so also after `solutions_seen`), in `get_homework`, `homework_upload get` and Storage
+  (`homework_upload_visible`). It is copied on clone. The screen offers it on essays; the database accepts it on any question.
+- **"Photo answers for essays"** moved to the Rules step under "How students answer"; off switches photo essays to text, with a
+  one-line note.
+- **Off menu items** show their reason inside the item, small and muted: "Move up (already first)", `aria-disabled` kept, on the
+  question menu and the Content section (desktop menu and phone sheet).
+- **Rows** on the Homework page show "N questions · M marks" from `homework_portal` (`questionCount`, `totalMarks`, computed for the
+  listed rows only).
+- **Demo data:** not extended for model pictures: demo data never writes Storage, so a model picture row would point at no file.
+
+Old assertions changed: `homework-rules.sql` ("a textbook question has exactly the letters A to D" became "a question with three
+blank answers saves", and the following revisions moved up by one); `teacher-homework.test.cjs` (the textbook and one-or-several
+tests became the tap-to-mark, derived-type, letters and lock tests; a contract case with three blank answers became nine answers
+and one answer; letter(5) is F, not 6); `teacher-homework-sql.cjs` (no `setTextbook`); `teacher-course-content-browser.cjs` (the
+desktop Move up is `aria-disabled` with its reason inside, not Radix `data-disabled`; the sheet reads "Move down (already last)");
+the migration-order tests (the new file is the newest).

@@ -1,0 +1,68 @@
+# Homework move screenshots
+
+Synthetic harness data (scripts/teacher-homework-browser.cjs): the real screens, middleware and CSS, a fictional server checked against the real contract. Light theme; desktop 1360 and phone 390; Classic and New; English and Arabic.
+
+- move-details-unlocked: Details, course and lesson editable (nobody started)
+- move-details-locked: Details, a student started; course and lesson aria-disabled with the reason
+- move-rows: Homework rows with "N questions · M marks"
+- move-questions-chips: blank answers as a row of letters
+- move-questions-list: answers with text as a list
+- move-question-menu: "Move up (already first)" inside the item
+- move-rules-photos / move-rules-photos-off: photo answers under How students answer, and the one-line note when off
+
+- move-details-unlocked-desktop-classic-en.png
+- move-details-unlocked-phone-classic-en.png
+- move-details-unlocked-desktop-classic-ar.png
+- move-details-unlocked-phone-classic-ar.png
+- move-details-unlocked-desktop-new-en.png
+- move-details-unlocked-phone-new-en.png
+- move-details-unlocked-desktop-new-ar.png
+- move-details-unlocked-phone-new-ar.png
+- move-details-locked-desktop-classic-en.png
+- move-details-locked-phone-classic-en.png
+- move-details-locked-desktop-classic-ar.png
+- move-details-locked-phone-classic-ar.png
+- move-details-locked-desktop-new-en.png
+- move-details-locked-phone-new-en.png
+- move-details-locked-desktop-new-ar.png
+- move-details-locked-phone-new-ar.png
+- move-rows-desktop-classic-en.png
+- move-rows-phone-classic-en.png
+- move-rows-desktop-classic-ar.png
+- move-rows-phone-classic-ar.png
+- move-rows-desktop-new-en.png
+- move-rows-phone-new-en.png
+- move-rows-desktop-new-ar.png
+- move-rows-phone-new-ar.png
+- move-questions-chips-desktop-classic-en.png
+- move-questions-chips-phone-classic-en.png
+- move-questions-chips-desktop-classic-ar.png
+- move-questions-chips-phone-classic-ar.png
+- move-questions-chips-desktop-new-en.png
+- move-questions-chips-phone-new-en.png
+- move-questions-chips-desktop-new-ar.png
+- move-questions-chips-phone-new-ar.png
+- move-questions-list-desktop-classic-en.png
+- move-questions-list-phone-classic-en.png
+- move-questions-list-desktop-classic-ar.png
+- move-questions-list-phone-classic-ar.png
+- move-questions-list-desktop-new-en.png
+- move-questions-list-phone-new-en.png
+- move-questions-list-desktop-new-ar.png
+- move-questions-list-phone-new-ar.png
+- move-question-menu-desktop-classic-en.png
+- move-question-menu-desktop-classic-ar.png
+- move-question-menu-desktop-new-en.png
+- move-question-menu-desktop-new-ar.png
+- move-rules-photos-desktop-classic-en.png
+- move-rules-photos-phone-classic-en.png
+- move-rules-photos-desktop-classic-ar.png
+- move-rules-photos-phone-classic-ar.png
+- move-rules-photos-desktop-new-en.png
+- move-rules-photos-phone-new-en.png
+- move-rules-photos-desktop-new-ar.png
+- move-rules-photos-phone-new-ar.png
+- move-rules-photos-off-desktop-classic-en.png
+- move-rules-photos-off-desktop-classic-ar.png
+- move-rules-photos-off-desktop-new-en.png
+- move-rules-photos-off-desktop-new-ar.png

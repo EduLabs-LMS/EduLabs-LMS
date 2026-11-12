@@ -130,11 +130,13 @@ select pg_temp.denied($s$select public.save_homework(pg_temp.h('draft'),pg_temp.
 select pg_temp.denied($s$select public.save_homework(pg_temp.h('draft'),pg_temp.key('off'),pg_temp.key('lesson'),null,1,pg_temp.def('draft',false,'{"photosAllowed":false}'))$s$,'23514','photos off refuses an essay that takes a photo');
 select public.save_homework(pg_temp.h('draft'),pg_temp.key('off'),pg_temp.key('lesson'),null,1,pg_temp.def('draft',false,('{"photosAllowed":false,"tries":"fix_mistakes","deadline":"'||pg_temp.at('2 days')||'"}')::jsonb,'text'));
 select pg_temp.ok((select not photos_allowed and tries_mode='fix_mistakes' and max_tries=2 and deadline_at>now() from pg_temp.hwrow(pg_temp.h('draft'))),'photos off with text essays saves; fix mistakes defaults to two tries');
-select pg_temp.denied($s$select public.save_homework(pg_temp.h('draft'),pg_temp.key('off'),pg_temp.key('lesson'),null,2,
- jsonb_set(pg_temp.def('draft',false,null,'text'),'{questions,0,options}',(pg_temp.def('draft',false,null,'text')->'questions'->0->'options')-3))$s$,'23514','a textbook question has exactly the letters A to D');
+-- Changed by 20261112120000 (the owner's review): blank answers may be any number from 2 to 8, so three blank letters now save.
+select public.save_homework(pg_temp.h('draft'),pg_temp.key('off'),pg_temp.key('lesson'),null,2,
+ jsonb_set(pg_temp.def('draft',false,null,'text'),'{questions,0,options}',(pg_temp.def('draft',false,null,'text')->'questions'->0->'options')-3));
+select pg_temp.ok((select count(*)=3 from public.homework_options o join public.homework_questions q on q.id=o.question_id where q.id=pg_temp.q('draft','q1')),'a question with three blank answers saves');
 -- The read gives the rules inside the definition, so the screen can save it back unchanged.
-select public.save_homework(pg_temp.h('draft'),pg_temp.key('off'),pg_temp.key('lesson'),null,2,public.get_homework(pg_temp.h('draft'))->'definition');
-select pg_temp.ok((select revision=3 and tries_mode='fix_mistakes' and not photos_allowed from pg_temp.hwrow(pg_temp.h('draft'))),'the definition read back saves unchanged, rules included');
+select public.save_homework(pg_temp.h('draft'),pg_temp.key('off'),pg_temp.key('lesson'),null,3,public.get_homework(pg_temp.h('draft'))->'definition');
+select pg_temp.ok((select revision=4 and tries_mode='fix_mistakes' and not photos_allowed from pg_temp.hwrow(pg_temp.h('draft'))),'the definition read back saves unchanged, rules included');
 select pg_temp.ok((public.get_homework(pg_temp.h('draft'))->'rules'->>'tries')='fix_mistakes' and (public.get_homework(pg_temp.h('draft'))->>'workflow')='questions','the read reports the workflow and the rules');
 reset role;
 select pg_temp.denied($s$update public.homework_assignments set workflow='legacy',deadline_at=null,tries_mode=null,max_tries=null,solutions_open=null,photos_allowed=true where id=pg_temp.h('draft')$s$,'23514','even the database owner cannot change a workflow');
@@ -234,7 +236,7 @@ select pg_temp.denied($s$select public.homework_work(pg_temp.h('once'),'release'
 select pg_temp.denied($s$select public.homework_work(pg_temp.h('once'),'annotate',current_setting('hr.once1')::uuid,pg_temp.crev(current_setting('hr.once1')::uuid),'{}')$s$,'23514','student images are never edited');
 select pg_temp.denied($s$select public.homework_work(pg_temp.h('dl'),'retry',current_setting('hr.dl_s1')::uuid)$s$,'42501','staff cannot take a try for a student');
 -- Photos off: no photo intent at all.
-select public.homework_lifecycle(pg_temp.h('draft'),'publish',3);
+select public.homework_lifecycle(pg_temp.h('draft'),'publish',4);
 select pg_temp.claim('s4');
 select set_config('hr.nophoto',pg_temp.start('draft')::text,true);
 select pg_temp.ok(pg_temp.refusal($s$select public.homework_upload(pg_temp.h('draft'),'intent',null,current_setting('hr.nophoto')::uuid,'{"purpose":"submission","name":"p.jpg","mime":"image/jpeg"}')$s$)->>'message'='Photo answers are off for this homework','photos off refuses a photo');

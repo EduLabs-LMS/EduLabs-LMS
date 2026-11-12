@@ -299,13 +299,13 @@ const structure = () => ({ archived: S.archived, canEdit: S.canEdit && !S.archiv
   assert.deepEqual((await state()).invalid, []);
   // The menu, by keyboard alone: Enter opens, the first enabled item is focused, Move up skips nothing here; Move down is off on the last row.
   await menuOf(page, L.speed).focus(); await page.keyboard.press('Enter'); await page.locator('[role="menu"]').waitFor();
-  assert.equal(await page.locator('[role="menu"] [data-action="down"]').getAttribute('data-disabled'), '', 'Move down is off on the last row');
+  { const down = page.locator('[role="menu"] [data-action="down"]'); assert.equal(await down.getAttribute('aria-disabled'), 'true', 'Move down is off on the last row'); assert.equal(await down.getAttribute('data-disabled'), null, 'reachable, not disabled'); assert.equal((await down.innerText()).replace(/\s+/g, ' ').trim(), 'Move down (already last)', 'the reason is inside the item'); }
   await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'menuitem'); await page.keyboard.press('ArrowDown'); await page.waitForFunction(() => document.activeElement?.getAttribute('data-action') === 'unpublish', null, { timeout: 5000 }); await page.keyboard.press('ArrowDown'); await page.waitForFunction(() => document.activeElement?.getAttribute('data-action') === 'up'); await page.keyboard.press('Enter');
   await page.waitForFunction(id => document.querySelectorAll('[data-chapter] [data-lesson]')[1]?.getAttribute('data-lesson') === id, L.speed);
   await waitFocus(page, L.speed, 'menu');
   assert.deepEqual(await lessons(page, CH.motion), ['1.1 Velocity', '1.2 Speed', '1.3 Acceleration']);
   // A chapter from the menu; the first has no Move up.
-  await menuOf(page, CH.motion).click(); assert.equal(await page.locator('[role="menu"] [data-action="up"]').getAttribute('data-disabled'), ''); await page.locator('[role="menu"] [data-action="down"]').click();
+  await menuOf(page, CH.motion).click(); const up = page.locator('[role="menu"] [data-action="up"]'); assert.equal(await up.getAttribute('aria-disabled'), 'true'); assert.equal(await up.getAttribute('data-disabled'), null, 'reachable, not disabled'); assert.equal((await up.innerText()).replace(/\s+/g, ' ').trim(), 'Move up (already first)', 'the reason is inside the item'); await page.locator('[role="menu"] [data-action="down"]').click();
   await page.waitForFunction(id => document.querySelector('[data-chapter]')?.getAttribute('data-chapter') !== id, CH.motion); await waitFocus(page, CH.motion, 'menu');
   assert.deepEqual((await chapters(page)).slice(0, 2), ['Chapter 1 Energy', 'Chapter 2 Motion']);
   await context.close();
@@ -497,11 +497,11 @@ const structure = () => ({ archived: S.archived, canEdit: S.canEdit && !S.archiv
   await page.locator(`[data-chapter="${CH.energy}"] [data-chapter-toggle]`).click(); assert.equal(await page.locator(`[data-chapter="${CH.energy}"] [data-lesson]`).count(), 2);
   // The sheet for a lesson with room to move.
   await menuOf(page, L.acceleration).click(); const sheet = page.locator('[data-content-sheet]'); await sheet.waitFor();
-  assert.deepEqual((await sheet.locator('.d-sheet-item').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim()), ['Rename', 'Unpublish lesson', 'Move up', 'Move down Already the last lesson', 'Move to another chapter', 'Delete lesson']);
+  assert.deepEqual((await sheet.locator('.d-sheet-item').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim()), ['Rename', 'Unpublish lesson', 'Move up', 'Move down (already last)', 'Move to another chapter', 'Delete lesson']);
   const headText = await sheet.innerText(); assert.match(headText, /LESSON 1\.3|Lesson 1\.3/i); assert.match(headText, /Acceleration/); assert.match(headText, /Delete asks first\. A lesson whose homework students answered cannot be deleted\./);
   const down = sheet.locator('[data-action="down"]');
   assert.equal(await down.getAttribute('aria-disabled'), 'true', 'the last row has no Move down'); assert.equal(await down.getAttribute('disabled'), null, 'reachable, not the disabled attribute');
-  assert.equal((await page.locator('#' + await down.getAttribute('aria-describedby')).innerText()).trim(), 'Already the last lesson', 'and it says why'); await clean(page, 'phone sheet'); await shot(page, `phone-sheet-${look}`);
+  assert.equal((await page.locator('#' + await down.getAttribute('aria-describedby')).innerText()).trim(), '(already last)', 'and it says why, inside the item'); await clean(page, 'phone sheet'); await shot(page, `phone-sheet-${look}`);
   const box = await sheet.boundingBox(); assert.ok(box.y + box.height >= phone.height - 1, 'it sits at the bottom');
   await sheet.locator('[data-action="up"]').click(); await sheet.waitFor({ state: 'detached' });
   await page.waitForFunction(id => document.querySelectorAll('[data-chapter] [data-lesson]')[1]?.getAttribute('data-lesson') === id, L.acceleration);
@@ -516,7 +516,7 @@ const structure = () => ({ archived: S.archived, canEdit: S.canEdit && !S.archiv
   // Rename and delete from the sheet, and a chapter's sheet.
   await menuOf(page, L.power).click(); await sheet.locator('[data-action="rename"]').click(); await waitFocus(page, L.power, 'input'); await page.locator(`[data-lesson="${L.power}"] input`).fill('Power 2'); await page.keyboard.press('Enter'); await page.locator('[data-lesson-title]', { hasText: 'Power 2' }).waitFor(); await waitFocus(page, L.power, 'menu');
   await menuOf(page, L.power).click(); await sheet.locator('[data-action="delete"]').click(); const ask = page.locator('[data-content-confirm]'); await ask.waitFor(); await clean(page, 'phone confirm'); await ask.locator('[data-confirm-yes]').click(); await ask.waitFor({ state: 'detached' }); await waitFocus(page, L.work, 'menu');
-  await menuOf(page, CH.waves).click(); await sheet.waitFor(); assert.deepEqual((await sheet.locator('.d-sheet-item').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim()), ['Rename', 'Move up', 'Move down Already the last chapter', 'Delete chapter']); await page.waitForTimeout(150); await page.keyboard.press('Escape'); await sheet.waitFor({ state: 'detached' }); await waitFocus(page, CH.waves, 'menu');
+  await menuOf(page, CH.waves).click(); await sheet.waitFor(); assert.deepEqual((await sheet.locator('.d-sheet-item').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim()), ['Rename', 'Move up', 'Move down (already last)', 'Delete chapter']); await page.waitForTimeout(150); await page.keyboard.press('Escape'); await sheet.waitFor({ state: 'detached' }); await waitFocus(page, CH.waves, 'menu');
   // Adding on a phone.
   await page.locator('[data-add-chapter]').click(); await waitFocus(page, 'add-chapter', 'input'); await clean(page, 'phone add'); await page.keyboard.press('Escape');
   assert.deepEqual((await state()).invalid, []); await context.close();

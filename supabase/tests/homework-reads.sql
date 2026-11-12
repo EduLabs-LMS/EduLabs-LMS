@@ -121,6 +121,8 @@ create function pg_temp.naive_rows() returns table(id uuid,tab text,counted bool
  select v.id,v.tab,v.counted,jsonb_build_object('id',v.id,'title',v.title,'courseId',v.course_id,'courseTitle',(select title from public.courses where id=v.course_id),'offeringId',v.offering_id,
   'lessonId',v.lesson_id,'lessonTitle',(select title from public.lessons where id=v.lesson_id),'version',v.version,'workflow',v.workflow,'mode',v.mode,'status',v.status,'deadline',v.deadline_at,
   'lateAllowed',v.late_allowed,'tries',v.tries_mode,'maxTries',v.max_tries,'solutionsOpen',v.solutions_open,'photosAllowed',v.photos_allowed,'updatedAt',v.updated_at,
+  'questionCount',(select count(*) from public.homework_questions q where q.assignment_id=v.id),
+  'totalMarks',case when v.mode='FILE_UPLOAD' then v.file_points else (select coalesce(sum(q.points),0) from public.homework_questions q where q.assignment_id=v.id) end,
   'handedIn',case when v.counted then (select count(*) from latest l where l.assignment_id=v.id) end,
   'total',case when v.counted then (select count(distinct e.user_id) from public.enrollments e where e.offering_id=v.offering_id and e.status='active' and (e.enrolled_at is null or e.enrolled_at<=clock_timestamp()) and (e.expires_at is null or e.expires_at>clock_timestamp())) end,
   'late',case when v.counted then (select count(distinct s.user_id) from public.homework_submissions s where s.assignment_id=v.id and s.status='submitted' and s.missed_deadline) end,

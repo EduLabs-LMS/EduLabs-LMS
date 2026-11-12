@@ -181,6 +181,8 @@ html[dir="rtl"] .d-select-option[aria-selected="true"] { box-shadow: inset -3px 
 .d-menu-item--danger { color: var(--d-danger-text); }
 .d-menu-meta { max-width: min(300px, calc(100vw - 48px)); padding: var(--d-space-2) var(--d-space-3); font-size: var(--d-meta-size); line-height: var(--d-meta-lh); color: var(--d-meta); overflow-wrap: anywhere; }
 .d-menu-item[aria-disabled="true"] { color: var(--d-meta); cursor: not-allowed; }
+/* Why an item is off, small and muted inside the item itself: "Move up (already first)". */
+.d-menu-reason { font-size: var(--d-meta-size); font-weight: 400; color: var(--d-meta); }
 
 /* ---- Dialog (desktop) / bottom sheet (phone) ---- */
 .d-dialog-overlay { position: fixed; inset: 0; z-index: 70; background: rgba(15, 23, 12, 0.5); }
@@ -712,3 +714,6 @@ html[dir="rtl"] .d-auth-arrow { transform: scaleX(-1); }
   .d-hw-review-row dt { grid-column: 1 / -1; }
   .d-hw-bar { position: sticky; inset-block-end: var(--d-tabs-offset, 0px); background: var(--d-canvas); padding-block-end: var(--d-space-3); z-index: 2; }
 }
+/* Blank choice answers: a compact row of letters the teacher taps to mark every right one. */
+.d-hw-chips { display: flex; flex-wrap: wrap; gap: var(--d-space-2); }
+.d-hw-option-actions { display: flex; flex-wrap: wrap; gap: var(--d-space-1); }

@@ -43,10 +43,18 @@ async function courseOfHomework(id: string) {
   return data?.course_id ?? null;
 }
 
-/** Save the wizard (a new draft when id is null). The reply carries the new revision from a fresh read, so the next autosave sends it. */
+/**
+ * Save the wizard (a new draft when id is null). The reply carries the new revision from a fresh read, so the next autosave sends it.
+ * A save may move the homework to another lesson or course: the caller must edit the course it goes to and the course it is in now. The
+ * database checks both again and refuses a move once a student started ({"reason":"started"}) or for a later version ({"reason":"versioned"}).
+ */
 export async function saveHomework(userId: string, id: string | null, input: HomeworkSave): Promise<HomeworkResult> {
   const courseId = await courseOfOffering(input.offeringId);
   if (!courseId || !await editableTeacherCourse(userId, courseId)) return denied;
+  if (id) {
+    const from = await courseOfHomework(id);
+    if (!from || (from !== courseId && !await editableTeacherCourse(userId, from))) return denied;
+  }
   const client = await getSupabaseServerClient();
   const { data, error } = await client.rpc('save_homework', { p_assignment: id, p_offering: input.offeringId, p_lesson: input.lessonId, p_segment: null, p_revision: input.revision, p_definition: input.definition as unknown as Json, p_confirm_mode_change: false });
   if (error) return homeworkReply(error);

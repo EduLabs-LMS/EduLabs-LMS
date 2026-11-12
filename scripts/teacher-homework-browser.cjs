@@ -2,13 +2,14 @@
 // the real built CSS and fonts. The server is fictional and synthetic (demo-seed-like: questions-only homework, photo rows without files),
 // but every request is checked against the real contract and every refusal is worded by the real reply mapper. Not provider acceptance.
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME / LMS_CHROMIUM_EXECUTABLE and a Firebase-mode `npm run build` (CSS, fonts); LMS_FRESH_CSS
-// recompiles Tailwind. Pictures: .local/teacher-homework-browser/screenshots, copied to docs/design/screenshots/homework-ui with LMS_COPY_SHOTS=1.
+// recompiles Tailwind. Pictures: .local/teacher-homework-browser/screenshots, copied to docs/design/screenshots/homework-ui with LMS_COPY_SHOTS=1
+// (the move-* ones to docs/design/screenshots/homework-move; LMS_COPY_SHOTS=move copies only those).
 const { shootMatrix } = require('./screen-matrix.cjs');
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
 const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
 const { chromium } = require(path.join(browserRuntime, 'playwright')), esbuild = require(path.join(esbuildRuntime, 'esbuild'));
-const out = path.resolve('.local/teacher-homework-browser'), shots = path.join(out, 'screenshots'), docs = path.resolve('docs/design/screenshots/homework-ui');
+const out = path.resolve('.local/teacher-homework-browser'), shots = path.join(out, 'screenshots'), docs = path.resolve('docs/design/screenshots/homework-ui'), moveDocs = path.resolve('docs/design/screenshots/homework-move');
 fs.mkdirSync(shots, { recursive: true });
 for (const f of fs.readdirSync(shots)) if (f.endsWith('.png')) fs.unlinkSync(path.join(shots, f));
 const cssDir = path.resolve('.next/static/css'), mediaDir = path.resolve('.next/static/media');
@@ -82,8 +83,8 @@ const row = (id, title, course, lesson, lessonTitle, extra) => ({ id, title, cou
  status: 'published', deadline: null, lateAllowed: false, tries: 'one_time', maxTries: 1, solutionsOpen: 'after_hand_in', photosAllowed: true, updatedAt: stamp(), handedIn: 0, total: 12, late: 0, waiting: 0, imageBytes: 0, ...extra });
 function fresh() {
  tick = 0;
- const S = { stamps: { motion: stamp(), energy: stamp(), speed: stamp(), velocity: stamp(), work: stamp() }, velocity: 'draft', portal: 'ok', stale: false, posts: [], invalid: [], homework: {} };
- const add = (r, def, locked = false) => { S.homework[r.id] = { row: r, view: { id: r.id, offeringId: r.offeringId, lessonId: r.lessonId, segmentId: null, revision: 3, version: r.version, locked, staff: true, canManage: true, workflow: 'questions', deadline: r.deadline, definition: def, courseId: r.courseId } }; };
+ const S = { stamps: { motion: stamp(), energy: stamp(), speed: stamp(), velocity: stamp(), work: stamp() }, velocity: 'draft', portal: 'ok', stale: false, moveRace: false, posts: [], invalid: [], homework: {} };
+ const add = (r, def, locked = false) => { r.questionCount = def.questions.length; r.totalMarks = def.questions.reduce((n, q) => n + q.points, 0); S.homework[r.id] = { row: r, view: { id: r.id, offeringId: r.offeringId, lessonId: r.lessonId, segmentId: null, revision: 3, version: r.version, locked, staff: true, canManage: true, workflow: 'questions', deadline: r.deadline, definition: def, courseId: r.courseId } }; };
  add(row(H.open, 'Speed and distance', 'physics', LS.speed, 'Speed', { deadline: cairoAt(2, '23:59'), handedIn: 7, waiting: 3 }), definition('Speed and distance', true, { deadline: cairoAt(2, '23:59') }), true);
  add(row(H.started, 'Forces around us: friction, gravity and the long list of everyday examples', 'physics', LS.work, 'Work', { deadline: cairoAt(5, '18:00'), tries: 'fix_mistakes', maxTries: 3, lateAllowed: true, handedIn: 2, waiting: 1 }), definition('Forces around us', true, { deadline: cairoAt(5, '18:00'), tries: 'fix_mistakes', maxTries: 3, lateAllowed: true }), true);
  add(row(H.arabic, 'واجب القراءة الأول', 'arabic', LS.speed, 'Speed', { deadline: cairoAt(1, '20:00'), handedIn: 10, total: 10 }), definition('واجب القراءة الأول', true, { deadline: cairoAt(1, '20:00') }), true);
@@ -130,7 +131,7 @@ function portal(q) {
   if (url.pathname === '/__app.js') { res.setHeader('Content-Type', 'application/javascript'); return res.end(fs.readFileSync(path.join(out, 'app.js'))); }
   if (url.pathname === '/__style.css') { res.setHeader('Content-Type', 'text/css'); return res.end(css); }
   if (url.pathname.startsWith('/_next/static/media/')) { const f = path.join(mediaDir, path.basename(url.pathname)); if (!fs.existsSync(f)) { res.statusCode = 404; return res.end(); } res.setHeader('Content-Type', 'font/woff2'); return res.end(fs.readFileSync(f)); }
-  if (url.pathname === '/__ctl') return body(b => { if (b.reset) S = fresh(); for (const k of ['portal', 'stale']) if (k in b) S[k] = b[k]; send({}); });
+  if (url.pathname === '/__ctl') return body(b => { if (b.reset) S = fresh(); for (const k of ['portal', 'stale', 'moveRace']) if (k in b) S[k] = b[k]; send({}); });
   if (url.pathname === '/__state') return send({ posts: S.posts, invalid: S.invalid, velocity: S.velocity });
   if (url.pathname === '/__load') return send(load);
   requests.push(req.method + ' ' + url.pathname);
@@ -156,10 +157,15 @@ function portal(q) {
     if (!parsed.success || (id === 'new') !== (b.revision === null)) { S.invalid.push(b); return send({ kind: 'invalid' }, 400); }
     if (S.stale) { const r = hw.homeworkReply({ code: 'PT409', message: 'Homework changed. Reload it.' }); return send(r.body, r.status); }
     if (h && h.view.revision !== b.revision) { const r = hw.homeworkReply({ code: 'PT409', message: 'Homework changed. Reload it.' }); return send(r.body, r.status); }
+    // A move (another lesson or course): refused once a student started (or one starts meanwhile: moveRace) and for a later version, as save_homework does.
+    const moving = h && (b.offeringId !== h.view.offeringId || b.lessonId !== h.view.lessonId);
+    if (moving && (h.view.locked || S.moveRace)) { const r = hw.homeworkReply({ code: 'PT409', message: 'Work has started; this homework stays in its lesson', details: '{"reason":"started"}' }); return send(r.body, r.status); }
+    if (moving && h.view.version > 1) { const r = hw.homeworkReply({ code: 'PT409', message: 'A later version stays in its lesson', details: '{"reason":"versioned"}' }); return send(r.body, r.status); }
     if (h?.view.locked) { const r = hw.homeworkReply({ code: 'PT409', message: 'Work has started; clone a new version' }); return send(r.body, r.status); }
+    if (moving) { const course = b.offeringId === OFF.arabic ? 'arabic' : 'physics'; h.view = { ...h.view, offeringId: b.offeringId, lessonId: b.lessonId, courseId: C[course] }; h.row = { ...h.row, offeringId: b.offeringId, lessonId: b.lessonId, courseId: C[course], courseTitle: load.courses.find(c => c.id === C[course]).title }; }
     const target = h ?? (S.homework[uuid(390 + Object.keys(S.homework).length)] = { row: row(uuid(390 + Object.keys(S.homework).length), b.definition.title, b.offeringId === OFF.arabic ? 'arabic' : 'physics', b.lessonId, 'Lesson', { status: 'draft' }), view: { id: uuid(390 + Object.keys(S.homework).length), offeringId: b.offeringId, lessonId: b.lessonId, segmentId: null, revision: 0, version: 1, locked: false, staff: true, canManage: true, workflow: 'questions', deadline: null } });
     target.view = { ...target.view, revision: target.view.revision + 1, definition: parsed.data.definition, deadline: parsed.data.definition.rules.deadline };
-    target.row = { ...target.row, title: parsed.data.definition.title, status: parsed.data.definition.published ? 'published' : 'draft', deadline: parsed.data.definition.rules.deadline };
+    target.row = { ...target.row, questionCount: parsed.data.definition.questions.length, totalMarks: parsed.data.definition.questions.reduce((n, q) => n + q.points, 0), title: parsed.data.definition.title, status: parsed.data.definition.published ? 'published' : 'draft', deadline: parsed.data.definition.rules.deadline };
     return send({ id: target.view.id, revision: target.view.revision });
    }
    if (!h) return send({ kind: 'denied' }, 404);
@@ -319,7 +325,7 @@ function portal(q) {
   await ctl({ portal: '503' }); o = await open(desktop); await o.page.locator('[role="alert"], [data-state="error"]').first().waitFor(); await o.context.close();
   await ctl({ portal: '401' }); o = await open(desktop); assert.match(await o.page.locator('main').innerText(), /sign in/i); await o.context.close();
  });
- await step('Wizard: a new homework saves itself once it has a title, a course and a lesson; the textbook rule; photos off; tries; the deadline with its offset', async () => {
+ await step('Wizard: a new homework saves itself once it has a title, a course and a lesson; blank answers as letters; photos off on Rules; tries; the deadline with its offset', async () => {
   const { page, context } = await open(desktop, { target: '/teacher/homework/new', ready: '[data-homework-wizard]' });
   await page.locator('[data-step-next]').click(); assert.ok(await page.locator('[data-issue="title"]').count(), 'Details says what is missing');
   await page.locator('[data-field="title"] input, input[data-field="title"]').first().fill('Synthetic new homework');
@@ -333,12 +339,23 @@ function portal(q) {
   await page.locator('[data-publish-lesson]').click(); await page.locator('[data-lesson-draft]').waitFor({ state: 'detached' });
   assert.equal((await state()).velocity, 'published');
   await page.locator('[data-step-next]').click(); await page.locator('[data-homework-wizard][data-step="questions"]').waitFor();
-  await page.locator('[data-textbook]').click(); await page.locator('[data-option="B"] .d-hw-mark').click();
-  assert.equal(await page.locator('[data-option-text]').count(), 0, 'a textbook question has no option text');
+  assert.equal(await page.locator('[data-textbook], [data-multiple]').count(), 0, 'no textbook switch and no type control');
+  assert.equal(await page.locator('[data-options="chips"] [data-option]').count(), 4, 'four blank answers, A to D, as a row of letters');
+  assert.equal(await page.locator('[data-option-text]').count(), 0, 'blank answers show no text boxes');
+  await page.locator('[data-options="chips"] [data-option="B"]').click();
+  assert.equal(await page.locator('[data-options]').getAttribute('data-choice-type'), 'single_choice');
+  await page.locator('[data-options="chips"] [data-option="D"]').click();
+  assert.equal(await page.locator('[data-options]').getAttribute('data-choice-type'), 'multiple_choice', 'two right answers: multiple choice');
+  assert.match(await page.locator('[data-choice-hint]').innerText(), /Choose every right answer/);
+  await page.locator('[data-options="chips"] [data-option="D"]').click();
+  assert.equal(await page.locator('[data-options]').getAttribute('data-choice-type'), 'single_choice', 'tapping again unmarks it');
+  assert.equal(await page.locator('[data-photos-switch]').count(), 0, 'photo answers are not on the Questions step');
   await page.locator('[data-add-question]').click(); await page.locator('[data-kind="essay"]').click();
   await page.locator('[data-question] textarea').first().fill('Explain friction in two lines.');
-  await page.locator('[data-photos-switch]').click();
   await page.locator('[data-step-next]').click(); await page.locator('[data-homework-wizard][data-step="rules"]').waitFor();
+  assert.equal(await page.locator('[data-photos] legend').innerText(), 'How students answer');
+  await page.locator('[data-photos-switch]').click();
+  assert.equal(await page.locator('[data-photos-off]').innerText(), 'Off: essays that took a photo are now answered in text.', 'one line says what happened');
   const day = hw.cairoFields(iso(NOW + 3 * DAY)).date;
   await page.locator('[data-field="deadline-date"] input, input[data-field="deadline-date"]').first().fill(day);
   await page.locator('[data-tries="fix_mistakes"]').click();
@@ -371,6 +388,50 @@ function portal(q) {
   await o.context.close();
  });
 
+ await step('Move: course and lesson stay editable until a student starts; another course clears the lesson and nothing saves until one is picked; a refused move keeps what was typed', async () => {
+  const { page, context } = await open(desktop, { target: '/teacher/homework/' + H.draft, ready: '[data-lesson-draft]' });
+  const course = page.locator('[data-field="course"] [role="combobox"]'), lesson = page.locator('[data-field="lesson"] [role="combobox"]');
+  assert.equal(await course.getAttribute('aria-disabled'), null, 'nobody started: the course may change'); assert.equal(await page.locator('[data-fixed]').count(), 0, 'no note unless really locked');
+  const before = (await state()).posts.length;
+  await course.click(); await page.locator(`[role="option"][data-value="${C.arabic}:${OFF.arabic}"]`).click();
+  assert.equal(await lesson.getAttribute('data-value'), '', 'another course clears the lesson');
+  await page.waitForTimeout(2000);
+  assert.equal((await state()).posts.length, before, 'no autosave until a lesson is picked');
+  await lesson.click(); await page.locator(`[role="option"][data-value="${LS.work}"]`).click();
+  await page.locator('[data-save-state="hw.w.saved"]').waitFor({ timeout: 8000 });
+  const moved = await lastPost(); assert.equal(moved.body.offeringId, OFF.arabic); assert.equal(moved.body.lessonId, LS.work);
+  await context.close();
+
+  const locked = await open(desktop, { target: '/teacher/homework/' + H.started, ready: '[data-fixed]' });
+  for (const field of ['course', 'lesson']) {
+   const box = locked.page.locator(`[data-field="${field}"] [role="combobox"]`);
+   assert.equal(await box.getAttribute('aria-disabled'), 'true', field + ' is aria-disabled'); assert.equal(await box.getAttribute('disabled'), null, field + ' stays reachable');
+   assert.equal(await box.getAttribute('aria-describedby'), 'hw-fixed', field + ' says why');
+  }
+  assert.equal(await locked.page.locator('[data-fixed]').innerText(), 'A student has started this homework, so it stays in this lesson.');
+  await locked.context.close();
+
+  await ctl({ reset: true, moveRace: true });
+  const race = await open(desktop, { target: '/teacher/homework/' + H.draft, ready: '[data-lesson-draft]' });
+  const title = race.page.locator('[data-field="title"] input, input[data-field="title"]').first();
+  await title.fill('Velocity practice, moved');
+  await race.page.locator('[data-field="lesson"] [role="combobox"]').click(); await race.page.locator(`[role="option"][data-value="${LS.speed}"]`).click();
+  await race.page.locator('[data-reload]').waitFor({ timeout: 8000 });
+  assert.match(await race.page.locator('[data-save-failure="stale"]').innerText(), /A student has started this homework, so it stays in this lesson\./);
+  assert.equal(await title.inputValue(), 'Velocity practice, moved', 'what was typed stays');
+  await race.context.close();
+ });
+ await step('Rows: each shows "N questions · M marks" from the portal', async () => {
+  const { page, context } = await open(desktop);
+  if (await page.locator('[data-all-homework]').count()) await page.locator('[data-all-homework]').click();
+  assert.equal(await page.locator(`[data-homework-row="${H.open}"] [data-counts]`).innerText(), '3 questions · 6 marks');
+  await context.close();
+  const ar = await open(desktop, { lang: 'ar' });
+  if (await ar.page.locator('[data-all-homework]').count()) await ar.page.locator('[data-all-homework]').click();
+  assert.match(await ar.page.locator(`[data-homework-row="${H.open}"] [data-counts]`).innerText(), /[؀-ۿ]/);
+  await ar.context.close();
+ });
+
  // ---- pictures: every new screen and dialog, 1360 and 390, Classic and New, English and Arabic
  const screens = [
   { name: 'page', target: '/teacher/homework', ready: '[data-stat]' },
@@ -390,6 +451,15 @@ function portal(q) {
   { name: 'wizard-new', target: '/teacher/homework/new', ready: '[data-homework-wizard][data-step]', sizes: ['phone'] },
   { name: 'wizard-stale', target: '/teacher/homework/' + H.draft, ready: '[data-homework-wizard][data-step]', before: { stale: true }, sizes: ['desktop'], act: async p => { await p.locator('[data-field="title"] input, input[data-field="title"]').first().fill('Velocity practice, typed here'); await p.locator('[data-reload]').waitFor({ timeout: 8000 }); } },
   { name: 'wizard-started', target: '/teacher/homework/' + H.started, ready: '[data-homework-wizard][data-step]', sizes: ['desktop'] },
+  // The homework move change (docs/design/screenshots/homework-move).
+  { name: 'move-details-unlocked', target: '/teacher/homework/' + H.draft, ready: '[data-lesson-draft]' },
+  { name: 'move-details-locked', target: '/teacher/homework/' + H.started, ready: '[data-fixed]' },
+  { name: 'move-rows', target: '/teacher/homework', ready: '[data-stat]', act: async p => { if (await p.locator('[data-all-homework]').count()) await p.locator('[data-all-homework]').click(); await p.locator('[data-counts]').first().waitFor(); } },
+  { name: 'move-questions-chips', target: '/teacher/homework/' + H.draft, ready: '[data-homework-wizard][data-step]', act: async p => { await p.locator('[data-step-next]').click(); await p.locator('[data-options="chips"]').waitFor(); } },
+  { name: 'move-questions-list', target: '/teacher/homework/' + H.draft, ready: '[data-homework-wizard][data-step]', act: async p => { await p.locator('[data-step-next]').click(); await p.locator('[data-question-tab="2"]').click(); await p.locator('[data-options="list"]').waitFor(); } },
+  { name: 'move-question-menu', target: '/teacher/homework/' + H.draft, ready: '[data-homework-wizard][data-step]', sizes: ['desktop'], act: async p => { await p.locator('[data-step-next]').click(); await p.locator('[data-question-menu]').click(); await p.locator('[role="menu"] [data-menu-note="up"]').waitFor(); } },
+  { name: 'move-rules-photos', target: '/teacher/homework/' + H.draft, ready: '[data-homework-wizard][data-step]', act: async p => { for (const s of ['questions', 'rules']) { await p.locator('[data-step-next]').click(); await p.locator(`[data-homework-wizard][data-step="${s}"]`).waitFor(); } await p.locator('[data-photos]').waitFor(); } },
+  { name: 'move-rules-photos-off', target: '/teacher/homework/' + H.draft, ready: '[data-homework-wizard][data-step]', sizes: ['desktop'], act: async p => { for (const s of ['questions', 'rules']) { await p.locator('[data-step-next]').click(); await p.locator(`[data-homework-wizard][data-step="${s}"]`).waitFor(); } await p.locator('[data-photos-switch]').click(); await p.locator('[data-photos-off]').waitFor(); } },
  ];
  const SIZES = { desktop, phone };
  await step('Pictures: every new screen and dialog, both looks, both languages, desktop 1360 and phone 390, each measured', async () => {
@@ -417,6 +487,12 @@ function portal(q) {
  assert.deepEqual(external, [], 'no external requests');
  const apis = [...new Set(requests.filter(r => /\/api\//.test(r)).map(r => r.replace(/[0-9a-f-]{36}/g, ':id')))].sort();
  assert.deepEqual(apis.filter(r => !/^(GET \/api\/teacher\/homework(\/:id)?|POST \/api\/teacher\/homework\/(new|:id)\/(save|lifecycle|delete-images)|(GET|POST) \/api\/teacher\/courses\/:id\/content|(GET|POST) \/api\/communications|GET \/api\/user\/status)$/.test(r)), [], 'only the homework and content routes: ' + apis.join(', '));
- if (process.env.LMS_COPY_SHOTS) { fs.mkdirSync(docs, { recursive: true }); for (const f of fs.readdirSync(docs)) if (f.endsWith('.png')) fs.unlinkSync(path.join(docs, f)); for (const f of pictures) fs.copyFileSync(path.join(shots, f), path.join(docs, f)); fs.writeFileSync(path.join(docs, 'README.md'), '# Homework UI screenshots\n\nSynthetic harness data (scripts/teacher-homework-browser.cjs): the real screens, middleware and CSS, a fictional server checked against the real contract. Light theme; desktop 1360 and phone 390; Classic and New; English and Arabic.\n\n' + pictures.map(p => `- ${p}`).join('\n') + '\n'); }
+ if (process.env.LMS_COPY_SHOTS) {
+  const moves = pictures.filter(p => p.startsWith('move-'));
+  fs.mkdirSync(moveDocs, { recursive: true }); for (const f of fs.readdirSync(moveDocs)) if (f.endsWith('.png')) fs.unlinkSync(path.join(moveDocs, f));
+  for (const f of moves) fs.copyFileSync(path.join(shots, f), path.join(moveDocs, f));
+  fs.writeFileSync(path.join(moveDocs, 'README.md'), '# Homework move screenshots\n\nSynthetic harness data (scripts/teacher-homework-browser.cjs): the real screens, middleware and CSS, a fictional server checked against the real contract. Light theme; desktop 1360 and phone 390; Classic and New; English and Arabic.\n\n- move-details-unlocked: Details, course and lesson editable (nobody started)\n- move-details-locked: Details, a student started; course and lesson aria-disabled with the reason\n- move-rows: Homework rows with "N questions · M marks"\n- move-questions-chips: blank answers as a row of letters\n- move-questions-list: answers with text as a list\n- move-question-menu: "Move up (already first)" inside the item\n- move-rules-photos / move-rules-photos-off: photo answers under How students answer, and the one-line note when off\n\n' + moves.map(p => `- ${p}`).join('\n') + '\n');
+ }
+ if (process.env.LMS_COPY_SHOTS && process.env.LMS_COPY_SHOTS !== 'move') { fs.mkdirSync(docs, { recursive: true }); for (const f of fs.readdirSync(docs)) if (f.endsWith('.png')) fs.unlinkSync(path.join(docs, f)); for (const f of pictures) fs.copyFileSync(path.join(shots, f), path.join(docs, f)); fs.writeFileSync(path.join(docs, 'README.md'), '# Homework UI screenshots\n\nSynthetic harness data (scripts/teacher-homework-browser.cjs): the real screens, middleware and CSS, a fictional server checked against the real contract. Light theme; desktop 1360 and phone 390; Classic and New; English and Arabic.\n\n' + pictures.map(p => `- ${p}`).join('\n') + '\n'); }
  console.log(`Homework browser checks passed: ${results.length} groups, ${pictures.length} pictures (real middleware, real contract and reply mapper, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);
 })().catch(e => { console.error(e); process.exit(1); });

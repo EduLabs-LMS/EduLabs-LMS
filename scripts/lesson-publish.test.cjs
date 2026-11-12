@@ -7,10 +7,10 @@ const NAME = '20261110120000_lesson_publish.sql';
 const sql = fs.readFileSync('supabase/migrations/' + NAME, 'utf8'), code = sql.replace(/--.*$/gm, '');
 const body = (src, start) => { const i = src.indexOf(start); assert.ok(i >= 0, start); return src.slice(i, src.indexOf('end $$;', i) + 'end $$;'.length); };
 
-test('the file: LF only, pinned as text, the newest migration, one transaction, the caller from current_app_user_id', () => {
+test('the file: LF only, pinned as text, followed only by the homework move migration, one transaction, the caller from current_app_user_id', () => {
   assert.ok(!sql.includes('\r'), 'the staging manager hashes the Git blob');
   assert.match(read('.gitattributes'), /20261110120000_lesson_publish\.sql -text/);
-  assert.equal(fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort().at(-1), NAME);
+  assert.deepEqual(fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort().slice(-2), [NAME, '20261112120000_homework_move.sql']);
   assert.match(code, /^\s*begin;/); assert.match(code, /commit;\s*$/);
   assert.doesNotMatch(code, /auth\.uid/);
   assert.match(code, /private\.current_app_user_id\(\) is null/);

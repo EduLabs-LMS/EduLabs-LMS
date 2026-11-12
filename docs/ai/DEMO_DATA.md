@@ -64,7 +64,7 @@ Tables the seed may write (the `table_name` check of `private.demo_seed_rows`): 
 ## Demo homework (seed version 5, draft migration `20261109120000_homework_teacher_rules.sql`, not applied anywhere)
 
 All four are questions-only homework (`workflow` `questions`) in the published Physics course, for its one offering (the whole
-course; the lesson is where it shows). Each has three questions: a textbook question (blank A to D, B is right), a choice
+course; the lesson is where it shows). Each has three questions: a question with blank answers A to D (B is right), a choice
 question, and an essay (6 points, text and one photo). Deadlines are 20:00 Cairo time.
 
 | Homework | Lesson | State | Rules | Tries |
@@ -151,3 +151,6 @@ the fake demo students above. Demo data is synthetic and is never copied from a 
   therefore possible, and the platform audit row is the trace that it happened. Audit immutability is not weakened because there is none to weaken;
   if the owner wants it later, that is a separate decision.
 - Tested by `supabase/tests/demo-students-screen.sql` (rolled back, 19 checks) and `scripts/demo-spaces.test.cjs`.
+
+Model answer pictures (`homework_keys.model_image_id`, migration `20261112120000`) are not seeded: demo data never writes Storage,
+so a picture row would point at no file. The demo homework keeps `model_image_id` null.

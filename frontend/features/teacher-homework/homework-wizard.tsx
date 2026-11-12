@@ -16,8 +16,8 @@ import { homeworkApi, uploadHomeworkFile } from '@/frontend/lib/homework';
 import type { MessageKey } from '@/frontend/locales/messages';
 import { buildTree, contentFailure, type CourseStructure, type TreeLesson } from '@/shared/course-content';
 import {
-  addOption, allIssues, cairoDay, cairoTime, cairoToday, clampMarks, clampTries, draftSavable, fromView, letter, MAX_OPTIONS, MAX_QUESTIONS, MAX_TRIES, MIN_OPTIONS, MIN_TRIES, moveQuestion, newQuestion, newWizard,
-  removeOption, setKind, setMultiple, setTextbook, solutionsRule, stepIssues, toDefinition, toggleCorrect, totalMarks, wizardDeadline, WIZARD_STEPS,
+  addOption, allIssues, blankAnswers, cairoDay, cairoTime, cairoToday, choiceType, chooseCourse, clampMarks, clampTries, draftSavable, fromView, letter, MAX_OPTIONS, MAX_QUESTIONS, MAX_TRIES, MIN_OPTIONS, MIN_TRIES, moveQuestion, newQuestion, newWizard,
+  placeLocked, removeOption, setKind, solutionsRule, stepIssues, toDefinition, toggleCorrect, totalMarks, wizardDeadline, WIZARD_STEPS,
   type HomeworkFailure, type HomeworkPageLoad, type Issue, type TeacherHomeworkView, type WizardQuestion, type WizardState, type WizardStep,
 } from '@/shared/teacher-homework';
 import { countText, failureWords, homeworkCall, triesText } from './homework-words';
@@ -32,6 +32,8 @@ const STEP_KEYS: Record<WizardStep, MessageKey> = { details: 'hw.w.step.details'
  * New homework and editing one: Details, Questions, Rules, Solutions, then Review. A draft saves itself while the teacher types ("Draft saved").
  * A save that finds the homework changed elsewhere keeps what was typed and offers Reload. Once students have started, saving makes a new
  * version (the existing clone); a new date for everyone goes through Change deadline on the Homework page instead.
+ * Course and lesson may change until a student starts (get_homework's locked) or for a later version; the save then moves the homework, and
+ * a move refused because a student started meanwhile keeps what was typed and offers Reload too.
  */
 export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: HomeworkPageLoad; homeworkId: string | null; initialCourse: string | null }) {
   const { t, language } = useLanguage();
@@ -56,9 +58,14 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
   const [upload, setUpload] = useState<{ at: string; percent: number } | null>(null);
   const [uploadFailure, setUploadFailure] = useState<{ at: string; text: string } | null>(null);
   const [picture, setPicture] = useState<Record<string, string>>({});
+  // Questions whose blank answers the teacher chose to write out (a list instead of the row of letters).
+  const [writing, setWriting] = useState<Record<string, boolean>>({});
   const [finishing, setFinishing] = useState(false);
   const [live, setLive] = useState('');
   const edits = useRef(0), saved = useRef(0), saving = useRef(false), latest = useRef<WizardState | null>(null);
+  // Where the homework was when last read or saved, so a refused save can tell a move from an edit.
+  const placed = useRef<{ offeringId: string; lessonId: string } | null>(null);
+  const [moveRefused, setMoveRefused] = useState(false);
   latest.current = state;
   const now = Date.now();
 
@@ -69,6 +76,7 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
     if (read.body.workflow !== 'questions' || read.body.definition.mode !== 'PLATFORM_QUESTIONS') { setLegacy(true); return; }
     const next = fromView(read.body, read.body.courseId ?? courses.find(c => c.offerings.some(o => o.id === read.body.offeringId))?.id ?? '');
     edits.current = saved.current = 0;
+    placed.current = { offeringId: next.offeringId, lessonId: next.lessonId }; setMoveRefused(false);
     setState(next); setReadFailure(null); setSave('idle'); setFailure(null);
     const named = await Promise.all([...(next.solutionVideoId ? [next.solutionVideoId] : []), ...next.solutionIds].map(async fileId => {
       try { const m = await homeworkApi<{ name: string; mime: string }>(id, 'media', { id: fileId }); return { id: fileId, name: m.name, kind: m.mime === 'video/mp4' ? 'video' as const : 'pdf' as const }; }
@@ -109,10 +117,12 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
       const reply = await homeworkCall<{ id: string; revision: number | null }>(`${API}/${s.id ?? 'new'}/save`, { offeringId: s.offeringId, lessonId: s.lessonId, revision: s.revision, definition: toDefinition(s, published) });
       if (!reply.ok) {
         setFailure(reply.failure);
-        setSave(reply.failure.kind === 'changed' || (reply.failure.kind === 'refused' && reply.failure.reason === 'started') ? 'stale' : 'failed');
+        const refused = reply.failure.kind === 'refused' && (reply.failure.reason === 'started' || reply.failure.reason === 'versioned');
+        setMoveRefused(refused && Boolean(s.id) && (placed.current?.offeringId !== s.offeringId || placed.current?.lessonId !== s.lessonId));
+        setSave(reply.failure.kind === 'changed' || refused ? 'stale' : 'failed');
         return null;
       }
-      saved.current = at; setFailure(null);
+      saved.current = at; setFailure(null); placed.current = { offeringId: s.offeringId, lessonId: s.lessonId };
       setState(cur => cur && { ...cur, id: reply.body.id, revision: reply.body.revision, status: published ? 'published' : 'draft' });
       if (!s.id) { try { window.history.replaceState(window.history.state, '', `/teacher/homework/${reply.body.id}`); } catch { /* the address is a convenience */ } }
       setSave(edits.current === at ? 'saved' : 'waiting');
@@ -155,9 +165,9 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
         const fresh = await homeworkCall<TeacherHomeworkView>(`${API}/${clone.body.id}`);
         if (!fresh.ok) { setFailure(fresh.failure); return; }
         // The new version has its own question and answer ids (the old version keeps its own): every row gets the copy's id at its place, or a fresh one.
-        const copied = fresh.body.definition, renumber = (a: WizardQuestion[]) => a.map((q, i) => { const c = copied.questions[i]; const o = q.options.map((x, j) => ({ id: c?.options[j]?.id ?? ids(), text: x.text })); return { ...q, id: c?.id ?? ids(), options: o, correctIds: q.correctIds.map(id => o[q.options.findIndex(x => x.id === id)]?.id).filter((v): v is string => Boolean(v)) }; });
+        const copied = fresh.body.definition, renumber = (a: WizardQuestion[]) => a.map((q, i) => { const c = copied.questions[i]; const o = q.options.map((x, j) => ({ id: c?.options[j]?.id ?? ids(), text: x.text })); return { ...q, id: c?.id ?? ids(), options: o, modelImageId: q.modelImageId ? c?.modelImageId ?? null : null, correctIds: q.correctIds.map(id => o[q.options.findIndex(x => x.id === id)]?.id).filter((v): v is string => Boolean(v)) }; });
         // Solution files are copied with the version; ones the teacher removed stay removed.
-        latest.current = { ...s, id: clone.body.id, revision: fresh.body.revision, locked: false, questions: renumber(s.questions), solutionVideoId: s.solutionVideoId ? copied.solutionVideoId : null, solutionIds: s.solutionIds.length ? copied.solutionIds : [] };
+        latest.current = { ...s, id: clone.body.id, revision: fresh.body.revision, version: fresh.body.version, locked: false, questions: renumber(s.questions), solutionVideoId: s.solutionVideoId ? copied.solutionVideoId : null, solutionIds: s.solutionIds.length ? copied.solutionIds : [] };
         setState(latest.current);
       }
       const id = await send(published);
@@ -174,13 +184,12 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
     if (!state?.id || upload) return;
     setUploadFailure(null); setUpload({ at, percent: 0 });
     try { done(await uploadHomeworkFile(state.id, file, purpose, null, percent => setUpload({ at, percent }))); }
-    catch { setUploadFailure({ at, text: t(purpose === 'question' ? 'hw.w.picture_failed' : 'hw.w.file_failed') }); }
+    catch { setUploadFailure({ at, text: t(purpose === 'question' || at.startsWith('model-') ? 'hw.w.picture_failed' : 'hw.w.file_failed') }); }
     finally { setUpload(null); }
   }
   useEffect(() => {
     if (!state?.id) return;
-    for (const q of state.questions) if (q.imageId && !picture[q.imageId]) {
-      const imageId = q.imageId;
+    for (const imageId of state.questions.flatMap(q => [q.imageId, q.modelImageId])) if (imageId && picture[imageId] === undefined) {
       homeworkApi<{ url: string }>(state.id, 'media', { id: imageId }).then(m => setPicture(p => ({ ...p, [imageId]: m.url }))).catch(() => setPicture(p => ({ ...p, [imageId]: '' })));
     }
   }, [state?.id, state?.questions, picture]);
@@ -199,20 +208,22 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
   const qi = state.questions.indexOf(q);
   const go = (next: WizardStep) => { setIssues([]); setStep(next); if (typeof window !== 'undefined') window.scrollTo({ top: 0 }); };
   const next = () => { const found = stepIssues(state, step, Date.now()); if (found.length) { setIssues(found); return; } go(WIZARD_STEPS[index + 1]); };
-  const fixed = Boolean(state.id);
+  // Course and lesson stay where they are once a student started or for a later version; a new or untouched homework may still move.
+  const fixed = placeLocked(state);
+  const fixedWhy = state.locked ? 'hw.w.fixed' : 'hw.w.fixed_version';
   const saveText: Record<Save, MessageKey | null> = { idle: state.id ? 'hw.w.saved' : null, saving: 'hw.w.saving', saved: 'hw.w.saved', waiting: 'hw.w.unsaved', failed: 'hw.w.save_failed', stale: 'hw.w.save_failed' };
   const status = state.locked || state.status === 'published' ? null : saveText[save];
   const issueList = issues.length > 0 && <div role="alert" data-issues className="d-alert"><ul className="d-stack-xs">{issues.map((issue, i) => <li key={i} data-issue={issue.key} className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" />{t(`hw.w.issue.${issue.key}` as MessageKey, { n: (issue.question ?? 0) + 1 })}</li>)}</ul></div>;
 
   const courseOptions = editable.flatMap(c => c.offerings.map(o => ({ value: `${c.id}:${o.id}`, label: <bdi dir="auto">{c.offerings.length > 1 ? `${c.title} · ${o.name}` : c.title}</bdi> })));
   const currentCourse = courses.find(c => c.id === state.courseId);
-  if (fixed && currentCourse && !courseOptions.some(o => o.value === `${currentCourse.id}:${state.offeringId}`)) courseOptions.push({ value: `${currentCourse.id}:${state.offeringId}`, label: <bdi dir="auto">{currentCourse.title}</bdi> });
+  if (currentCourse && !courseOptions.some(o => o.value === `${currentCourse.id}:${state.offeringId}`)) courseOptions.push({ value: `${currentCourse.id}:${state.offeringId}`, label: <bdi dir="auto">{currentCourse.title}</bdi> });
 
   const details = <Card title="hw.w.step.details" hint="hw.w.details_hint">
     <Field label={<L id="hw.w.title" />} value={state.title} maxLength={200} dir="auto" autoComplete="off" onChange={e => change(s => ({ ...s, title: e.target.value }))} data-field="title" />
     <label className="d-field" data-field="course"><span className="d-field-label"><L id="hw.w.course" /></span>
       <Select value={state.courseId ? `${state.courseId}:${state.offeringId}` : ''} placeholder={t('hw.w.course_pick')} disabled={fixed} aria-describedby={fixed ? 'hw-fixed' : undefined} options={courseOptions}
-        onChange={v => { const [c, o] = v.split(':'); change(s => ({ ...s, courseId: c, offeringId: o, lessonId: s.courseId === c ? s.lessonId : '' })); }} />
+        onChange={v => { const [c, o] = v.split(':'); change(s => chooseCourse(s, c, o)); }} />
     </label>
     <label className="d-field" data-field="lesson"><span className="d-field-label"><L id="hw.w.lesson" /></span>
       <Select value={state.lessonId} placeholder={t('hw.w.lesson_pick')} disabled={fixed || !structure} aria-describedby={fixed ? 'hw-fixed' : 'hw-lesson-hint'}
@@ -220,7 +231,7 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
         onChange={v => change(s => ({ ...s, lessonId: v }))} />
       <span id="hw-lesson-hint" className="d-field-hint"><L id="hw.w.lesson_hint" /></span>
     </label>
-    {fixed && <p id="hw-fixed" className="d-meta" data-fixed><L id="hw.w.fixed" /></p>}
+    {fixed && <p id="hw-fixed" className="d-meta" data-fixed={state.locked ? 'started' : 'versioned'}><L id={fixedWhy} /></p>}
     {structureFailed && <p role="alert" className="d-field-error"><L id="tc.content.failed" /></p>}
     {structure && !lessons.length && <p className="d-meta" data-no-lessons><L id="hw.w.no_lessons" /> <Link href={`/teacher/settings/courses/${state.courseId}`} className="d-inline-link"><L id="hw.w.course_page" /></Link></p>}
     {lesson?.status === 'draft' && <div data-lesson-draft className="d-notice d-stack-xs">
@@ -233,11 +244,13 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
 
   const setQ = (fn: (q: WizardQuestion) => WizardQuestion) => change(s => ({ ...s, questions: s.questions.map(x => x.id === q.id ? fn(x) : x) }));
   const questionMenu = <ActionMenu label={t('hw.w.q_actions', { n: qi + 1 })} triggerData={{ 'data-question-menu': '' }} items={[
-    { key: 'up', label: t('hw.w.q_up'), unavailable: qi === 0, note: qi === 0 ? t('hw.w.q_first') : undefined, data: { 'data-action': 'up' }, onSelect: () => { change(s => ({ ...s, questions: moveQuestion(s.questions, qi, qi - 1) })); setCurrent(qi - 1); } },
-    { key: 'down', label: t('hw.w.q_down'), unavailable: qi === state.questions.length - 1, note: qi === state.questions.length - 1 ? t('hw.w.q_last') : undefined, data: { 'data-action': 'down' }, onSelect: () => { change(s => ({ ...s, questions: moveQuestion(s.questions, qi, qi + 1) })); setCurrent(qi + 1); } },
-    { key: 'remove', label: t('hw.w.q_remove'), destructive: state.questions.length > 1, unavailable: state.questions.length === 1, note: state.questions.length === 1 ? t('hw.w.q_only') : undefined, data: { 'data-action': 'remove' }, onSelect: () => { change(s => ({ ...s, questions: s.questions.filter(x => x.id !== q.id) })); setCurrent(Math.max(0, qi - 1)); } },
+    { key: 'up', label: t('hw.w.q_up'), unavailable: qi === 0, reason: qi === 0 ? t('hw.w.q_first') : undefined, data: { 'data-action': 'up' }, onSelect: () => { change(s => ({ ...s, questions: moveQuestion(s.questions, qi, qi - 1) })); setCurrent(qi - 1); } },
+    { key: 'down', label: t('hw.w.q_down'), unavailable: qi === state.questions.length - 1, reason: qi === state.questions.length - 1 ? t('hw.w.q_last') : undefined, data: { 'data-action': 'down' }, onSelect: () => { change(s => ({ ...s, questions: moveQuestion(s.questions, qi, qi + 1) })); setCurrent(qi + 1); } },
+    { key: 'remove', label: t('hw.w.q_remove'), destructive: state.questions.length > 1, unavailable: state.questions.length === 1, reason: state.questions.length === 1 ? t('hw.w.q_only') : undefined, data: { 'data-action': 'remove' }, onSelect: () => { change(s => ({ ...s, questions: s.questions.filter(x => x.id !== q.id) })); setCurrent(Math.max(0, qi - 1)); } },
   ]} />;
-  const pictureAt = `picture-${q.id}`;
+  const pictureAt = `picture-${q.id}`, modelAt = `model-${q.id}`;
+  // Blank answers show as a row of letters until the teacher writes one out; any answer text shows the list.
+  const chips = q.kind === 'choice' && blankAnswers(q) && !writing[q.id];
   const questions = <div className="d-stack-sm">
     <div role="tablist" aria-label={t('hw.w.step.questions')} data-question-tabs className="d-hw-qtabs">
       {state.questions.map((x, i) => <button key={x.id} type="button" role="tab" aria-selected={i === qi} data-question-tab={i + 1} className="d-hw-qtab d-focus" onClick={() => setCurrent(i)}>
@@ -253,8 +266,7 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
         {questionMenu}
       </div>
       <SegmentedControl label={t('hw.w.kind_label')} value={q.kind} onChange={kind => setQ(x => setKind(x, kind, ids))} options={[{ value: 'choice', label: t('hw.w.kind.choice'), 'data-kind': 'choice' }, { value: 'essay', label: t('hw.w.kind.essay'), 'data-kind': 'essay' }]} />
-      {q.kind === 'choice' && <Switch checked={q.textbook} onChange={on => setQ(x => setTextbook(x, on, ids))} data-textbook="" label={<span className="d-stack-xs"><span><L id="hw.w.textbook" /></span><span className="d-meta"><L id="hw.w.textbook_hint" /></span></span>} />}
-      <TextArea label={q.kind === 'choice' && q.textbook ? <><L id="hw.w.question_text" /> <span className="d-meta"><L id="hw.w.optional" /></span></> : <L id="hw.w.question_text" />} value={q.text} maxLength={10000} rows={3} onChange={v => setQ(x => ({ ...x, text: v }))} data="question-text" />
+      <TextArea label={q.kind === 'choice' ? <><L id="hw.w.question_text" /> <span className="d-meta"><L id="hw.w.optional" /></span></> : <L id="hw.w.question_text" />} value={q.text} maxLength={10000} rows={3} onChange={v => setQ(x => ({ ...x, text: v }))} data="question-text" />
       <div className="d-stack-xs" data-picture>
         {q.imageId ? <div className="d-hw-file">
           {/* A short-lived signed Storage URL, not an optimisable asset. */}
@@ -266,33 +278,48 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
           onFile={file => void uploadTo(pictureAt, file, 'question', row => setQ(x => ({ ...x, imageId: row.id })))} />}
         {uploadFailure?.at === pictureAt && <p role="alert" className="d-field-error">{uploadFailure.text}</p>}
       </div>
-      {q.kind === 'choice' && <>
-        {!q.textbook && <Switch checked={q.multiple} onChange={on => setQ(x => setMultiple(x, on))} label={<L id="hw.w.multiple" />} data-multiple="" />}
-        <fieldset className="d-stack-xs" data-options>
-          <legend className="d-field-label"><L id={q.multiple ? 'hw.w.options_many' : 'hw.w.options'} /></legend>
-          <div role={q.multiple ? 'group' : 'radiogroup'} aria-label={t(q.multiple ? 'hw.w.options_many' : 'hw.w.options')} className="d-stack-xs">
-            {q.options.map((o, i) => <div key={o.id} className="d-hw-option" data-option={letter(i)}>
-              <button type="button" role={q.multiple ? 'checkbox' : 'radio'} aria-checked={q.correctIds.includes(o.id)} aria-label={t('hw.w.mark_correct', { letter: letter(i) })} data-correct={q.correctIds.includes(o.id) ? '' : undefined} className="d-hw-mark d-focus" onClick={() => setQ(x => toggleCorrect(x, o.id))}>
-                <span aria-hidden="true">{q.correctIds.includes(o.id) ? <Icon name="check" size={16} /> : letter(i)}</span>
+      {q.kind === 'choice' && <fieldset className="d-stack-xs" data-options={chips ? 'chips' : 'list'} data-choice-type={choiceType(q)}>
+        <legend className="d-field-label"><L id="hw.w.answers" /></legend>
+        {/* Any number of answers may be right: one makes it single choice, more make it multiple choice. Students are told which. */}
+        <div role="group" aria-label={t('hw.w.answers')} aria-describedby="hw-choice-type" className={chips ? 'd-hw-chips' : 'd-stack-xs'}>
+          {q.options.map((o, i) => chips
+            ? <button key={o.id} type="button" role="checkbox" aria-checked={q.correctIds.includes(o.id)} aria-label={t('hw.w.mark_correct', { letter: letter(i, lang) })} data-option={letter(i)} data-correct={q.correctIds.includes(o.id) ? '' : undefined} className="d-hw-mark d-focus" onClick={() => setQ(x => toggleCorrect(x, o.id))}>
+              <span aria-hidden="true">{letter(i, lang)}</span>
+            </button>
+            : <div key={o.id} className="d-hw-option" data-option={letter(i)}>
+              <button type="button" role="checkbox" aria-checked={q.correctIds.includes(o.id)} aria-label={t('hw.w.mark_correct', { letter: letter(i, lang) })} data-correct={q.correctIds.includes(o.id) ? '' : undefined} className="d-hw-mark d-focus" onClick={() => setQ(x => toggleCorrect(x, o.id))}>
+                <span aria-hidden="true">{q.correctIds.includes(o.id) ? <Icon name="check" size={16} /> : letter(i, lang)}</span>
               </button>
-              {q.textbook ? <span className="d-label d-hw-letter">{letter(i)}</span>
-                : <input className="d-field-input" value={o.text} maxLength={2000} dir="auto" aria-label={t('hw.w.option_n', { letter: letter(i) })} data-option-text={letter(i)} onChange={e => setQ(x => ({ ...x, options: x.options.map(y => y.id === o.id ? { ...y, text: e.target.value } : y) }))} />}
-              {!q.textbook && <Button variant="icon" aria-label={t('hw.w.remove_option', { letter: letter(i) })} aria-disabled={q.options.length <= MIN_OPTIONS || undefined} aria-describedby={q.options.length <= MIN_OPTIONS ? 'hw-min-options' : undefined} onClick={() => setQ(x => removeOption(x, o.id))} data-remove-option={letter(i)}><Icon name="close" size={18} /></Button>}
+              <input className="d-field-input" value={o.text} maxLength={2000} dir="auto" placeholder={t('hw.w.optional')} aria-label={t('hw.w.option_n', { letter: letter(i, lang) })} data-option-text={letter(i)} onChange={e => setQ(x => ({ ...x, options: x.options.map(y => y.id === o.id ? { ...y, text: e.target.value } : y) }))} />
+              <Button variant="icon" aria-label={t('hw.w.remove_option', { letter: letter(i, lang) })} aria-disabled={q.options.length <= MIN_OPTIONS || undefined} aria-describedby={q.options.length <= MIN_OPTIONS ? 'hw-min-options' : undefined} onClick={() => setQ(x => removeOption(x, o.id))} data-remove-option={letter(i)}><Icon name="close" size={18} /></Button>
             </div>)}
-          </div>
-          {!q.textbook && q.options.length <= MIN_OPTIONS && <p id="hw-min-options" className="d-meta"><L id="hw.w.min_options" /></p>}
-          {!q.textbook && <Button variant="tertiary" className="d-self-start" data-add-option aria-disabled={q.options.length >= MAX_OPTIONS || undefined} aria-describedby={q.options.length >= MAX_OPTIONS ? 'hw-max-options' : undefined} onClick={() => setQ(x => addOption(x, ids))}><Icon name="plus" size={16} /><L id="hw.w.add_option" /></Button>}
-          {!q.textbook && q.options.length >= MAX_OPTIONS && <p id="hw-max-options" className="d-meta"><L id="hw.w.max_options" /></p>}
-        </fieldset>
-      </>}
-      {q.kind === 'essay' && <TextArea label={<><L id="hw.w.model_answer" /> <span className="d-meta"><L id="hw.w.model_answer_hint" /></span></>} value={q.modelAnswer} maxLength={10000} rows={2} onChange={v => setQ(x => ({ ...x, modelAnswer: v }))} data="model-answer" />}
+        </div>
+        <p id="hw-choice-type" className="d-meta" data-choice-hint>{t(q.correctIds.length === 0 ? 'hw.w.type_none' : choiceType(q) === 'multiple_choice' ? 'hw.w.type_many' : 'hw.w.type_one')}</p>
+        <div className="d-hw-option-actions">
+          <Button variant="tertiary" data-add-option aria-disabled={q.options.length >= MAX_OPTIONS || undefined} aria-describedby={q.options.length >= MAX_OPTIONS ? 'hw-max-options' : undefined} onClick={() => setQ(x => addOption(x, ids))}><Icon name="plus" size={16} /><L id="hw.w.add_option" /></Button>
+          {chips && <Button variant="tertiary" data-remove-last aria-disabled={q.options.length <= MIN_OPTIONS || undefined} aria-describedby={q.options.length <= MIN_OPTIONS ? 'hw-min-options' : undefined} onClick={() => setQ(x => removeOption(x, x.options[x.options.length - 1].id))}><Icon name="close" size={16} />{t('hw.w.remove_option', { letter: letter(q.options.length - 1, lang) })}</Button>}
+          {chips && <Button variant="tertiary" data-write-answers onClick={() => setWriting(w => ({ ...w, [q.id]: true }))}><L id="hw.w.write_answers" /></Button>}
+        </div>
+        {q.options.length <= MIN_OPTIONS && <p id="hw-min-options" className="d-meta"><L id="hw.w.min_options" /></p>}
+        {q.options.length >= MAX_OPTIONS && <p id="hw-max-options" className="d-meta"><L id="hw.w.max_options" /></p>}
+      </fieldset>}
+      {q.kind === 'essay' && <div className="d-stack-xs" data-model>
+        <TextArea label={<><L id="hw.w.model_answer" /> <span className="d-meta"><L id="hw.w.model_answer_hint" /></span></>} value={q.modelAnswer} maxLength={10000} rows={2} onChange={v => setQ(x => ({ ...x, modelAnswer: v }))} data="model-answer" />
+        {/* The model answer picture: images only, the same limit as a question picture; students see it when the solutions open. */}
+        {q.modelImageId ? <div className="d-hw-file" data-model-picture>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {picture[q.modelImageId] ? <img src={picture[q.modelImageId]} alt={t('hw.w.model_picture_alt', { n: qi + 1 })} className="d-hw-picture" /> : <Icon name="check" />}
+          <span className="d-meta"><L id="hw.w.model_picture_added" /></span>
+          <Button variant="tertiary" data-model-picture-remove onClick={() => setQ(x => ({ ...x, modelImageId: null }))}><L id="hw.w.remove" /></Button>
+        </div> : <FilePick at={modelAt} accept="image/png,image/jpeg,image/webp" label={upload?.at === modelAt ? t('hw.w.uploading', { n: upload.percent }) : t('hw.w.model_picture_add')} blocked={!state.id ? t('hw.w.picture_wait') : upload ? t('hw.w.uploading', { n: upload.percent }) : null}
+          onFile={file => { if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { setUploadFailure({ at: modelAt, text: t('hw.w.picture_failed') }); return; } void uploadTo(modelAt, file, 'solution', row => setQ(x => ({ ...x, modelImageId: row.id }))); }} />}
+        {uploadFailure?.at === modelAt && <p role="alert" className="d-field-error">{uploadFailure.text}</p>}
+      </div>}
     </section>
-    <div className="d-card d-card--pad" data-photos>
-      <Switch checked={state.photos} onChange={on => change(s => ({ ...s, photos: on }))} data-photos-switch="" label={<span className="d-stack-xs"><span><L id="hw.w.photos" /></span><span className="d-meta"><L id={state.photos ? 'hw.w.photos_hint' : 'hw.w.photos_off'} /></span></span>} />
-    </div>
   </div>;
 
   const deadline = wizardDeadline(state);
+  const essayCount = state.questions.filter(x => x.kind === 'essay').length;
   const rules = <Card title="hw.w.step.rules" hint="hw.w.rules_hint">
     {state.locked && <p className="d-content-line" data-use-change-deadline><Icon name="info" /><span><L id="hw.w.locked_deadline" /> <Link href="/teacher/homework" className="d-inline-link"><L id="hw.action.deadline" /></Link></span></p>}
     <fieldset className="d-stack-xs" data-deadline>
@@ -302,6 +329,12 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
         <Field type="time" label={<L id="hw.w.deadline_time" />} value={state.deadlineTime} onChange={e => change(s => ({ ...s, deadlineTime: e.target.value }))} data-field="deadline-time" />
       </div>
       {deadline && <p className="d-meta" data-deadline-shown>{t('hw.due', { day: cairoDay(deadline, lang), time: cairoTime(deadline, lang) })} · <L id="hw.w.cairo" /></p>}
+    </fieldset>
+    <fieldset className="d-stack-xs" data-photos>
+      <legend className="d-field-label"><L id="hw.w.answer_heading" /></legend>
+      <Switch checked={state.photos} onChange={on => change(s => ({ ...s, photos: on }))} data-photos-switch="" label={<span className="d-stack-xs"><span><L id="hw.w.photos" /></span><span className="d-meta"><L id="hw.w.photos_hint" /></span></span>} />
+      {/* Turning photo answers off makes every essay a text answer: one line says so. */}
+      {!state.photos && <p className="d-meta" data-photos-off>{t(essayCount ? 'hw.w.photos_off' : 'hw.w.photos_off_none')}</p>}
     </fieldset>
     <Switch checked={state.lateAllowed} onChange={on => change(s => ({ ...s, lateAllowed: on }))} data-late="" label={<span className="d-stack-xs"><span><L id="hw.w.late" /></span><span className="d-meta"><L id="hw.w.late_hint" /></span></span>} />
     <ChoiceGroup label={t('hw.w.tries')} value={state.tries} onChange={tries => change(s => ({ ...s, tries }))} options={[
@@ -361,7 +394,7 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
   return <Frame title={step === 'review' ? <L id="hw.w.review_title" /> : state.title.trim() && step !== 'details' ? <bdi dir="auto">{state.title}</bdi> : <L id={homeworkId ? 'hw.w.edit' : 'hw.w.new'} />} status={status} phone={phone} step={index} onStep={i => go(WIZARD_STEPS[i])}>
     {state.locked && step !== 'review' && <div className="d-notice" data-locked-note><p className="d-content-line"><Icon name="info" /><span><L id="hw.w.locked_body" /></span></p></div>}
     {(save === 'stale' || (save === 'failed' && failure)) && <div role="alert" data-save-failure={save} className="d-alert">
-      <p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span>{save === 'stale' ? t('hw.w.stale') : failureWords(t, failure!)}</span></p>
+      <p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span>{save === 'stale' ? t(moveRefused ? (failure && 'reason' in failure && failure.reason === 'versioned' ? 'hw.w.move_versioned' : 'hw.w.move_started') : 'hw.w.stale') : failureWords(t, failure!)}</span></p>
       {save === 'stale' ? <Button data-reload onClick={() => void reload()}><L id="tc.reload" /></Button> : <Button data-retry-save onClick={() => void send(false)}><L id="th.state.retry" /></Button>}
     </div>}
     {failure && save !== 'stale' && save !== 'failed' && <div role="alert" className="d-alert"><p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span>{failureWords(t, failure)}</span></p></div>}
