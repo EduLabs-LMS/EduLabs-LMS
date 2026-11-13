@@ -26,3 +26,7 @@ API and database authorization, not navigation or role badges, are authoritative
 
 The next UI task requires owner approval of this foundation and a specific screen.
 Do not resurrect retired components from Git as the new starting UI.
+
+Local SQL tests (standing rule for every run): While working, run only the affected suites (LMS_SQL_ONLY). Run the full SQL run ONCE,
+at the very end, before pushing. Never run it twice in a row for the same change. Don't include listing-performance unless listing
+reads changed. See docs/ai/TESTING.md, "The fast SQL runner".

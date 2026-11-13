@@ -35,7 +35,7 @@ test('migration: the summary decides the managed groups once and never calls the
 });
 test('SQL: the equivalence test is in the suite, the benchmark runs only with --bench', () => {
  const runner = read('scripts/exam-sql-local.cjs');
- assert.match(runner, /'group-summary-performance'/); assert.match(runner, /process\.argv\.includes\('--bench'\)/);
+ assert.match(runner, /'group-summary-performance'/); assert.match(runner, /'--bench'/);
  const test = read('supabase/tests/group-summary-performance.sql'), bench = read('supabase/tests/group-summary-performance-benchmark.sql');
  assert.match(test, /rollback;\s*$/); assert.match(bench, /rollback;\s*$/);
  assert.match(bench, /count\(\*\) from public\.session_attendance\)>=20000/);

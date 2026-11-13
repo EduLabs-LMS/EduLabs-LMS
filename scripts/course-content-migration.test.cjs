@@ -69,7 +69,7 @@ test('demo seed 4: the board tree, no homework, and Clear needs no change', () =
 test('the tests exist and run in the local suite', () => {
  assert.ok(fs.existsSync('supabase/tests/course-content-tree.sql'));
  const harness = read('scripts/exam-sql-local.cjs');
- assert.match(harness, /'course-content-tree'/); assert.match(harness, /course-content-concurrency\.cjs/);
+ assert.match(harness, /'course-content-tree'/); assert.match(harness, /'course-content-concurrency'/);
  assert.match(read('supabase/tests/course-content-tree.sql'), /securetoken\.google\.com/, 'every identity is a Firebase identity');
  assert.match(read('scripts/course-content-concurrency.cjs'), /securetoken\.google\.com/);
 });

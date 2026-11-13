@@ -24,10 +24,11 @@ this preparation installed nothing and did not change the lockfile.
 
 ## Disposable SQL only
 npm run test:exam-sql:postgres
-The existing harness reads a loopback PostgreSQL port from ignored .local/step03a/
-pg-port.txt, creates a unique owned database, replays 32 migrations and executes 24
-rollback suites plus independent-session concurrency tests. Run only against an owned
-local disposable cluster. It does not use a Supabase URL. No hosted migration replay,
+The harness reads a loopback PostgreSQL port from ignored .local/step03a/pg-port.txt.
+With --postgres it builds the migrated, seeded database once into a template and runs
+every rollback suite and every independent-session concurrency script in its own clone,
+in parallel (see "The fast SQL runner" below). Run only against an owned local
+disposable cluster. It does not use a Supabase URL. No hosted migration replay,
 db push, history repair or real academic records. Keep the migration ledger intact.
 
 ## Browser tests
@@ -143,7 +144,7 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `scripts/course-content-concurrency.cjs` runs in the same command when it uses PostgreSQL: 13 real two-tab races on separate connections, including the chapter numbers and archiving. Because `updated_at` is the transaction's time, staleness inside the single-transaction SQL suite is tested with an old stamp, and only this script proves it across transactions.
 - `node --test scripts/course-content-migration.test.cjs` (part of `npm test`) checks the file's shape.
 - The runtime is in the main checkout: `LMS_SQL_RUNTIME=/c/dev/EduLabs-LMS/.local/step03a/runtime/node_modules`. `bash .local/pg17.sh start` starts the disposable server.
-- **Expect a long full run.** `listing-performance` is much slower after the other suites than alone: on the base commit `0d32831`, 234 s alone and 1,476 s in a full run; on this branch, 215 s alone and about 44 minutes in one full run while other runs shared the machine. Why it slows after the other suites is not diagnosed. To work on one suite, set `LMS_SQL_ONLY=<name>`.
+- The full run is about 4 minutes since the fast runner (`claude/exams-db`, "test: fast SQL runner"); `listing-performance` (about 3 minutes alone) is its longest job. See "The fast SQL runner".
 - `node --test scripts/course-content-screen.test.cjs` (part of `npm test`): numbering, reorder and move payloads, which function each action calls, database codes to replies to messages, refusal wording in both languages, the contract, the middleware pattern.
 - `scripts/course-content-screen-sql.cjs` runs in the same SQL command, after the races: the screen's own payload builders, the route's contract and reply mapper against the real functions, under a Firebase identity, with the `updated_at` round trip. pg gives the code, message and detail directly; PostgREST is not run.
 - `scripts/teacher-course-content-browser.cjs` (Chromium, real middleware, real contract and reply mapper, fictional server, synthetic data): desktop drag and keyboard moves, move to another chapter, inline add and rename, delete, Delete off with its reason, a refused delete, stale reload with the typed text kept, a lost reply, archived, assistant, the phone sheet, Arabic RTL, Classic and New. `LMS_MATRIX=1` adds the screen matrix. Needs a Firebase-mode `npm run build`, `source .local/pa-env.sh` and `LMS_FRESH_CSS=1`.
@@ -199,8 +200,8 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
   writes a lesson status directly, and that the student models show a published lesson with no parts as Locked with no link and
   never throw (Continue Learning offers nothing for it).
 - `course-content-tree.sql` changed in two assertions (DECISIONS.md lists both, with the reason).
-- Run just these: `LMS_SQL_ONLY=lesson-publish,course-content-tree node scripts/exam-sql-local.cjs --postgres` (the races run with
-  every `--postgres` run).
+- Run just these: `LMS_SQL_ONLY=lesson-publish,course-content-tree node scripts/exam-sql-local.cjs --postgres` (this also runs the
+  races and screen-SQL scripts mapped to those suites).
 
 ## Homework screens, part 1 (`claude/homework-ui`)
 
@@ -311,3 +312,38 @@ publishing, a Group made by `group_command` with two weekly times, drafts unlink
 an opened session of a Group with no stored link moved or cancelled (frozen from the rule), a session moved before opening (follows).
 The portal's per-Group `started` / `total` and `noGroup` are compared with a naive query for every open exam, plus `secondsLeft` on the
 server clock and an assistant's read. The race script's auto hand-in count is 4 (s2, s3 and the two late-Group students).
+
+## The fast SQL runner (`scripts/exam-sql-local.cjs --postgres`, branch `claude/exams-db`)
+
+**Standing rule.** While working, run only the affected suites (`LMS_SQL_ONLY`). Run the full SQL run ONCE, at the very end, before
+pushing. Never run it twice in a row for the same change. Don't include `listing-performance` unless listing reads changed.
+
+- **Template cache.** The migrated, seeded database is built once into `edulabs_tmpl_<hash>`, named by a sha256 of
+  `local-bootstrap.sql`, every migration (name and bytes), `seed.sql`, `course-content-rewrite-before.sql` / `-after.sql`, the runner
+  itself and `--fresh-install`. The 8 preservation fingerprint passes and the course-content rewrite checks run only while it is built;
+  their PASS lines are stored in the template's comment and printed on every later run. A changed input rebuilds it automatically,
+  `--rebuild` forces it, older `edulabs_tmpl_*` templates are dropped. Building takes a few seconds.
+- **Isolation.** Every SQL suite and every race or screen-SQL script runs in its own database made with
+  `CREATE DATABASE ... TEMPLATE` (a child process per job), so nothing runs on another job's leftovers. Each suite is still checked to
+  have rolled back (`assessment_attempts` unchanged). `domain-concurrency` needs the fixtures of `website-concurrency`, so the two run
+  in one job, in that order (`RACE_AFTER`).
+- **Parallel.** `LMS_SQL_JOBS` jobs at a time (default CPU cores − 1) within the server's connection limit (`max_connections` minus
+  reserved; the local server has 40). A suite counts 2 connections; a race counts its measured peak (kept in ignored
+  `.local/step03a/sql-timings.json` with each job's time, which also orders the queue longest first). Each job's time and the total
+  are printed at the end.
+- **Filtering.** `LMS_SQL_ONLY=a,b` runs those suites and the race / screen-SQL scripts mapped to them (`RACE_SUITES` in the runner, a
+  trailing `*` is a prefix, e.g. every `homework*` suite takes `homework-concurrency`, `homework-rules-concurrency`,
+  `homework-move-concurrency` and `teacher-homework-sql`). A script name can be given directly. An unknown name is an error.
+  `LMS_SQL_RACES=0` skips races. No filter runs everything. `listing-performance` runs only in the full run or when named.
+- Benchmarks (`--bench`, `--bench-only`, `--bench-attendance`, `--bench-listing`) and the in-memory PGlite runtime keep the old
+  sequential single-database run. `--timers` adds `exam-deadline.cjs` as a job.
+- **Measured (2026-11-13, 20 cores).** Before: the last full run of the old runner took about 77 minutes (14:38–15:55; earlier ones
+  45–55 min). After: 222 s for a full run that also rebuilt the template; the same 189 PASS lines (suites with their check counts,
+  races, the 47 replayed migrations' preservation and rewrite checks), no difference. A filtered run (`exams,exams-demo,homework-correct`
+  with their 5 scripts) takes 11 s. `listing-performance` takes 192 s alone in a fresh clone.
+- **Why `listing-performance` was slow after other suites.** It compares the new listing functions with the old ones
+  (`group_view_before`, `student_administration_before`), which authorize row by row. With fresh planner statistics of the small seeded
+  tables, those calls get per-row plans that become about 4x slower once the suite adds its rows inside its transaction (3.3 s a call,
+  about 130 calls). The old sequential run reached that state when autovacuum analyzed the tables that the earlier, rolled-back suites
+  had churned (and bloated). Measured: 192 s in a clone of an un-analyzed template, 763 s in a clone of an analyzed one. So the
+  template is deliberately not analyzed, and each clone starts with no statistics, as a fresh replay did.
