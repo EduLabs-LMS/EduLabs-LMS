@@ -30,3 +30,4 @@ supabase/migrations/20261109120000_homework_teacher_rules.sql -text
 supabase/migrations/20261110120000_lesson_publish.sql -text
 supabase/migrations/20261112120000_homework_move.sql -text
 supabase/migrations/20261113120000_homework_correct_demo.sql -text
+supabase/migrations/20261114120000_exams.sql -text

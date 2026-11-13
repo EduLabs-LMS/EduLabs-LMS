@@ -88,11 +88,13 @@ module.exports=async function run(makeClient,admin) {
   assert.equal((await admin.query('select count(*)::int n from private.exam_grade_changes where attempt_id=$1',[paper])).rows[0].n,1);
   assert.deepEqual((await admin.query('select response from public.assessment_responses where id=$1',[response])).rows[0].response,{text:'Synthetic work'});
   console.log('PASS concurrency: competing released corrections have one audited winner; duplicate request is idempotent');
-  await teacherA.claim();const cloned=(await teacherA.query('select public.clone_exam_schedule($1) id',[schedule])).rows[0].id;await teacherA.query('commit');
+  // The legacy builder's clone and save are closed to clients (20261114120000_exams.sql); the fixture runs them as the owner with the
+  // teacher's claims, so the legacy runner still gets a cloned, published paper. The definers still check the caller from the claims.
+  await teacherA.claim();await teacherA.query('reset role');const cloned=(await teacherA.query('select private.clone_exam_schedule($1) id',[schedule])).rows[0].id;await teacherA.query('commit');
   // The clone is a draft; publish it before its first attempt through normal authoring.
   await teacherA.claim();const definition=(await teacherA.query('select public.get_exam_definition_v2($1) d',[cloned])).rows[0].d;
   const draft={title:definition.title,description:definition.description,durationMinutes:definition.durationMinutes,maxAttempts:definition.maxAttempts,isPublished:true,questions:definition.questions.map(({id,...q})=>q)};
-  await teacherA.query('select public.save_exam_definition_v2($1,$2,$3,$4)',[definition.offeringId,cloned,definition.updatedAt,JSON.stringify(draft)]);await teacherA.query('commit');
+  await teacherA.query('reset role');await teacherA.query('select private.save_exam_definition_v2($1,$2,$3,$4)',[definition.offeringId,cloned,definition.updatedAt,JSON.stringify(draft)]);await teacherA.query('commit');
   await a.claim();const batchedPaper=(await a.query(first,[cloned])).rows[0].id;
   const content=(await a.query('select public.get_exam_attempt_content($1) q',[batchedPaper])).rows[0].q;const current=(await a.query('select public.sync_exam_participation($1) s',[cloned])).rows[0].s;await a.query('commit');
   await a.claim();await b.claim();

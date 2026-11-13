@@ -2327,6 +2327,20 @@ export type Database = {
       homework_portal: { Args: { p_course?: string | null; p_page?: number; p_tab?: string }; Returns: Json }
       homework_queue: { Args: { p_assignment: string; p_page?: number; p_tab?: string }; Returns: Json }
       homework_release_many: { Args: { p_assignment: string; p_items: Json }; Returns: Json }
+      // Exams (20261114120000_exams.sql): private tables, these wrappers only.
+      exam_save: { Args: { p_exam: string | null; p_offering: string | null; p_revision: number | null; p_definition: Json }; Returns: Json }
+      exam_lifecycle: { Args: { p_exam: string; p_action: string; p_revision: number; p_data?: Json }; Returns: Json }
+      exam_set_window: { Args: { p_exam: string; p_group: string; p_revision: number; p_data: Json }; Returns: Json }
+      exam_work: { Args: { p_exam: string; p_action: string; p_revision?: number | null; p_data?: Json }; Returns: Json }
+      exam_release_many: { Args: { p_exam: string; p_items: Json }; Returns: Json }
+      exam_paper_mark: { Args: { p_exam: string; p_items: Json }; Returns: Json }
+      exam_upload: { Args: { p_exam: string; p_action: string; p_id?: string | null; p_data?: Json }; Returns: Json }
+      exam_get: { Args: { p_exam: string; p_attempt?: string | null }; Returns: Json }
+      exam_student_list: { Args: never; Returns: Json }
+      exam_portal: { Args: { p_course?: string | null; p_tab?: string; p_page?: number }; Returns: Json }
+      exam_queue: { Args: { p_exam: string; p_tab?: string; p_page?: number }; Returns: Json }
+      exam_paper_sheet: { Args: { p_exam: string; p_group?: string | null; p_page?: number }; Returns: Json }
+      exam_storage_usage: { Args: { p_space: string }; Returns: Json }
       homework_delete_images: { Args: { p_assignment: string }; Returns: Json }
       homework_storage_usage: { Args: { p_space: string }; Returns: Json }
       homework_assistants: { Args: { p_course: string }; Returns: Json }

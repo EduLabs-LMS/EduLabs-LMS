@@ -13,20 +13,27 @@ create function pg_temp.definition() returns jsonb language sql as $$ select '{"
  {"type":"WRITTEN","questionType":"short_text","text":"Short","imageUrl":null,"choices":null,"correctChoice":null,"points":2},
  {"type":"WRITTEN","questionType":"essay","text":"Essay","imageUrl":null,"choices":null,"correctChoice":null,"points":4},
  {"type":"WRITTEN","questionType":"file_upload","text":"Photo","imageUrl":null,"choices":null,"correctChoice":null,"points":4}]}'::jsonb $$;
+-- The legacy builder's save and clone are closed to clients (20261114120000_exams.sql, owner's answer 2). These wrappers run the same definers
+-- as the owner with the caller's claims, so the fixtures still build legacy papers and every authorization check inside still applies.
+create function pg_temp.legacy_save(p_offering uuid,p_schedule uuid,p_at timestamptz,p_def jsonb) returns uuid language sql security definer set search_path='' as $$select private.save_exam_definition(p_offering,p_schedule,p_at,p_def)$$;
+create function pg_temp.legacy_save_v2(p_offering uuid,p_schedule uuid,p_at timestamptz,p_def jsonb) returns uuid language sql security definer set search_path='' as $$select private.save_exam_definition_v2(p_offering,p_schedule,p_at,p_def)$$;
+create function pg_temp.legacy_clone(p_schedule uuid) returns uuid language sql security definer set search_path='' as $$select private.clone_exam_schedule(p_schedule)$$;
 set local role anon;
-select pg_temp.denied($q$select public.save_exam_definition_v2('60000000-0000-0000-0000-000000000001',null,null,pg_temp.definition())$q$,'42501','Anonymous advanced authoring denied');
+select pg_temp.denied($q$select pg_temp.legacy_save_v2('60000000-0000-0000-0000-000000000001',null,null,pg_temp.definition())$q$,'42501','Anonymous advanced authoring denied');
 select pg_temp.denied($q$select public.grade_exam_paper(gen_random_uuid(),0,'{}','',null,gen_random_uuid())$q$,'42501','Anonymous atomic grading denied');
 reset role;select pg_temp.claim(5);set local role authenticated;
-select pg_temp.denied($q$select public.save_exam_definition_v2('60000000-0000-0000-0000-000000000001',null,null,pg_temp.definition())$q$,'42501','Student advanced authoring denied');
+select pg_temp.denied($q$select pg_temp.legacy_save_v2('60000000-0000-0000-0000-000000000001',null,null,pg_temp.definition())$q$,'42501','Student advanced authoring denied');
 select pg_temp.denied($q$select public.get_exam_submission_page('a0000000-0000-0000-0000-000000000001')$q$,'42501','Student cannot paginate submissions');
 reset role;select pg_temp.claim(3);set local role authenticated;
-select pg_temp.denied($q$select public.save_exam_definition_v2('60000000-0000-0000-0000-000000000001',null,null,pg_temp.definition())$q$,'42501','Cross tenant authoring denied');
+select pg_temp.denied($q$select pg_temp.legacy_save_v2('60000000-0000-0000-0000-000000000001',null,null,pg_temp.definition())$q$,'42501','Cross tenant authoring denied');
 reset role;select pg_temp.claim(2);set local role authenticated;
-select set_config('complete.schedule',public.save_exam_definition_v2('60000000-0000-0000-0000-000000000001',null,null,pg_temp.definition())::text,true);
+select pg_temp.denied($q$select public.save_exam_definition_v2('60000000-0000-0000-0000-000000000001',null,null,pg_temp.definition())$q$,'42501','The closed legacy builder refuses the assigned instructor');
+select pg_temp.denied($q$select public.clone_exam_schedule(gen_random_uuid())$q$,'42501','The closed legacy clone refuses the assigned instructor');
+select set_config('complete.schedule',pg_temp.legacy_save_v2('60000000-0000-0000-0000-000000000001',null,null,pg_temp.definition())::text,true);
 select pg_temp.ok(jsonb_array_length(public.get_exam_definition_v2(current_setting('complete.schedule')::uuid)->'questions')=7,'Assigned instructor authors all seven formats');
 select pg_temp.ok(public.get_exam_definition_v2(current_setting('complete.schedule')::uuid)#>>'{questions,3,numericValue}'='12.5','Numeric key is staff retrievable');
-select pg_temp.denied($q$select public.save_exam_definition_v2('60000000-0000-0000-0000-000000000001',null,null,jsonb_set(pg_temp.definition(),'{questions,1,correctChoices}','[0,0]'))$q$,'23514','Duplicate multiple choice key rejected atomically');
-select pg_temp.denied($q$select public.save_exam_definition_v2('60000000-0000-0000-0000-000000000001',null,null,jsonb_set(pg_temp.definition(),'{questions,3,numericTolerance}','-1'))$q$,'23514','Negative numeric tolerance rejected');
+select pg_temp.denied($q$select pg_temp.legacy_save_v2('60000000-0000-0000-0000-000000000001',null,null,jsonb_set(pg_temp.definition(),'{questions,1,correctChoices}','[0,0]'))$q$,'23514','Duplicate multiple choice key rejected atomically');
+select pg_temp.denied($q$select pg_temp.legacy_save_v2('60000000-0000-0000-0000-000000000001',null,null,jsonb_set(pg_temp.definition(),'{questions,3,numericTolerance}','-1'))$q$,'23514','Negative numeric tolerance rejected');
 select pg_temp.ok((select count(*)=1 from public.assessments where title='Synthetic complete exam'),'Invalid new definitions leave no records');
 reset role;select pg_temp.claim(5);set local role authenticated;
 select set_config('complete.a1',public.start_assessment_attempt(current_setting('complete.schedule')::uuid)::text,true);
@@ -66,7 +73,7 @@ select pg_temp.denied($q$select public.get_exam_grade_changes(current_setting('c
 select pg_temp.denied($q$select public.grade_exam_paper(current_setting('complete.a2')::uuid,0,'{}','',null,gen_random_uuid())$q$,'42501','Student cannot grade or correct');
 reset role;select pg_temp.claim(3);set local role authenticated;
 select pg_temp.denied($q$select public.grade_exam_paper(current_setting('complete.a2')::uuid,0,'{}','',null,gen_random_uuid())$q$,'42501','Other tenant owner cannot grade');
-select pg_temp.denied($q$select public.clone_exam_schedule(current_setting('complete.schedule')::uuid)$q$,'42501','Cross tenant clone denied');
+select pg_temp.denied($q$select pg_temp.legacy_clone(current_setting('complete.schedule')::uuid)$q$,'42501','Cross tenant clone denied');
 reset role;
 select set_config('complete.scores',(select jsonb_object_agg(q.id::text,case when q.question_type='essay' then 3 else 0 end)::text from public.assessment_questions q join public.offering_assessments s on s.assessment_id=q.assessment_id where s.id=current_setting('complete.schedule')::uuid and q.question_type in('short_text','essay','file_upload')),true);
 select set_config('complete.original_responses',(select jsonb_agg(jsonb_build_object('id',id,'response',response,'media',media_asset_id) order by id)::text from public.assessment_responses where attempt_id in(current_setting('complete.a1')::uuid,current_setting('complete.a2')::uuid)),true);
@@ -93,7 +100,7 @@ select public.grade_exam_paper(current_setting('complete.a2')::uuid,(public.get_
 select pg_temp.ok(jsonb_array_length(public.get_exam_grade_changes(current_setting('complete.a2')::uuid))=2,'Correction appends audit preserving initial grading');
 select pg_temp.ok((public.get_assessment_results(current_setting('complete.a2')::uuid)->>'score')::numeric=4,'Corrected total is authoritative');
 select public.release_exam_review(current_setting('complete.schedule')::uuid,'10000000-0000-0000-0000-000000000005',(public.get_exam_grading_detail(current_setting('complete.a2')::uuid)#>>'{state,revision}')::bigint);
-select set_config('complete.clone',public.clone_exam_schedule(current_setting('complete.schedule')::uuid)::text,true);
+select set_config('complete.clone',pg_temp.legacy_clone(current_setting('complete.schedule')::uuid)::text,true);
 select pg_temp.ok(public.get_exam_definition_v2(current_setting('complete.clone')::uuid)->>'isPublished'='false','Used-paper clone is a new draft');
 select pg_temp.ok(public.get_exam_definition_v2(current_setting('complete.clone')::uuid)->>'isLocked'='false','Cloned version is editable');
 select pg_temp.ok(jsonb_array_length(public.get_exam_definition_v2(current_setting('complete.clone')::uuid)->'questions')=7,'Clone retains every question format');
@@ -112,7 +119,7 @@ reset role;
 -- More than 100 distinct finalized students, entirely inside this rollback.
 update public.course_offerings set capacity=null where id='60000000-0000-0000-0000-000000000001';
 select pg_temp.claim(1);set local role authenticated;
-select set_config('complete.large',public.save_exam_definition_v2('60000000-0000-0000-0000-000000000001',null,null,jsonb_set(jsonb_set(pg_temp.definition(),'{maxAttempts}','1'),'{questions}',jsonb_build_array(pg_temp.definition()#>'{questions,0}')))::text,true);
+select set_config('complete.large',pg_temp.legacy_save_v2('60000000-0000-0000-0000-000000000001',null,null,jsonb_set(jsonb_set(pg_temp.definition(),'{maxAttempts}','1'),'{questions}',jsonb_build_array(pg_temp.definition()#>'{questions,0}')))::text,true);
 reset role;
 do $$ declare uid uuid; aid uuid; i integer; begin
  for i in 1..107 loop

@@ -4,7 +4,7 @@ import { isFirebaseStaging } from '@/shared/auth-config';
 /** Browser requests use the same-origin API adapters; credentials stay server-side. */
 export const api = axios.create();
 api.interceptors.request.use(config => {
- if(isFirebaseStaging() && !/^\/api\/teacher\/(organizations|courses(?:\/[0-9a-f-]{36})?)$/.test(config.url ?? '') && !/^\/api\/secure-exams\/[0-9a-f-]{36}\/(state|start|answers|submit|decision|result|photo|grading|grade|release|release-review|definition|save-definition|clone)$/.test(config.url ?? '')) {
+ if(isFirebaseStaging() && !/^\/api\/teacher\/(organizations|courses(?:\/[0-9a-f-]{36})?)$/.test(config.url ?? '') && !/^\/api\/secure-exams\/[0-9a-f-]{36}\/(state|start|answers|submit|decision|result|photo|grading|grade|release|release-review|definition)$/.test(config.url ?? '')) {
    throw new Error('This V2 workflow is awaiting Firebase/Supabase integration.');
  }
  return config;

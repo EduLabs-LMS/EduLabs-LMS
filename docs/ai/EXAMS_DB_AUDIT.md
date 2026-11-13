@@ -1,5 +1,8 @@
 # Exams database audit and plan (branch `claude/exams-db`, base `4404a68`)
 
+> **Step 2 (2026-11-13):** the owner answered the questions and the draft migration `20261114120000_exams.sql` was written (not
+> applied). Section f records the answers, what was built and where it differs from this plan.
+
 Step 1 of the exams track: **audit and plan only.** No SQL was written, nothing was applied, no screen or route changed. The owner's
 rules are in the task and the boards are in `docs/design/exams/` (committed as `803711b`, "docs: exam boards"). The homework audit
 (`HOMEWORK_DB_AUDIT.md`) is the model for this one.
@@ -389,3 +392,97 @@ by the legacy runner, and new exams would never read it. The two demo notices st
     ("for everyone" = every Group at the same time), or should absent students see the key too?
 12. **Who authors:** homework needs course edit rights; the legacy exam builder also needed offering management. Use homework's rule?
 13. **Demo Clear:** may the tables migration also teach Clear to remove teacher-added exams, before seed v7 (R6)?
+
+---
+
+## f. Step 2: the owner's answers and the draft migration (2026-11-13)
+
+Draft migration **`supabase/migrations/20261114120000_exams.sql`**, one transaction, LF only, pinned `-text` in `.gitattributes`.
+**Not applied anywhere.** No UI and no demo seed (seed v7 comes with the screens); the one demo change is Clear (answer 13).
+
+### The owner's answers (recorded in DECISIONS.md, "Exams in the database")
+
+1. Number questions for exams only; homework later. Homework functions are not changed; the shared Questions step hides Number for homework.
+2. The legacy builder's save and clone are closed, in the database and on `/api/secure-exams`. The legacy runner keeps reading the old tables.
+3. A Group whose linked session is cancelled holds answer review and auto-release until the teacher picks a new session; teacher reads flag it.
+4. A Group created after publishing is linked automatically by the same rule (first session on or after "starting from"), source `auto`.
+5. A started try keeps its deadline. Once a Group's window opened its times are stored then; later moves change nothing.
+6. One shared correct/release pair per assistant per course (homework's table) is fine for V1.
+7. Paper: one optional "held on" date (display only); marks in 0.5 steps from 0 to the maximum; Absent is separate from 0.
+8. Fix mistakes: the second try keeps the first try's order; essays reopen with the first answer, editable.
+9. Notices written at the next action after the last close: fine.
+10. Manual release per student once THEIR window has closed (scores only); answer review waits for the last window.
+11. Answer review only for students with a handed-in try.
+12. Authoring uses course edit rights (`can_edit_course`).
+13. This migration also lets demo Clear remove teacher-added exams in demo spaces while refusing real people's work.
+
+### What was built
+
+Tables (all `private`, RLS on, every grant revoked): `exams`, `exam_chapters`, `exam_uploads`, `exam_questions`, `exam_options`,
+`exam_keys`, `exam_group_windows`, `exam_attempts`, `exam_attempt_items`, `exam_responses`, `exam_marks`, `exam_results`, `exam_audit`.
+Bucket `lms-exams` (private, 5 MB, PNG/JPEG/WebP) with an insert and a select policy, both through `private.exam_storage`; no update
+or delete policy, and no exam function deletes an object.
+
+API (private definer, public invoker wrapper, `authenticated` only; the caller is `private.current_app_user_id()`):
+
+| Function | What it does |
+| --- | --- |
+| `exam_save(exam\|null, offering, revision, definition)` | Create (needs the offering) or edit. Before work: everything. After a try or a paper mark exists: only title, description, chapters and "held on" (`PT409 started`). A published exam without work is re-checked as for publish. |
+| `exam_lifecycle(exam, action, revision, data)` | `publish` (checks, creates sessions, links Groups), `unpublish` (only before work), `clone` (a new draft version of the family, this or another run of the course; keys remapped), `archive`, `reschedule` (times only; allowed after work; an opened window keeps its times, `PT409 window_open`). |
+| `exam_set_window(exam, group, revision, data)` | `auto` (back to the rule), `picked` (a coming session of the Group), `custom` (a future pair). Refused once that Group's window opened (`window_open`). |
+| `exam_work(exam, action, revision, data)` | Student `start`, `retry`, `save`, `submit`; staff `grade`, `release`. |
+| `exam_release_many(exam, items)` | 1–500 `{resultId, revision}`, all or nothing, as homework. |
+| `exam_paper_mark(exam, items)` | 1–500 `{userId, mark, absent, revision, reason}`, all or nothing. |
+| `exam_upload(exam, action, id, data)` | `intent`, `complete` (JWT claim `exam_upload {id,size,sha256}`, at most 90 s old, object owner = subject, `PT413` over 5 MB), `get`. |
+| `exam_get(exam, attempt?)` | Staff: settings, questions with keys, every Group's window and state, holds, rights. Student: their window, tries, released result; with a try, the paper in its stored order (keys only during review, marks only once released). |
+| `exam_student_list()` | The student's published and archived exams with window, try state and released result. |
+| `exam_portal(course\|null, tab, page)` | Tabs `open`, `closed`, `drafts`, `archived`; 25 a page; counts; per row question count, marks, roster, handed in, waiting, to release, `held`, last close. Scope as `homework_portal`. |
+| `exam_queue(exam, tab, page)` | Online: `to_correct`, `corrected`, `missing`; 50 a page; `readyToRelease`, `releasable` (≤ 500), holds, each student's window closed or not. |
+| `exam_paper_sheet(exam, group\|'none'\|null, page)` | Paper: the run's students (one Group, or in no Group), mark, Absent, revision; 100 a page; `releasable`. |
+| `exam_storage_usage(space)` | Owners and admins of the space: bytes by students and by teachers, top 100 exams. |
+
+Rules in the database:
+
+- **Windows.** Per Group, read live: stored (frozen) times > custom > the linked session (cancelled → `cancelled`) > the rule's
+  session for a Group with no row yet; else `needs_time`. The LAST close is null while any active Group is `cancelled` or
+  `needs_time`. A student in no Group: earliest Group start to latest Group end. A student in two Groups: the first window that has
+  not closed. A trigger on `group_sessions` stores the opened times when a linked session that had opened is moved or cancelled.
+- **Deadline** fixed at start: `least(window end, start + limit)`. A save or hand-in at or after it is refused (`deadline_passed`);
+  the next action (any read or write of the exam) hands the try in as it stood, at its deadline (`auto_submitted`).
+- **Tries.** One time; fix mistakes (same order; right choice and number answers copied and locked as `kept`; essays copied and
+  editable; an unchanged essay keeps its first-try mark); from zero (a new paper). At most two.
+- **Order** per try in `exam_attempt_items` (question position and each choice's option order), mixed when `shuffle`.
+- **Marking.** Choice: the exact set; number: within the tolerance; an empty essay is 0; any other essay waits. Teacher marks are
+  0 to the question's points in halves. A released mark changes only with a reason and stays released (audited).
+- **Release.** A student's result once their window has closed and they have no open try; paper at any time after publishing.
+  Auto-release (no essays allowed) is stored at the next action after the LAST close, once, by the settle step.
+- **Notices.** A trigger on `exam_results.released_at` emits `exam_released` once per release, key `exam:<result>:<released_at>`.
+  `notification_link` returns no link for these yet (the student path is decided with the screens).
+- **Review** (keys, model text and model picture) only after the LAST close and only to a student with a handed-in try; staff always.
+
+### Changes from the plan (c.8 and elsewhere)
+
+- `exam_storage_usage(space)` is a **new function**; `homework_storage_usage` is not changed (no applied function is replaced).
+- `exam_save` takes the **offering** (needed to create); `exam_work` takes the **exam**, the try is in `data.attemptId`.
+- The portal tabs are `open` / `closed` / `drafts` / `archived` with counts; the live per-Group "started / total" and per-Group
+  "left" counts of the boards are not in the database reads yet (they come with the screens if needed).
+- Choice questions are sent as `type: "choice"` with `correct` positions; the database derives single or multiple choice.
+- `picked` must be a coming, not cancelled session; `custom` must open in the future. Changing windows needs course edit rights.
+- New refusal reasons beside the planned ones: `reason_required` (a released mark without a reason), `started`.
+- Pictures are shared by the versions of one exam family (a clone points at the same upload rows; nothing is copied in Storage).
+- The settle step takes a per-exam advisory lock when it has work; every caller settles before it locks a try or a result.
+- Paper results are released from `exam_work('release')` / `exam_release_many` like online ones (no separate action).
+
+### Limits to know
+
+- A Group added after publishing has no stored link until the next read or write of the exam; if its session is moved after
+  opening before that, the move is not frozen (the window follows the session). Any teacher or student read stores the link.
+- Sessions exist 90 days ahead (R9); `publish`, `reschedule` and `exam_set_window` create them first.
+- The archived exam stays visible to its students (released results), not in teacher lists except the `archived` tab.
+
+### Tests
+
+`supabase/tests/exams.sql` (181 checks), `supabase/tests/exams-demo.sql` (11), `scripts/exams-concurrency.cjs` (9 races); see
+TESTING.md, "Exams in the database". The legacy suites `exam-authoring.sql`, `exam-completion.sql` and `scripts/exam-concurrency.cjs`
+now build their legacy fixtures through wrappers of the same definers (the public builder is closed) and assert that the public
+builder refuses the owner and the instructor.

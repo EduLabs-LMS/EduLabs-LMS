@@ -10,7 +10,7 @@ const body = (src, start) => { const i = src.indexOf(start); assert.ok(i >= 0, s
 test('the file: LF only, pinned as text, followed only by the homework move migration, one transaction, the caller from current_app_user_id', () => {
   assert.ok(!sql.includes('\r'), 'the staging manager hashes the Git blob');
   assert.match(read('.gitattributes'), /20261110120000_lesson_publish\.sql -text/);
-  assert.deepEqual(fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort().slice(-3), [NAME, '20261112120000_homework_move.sql', '20261113120000_homework_correct_demo.sql']);
+  assert.deepEqual(fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort().slice(-4), [NAME, '20261112120000_homework_move.sql', '20261113120000_homework_correct_demo.sql', '20261114120000_exams.sql']);
   assert.match(code, /^\s*begin;/); assert.match(code, /commit;\s*$/);
   assert.doesNotMatch(code, /auth\.uid/);
   assert.match(code, /private\.current_app_user_id\(\) is null/);

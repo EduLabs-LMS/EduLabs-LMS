@@ -281,3 +281,25 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
   expect four links and Homework as Soon (true before the Homework page); `student-academics-browser-components.cjs` (its
   `next/navigation` stub lacks `usePathname`) and `student-access-browser.cjs` (sign-in heading) fail on the base as well; the web-push
   unit test needs `node_modules/web-push`.
+
+## Exams in the database (`claude/exams-db`, migration `20261114120000_exams.sql`)
+
+- `supabase/tests/exams.sql` (`LMS_SQL_ONLY=exams`, 181 checks): grants and RLS (no table grant, wrappers invoker, definers with an
+  empty search path, `authenticated` only), authoring and publish checks, windows (same time, per Group, auto link of a Group added
+  later, picked and custom, cancelled hold, freeze on a session move), start/save/submit, deadlines and the hand-in at the next
+  action, fix mistakes and from zero, choice and number marking, grading and release (single, bulk all or nothing, reasons), paper
+  marks and Absent, review gates, notices (one per release), uploads (claim, size, owner, reads), the portal, queue and paper sheet
+  counts, scope (another space, assistants without rights, students), the legacy builder refused.
+- `supabase/tests/exams-demo.sql` (`LMS_SQL_ONLY=exams-demo`, 11 checks): demo Clear removes teacher-added exams with their tries,
+  results, photo rows and notices; refuses on a real person's try or paper mark and on a stored exam file; a plain Clear still
+  removes the 800 recorded rows.
+- `scripts/exams-concurrency.cjs` (in the `--postgres` admin block): 9 independent-session races (session move vs start both orders,
+  two tabs starting, two tabs handing in, grade vs release both orders, bulk release vs grade, a start waiting past the window end,
+  two paper sheets).
+- Legacy tests changed because the builder is closed: `exam-authoring.sql` and `exam-completion.sql` build their fixtures through
+  `pg_temp.legacy_save`, `pg_temp.legacy_save_v2`, `pg_temp.legacy_clone` (security definer wrappers of the same private definers)
+  and assert the public builder refuses; `scripts/exam-concurrency.cjs` calls the private definers as the owner with claims;
+  `scripts/exam-runner.test.cjs` now expects `save-definition` and `clone` to be refused. Migration-list pins (teacher foundation,
+  course content, homework rules, listing performance, lesson publish, group summary, teaching space name, demo spaces) include
+  the new migration.
+- The web-push unit test needs `node_modules/web-push` installed (environmental).

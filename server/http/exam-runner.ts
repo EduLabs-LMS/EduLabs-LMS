@@ -16,7 +16,7 @@ export async function examPOST(request:NextRequest,context:{params:Promise<{exam
  try{
   const viewer=await getApplicationViewer();if(!viewer||viewer.backend!=='firebase')throw examFailure('Sign in required',401);
   const {examId,action}=await context.params;
-  if(!z.string().uuid().safeParse(examId).success||!['state','start','answers','submit','decision','result','photo','grading','grade','release','release-review','definition','save-definition','clone'].includes(action))throw examFailure('Not found',404);
+  if(!z.string().uuid().safeParse(examId).success||!['state','start','answers','submit','decision','result','photo','grading','grade','release','release-review','definition'].includes(action))throw examFailure('Not found',404);
   if(action==='photo'){
    const type=request.headers.get('content-type')??'';
    if(!['image/png','image/jpeg','image/webp'].includes(type))throw examFailure('Use a PNG, JPEG or WebP photo.',415);
@@ -33,9 +33,10 @@ export async function examPOST(request:NextRequest,context:{params:Promise<{exam
   const reader=request.body?.getReader();if(!reader)throw examFailure('Missing body');let size=0;const chunks:Uint8Array[]=[];
   while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>600000){await reader.cancel();throw examFailure('Request too large',413);}chunks.push(value);}
   const body=JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  if(action==='definition'||action==='save-definition'||action==='clone'){
+  // The legacy builder's save and clone are closed (owner's answer 2, migration 20261114120000_exams.sql); its definition stays readable.
+  if(action==='definition'){
    const service=await examAuthoringService();
-   const data=action==='clone'?(z.object({}).strict().parse(body),await service.clone(examId)):action==='definition'?(z.object({}).strict().parse(body),await service.load(examId)):await service.save(body);
+   const data=(z.object({}).strict().parse(body),await service.load(examId));
    return NextResponse.json(data,{headers:{'Cache-Control':'no-store'}});
   }
   if(['grading','grade','release','release-review'].includes(action)){

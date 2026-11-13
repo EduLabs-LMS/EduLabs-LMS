@@ -485,3 +485,30 @@ Draft migration `20261113120000_homework_correct_demo.sql`, **not applied anywhe
 - **The lesson page** (`/courses/<course>/lessons/<lesson>?offering=<group>`) runs the part page's checks (signed in, published course,
   active group, active unexpired enrollment, published lesson in the student's own tree). With a published part it opens that part
   (the one Continue Learning would); without one it shows the lesson and its homework. Continue Learning still links parts only.
+
+## Exams in the database (2026-11-13, branch `claude/exams-db`)
+
+Draft migration `20261114120000_exams.sql`, **not applied anywhere**. Database only: no screen, no route except closing the legacy
+builder, no demo seed. Plan and details: `EXAMS_DB_AUDIT.md` (section f). The owner's answers:
+
+1. Number questions exist for exams only; homework gets them later.
+2. The legacy builder's save and clone are closed in the database (execute revoked on `save_exam_definition`,
+   `save_exam_definition_v2`, `clone_exam_schedule`) and on `/api/secure-exams` (`save-definition`, `clone` removed from the route,
+   the middleware and the browser allow-list). The legacy runner still reads.
+3. A Group whose linked session is cancelled holds answer review and auto-release until the teacher picks a new session; teacher
+   reads flag it (`held`).
+4. A Group created after publishing is linked automatically by the same rule, source `auto`.
+5. A started try keeps its deadline; a Group's window that opened keeps its times (stored when its session moves).
+6. One shared correct/release pair per assistant per course (homework's rights table).
+7. Paper: optional "held on" date; marks in 0.5 steps from 0 to the maximum; Absent is separate from 0.
+8. Fix mistakes keeps the first try's order; essays reopen with the first answer, editable.
+9. Auto-release and notices are written at the next action after the last close.
+10. Manual release per student once their own window has closed; answer review waits for the last window.
+11. Answer review only for students with a handed-in try.
+12. Authoring (save, publish, windows) uses course edit rights (`can_edit_course`).
+13. Demo Clear removes teacher-added exams in demo spaces and refuses, removing nothing, while a real person's exam work or a
+    stored exam file is there.
+
+Also decided while building: a released online mark changes only with a reason and stays released (homework withdraws the release);
+paper results can be released any time after publishing; the release notice has no link until the student screen exists; exam
+pictures are shared by the versions of one exam family.

@@ -54,7 +54,7 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (/^\/api\/homework\/(new|[0-9a-f-]{36})\/(list|offerings|save|get|lifecycle|copy-media|assignments|revisions|inbox|history|work|upload-intent|finish-upload|cleanup|media)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(edit|progress|upload|media|cleanup|upload-intent|finish-upload)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(resources|blocks)\/[0-9a-f-]{36}$/.test(path)) return NextResponse.next();
-  if (/^\/api\/secure-exams\/[0-9a-f-]{36}\/(state|start|answers|submit|decision|result|photo|grading|grade|release|release-review|definition|save-definition|clone)$/.test(path)) return NextResponse.next();
+  if (/^\/api\/secure-exams\/[0-9a-f-]{36}\/(state|start|answers|submit|decision|result|photo|grading|grade|release|release-review|definition)$/.test(path)) return NextResponse.next();
   if (/^\/join\/[A-Za-z0-9_-]{43}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   if (path === '/api/student-administration' || path === '/api/communications' || path === '/api/study-groups' || path === '/api/study-groups/course-run' || path.startsWith('/sign-in') || path.startsWith('/sign-up') || path === '/lms-staging' || isPhaseOneRoute(path)) return NextResponse.next();
   // No Firebase UID may enter an unmigrated Clerk/Prisma or UploadThing handler.
