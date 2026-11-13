@@ -436,7 +436,7 @@ API (private definer, public invoker wrapper, `authenticated` only; the caller i
 | `exam_upload(exam, action, id, data)` | `intent`, `complete` (JWT claim `exam_upload {id,size,sha256}`, at most 90 s old, object owner = subject, `PT413` over 5 MB), `get`. |
 | `exam_get(exam, attempt?)` | Staff: settings, questions with keys, every Group's window and state, holds, rights. Student: their window, tries, released result; with a try, the paper in its stored order (keys only during review, marks only once released). |
 | `exam_student_list()` | The student's published and archived exams with window, try state and released result. |
-| `exam_portal(course\|null, tab, page)` | Tabs `open`, `closed`, `drafts`, `archived`; 25 a page; counts; per row question count, marks, roster, handed in, waiting, to release, `held`, last close. Scope as `homework_portal`. |
+| `exam_portal(course\|null, tab, page)` | Tabs `open`, `closed`, `drafts`, `archived`; 25 a page; counts; per row question count, marks, roster, handed in, waiting, to release, `held`, last close. Open online rows the caller counts for also carry `groups` (each active Group: window, state, `window` upcoming/open/closed, `secondsLeft` on the server clock, `started` / `total`) and `noGroup` (`started` / `total`). Scope as `homework_portal`, no per-row authorization. |
 | `exam_queue(exam, tab, page)` | Online: `to_correct`, `corrected`, `missing`; 50 a page; `readyToRelease`, `releasable` (≤ 500), holds, each student's window closed or not. |
 | `exam_paper_sheet(exam, group\|'none'\|null, page)` | Paper: the run's students (one Group, or in no Group), mark, Absent, revision; 100 a page; `releasable`. |
 | `exam_storage_usage(space)` | Owners and admins of the space: bytes by students and by teachers, top 100 exams. |
@@ -464,8 +464,8 @@ Rules in the database:
 
 - `exam_storage_usage(space)` is a **new function**; `homework_storage_usage` is not changed (no applied function is replaced).
 - `exam_save` takes the **offering** (needed to create); `exam_work` takes the **exam**, the try is in `data.attemptId`.
-- The portal tabs are `open` / `closed` / `drafts` / `archived` with counts; the live per-Group "started / total" and per-Group
-  "left" counts of the boards are not in the database reads yet (they come with the screens if needed).
+- The portal tabs are `open` / `closed` / `drafts` / `archived` with counts; open online rows carry the live per-Group counts
+  (started / total, time left). The paper sheet's per-Group "left" counts are not in the read yet (the page counts its rows).
 - Choice questions are sent as `type: "choice"` with `correct` positions; the database derives single or multiple choice.
 - `picked` must be a coming, not cancelled session; `custom` must open in the future. Changing windows needs course edit rights.
 - New refusal reasons beside the planned ones: `reason_required` (a released mark without a reason), `started`.
@@ -475,14 +475,22 @@ Rules in the database:
 
 ### Limits to know
 
-- A Group added after publishing has no stored link until the next read or write of the exam; if its session is moved after
-  opening before that, the move is not frozen (the window follows the session). Any teacher or student read stores the link.
+- (Amended 2026-11-13, owner's answers on `9f1169c`.) Freezing never waits for a read. A Group created in a run with published,
+  unclosed per-Group exams is linked at the commit that created it (deferred constraint trigger `exam_link_new_group` on
+  `study_groups`); a Group that gets its first session later is linked at that commit (`exam_link_new_session` on `group_sessions`).
+  "Unclosed" is judged without the new Group. A move or cancellation of a session that has opened freezes every window linked to it
+  and, for a Group whose link is not stored yet but whose rule pointed at that session, stores the link frozen
+  (`exam_window_freeze`). A new session skips an exam row locked for writing (that writer links the Group itself) so a Group page
+  read and a publish cannot deadlock.
+- A Group created after an exam's last window closed is not linked; it still appears in the exam's windows by the live rule, so a
+  coming session of it moves the LAST close (question for the owner).
 - Sessions exist 90 days ahead (R9); `publish`, `reschedule` and `exam_set_window` create them first.
 - The archived exam stays visible to its students (released results), not in teacher lists except the `archived` tab.
 
 ### Tests
 
-`supabase/tests/exams.sql` (181 checks), `supabase/tests/exams-demo.sql` (11), `scripts/exams-concurrency.cjs` (9 races); see
+`supabase/tests/exams.sql` (195 checks, 187 counted: 8 run inside savepoints that roll back), `supabase/tests/exams-demo.sql` (11),
+`scripts/exams-concurrency.cjs` (12 races); see
 TESTING.md, "Exams in the database". The legacy suites `exam-authoring.sql`, `exam-completion.sql` and `scripts/exam-concurrency.cjs`
 now build their legacy fixtures through wrappers of the same definers (the public builder is closed) and assert that the public
 builder refuses the owner and the instructor.

@@ -2,7 +2,8 @@
 // Exams (migration 20261114120000_exams.sql) under real waits, on separate connections, with Firebase identities: a start against a move of
 // the linked session (both orders: the opened window keeps its times, the deadline is never changed), a start that waits past the window's
 // end (refused), two tabs starting and two tabs handing in the same try, a grade against a release (both orders), a bulk release against a
-// grade, and two paper mark sheets for the same student.
+// grade, two paper mark sheets for the same student, and a Group created after publishing (linked at its commit, no read) whose
+// opened session is moved against a student's start, both orders.
 const assert = require('node:assert/strict'), { randomUUID } = require('node:crypto');
 module.exports = async function (makeClient, admin) {
   const clients = [], run = randomUUID();
@@ -23,11 +24,11 @@ module.exports = async function (makeClient, admin) {
   const one = async (sql, args) => (await admin.query(sql, args)).rows[0];
   const iso = ms => new Date(Date.now() + ms).toISOString();
   const work = (c, exam, action, revision = null, data = {}) => c.query('select public.exam_work($1,$2,$3,$4) value', [exam, action, revision, data]);
-  const teacher = await tab('teacher'), ta = await tab('ta'), s1 = await tab('s1'), s1b = await tab('s1'), s2 = await tab('s2'), s3 = await tab('s3'), mover = await makeClient();
+  const teacher = await tab('teacher'), ta = await tab('ta'), s1 = await tab('s1'), s1b = await tab('s1'), s2 = await tab('s2'), s3 = await tab('s3'), s4 = await tab('s4'), s5 = await tab('s5'), mover = await makeClient();
   clients.push(mover); mover.pid = (await mover.query('select pg_backend_pid() pid')).rows[0].pid;
   try {
     const ids = {};
-    for (const [label, c] of [['teacher', teacher], ['ta', ta], ['s1', s1], ['s2', s2], ['s3', s3]]) { await c.claim(); ids[label] = (await c.query('select public.onboard_firebase_profile() id')).rows[0].id; await c.query('commit'); }
+    for (const [label, c] of [['teacher', teacher], ['ta', ta], ['s1', s1], ['s2', s2], ['s3', s3], ['s4', s4], ['s5', s5]]) { await c.claim(); ids[label] = (await c.query('select public.onboard_firebase_profile() id')).rows[0].id; await c.query('commit'); }
     const org = randomUUID(), course = randomUUID(), off = randomUUID(), group = randomUUID(), session = randomUUID();
     await admin.query("insert into public.organizations(id,name,slug) values($1,'Synthetic exam races',$2)", [org, 'exc-' + run]);
     await admin.query("insert into public.organization_memberships(organization_id,user_id,role,status,joined_at) values($1,$2,'owner','active',now()),($1,$3,'assistant','active',now())", [org, ids.teacher, ids.ta]);
@@ -63,6 +64,41 @@ module.exports = async function (makeClient, admin) {
     assert.equal(s2try.status, 'in_progress'); assert.ok(new Date(s2try.deadlineAt) <= new Date(window.closes_at));
     console.log('PASS exam race: a start after a move of an opened session starts inside the kept window');
 
+    // 1b. Groups created after publishing, each committed on its own: linked at that commit (no exam read happens), then their opened
+    // session is moved against a student's start, both orders. G2 is created with its session in one transaction (the Group trigger);
+    // G3 gets its session in a later transaction (the session trigger).
+    await admin.query("insert into public.enrollments(offering_id,user_id,status) values($1,$2,'active'),($1,$3,'active')", [off, ids.s4, ids.s5]);
+    const lateA = randomUUID(), lateAs = randomUUID(), lateB = randomUUID(), lateBs = randomUUID();
+    await admin.query(`with g as (insert into public.study_groups(id,offering_id,name,mode,location,created_by) values($1,$2,'Late group A','center','Room 2',$4) returning id)
+      insert into public.group_sessions(id,group_id,title,starts_at,ends_at,original_starts_at,original_ends_at,mode,created_by,updated_by)
+      select $3,g.id,'Now',now()-interval '5 minutes',now()+interval '2 hours',now()-interval '5 minutes',now()+interval '2 hours','center',$4,$4 from g`, [lateA, off, lateAs, ids.teacher]);
+    await admin.query("insert into public.study_groups(id,offering_id,name,mode,location,created_by) values($1,$2,'Late group B','center','Room 3',$3)", [lateB, off, ids.teacher]);
+    assert.equal((await one('select count(*)::int n from private.exam_group_windows where exam_id=$1 and group_id=$2', [perGroup, lateB])).n, 0);
+    await admin.query("insert into public.group_sessions(id,group_id,title,starts_at,ends_at,original_starts_at,original_ends_at,mode,created_by,updated_by) values($1,$2,'Now',now()-interval '5 minutes',now()+interval '2 hours',now()-interval '5 minutes',now()+interval '2 hours','center',$3,$3)", [lateBs, lateB, ids.teacher]);
+    await admin.query("insert into public.group_memberships(group_id,offering_id,user_id,enrollment_id,starts_at,created_by) select $1,$2,e.user_id,e.id,now()-interval '1 day',$4 from public.enrollments e where e.offering_id=$2 and e.user_id=$3", [lateA, off, ids.s4, ids.teacher]);
+    await admin.query("insert into public.group_memberships(group_id,offering_id,user_id,enrollment_id,starts_at,created_by) select $1,$2,e.user_id,e.id,now()-interval '1 day',$4 from public.enrollments e where e.offering_id=$2 and e.user_id=$3", [lateB, off, ids.s5, ids.teacher]);
+    for (const [g, sess] of [[lateA, lateAs], [lateB, lateBs]]) {
+      const link = await one('select source,session_id,frozen_opens_at from private.exam_group_windows where exam_id=$1 and group_id=$2', [perGroup, g]);
+      assert.equal(link.source, 'auto'); assert.equal(link.session_id, sess); assert.equal(link.frozen_opens_at, null);
+    }
+    console.log('PASS exam race: Groups created after publishing are linked at their commit (with the session, and when the session comes later), no read');
+    const late2 = await one('select starts_at,ends_at from public.group_sessions where id=$1', [lateAs]);
+    await s4.claim(); const s4try = value(await work(s4, perGroup, 'start'));
+    await mover.query('begin'); const move2 = mover.query("update public.group_sessions set starts_at=now()+interval '5 days',ends_at=now()+interval '5 days 1 hour' where id=$1", [lateAs]);
+    await blocked(mover); await s4.query('commit'); await move2; await mover.query('commit');
+    const kept2 = await one('select opens_at,closes_at,frozen from private.exam_windows($1) where group_id=$2', [perGroup, lateA]);
+    assert.equal(kept2.frozen, true); assert.equal(+kept2.opens_at, +late2.starts_at); assert.equal(+kept2.closes_at, +late2.ends_at);
+    assert.equal(+(await one('select deadline_at from private.exam_attempts where id=$1', [s4try.id])).deadline_at, +new Date(s4try.deadlineAt));
+    console.log('PASS exam race: a late Group\'s session move waits for a start, then the window keeps its opened times and the try its deadline');
+    const late3 = await one('select starts_at,ends_at from public.group_sessions where id=$1', [lateBs]);
+    await mover.query('begin'); await mover.query("update public.group_sessions set starts_at=now()+interval '6 days',ends_at=now()+interval '6 days 1 hour' where id=$1", [lateBs]);
+    await s5.claim(); const start5 = s5.query("select public.exam_work($1,'start',null,'{}') value", [perGroup]);
+    await blocked(s5); await mover.query('commit'); const s5try = value(await start5); await s5.query('commit');
+    const kept3 = await one('select opens_at,closes_at,frozen from private.exam_windows($1) where group_id=$2', [perGroup, lateB]);
+    assert.equal(kept3.frozen, true); assert.equal(+kept3.opens_at, +late3.starts_at);
+    assert.equal(s5try.status, 'in_progress'); assert.ok(new Date(s5try.deadlineAt) <= new Date(late3.ends_at));
+    console.log('PASS exam race: a start waiting on a late Group\'s session move starts inside the kept window');
+
     // 2. Two tabs start the same exam: one try. Two tabs hand it in: one hand-in, the other is stale.
     await s3.claim(); const tabB = await tab('s3');
     const first = value(await work(s3, perGroup, 'start'));
@@ -82,10 +118,10 @@ module.exports = async function (makeClient, admin) {
     await admin.query("update private.exam_group_windows set frozen_opens_at=now()-interval '3 hours',frozen_closes_at=now()-interval '1 second' where exam_id=$1", [perGroup]);
     const result = async user => one('select id,revision,status,released_at from private.exam_results where exam_id=$1 and user_id=$2', [perGroup, user]);
     const essay = (await one('select id from private.exam_questions where exam_id=$1 and position=1', [perGroup])).id;
-    // Time is up for the open tries (s2, s3); the teacher's next read hands them in.
+    // Time is up for the open tries (s2, s3, s4, s5); the teacher's next read hands them in.
     await admin.query("update private.exam_attempts set started_at=now()-interval '10 minutes',deadline_at=now()-interval '1 second' where exam_id=$1 and status='in_progress'", [perGroup]);
     await teacher.claim(); await teacher.query("select public.exam_queue($1,'corrected')", [perGroup]); await teacher.query('commit');
-    assert.equal((await one("select count(*)::int n from private.exam_attempts where exam_id=$1 and status='submitted' and auto_submitted", [perGroup])).n, 2);
+    assert.equal((await one("select count(*)::int n from private.exam_attempts where exam_id=$1 and status='submitted' and auto_submitted", [perGroup])).n, 4);
     let r1 = await result(ids.s1);
     await teacher.claim(); await ta.claim();
     await teacher.query("select public.exam_work($1,'grade',$2,$3)", [perGroup, r1.revision, JSON.stringify({ attemptId: a.id, marks: [{ questionId: essay, points: 3.5 }] })]);

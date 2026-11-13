@@ -285,16 +285,59 @@ create trigger exam_row_integrity before insert or update on private.exams for e
 create trigger exam_row_integrity before insert or update on private.exam_chapters for each row execute function private.exam_row_integrity();
 create trigger exam_row_integrity before insert or update on private.exam_group_windows for each row execute function private.exam_row_integrity();
 
--- A linked session that is moved or cancelled after its window opened: keep the times it opened with (owner's answer 5). Before it
--- opened, nothing is stored and the exam follows the session. Runs inside the existing session commands; reads nothing else.
+-- A session that is moved or cancelled after its window opened: every exam window linked to it keeps the times it had before the change
+-- (owner's answer 5). That covers a stored link and a Group whose 'auto' link is not stored yet but whose rule (first session on or after
+-- "starting from") pointed at this session before the change: its link is stored then, frozen. Before it opened, nothing is stored and the
+-- exam follows the session. Freezing never waits for a read. Runs inside the existing session commands.
 create function private.exam_window_freeze() returns trigger language plpgsql security definer set search_path='' as $$
 begin
  if (old.starts_at,old.ends_at,old.cancelled) is not distinct from (new.starts_at,new.ends_at,new.cancelled) or old.cancelled or old.starts_at>clock_timestamp() then return new;end if;
  update private.exam_group_windows w set frozen_opens_at=old.starts_at,frozen_closes_at=old.ends_at
   from private.exams e where w.session_id=new.id and w.frozen_opens_at is null and e.id=w.exam_id and e.status<>'draft';
+ insert into private.exam_group_windows(exam_id,group_id,source,session_id,frozen_opens_at,frozen_closes_at)
+  select e.id,g.id,'auto',new.id,old.starts_at,old.ends_at
+  from public.study_groups g join private.exams e on e.offering_id=g.offering_id
+  where g.id=new.group_id and g.status='active' and e.status='published' and e.kind='online' and e.timing='per_group' and e.starting_from is not null
+   and old.starts_at>=private.exam_day_start(e.starting_from)
+   and not exists(select 1 from private.exam_group_windows w where w.exam_id=e.id and w.group_id=g.id)
+   and not exists(select 1 from public.group_sessions x where x.group_id=g.id and x.id<>new.id and not x.cancelled and x.starts_at>=private.exam_day_start(e.starting_from)
+    and (x.starts_at,x.id)<(old.starts_at,old.id))
+  on conflict(exam_id,group_id) do nothing;
  return new;
 end $$;
 create trigger exam_window_freeze after update on public.group_sessions for each row execute function private.exam_window_freeze();
+
+-- A Group created in a run with published, unclosed per-Group exams is linked when it is created (owner's answer 4, by the same rule,
+-- source 'auto'); so is a Group that gets its first session later. Constraint triggers deferred to the end of the transaction: the Group
+-- command creates the Group, then its weekly times, then its sessions, so the rule sees every session the command made.
+-- "Unclosed" is judged without the new Group: every other Group has a window and the latest of them has not closed.
+-- Locks: a new Group waits for an exam being written (it is invisible to that writer, so no cycle). A new session skips an exam row that
+-- is locked for writing: that writer (publish, reschedule, a window change) materializes and links this Group itself after this commit,
+-- and the freeze above covers a link that is not stored yet.
+create function private.exam_link_group() returns trigger language plpgsql security definer set search_path='' as $$
+declare grp public.study_groups; ex uuid;
+begin
+ if tg_table_name='study_groups' then select * into grp from public.study_groups where id=new.id;
+ else select * into grp from public.study_groups where id=new.group_id;end if;
+ if grp.id is null or grp.status<>'active' then return null;end if;
+ if not exists(select 1 from private.exams e where e.offering_id=grp.offering_id and e.status='published' and e.kind='online' and e.timing='per_group'
+  and not exists(select 1 from private.exam_group_windows w where w.exam_id=e.id and w.group_id=grp.id)) then return null;end if;
+ for ex in select e.id from private.exams e where e.offering_id=grp.offering_id and e.status='published' and e.kind='online' and e.timing='per_group' order by e.id loop
+  if tg_table_name='study_groups' then perform 1 from private.exams where id=ex and status='published' for key share;
+  else perform 1 from private.exams where id=ex and status='published' for key share skip locked;
+  end if;
+  if not found then continue;end if;
+  if exists(select 1 from private.exam_group_windows w where w.exam_id=ex and w.group_id=grp.id) then continue;end if;
+  if exists(select 1 from private.exam_windows(ex) w where w.group_id<>grp.id) and not exists(select 1 from private.exam_windows(ex) w where w.group_id<>grp.id and w.state<>'ok')
+   and (select max(w.closes_at) from private.exam_windows(ex) w where w.group_id<>grp.id)<=clock_timestamp() then continue;end if;
+  insert into private.exam_group_windows(exam_id,group_id,source,session_id)
+   select ex,w.group_id,'auto',w.session_id from private.exam_windows(ex) w where w.group_id=grp.id and not w.stored and w.session_id is not null
+   on conflict(exam_id,group_id) do nothing;
+ end loop;
+ return null;
+end $$;
+create constraint trigger exam_link_new_group after insert on public.study_groups deferrable initially deferred for each row execute function private.exam_link_group();
+create constraint trigger exam_link_new_session after insert on public.group_sessions deferrable initially deferred for each row execute function private.exam_link_group();
 
 -- ---------------------------------------------------------------------------------------
 -- Internal helpers (no API role may call them)
@@ -340,8 +383,9 @@ create function private.exam_taker(p_exam uuid) returns boolean language sql sta
 $$;
 
 -- Every active Group of an online per-Group exam with its window. state: ok, cancelled (linked session cancelled before it opened),
--- needs_time (no session on or after "starting from" and no custom time). stored=false means the Group has no row yet (it was added
--- after the last write); its link is the same rule, stored at the next write or teacher read.
+-- needs_time (no session on or after "starting from" and no custom time). stored=false means the Group has no row yet (no session yet, or
+-- inside the transaction that created it); its link is the same rule, stored when its sessions are created (exam_link_group) or at the next
+-- write or read. A session move after opening freezes it either way (exam_window_freeze).
 create function private.exam_windows(p_exam uuid) returns table(group_id uuid,group_name text,source text,session_id uuid,opens_at timestamptz,closes_at timestamptz,state text,frozen boolean,stored boolean)
 language sql stable security definer set search_path='' as $$
  select g.id,g.name,coalesce(w.source,'auto'),coalesce(w.session_id,nxt.id),
@@ -505,7 +549,7 @@ create function private.exam_items(p_attempt uuid,p_exam uuid,p_shuffle boolean)
 $$;
 
 do $$ declare f text;begin
- foreach f in array array['exam_row_integrity()','exam_window_freeze()','exam_day_start(date)','exam_iso(jsonb)','course_assistant_right(uuid,uuid,text)','exam_staff(uuid,text)',
+ foreach f in array array['exam_row_integrity()','exam_window_freeze()','exam_link_group()','exam_day_start(date)','exam_iso(jsonb)','course_assistant_right(uuid,uuid,text)','exam_staff(uuid,text)',
   'exam_enrolled_user(uuid,uuid)','exam_taker(uuid)','exam_windows(uuid)','exam_student_window(uuid,uuid)','exam_last_close(uuid)','exam_closed(uuid)','exam_review_open(uuid)',
   'exam_released(uuid)','exam_link(uuid)','exam_materialize(uuid)','exam_audit_write(uuid,text,uuid,text,jsonb,jsonb)','exam_mark_try(uuid)','exam_finish(uuid,boolean)',
   'exam_settle(uuid,uuid)','exam_items(uuid,uuid,boolean)'] loop
@@ -1231,6 +1275,7 @@ begin
 end $$;
 
 -- The Exams page of a teacher (homework_portal's scope): tab open (published, last window not closed, or held), closed, drafts, archived.
+-- Open online rows also carry each Group's window with started / total and secondsLeft (server clock), and the students in no Group.
 create function private.exam_portal(p_course uuid default null,p_tab text default 'open',p_page integer default 0) returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare u uuid:=(select private.current_app_user_id());courses_ uuid[];eds uuid[];sups uuid[];at_ timestamptz:=clock_timestamp();
 begin
@@ -1247,7 +1292,25 @@ begin
   qs as materialized (select q.exam_id,count(*) n,coalesce(sum(q.points),0) m,bool_or(q.type='essay') essays from private.exam_questions q where q.exam_id in (select id from listed) group by q.exam_id),
   roster as materialized (select x.offering_id,count(distinct x.user_id) n from public.enrollments x where x.offering_id in (select offering_id from listed where counted) and x.status='active' and (x.enrolled_at is null or x.enrolled_at<=at_) and (x.expires_at is null or x.expires_at>at_) group by x.offering_id),
   res as materialized (select r.exam_id,count(*) filter(where r.final_attempt_id is not null or r.paper_mark is not null or r.absent) handed,count(*) filter(where r.status='waiting') waiting,
-    count(*) filter(where r.status='corrected' and r.released_at is null) unreleased,count(*) filter(where r.released_at is not null) released from private.exam_results r where r.exam_id in (select id from listed where counted) group by r.exam_id)
+    count(*) filter(where r.status='corrected' and r.released_at is null) unreleased,count(*) filter(where r.released_at is not null) released from private.exam_results r where r.exam_id in (select id from listed where counted) group by r.exam_id),
+  -- Open online exams the caller counts for: every active Group's window with started / total and the time left (server clock), and the
+  -- students in no Group (their window spans the Groups'). A student in two Groups counts in both.
+  live as materialized (select l.id,l.offering_id,l.timing,l.opens_at,l.closes_at from listed l where l.tab='open' and l.counted and l.kind='online'),
+  gw as materialized (select v.id exam_id,w.group_id,w.group_name,w.opens_at,w.closes_at,w.state from live v cross join lateral private.exam_windows(v.id) w where v.timing='per_group'
+   union all select v.id,g.id,g.name,v.opens_at,v.closes_at,'ok' from live v join public.study_groups g on g.offering_id=v.offering_id and g.status='active' where v.timing='same_time'),
+  enr as materialized (select x.offering_id,x.user_id from public.enrollments x where x.offering_id in (select offering_id from live) and x.status='active'
+   and (x.enrolled_at is null or x.enrolled_at<=at_) and (x.expires_at is null or x.expires_at>at_) group by x.offering_id,x.user_id),
+  mem as materialized (select m.group_id,m.offering_id,m.user_id from public.group_memberships m join enr on enr.offering_id=m.offering_id and enr.user_id=m.user_id
+   join public.study_groups g on g.id=m.group_id and g.status='active' where m.starts_at<=at_ and (m.ends_at is null or m.ends_at>at_) group by m.group_id,m.offering_id,m.user_id),
+  took as materialized (select a.exam_id,a.user_id from private.exam_attempts a where a.exam_id in (select id from live) group by a.exam_id,a.user_id),
+  per_group as materialized (select gw.exam_id,jsonb_agg(jsonb_build_object('groupId',gw.group_id,'name',gw.group_name,'state',gw.state,'opensAt',gw.opens_at,'closesAt',gw.closes_at,
+    'window',case when gw.state<>'ok' then gw.state when at_<gw.opens_at then 'upcoming' when at_<gw.closes_at then 'open' else 'closed' end,
+    'secondsLeft',case when gw.state='ok' and gw.opens_at<=at_ and at_<gw.closes_at then floor(extract(epoch from gw.closes_at-at_))::bigint end,
+    'total',(select count(*) from mem where mem.group_id=gw.group_id),
+    'started',(select count(*) from mem join took on took.user_id=mem.user_id and took.exam_id=gw.exam_id where mem.group_id=gw.group_id))
+    order by gw.group_name,gw.group_id) groups from gw group by gw.exam_id),
+  no_group as materialized (select v.id exam_id,count(*) total,count(*) filter(where exists(select 1 from took where took.exam_id=v.id and took.user_id=enr.user_id)) started
+   from live v join enr on enr.offering_id=v.offering_id where not exists(select 1 from mem where mem.offering_id=v.offering_id and mem.user_id=enr.user_id) group by v.id)
  select jsonb_build_object('tab',p_tab,'page',p_page,'pageSize',25,'serverNow',at_,
   'counts',(select jsonb_build_object('open',count(*) filter(where tab='open'),'closed',count(*) filter(where tab='closed'),'drafts',count(*) filter(where tab='drafts'),'archived',count(*) filter(where tab='archived')) from ex),
   'rows',coalesce((select jsonb_agg(jsonb_build_object('id',l.id,'title',l.title,'kind',l.kind,'status',l.status,'courseId',l.course_id,'courseTitle',c.title,'offeringId',l.offering_id,'version',l.version,
@@ -1256,9 +1319,12 @@ begin
     'held',l.kind='online' and l.timing='per_group' and l.status='published' and exists(select 1 from private.exam_windows(l.id) w where w.state<>'ok'),
     'questionCount',coalesce(qs.n,0),'totalMarks',case when l.kind='paper' then l.max_marks else coalesce(qs.m,0) end,'hasEssays',coalesce(qs.essays,false),
     'total',case when l.counted then coalesce(ro.n,0) end,'handedIn',case when l.counted then coalesce(rs.handed,0) end,'waiting',case when l.counted then coalesce(rs.waiting,0) end,
-    'toRelease',case when l.counted then coalesce(rs.unreleased,0) end,'released',case when l.counted then coalesce(rs.released,0) end)
+    'toRelease',case when l.counted then coalesce(rs.unreleased,0) end,'released',case when l.counted then coalesce(rs.released,0) end,
+    'groups',case when lv.id is not null then coalesce(pg.groups,'[]'::jsonb) end,
+    'noGroup',case when lv.id is not null then jsonb_build_object('total',coalesce(ng.total,0),'started',coalesce(ng.started,0)) end)
     order by case when p_tab='drafts' then l.updated_at end desc,coalesce(l.opens_at,l.published_at,l.updated_at) desc,l.id)
-   from listed l join public.courses c on c.id=l.course_id left join qs on qs.exam_id=l.id left join roster ro on ro.offering_id=l.offering_id left join res rs on rs.exam_id=l.id),'[]'::jsonb)));
+   from listed l join public.courses c on c.id=l.course_id left join qs on qs.exam_id=l.id left join roster ro on ro.offering_id=l.offering_id left join res rs on rs.exam_id=l.id
+   left join live lv on lv.id=l.id left join per_group pg on pg.exam_id=l.id left join no_group ng on ng.exam_id=l.id),'[]'::jsonb)));
 end $$;
 
 -- Correction queue of an online exam (homework_queue's shape): tab to_correct (a mark waits) | corrected | missing (no try handed in).

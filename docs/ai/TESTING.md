@@ -284,7 +284,7 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 
 ## Exams in the database (`claude/exams-db`, migration `20261114120000_exams.sql`)
 
-- `supabase/tests/exams.sql` (`LMS_SQL_ONLY=exams`, 181 checks): grants and RLS (no table grant, wrappers invoker, definers with an
+- `supabase/tests/exams.sql` (`LMS_SQL_ONLY=exams`, prints 187; 8 more run inside savepoints that roll back): grants and RLS (no table grant, wrappers invoker, definers with an
   empty search path, `authenticated` only), authoring and publish checks, windows (same time, per Group, auto link of a Group added
   later, picked and custom, cancelled hold, freeze on a session move), start/save/submit, deadlines and the hand-in at the next
   action, fix mistakes and from zero, choice and number marking, grading and release (single, bulk all or nothing, reasons), paper
@@ -293,7 +293,8 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
 - `supabase/tests/exams-demo.sql` (`LMS_SQL_ONLY=exams-demo`, 11 checks): demo Clear removes teacher-added exams with their tries,
   results, photo rows and notices; refuses on a real person's try or paper mark and on a stored exam file; a plain Clear still
   removes the 800 recorded rows.
-- `scripts/exams-concurrency.cjs` (in the `--postgres` admin block): 9 independent-session races (session move vs start both orders,
+- `scripts/exams-concurrency.cjs` (in the `--postgres` admin block): 12 independent-session races (session move vs start both orders,
+  Groups created after publishing linked at their own commit with no read, then their opened session moved vs a start both orders,
   two tabs starting, two tabs handing in, grade vs release both orders, bulk release vs grade, a start waiting past the window end,
   two paper sheets).
 - Legacy tests changed because the builder is closed: `exam-authoring.sql` and `exam-completion.sql` build their fixtures through
@@ -303,3 +304,10 @@ Demo clear: supabase/tests/demo-clear-robust.sql (rolled-back transaction; regis
   course content, homework rules, listing performance, lesson publish, group summary, teaching space name, demo spaces) include
   the new migration.
 - The web-push unit test needs `node_modules/web-push` installed (environmental).
+
+Amendment (owner's answers on `9f1169c`): `exams.sql` runs the deferred link triggers with `set constraints
+public.exam_link_new_group,public.exam_link_new_session immediate` (what a commit does) and back to deferred: a Group added after
+publishing, a Group made by `group_command` with two weekly times, drafts unlinked, a Group created after the exam closed unlinked,
+an opened session of a Group with no stored link moved or cancelled (frozen from the rule), a session moved before opening (follows).
+The portal's per-Group `started` / `total` and `noGroup` are compared with a naive query for every open exam, plus `secondsLeft` on the
+server clock and an assistant's read. The race script's auto hand-in count is 4 (s2, s3 and the two late-Group students).

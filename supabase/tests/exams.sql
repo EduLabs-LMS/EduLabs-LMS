@@ -183,9 +183,49 @@ select pg_temp.ok((pg_temp.win(pg_temp.key('oe'),pg_temp.key('g3'))::text) like 
 insert into public.study_groups(id,offering_id,name,mode,location,created_by) values(pg_temp.key('g4'),pg_temp.key('off'),'G4 added','center','Room 4',pg_temp.uid('owner'));
 insert into public.group_sessions(id,group_id,title,starts_at,ends_at,original_starts_at,original_ends_at,mode,created_by,updated_by)
  values(pg_temp.put('s_g4',gen_random_uuid()),pg_temp.key('g4'),'G4 first',now()+interval '6 days',now()+interval '6 days 1 hour',now()+interval '6 days',now()+interval '6 days 1 hour','center',pg_temp.uid('owner'),pg_temp.uid('owner'));
-select pg_temp.ok((pg_temp.win(pg_temp.key('oe'),pg_temp.key('g4'))::text) like '(auto,'||pg_temp.key('s_g4')||',%,ok,f,f)','G4 (added after publishing) already follows the rule, not stored yet');
-set local role authenticated; select pg_temp.claim('s1'); select public.exam_get(pg_temp.key('oe')) is not null; reset role;
-select pg_temp.ok((select source='auto' and session_id=pg_temp.key('s_g4') from private.exam_group_windows where exam_id=pg_temp.key('oe') and group_id=pg_temp.key('g4')),'the next read stores G4''s link with source auto');
+select pg_temp.ok((pg_temp.win(pg_temp.key('oe'),pg_temp.key('g4'))::text) like '(auto,'||pg_temp.key('s_g4')||',%,ok,f,f)','inside the creating transaction G4 already follows the rule (not stored yet)');
+-- The link triggers are deferred to the commit; SET CONSTRAINTS ... IMMEDIATE runs them here as a commit would. No exam read happens.
+set constraints public.exam_link_new_group,public.exam_link_new_session immediate; set constraints public.exam_link_new_group,public.exam_link_new_session deferred;
+select pg_temp.ok((select source='auto' and session_id=pg_temp.key('s_g4') and frozen_opens_at is null from private.exam_group_windows where exam_id=pg_temp.key('oe') and group_id=pg_temp.key('g4')),
+ 'at commit G4''s link is stored with source auto, without any read');
+-- A Group made by the Group command with weekly times: linked at commit to its first session on or after the starting day.
+savepoint new_group;
+set local role authenticated; select pg_temp.claim('owner');
+select pg_temp.put('g6',(public.group_command(null,'create',null,jsonb_build_object('offeringId',pg_temp.key('off'),'name','G6 weekly','description','','mode','center','location','Room 6','joinUrl','','instructions','','capacity',30,
+ 'schedules',jsonb_build_array(jsonb_build_object('weekday',2,'time','17:00','durationMinutes',90),jsonb_build_object('weekday',5,'time','09:00','durationMinutes',60))))->>'id')::uuid);
+reset role;
+select pg_temp.ok(not exists(select 1 from private.exam_group_windows where group_id=pg_temp.key('g6')),'before commit the new Group has no stored link');
+set constraints public.exam_link_new_group,public.exam_link_new_session immediate; set constraints public.exam_link_new_group,public.exam_link_new_session deferred;
+select pg_temp.ok((select w.source='auto' and w.session_id=(select x.id from public.group_sessions x where x.group_id=pg_temp.key('g6') and not x.cancelled
+  and x.starts_at>=private.exam_day_start((now() at time zone 'Africa/Cairo')::date-1) order by x.starts_at,x.id limit 1)
+ from private.exam_group_windows w where w.exam_id=pg_temp.key('oe') and w.group_id=pg_temp.key('g6')),'a Group created by the Group command is linked at commit to its first session (two weekly times)');
+select pg_temp.ok(not exists(select 1 from private.exam_group_windows w join private.exams e on e.id=w.exam_id where w.group_id=pg_temp.key('g6') and e.status='draft'),'drafts get no link');
+rollback to savepoint new_group;
+-- A Group whose session opened before its link was stored (inside one transaction): a move freezes it from the rule, without a read.
+savepoint unstored;
+select pg_temp.put('g7',gen_random_uuid()),pg_temp.put('s_g7',gen_random_uuid()),pg_temp.put('s_g7b',gen_random_uuid());
+insert into public.study_groups(id,offering_id,name,mode,location,created_by) values(pg_temp.key('g7'),pg_temp.key('off'),'G7 unstored','center','Room 7',pg_temp.uid('owner'));
+insert into public.group_sessions(id,group_id,title,starts_at,ends_at,original_starts_at,original_ends_at,mode,created_by,updated_by) values
+ (pg_temp.key('s_g7'),pg_temp.key('g7'),'G7 now',now()-interval '5 minutes',now()+interval '1 hour',now()-interval '5 minutes',now()+interval '1 hour','center',pg_temp.uid('owner'),pg_temp.uid('owner')),
+ (pg_temp.key('s_g7b'),pg_temp.key('g7'),'G7 later',now()+interval '7 days',now()+interval '7 days 1 hour',now()+interval '7 days',now()+interval '7 days 1 hour','center',pg_temp.uid('owner'),pg_temp.uid('owner'));
+update public.group_sessions set starts_at=now()+interval '9 days',ends_at=now()+interval '9 days 1 hour' where id=pg_temp.key('s_g7');
+select pg_temp.ok((select source='auto' and session_id=pg_temp.key('s_g7') and frozen_opens_at=now()-interval '5 minutes' and frozen_closes_at=now()+interval '1 hour' from private.exam_group_windows where exam_id=pg_temp.key('oe') and group_id=pg_temp.key('g7'))
+ and (select frozen and opens_at=now()-interval '5 minutes' from private.exam_windows(pg_temp.key('oe')) where group_id=pg_temp.key('g7')),
+ 'an opened session of a Group with no stored link is moved: the link is stored frozen with the times before the move');
+set constraints public.exam_link_new_group,public.exam_link_new_session immediate; set constraints public.exam_link_new_group,public.exam_link_new_session deferred;
+select pg_temp.ok((select session_id=pg_temp.key('s_g7') and frozen_opens_at is not null from private.exam_group_windows where exam_id=pg_temp.key('oe') and group_id=pg_temp.key('g7')),'the commit keeps the frozen link');
+rollback to savepoint unstored;
+savepoint unstored_cancel;
+select pg_temp.put('g8',gen_random_uuid()),pg_temp.put('s_g8',gen_random_uuid());
+insert into public.study_groups(id,offering_id,name,mode,location,created_by) values(pg_temp.key('g8'),pg_temp.key('off'),'G8 unstored','center','Room 8',pg_temp.uid('owner'));
+insert into public.group_sessions(id,group_id,title,starts_at,ends_at,original_starts_at,original_ends_at,mode,created_by,updated_by) values
+ (pg_temp.key('s_g8'),pg_temp.key('g8'),'G8 now',now()-interval '5 minutes',now()+interval '1 hour',now()-interval '5 minutes',now()+interval '1 hour','center',pg_temp.uid('owner'),pg_temp.uid('owner'));
+update public.group_sessions set cancelled=true where id=pg_temp.key('s_g8');
+select pg_temp.ok((select state='ok' and frozen and closes_at=now()+interval '1 hour' from private.exam_windows(pg_temp.key('oe')) where group_id=pg_temp.key('g8')),'an opened session cancelled before its link was stored: the window keeps its times');
+rollback to savepoint unstored_cancel;
+-- A session not yet opened, of a Group linked at commit: moving it moves the window (nothing frozen).
+update public.group_sessions set starts_at=now()+interval '6 days 2 hours',ends_at=now()+interval '6 days 3 hours' where id=pg_temp.key('s_g4');
+select pg_temp.ok((select not frozen and opens_at=now()+interval '6 days 2 hours' from private.exam_windows(pg_temp.key('oe')) where group_id=pg_temp.key('g4')),'G4''s session moved before opening: the window follows it');
 
 -- ---------------------------------------------------------------- 3. Starting, the deadline, the stored order, saving
 set local role authenticated;
@@ -517,6 +557,43 @@ create function pg_temp.naive_queue(p_exam uuid) returns jsonb language sql secu
 set local role authenticated; select pg_temp.claim('owner');
 select pg_temp.ok((public.exam_portal(pg_temp.key('course'),'open')->'counts')=pg_temp.naive_counts(pg_temp.key('course')),'Exams page tab counts match a naive count');
 select pg_temp.ok((select jsonb_array_length(x->'rows')=(x->'counts'->>'drafts')::int from public.exam_portal(pg_temp.key('course'),'drafts') x),'the drafts tab lists every draft');
+-- Live counts per Group of the open exams against a naive query (current members with an active enrollment; started = any try).
+reset role;
+create function pg_temp.naive_groups(p_exam uuid) returns jsonb language sql security definer set search_path='' as $$
+ select coalesce(jsonb_agg(jsonb_build_object('groupId',g.id,'total',(select count(*) from public.group_memberships m join public.enrollments x on x.offering_id=m.offering_id and x.user_id=m.user_id and x.status='active'
+   and (x.expires_at is null or x.expires_at>now()) where m.group_id=g.id and m.starts_at<=now() and (m.ends_at is null or m.ends_at>now())),
+  'started',(select count(*) from public.group_memberships m join public.enrollments x on x.offering_id=m.offering_id and x.user_id=m.user_id and x.status='active'
+   and (x.expires_at is null or x.expires_at>now()) where m.group_id=g.id and m.starts_at<=now() and (m.ends_at is null or m.ends_at>now())
+   and exists(select 1 from private.exam_attempts a where a.exam_id=e.id and a.user_id=m.user_id))) order by g.name,g.id),'[]'::jsonb)
+ from private.exams e join public.study_groups g on g.offering_id=e.offering_id and g.status='active' where e.id=p_exam$$;
+create function pg_temp.naive_no_group(p_exam uuid) returns jsonb language sql security definer set search_path='' as $$
+ select jsonb_build_object('total',count(*),'started',count(*) filter(where exists(select 1 from private.exam_attempts a where a.exam_id=e.id and a.user_id=x.user_id)))
+ from private.exams e join public.enrollments x on x.offering_id=e.offering_id and x.status='active' and (x.expires_at is null or x.expires_at>now())
+ where e.id=p_exam and not exists(select 1 from public.group_memberships m join public.study_groups g on g.id=m.group_id and g.status='active'
+  where m.offering_id=e.offering_id and m.user_id=x.user_id and m.starts_at<=now() and (m.ends_at is null or m.ends_at>now()))$$;
+-- A same-time exam open now, taken by s1 (G1) and s5 (no Group).
+set local role authenticated; select pg_temp.claim('owner');
+select pg_temp.put('live',(public.exam_save(null,pg_temp.key('off'),null,jsonb_build_object('kind','online','title','Live counts','timing','same_time',
+ 'opensAt',to_char(now()+interval '1 minute','YYYY-MM-DD"T"HH24:MI:SSTZH:TZM'),'closesAt',to_char(now()+interval '3 hours','YYYY-MM-DD"T"HH24:MI:SSTZH:TZM'),'questions',pg_temp.questions(false)))->>'id')::uuid);
+select public.exam_lifecycle(pg_temp.key('live'),'publish',1);
+reset role;
+update private.exams set opens_at=now()-interval '1 minute' where id=pg_temp.key('live');
+set local role authenticated;
+select pg_temp.claim('s1'); select pg_temp.start(pg_temp.key('live'));
+select pg_temp.claim('s5'); select pg_temp.start(pg_temp.key('live'));
+select pg_temp.claim('owner');
+create temp table ex_portal as select r from jsonb_array_elements(public.exam_portal(pg_temp.key('course'),'open')->'rows') r;
+reset role;
+select pg_temp.ok((select count(*)>=1 from ex_portal where r->>'kind'='online' and jsonb_array_length(r->'groups')>0),'open online rows carry their Groups');
+select pg_temp.ok((select bool_and((select jsonb_agg(jsonb_build_object('groupId',x->'groupId','total',x->'total','started',x->'started')) from jsonb_array_elements(r->'groups') x)=pg_temp.naive_groups((r->>'id')::uuid)
+  and r->'noGroup'=pg_temp.naive_no_group((r->>'id')::uuid)) from ex_portal where r->>'kind'='online'),'started / total per Group and in no Group match a naive query for every open exam');
+select pg_temp.ok((select (x->>'started')::int=1 and (x->>'total')::int=(select count(*) from public.group_memberships m where m.group_id=pg_temp.key('g1') and m.ends_at is null)
+  and x->>'window'='open' and (x->>'secondsLeft')::bigint between 3*3600-120 and 3*3600 from ex_portal, jsonb_array_elements(r->'groups') x where (r->>'id')::uuid=pg_temp.key('live') and (x->>'groupId')::uuid=pg_temp.key('g1'))
+ and (select (r->'noGroup'->>'started')::int=1 from ex_portal where (r->>'id')::uuid=pg_temp.key('live')),'G1 shows 1 started and the time left on the server clock; s5 counts in no Group');
+set local role authenticated; select pg_temp.claim('ta');
+select pg_temp.ok((select bool_and(r ? 'groups') from jsonb_array_elements(public.exam_portal(null,'open')->'rows') r where r->>'kind'='online'),'an assistant of the run sees the live counts');
+select pg_temp.claim('owner');
+select pg_temp.ok((select bool_and(r->'groups'='null'::jsonb) from jsonb_array_elements(public.exam_portal(pg_temp.key('course'),'drafts')->'rows') r),'drafts carry no live counts');
 select pg_temp.ok((select (x->'counts')-'inProgress'=pg_temp.naive_queue(pg_temp.key('oe')) from public.exam_queue(pg_temp.key('oe'),'missing') x),'queue counts match a naive count');
 select pg_temp.ok((select jsonb_array_length(x->'rows')=(x->'counts'->>'missing')::int from public.exam_queue(pg_temp.key('oe'),'missing') x),'the missing tab lists every student without a try');
 select pg_temp.claim('ta');
@@ -532,6 +609,18 @@ reset role;
 select pg_temp.ok((select status='draft' and offering_id=pg_temp.key('off2') and supersedes_id=pg_temp.key('oe') and (select count(*) from private.exam_questions q where q.exam_id=e.id)=4
  and (select k.correct_option_ids=array[(select o.id from private.exam_options o where o.question_id=q.id and o.position=1)] from private.exam_questions q join private.exam_keys k on k.question_id=q.id where q.exam_id=e.id and q.position=0)
  from private.exams e where family_id=pg_temp.key('oe') and version=2),'the clone copies questions and remaps the keys to its own options');
+
+-- A Group created after an exam's last window closed is not linked to it (only unclosed exams link new Groups).
+savepoint closed_group;
+select pg_temp.close_all(pg_temp.key('oe'));
+select pg_temp.ok(private.exam_closed(pg_temp.key('oe')),'the unit test exam is closed');
+select pg_temp.put('g9',gen_random_uuid());
+insert into public.study_groups(id,offering_id,name,mode,location,created_by) values(pg_temp.key('g9'),pg_temp.key('off'),'G9 after close','center','Room 9',pg_temp.uid('owner'));
+insert into public.group_sessions(group_id,title,starts_at,ends_at,original_starts_at,original_ends_at,mode,created_by,updated_by)
+ values(pg_temp.key('g9'),'G9 first',now()+interval '2 days',now()+interval '2 days 1 hour',now()+interval '2 days',now()+interval '2 days 1 hour','center',pg_temp.uid('owner'),pg_temp.uid('owner'));
+set constraints public.exam_link_new_group,public.exam_link_new_session immediate; set constraints public.exam_link_new_group,public.exam_link_new_session deferred;
+select pg_temp.ok(not exists(select 1 from private.exam_group_windows where exam_id=pg_temp.key('oe') and group_id=pg_temp.key('g9')),'a Group created after the exam closed gets no link');
+rollback to savepoint closed_group;
 
 select count(*) as exams_tests from ex_results;
 rollback;

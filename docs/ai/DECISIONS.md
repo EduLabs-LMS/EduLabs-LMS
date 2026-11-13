@@ -512,3 +512,14 @@ builder, no demo seed. Plan and details: `EXAMS_DB_AUDIT.md` (section f). The ow
 Also decided while building: a released online mark changes only with a reason and stays released (homework withdraws the release);
 paper results can be released any time after publishing; the release notice has no link until the student screen exists; exam
 pictures are shared by the versions of one exam family.
+
+### Amendment (owner's answers on `9f1169c`, 2026-11-13; same draft migration, amended in place, not applied)
+
+1. Window freezing never depends on a later read. A Group created in a run with published, unclosed per-Group exams is linked when
+   it is created (same rule, source `auto`), by a trigger at the commit that created it (so the Group command's sessions exist); a
+   Group whose first session comes later is linked at that session's commit. When a session's times change or it is cancelled after
+   it opened, every exam window linked to it keeps the times it had before the change (including a link not stored yet, which is
+   stored frozen). Windows not yet opened keep following the session.
+2. The teacher list (`exam_portal`) carries live counts per Group for open exams: started / total and the time left in the window on
+   the server clock, plus the students in no Group. Same scope rule, no per-row authorization.
+3. Archived exams stay visible to their students for released results (confirmed).
