@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New exam rules phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button{font-family:inherit;color:inherit}
+.pt{font-family:'Caprasimo',serif;font-weight:400;font-size:22px;line-height:28px;margin:0}
+.h3{font-weight:700;font-size:14px;line-height:20px;margin:0;color:#2B6416}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:15px;line-height:20px}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 16px;border-radius:12px;font-weight:600;font-size:15px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.p{background:#7FD959;color:#14301A;border:1px solid #5DB33B;box-shadow:0 3px 0 #2B6416}
+.ph{height:56px;flex:none;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid #D3DEC9;background:#F6F9F2}
+.sw{flex:none;position:relative;width:44px;height:26px;border-radius:999px;border:0;background:#C9D6BD;cursor:pointer;padding:0;margin-top:2px}
+.sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 2px rgba(29,37,24,.3)}
+.sw.on{background:#2B6416}.sw.on i{left:21px}
+.ch{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #C9D6BD;border-radius:12px;background:#FFFFFF;text-align:left;cursor:pointer;width:100%;min-height:48px}
+.ch.on{border-color:#2B6416;background:#F1F9EC;box-shadow:inset 0 0 0 1px #2B6416}
+.rd{flex:none;width:18px;height:18px;margin-top:1px;border-radius:50%;border:2px solid #7F9170;background:#FFFFFF}
+.ch.on .rd{border:6px solid #2B6416}
+.line{display:flex;gap:12px;align-items:flex-start}
+.prog{display:flex;gap:4px}
+.prog i{flex:1;height:4px;border-radius:999px;background:#D3DEC9}
+.prog i.on{background:#2B6416}
+.sti{flex:none;padding:10px 16px;background:#FBFDF8;border-top:1px solid #D3DEC9;display:flex}
+.sti .b{flex:1}
+</style>
+</helmet>
+<div class="r" style="width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden">
+<header class="ph"><a href="#" aria-label="Back" style="width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;color:#2B6416"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></a><span class="l" style="flex:1">Chapter 2 exam</span><span class="m">Step 4 of 4</span></header>
+<div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px">
+<div class="prog" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+<h1 class="pt">Rules and results</h1>
+<h3 class="h3">Tries</h3>
+<div style="display:flex;flex-direction:column;gap:6px" role="radiogroup" aria-label="Tries">
+<button type="button" role="radio" aria-checked="true" class="ch on"><span class="rd"></span><span class="l">One time</span></button>
+<button type="button" role="radio" aria-checked="false" class="ch"><span class="rd"></span><span><span class="l">Second try, fix mistakes</span><br><span class="m">Only wrong answers open again.</span></span></button>
+<button type="button" role="radio" aria-checked="false" class="ch"><span class="rd"></span><span><span class="l">Second try, from zero</span><br><span class="m">Everything opens again, empty.</span></span></button>
+</div>
+<h3 class="h3" style="margin-top:4px">Order</h3>
+<div class="line"><span style="flex:1"><span class="l">Mix the order for each student</span><br><span class="m">So neighbours can't copy.</span></span><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Mix the order for each student"><i></i></button></div>
+<h3 class="h3" style="margin-top:4px">Results</h3>
+<div class="line"><span style="flex:1"><span class="l">Release by itself</span><br><span class="m">When the last Group finishes. Only without essays.</span></span><button type="button" class="sw" role="switch" aria-checked="false" aria-label="Release by itself"><i></i></button></div>
+<div class="m">Otherwise you release grades from correcting. The right answers open after the last Group's session, so no Group sees them early.</div>
+</div>
+<div class="sti"><button type="button" class="b p">Next: Review</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

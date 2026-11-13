@@ -1,0 +1,18 @@
+{"v":3,"createdOnFiles":{"v":1,"at":"2026-11-13T12:00:00Z"},"title":"Exams","launch":{"view":"canvas"},"pages":[],
+"boards":{
+"Main.dc.html":{"x":0,"y":0,"w":1360,"h":1000,"title":"Exams page · desktop"},
+"Exams-Phone.dc.html":{"x":0,"y":1340,"w":390,"h":844,"title":"Exams page · phone"},
+"Details-Phone.dc.html":{"x":470,"y":1340,"w":390,"h":844,"title":"New exam · 1 Details"},
+"When-Phone.dc.html":{"x":940,"y":1340,"w":390,"h":844,"title":"New exam · 3 When (online only)"},
+"Rules-Phone.dc.html":{"x":1410,"y":1340,"w":390,"h":844,"title":"New exam · 4 Rules and results"},
+"PaperMarks-Phone.dc.html":{"x":1880,"y":1340,"w":390,"h":844,"title":"Paper exam · enter marks"},
+"StudentExam-Phone.dc.html":{"x":2350,"y":1340,"w":390,"h":844,"title":"Student taking an exam"}
+},
+"order":["Main.dc.html","Exams-Phone.dc.html","Details-Phone.dc.html","When-Phone.dc.html","Rules-Phone.dc.html","PaperMarks-Phone.dc.html","StudentExam-Phone.dc.html"],
+"notes":{
+"t1":{"x":0,"y":-300,"text":"Exams · desktop","kind":"title1","maxW":1360},
+"t2":{"x":0,"y":1040,"text":"Phone (how most teachers use it)","kind":"title1","maxW":2740},
+"n1":{"x":0,"y":2300,"w":560,"text":"Step 2 (Questions) is the homework Questions step reused as is (see the homework canvas, NewHomework-Phone): Choice (A–H, optional text, one or more right), Number (with a tolerance) and Essay (text and/or one photo), each with a model answer and optional photo. Correcting reuses the homework correcting screen.","size":"m","fill":"orange"},
+"n2":{"x":640,"y":2300,"w":560,"text":"Paper exam (marks only, for now): Details → Marks. No questions and no When step: a maximum mark only. Later: a printed bubble sheet the teacher photographs, so EduLabs reads the choice answers and the essay marks. That builds on this; nothing is thrown away.","size":"m","fill":"blue"},
+"n3":{"x":1280,"y":2300,"w":560,"text":"When (online): by default the exam happens in each Group's next session on or after a date the teacher picks. EduLabs reads the times from the Groups' sessions; the teacher never types them. Change = pick another session of that Group. Or: Same time for everyone (one window, e.g. at home).","size":"m","fill":"green"}
+}}

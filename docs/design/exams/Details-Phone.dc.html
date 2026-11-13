@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New exam details phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button,.r input{font-family:inherit;color:inherit}
+.pt{font-family:'Caprasimo',serif;font-weight:400;font-size:22px;line-height:28px;margin:0}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:15px;line-height:20px}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 16px;border-radius:12px;font-weight:600;font-size:15px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.p{background:#7FD959;color:#14301A;border:1px solid #5DB33B;box-shadow:0 3px 0 #2B6416}
+.ph{height:56px;flex:none;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid #D3DEC9;background:#F6F9F2}
+.f{height:48px;width:100%;border:1px solid #B7C6AA;border-radius:12px;background:#FFFFFF;padding:0 12px;font-size:15px}
+.sel{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;cursor:pointer}
+.fl{display:flex;flex-direction:column;gap:6px}
+.kind{display:flex;align-items:flex-start;gap:12px;text-align:left;padding:12px 14px;border:1px solid #C9D6BD;border-radius:14px;background:#FFFFFF;cursor:pointer;width:100%}
+.kind.on{border-color:#2B6416;background:#F1F9EC;box-shadow:inset 0 0 0 1px #2B6416}
+.ic{width:36px;height:36px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:#E3F3DA;color:#2B6416;flex:none}
+.chip{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 14px;border-radius:999px;border:1px solid #C9D6BD;background:#FFFFFF;font-weight:600;font-size:14px;cursor:pointer}
+.chip.on{border-color:#2B6416;background:#F1F9EC;color:#14301A;box-shadow:inset 0 0 0 1px #2B6416}
+.prog{display:flex;gap:4px}
+.prog i{flex:1;height:4px;border-radius:999px;background:#D3DEC9}
+.prog i.on{background:#2B6416}
+.sti{flex:none;padding:10px 16px;background:#FBFDF8;border-top:1px solid #D3DEC9;display:flex;gap:8px;align-items:center}
+.sti .b{flex:1}
+</style>
+</helmet>
+<div class="r" style="width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden">
+<header class="ph"><a href="#" aria-label="Close" style="width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;color:#2B6416"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></a><span class="l" style="flex:1">New exam</span><span class="m">Step 1 of 4</span></header>
+<div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:16px">
+<div class="prog" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
+<h1 class="pt">Details</h1>
+<div class="fl" role="radiogroup" aria-label="Kind of exam">
+<button type="button" role="radio" aria-checked="true" class="kind on"><span class="ic"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2h10v20H7zM11 18h2"></path></svg></span><span><span class="l">Online exam</span><br><span class="m">Students answer in EduLabs, in their Group's session.</span></span></button>
+<button type="button" role="radio" aria-checked="false" class="kind"><span class="ic" style="background:#E3E9DC;color:#44523D"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h4"></path></svg></span><span><span class="l">Paper exam</span><br><span class="m">On paper in class. You type each student's mark.</span></span></button>
+</div>
+<label class="fl"><span class="l">Title</span><input class="f" value="Chapter 2 exam: Magnetism"></label>
+<div class="fl"><span class="l">Course</span><button type="button" class="f sel"><span>Physics · Third Secondary</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button></div>
+<div class="fl"><span class="l">Chapters it covers</span>
+<div style="display:flex;gap:8px;flex-wrap:wrap" role="group" aria-label="Chapters it covers">
+<button type="button" aria-pressed="false" class="chip">1 · Electric current</button>
+<button type="button" aria-pressed="true" class="chip on"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>2 · Magnetism</button>
+<button type="button" aria-pressed="false" class="chip">3 · Induction</button>
+<button type="button" aria-pressed="false" class="chip" style="color:#2B6416">All</button>
+</div>
+<span class="m">For grouping results in Reports. It doesn't limit the questions.</span></div>
+</div>
+<div class="sti"><button type="button" class="b p">Next: Questions</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

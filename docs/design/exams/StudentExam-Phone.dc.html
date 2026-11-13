@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Student exam phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button,.r input{font-family:inherit;color:inherit}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:15px;line-height:20px}
+.d{font-weight:700;font-variant-numeric:tabular-nums}
+.c{background:#FBFDF8;border:1px solid #D3DEC9;border-radius:18px;box-shadow:0 3px 0 #D3DEC9}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 16px;border-radius:12px;font-weight:600;font-size:15px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.p{background:#7FD959;color:#14301A;border:1px solid #5DB33B;box-shadow:0 3px 0 #2B6416}
+.o{background:#FFFFFF;border:1px solid #B7C6AA;color:#1D2518;box-shadow:0 2px 0 #D3DEC9}
+.top{flex:none;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #D3DEC9;background:#F6F9F2}
+.tm{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:999px;background:#FEF3C7;color:#5E3D00;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums}
+.dots{display:flex;gap:6px;flex-wrap:wrap}
+.dt{width:30px;height:30px;border-radius:9px;border:1px solid #C9D6BD;background:#FFFFFF;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;color:#44523D}
+.dt.done{background:#E3F3DA;border-color:#9FD487;color:#2B6416}
+.dt.on{background:#7FD959;border-color:#5DB33B;color:#14301A;box-shadow:0 2px 0 #2B6416}
+.opt{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 14px;border:1px solid #C9D6BD;border-radius:14px;background:#FFFFFF;text-align:left;cursor:pointer;width:100%}
+.opt.on{border-color:#2B6416;background:#F1F9EC;box-shadow:inset 0 0 0 1px #2B6416}
+.lt{width:30px;height:30px;border-radius:50%;border:1.5px solid #7F9170;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+.opt.on .lt{background:#2B6416;border-color:#2B6416;color:#FFFFFF}
+.num{height:52px;width:100%;border:1px solid #B7C6AA;border-radius:14px;background:#FFFFFF;padding:0 14px;font-size:18px;font-weight:700}
+.bar{flex:none;padding:10px 16px;background:#FBFDF8;border-top:1px solid #D3DEC9;display:flex;gap:8px}
+.bar .b{flex:1}
+</style>
+</helmet>
+<div class="r" style="width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden">
+<div class="top">
+<span style="flex:1;min-width:0"><span class="l" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Chapter 1 exam: Electric current</span><span class="m">Saved · 12 of 20 answered</span></span>
+<span class="tm" role="timer" aria-label="31 minutes left"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2"></path></svg>31:05</span>
+</div>
+<div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:14px">
+<nav class="dots" aria-label="Questions">
+<a href="#" class="dt done">1</a><a href="#" class="dt done">2</a><a href="#" class="dt done">3</a><a href="#" class="dt done">4</a><a href="#" class="dt done">5</a><a href="#" class="dt done">6</a><a href="#" class="dt" >7</a><a href="#" class="dt done">8</a><a href="#" class="dt done">9</a><a href="#" class="dt done">10</a><a href="#" class="dt done">11</a><a href="#" class="dt done">12</a><a href="#" class="dt on" aria-current="step">13</a><a href="#" class="dt">14</a><a href="#" class="dt">15</a><a href="#" class="dt">16</a><a href="#" class="dt">17</a><a href="#" class="dt">18</a><a href="#" class="dt">19</a><a href="#" class="dt">20</a>
+</nav>
+<section class="c" style="padding:18px;display:flex;flex-direction:column;gap:12px">
+<span class="m">Question 13 · 2 marks</span>
+<p class="l" style="margin:0;font-size:16px;line-height:24px">Three 6 Ω resistors are connected in parallel. What is their total resistance?</p>
+<span class="m">Choose the right answer</span>
+<button type="button" class="opt"><span class="lt">A</span>18 Ω</button>
+<button type="button" class="opt on" aria-pressed="true"><span class="lt">B</span>2 Ω</button>
+<button type="button" class="opt"><span class="lt">C</span>3 Ω</button>
+<button type="button" class="opt"><span class="lt">D</span>6 Ω</button>
+</section>
+<section class="c" style="padding:18px;display:flex;flex-direction:column;gap:10px">
+<span class="m">Question 14 · 2 marks · a number</span>
+<p class="l" style="margin:0;font-size:16px;line-height:24px">A 12 V battery drives 3 A through a lamp. What is the lamp's resistance in ohms?</p>
+<label class="m" for="q14">Your answer</label>
+<input id="q14" class="num" inputmode="decimal" placeholder="Type a number">
+</section>
+</div>
+<div class="bar"><button type="button" class="b o">Previous</button><button type="button" class="b p">Next</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>
