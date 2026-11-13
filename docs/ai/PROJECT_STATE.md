@@ -51,3 +51,13 @@ remain available here. Real provider/email/push acceptance has not run for this 
 - Built, awaiting owner approval: correcting (`/teacher/homework/<id>/correct`), the Home card, the student lesson page by lesson id,
   Try again and plain student refusals. Draft migration `20261113120000_homework_correct_demo.sql` (demo seed 6), not applied.
 - Release notifications come from the existing database trigger for single and bulk release alike (DECISIONS.md).
+
+## Exams part 1: teacher screens (`claude/exams-ui`, 2026-11-13)
+
+- Built, awaiting owner approval: the Exams page, the wizard (online and paper), a Group's window, correcting one online try with
+  Release and Release N grades, and the paper mark sheet with Release marks. Routes under `/api/teacher/exams` call the exam_* functions
+  of `20261114120000_exams.sql` (applied on dev) as the signed-in teacher; the database authorizes every read and write.
+- Picture uploads (question and model answer pictures) follow the homework flow on the `lms-exams` bucket: intent, the bytes straight to
+  Storage, then the server's byte check proved to the database with an upload-scoped token.
+- Not built yet (part 2): the student exam screens, the Home "Live now" card, demo seed v7.
+- Verified with synthetic loopback data and the real middleware only; not real Firebase/Supabase acceptance. Not deployed.

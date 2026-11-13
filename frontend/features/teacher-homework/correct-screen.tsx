@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { Avatar } from '@/frontend/components/design/avatar';
@@ -21,7 +21,7 @@ import {
   choiceSummary, clampPoints, draftChanged, draftComplete, draftOf, essayLines, gradeBody, nextStudent, QUEUE_TABS, reasonOk, releaseBody, releaseManyBody, totals, tryState,
   type Draft, type EssayLine, type Queue, type QueueRow, type QueueTab, type TryView,
 } from '@/shared/teacher-homework-correct';
-import { countText, failureWords, homeworkCall } from './homework-words';
+import { countText, failureWords, homeworkCall, type Outcome } from './homework-words';
 
 const API = '/api/teacher/homework';
 const countOf = (q: Queue, key: QueueTab) => q.counts[key === 'to_correct' ? 'toCorrect' : key];
@@ -196,7 +196,7 @@ export function CorrectScreen({ homeworkId, start }: { homeworkId: string; start
       {showTry && !current && queue && !phone && <p className="d-card d-card--pad d-body" data-correct-none><L id="hw.c.pick" /></p>}
     </div>
     <p role="status" data-correct-live className="sr-only">{live}</p>
-    {confirmMany && queue && <ReleaseManyDialog homeworkId={homeworkId} queue={queue} onClose={() => setConfirmMany(false)}
+    {confirmMany && queue && <ReleaseManyDialog n={queue.releasable.length} send={() => homeworkCall<{ released: number }>(`${API}/${homeworkId}/release-many`, releaseManyBody(queue))} onClose={() => setConfirmMany(false)}
       onReload={async () => { await readQueue(); }}
       onDone={n => { setConfirmMany(false); say(t(`hw.c.live.released_many.${countForm(n)}` as MessageKey, { n })); void readQueue(); if (current) void readTry(current); }} />}
   </div>;
@@ -294,13 +294,16 @@ export function CorrectScreen({ homeworkId, start }: { homeworkId: string; start
   }
 }
 
-/** One essay: the question, the student's text and photo exactly as sent (nothing drawn on it), then the mark and a note. */
-function Essay({ homeworkId, essay, name, editable, value, onChange }: { homeworkId: string; essay: EssayLine; name: string; editable: boolean; value: { points: number | null; feedback: string }; onChange: (m: { points: number | null; feedback: string }) => void }) {
+/**
+ * One essay: the question, the student's text and photo exactly as sent (nothing drawn on it), then the mark and a note. Exams reuse it with
+ * marks in halves (`step` 0.5) and their own photo flow (`photo`).
+ */
+export function Essay({ homeworkId, essay, name, editable, value, onChange, step = 1, photo }: { homeworkId: string; essay: EssayLine; name: string; editable: boolean; value: { points: number | null; feedback: string }; onChange: (m: { points: number | null; feedback: string }) => void; step?: 1 | 0.5; photo?: ReactNode }) {
   const { t, number } = useLanguage();
   const [model, setModel] = useState(false);
   const q = essay.question, at = `hw-c-${q.id}`;
   const points = value.points;
-  const set = (n: number) => onChange({ ...value, points: clampPoints(n, q.points) });
+  const set = (n: number) => onChange({ ...value, points: step === 1 ? clampPoints(n, q.points) : Math.min(q.points, Math.max(0, Math.round(n * 2) / 2)) });
   return <div data-essay={q.id} data-kept={essay.kept || undefined} className="d-stack-sm d-correct-block">
     <div className="d-hw-qhead">
       <span className="d-label">{t('hw.c.essay', { n: essay.n, marks: countText(t, 'mark', q.points) })}</span>
@@ -313,14 +316,14 @@ function Essay({ homeworkId, essay, name, editable, value, onChange }: { homewor
       <span className="d-meta d-hw-eyebrow"><L id="hw.c.typed" /></span>
       {essay.text ? <p className="d-body d-correct-answer"><bdi dir="auto">{essay.text}</bdi></p> : <p className="d-meta"><L id="hw.c.no_text" /></p>}
     </div>
-    {essay.photo && <Photo homeworkId={homeworkId} id={essay.photo.id} deleted={Boolean(essay.photo.deleted)} n={essay.n} />}
+    {photo ?? (essay.photo && <Photo homeworkId={homeworkId} id={essay.photo.id} deleted={Boolean(essay.photo.deleted)} n={essay.n} />)}
     {editable
       ? <div className="d-stack-sm">
         <span className="d-hw-qhead"><span className="d-label" id={`${at}-mark`}><L id="hw.c.mark" /></span>
           <span role="group" aria-labelledby={`${at}-mark`} className="d-hw-stepper" data-stepper={q.id}>
-            <button type="button" className="d-btn d-btn--secondary d-hw-step-btn" aria-label={t('hw.c.less')} aria-disabled={points === 0 || undefined} onClick={() => { if (points !== 0) set(points === null ? 0 : points - 1); }}>−</button>
+            <button type="button" className="d-btn d-btn--secondary d-hw-step-btn" aria-label={t('hw.c.less')} aria-disabled={points === 0 || undefined} onClick={() => { if (points !== 0) set(points === null ? 0 : points - step); }}>−</button>
             <span aria-live="polite" className="d-label d-hw-step-value" data-stepper-value={points ?? ''}>{t('hw.c.out_of', { got: points === null ? '–' : number(points), max: number(q.points) })}</span>
-            <button type="button" className="d-btn d-btn--secondary d-hw-step-btn" aria-label={t('hw.c.more')} aria-disabled={points === q.points || undefined} onClick={() => { if (points !== q.points) set(points === null ? Math.min(1, q.points) : points + 1); }}>+</button>
+            <button type="button" className="d-btn d-btn--secondary d-hw-step-btn" aria-label={t('hw.c.more')} aria-disabled={points === q.points || undefined} onClick={() => { if (points !== q.points) set(points === null ? Math.min(step, q.points) : points + step); }}>+</button>
           </span></span>
         <label className="d-field" data-essay-note><span className="d-field-label">{t('hw.c.note', { name })}</span>
           <textarea className="d-field-input d-textarea" rows={2} maxLength={4000} dir="auto" value={value.feedback} onChange={ev => onChange({ ...value, feedback: ev.target.value })} /></label>
@@ -355,33 +358,32 @@ function Photo({ homeworkId, id, deleted, n }: { homeworkId: string; id: string;
   </div>;
 }
 
-/** "Release 12 grades": exactly the queue's list, all or nothing. A grade changed elsewhere releases none and asks for a reload. */
-function ReleaseManyDialog({ homeworkId, queue, onClose, onReload, onDone }: { homeworkId: string; queue: Queue; onClose: () => void; onReload: () => Promise<void>; onDone: (n: number) => void }) {
+/** "Release 12 grades": exactly the queue's list, all or nothing. A grade changed elsewhere releases none and asks for a reload. Exams reuse it. */
+export function ReleaseManyDialog({ n, send: run, onClose, onReload, onDone, title, words }: { n: number; send: () => Promise<Outcome<{ released: number }>>; onClose: () => void; onReload: () => Promise<void>; onDone: (n: number) => void; title?: string; words?: (f: HomeworkFailure) => string }) {
   const { t } = useLanguage();
   const [error, setError] = useState<HomeworkFailure | null>(null);
   const [sending, setSending] = useState(false);
-  const n = queue.releasable.length;
   async function send() {
     if (sending) return;
     setSending(true); setError(null);
     try {
-      const done = await homeworkCall<{ released: number }>(`${API}/${homeworkId}/release-many`, releaseManyBody(queue));
+      const done = await run();
       if (!done.ok) { setError(done.failure); return; }
       onDone(done.body.released);
     } finally { setSending(false); }
   }
-  return <Dialog open onOpenChange={open => { if (!open && !sending) onClose(); }} data-release-many-dialog="" title={t(`hw.c.release_many.${countForm(n)}` as MessageKey, { n })}
+  return <Dialog open onOpenChange={open => { if (!open && !sending) onClose(); }} data-release-many-dialog="" title={title ?? t(`hw.c.release_many.${countForm(n)}` as MessageKey, { n })}
     description={t('hw.c.release_many_body')}
     footer={<><Button data-release-many-cancel aria-disabled={sending || undefined} onClick={() => { if (!sending) onClose(); }}><L id="hw.cancel" /></Button>
       {error?.kind === 'changed'
         ? <Button variant="primary" data-release-many-reload onClick={() => { setError(null); void onReload(); }}><L id="hw.c.reload" /></Button>
         : <Button variant="primary" data-release-many-confirm aria-disabled={sending || n === 0 || undefined} aria-busy={sending || undefined} onClick={() => void send()}>{sending && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}<L id="hw.c.release_confirm" /></Button>}</>}>
     <p className="d-content-line"><Icon name="bell" /><span><L id="hw.c.release_notify" /></span></p>
-    {error && <p role="alert" data-release-many-error={error.kind} className="d-field-error">{error.kind === 'changed' ? t('hw.c.many_changed') : failureWords(t, error)}</p>}
+    {error && <p role="alert" data-release-many-error={error.kind} className="d-field-error">{error.kind === 'changed' ? t('hw.c.many_changed') : (words ?? (f => failureWords(t, f)))(error)}</p>}
   </Dialog>;
 }
 
-function Loading() {
+export function Loading() {
   return <div role="status" data-state="loading" className="d-stack-sm">
     {[0, 1, 2].map(i => <DesignSkeleton key={i} className="h-11 w-full" />)}
     <span className="sr-only"><L id="th.state.loading" /></span>

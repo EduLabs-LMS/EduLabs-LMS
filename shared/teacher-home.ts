@@ -207,12 +207,13 @@ export function courseSlug(title: string, random: () => string): string {
   return base ? `${base}-${suffix}` : `course-${suffix}`;
 }
 
-export type TeacherNavItem = { key: 'home' | 'groups' | 'students' | 'courses' | 'homework'; href: string; match: (path: string) => boolean };
+export type TeacherNavItem = { key: 'home' | 'groups' | 'students' | 'courses' | 'homework' | 'exams'; href: string; match: (path: string) => boolean };
 /** Where the whole logo and the Home menu item go. */
 export const teacherHomeHref = '/home';
 /** A course's own page keeps its address under Settings (/teacher/settings/courses/<id>) but belongs to the Courses menu item. */
 export const teacherCoursesActive = (p: string) => p === '/teacher/courses' || p.startsWith('/teacher/courses/') || p.startsWith('/teacher/settings/courses/');
 export const teacherHomeworkActive = (p: string) => p === '/teacher/homework' || p.startsWith('/teacher/homework/');
+export const teacherExamsActive = (p: string) => p === '/teacher/exams' || p.startsWith('/teacher/exams/');
 export const teacherSettingsActive = (p: string) => (p === '/teacher/settings' || p.startsWith('/teacher/settings/')) && !teacherCoursesActive(p);
 /** The main teacher menu. Notifications and Settings sit at the bottom of the frame. */
 export const teacherNav: readonly TeacherNavItem[] = [
@@ -222,10 +223,12 @@ export const teacherNav: readonly TeacherNavItem[] = [
   { key: 'courses', href: '/teacher/courses', match: teacherCoursesActive },
   // Built on claude/homework-ui: the Homework page and New homework. It keeps the place its Soon item had.
   { key: 'homework', href: '/teacher/homework', match: teacherHomeworkActive },
+  // Built on claude/exams-ui: the Exams page, New exam, correcting and paper marks. It keeps the place its Soon item had.
+  { key: 'exams', href: '/teacher/exams', match: teacherExamsActive },
 ];
 
 /** Visible but not usable yet: a "Soon" tag and no link (owner decision, DECISIONS.md). Each one moves to teacherNav when it is built. */
-export const teacherNavSoon = ['exams', 'reports'] as const;
+export const teacherNavSoon = ['reports'] as const;
 
 /** Teacher navigation is for active staff of the Firebase/Supabase build only; students and the Clerk fallback keep their own navigation. */
 export const showTeacherNav = (firebase: boolean, staffOrganizationIds: readonly string[] | null | undefined) => firebase && Boolean(staffOrganizationIds?.length);

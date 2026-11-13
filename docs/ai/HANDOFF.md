@@ -64,3 +64,12 @@ plain refusals) are built on `claude/homework-correct` (from `claude/homework-mo
 `20261113120000_homework_correct_demo.sql` (demo seed 6 only), is **not applied anywhere**. No merge, PR or deploy. The owner approved
 the three pinned baseline edits for the student refusal reasons, the retry action and the Locked card link. Next: owner review of the
 screens and the screenshots, then apply the migration on dev.
+
+## Update 2026-11-13: exams part 1 (teacher screens) on `claude/exams-ui`
+
+The teacher Exams screens are built on `claude/exams-ui` (from 438388c) on top of migration `20261114120000_exams.sql`, which the owner
+applied on dev. No new migration, no merge, PR or deploy. Built: the Exams page (`/teacher/exams`: Live now, To correct, course filter,
+Open/Closed/Drafts/Archived, row menu), the wizard (`/teacher/exams/new`, `/teacher/exams/<id>`: online Details, Questions with
+Choice/Number/Essay, When with each Group's window, Rules, Review; paper Details and Review), correcting (`/teacher/exams/<id>/correct`)
+and the paper mark sheet (`/teacher/exams/<id>/marks`). Exams is a real menu item; only Reports is Soon. **Part 2** (not started): the
+student side, the Home "Live now" card and demo seed v7. Next: owner review of the screens and `docs/design/screenshots/exams-ui/`.

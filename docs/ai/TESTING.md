@@ -347,3 +347,22 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
   about 130 calls). The old sequential run reached that state when autovacuum analyzed the tables that the earlier, rolled-back suites
   had churned (and bloated). Measured: 192 s in a clone of an un-analyzed template, 763 s in a clone of an analyzed one. So the
   template is deliberately not analyzed, and each clone starts with no statistics, as a fresh replay did.
+
+## Teacher Exams screens (`claude/exams-ui`, migration `20261114120000_exams.sql` applied on dev; no new SQL)
+
+- `scripts/teacher-exams.test.cjs` (in `npm test`): every route (signed out 401 before any database call, a foreign or missing origin
+  403, bad, oversized, wrongly typed and repeated input 400/413/415 before the database), arguments exactly as the exam_* functions take
+  them, revisions up to `Number.MAX_SAFE_INTEGER` round-tripped, the create pre-check (the run's course, edit rights), staff-only reads,
+  42501 from another space's teacher or an assistant without the right, every code and reason of `examReply`, the upload flow (the
+  stored bytes checked by type and size, the scoped token never returned, five-minute links), the one-line adapters and timed handlers,
+  the exact middleware paths, the wizard, page, correcting and mark-sheet rules, the menu, and the words in both languages (same holes,
+  Arabic, none of the ruled-out words, words for every reason and every key a screen uses).
+- `scripts/exams-ui-browser.cjs` (`LMS_COPY_SHOTS=1`): the four screens in Chromium with the real middleware, contract and reply mapper;
+  every teacher request is validated by the real schema; each screen shot four ways (phone/desktop, English/Arabic, Classic/New) and
+  measured (no sideways scroll, 44 px targets, 12 px text, no native disabled or checkbox, no raw keys or ruled-out words); 61 pictures
+  in `docs/design/screenshots/exams-ui/`. It also drives a Group's window change, a grade save and a mark typed in Arabic digits.
+- Updated for Exams becoming a real page: `teacher-home.test.cjs` (six main links), `design-feedback-checks.cjs` (only Reports is Soon),
+  `teacher-home-browser.cjs` and `design-foundation-browser.cjs` (six links; the latter's "Desktop frame" step was already stale at four).
+  `teacher-homework.test.cjs`: the photos-switch pattern accepts CRLF (a Windows checkout failed it before this change).
+- Shared with Homework, re-run: `teacher-homework-browser.cjs` and `homework-correct-browser.cjs` (the Questions step, the essay marker
+  and the release dialog are now shared components).

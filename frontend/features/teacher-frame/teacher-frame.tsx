@@ -13,7 +13,7 @@ import { TeacherNav } from '@/frontend/features/teacher-home/teacher-nav';
 import { requestGuardedAction } from '@/frontend/lib/guarded-action';
 import { notePageRender, usePageEntry } from '@/frontend/lib/page-entry';
 import { attendancePathPattern } from '@/shared/teacher-attendance';
-import { teacherCoursesActive, teacherHomeHref, teacherHomeworkActive, teacherNav, teacherNavSoon, teacherSettingsActive } from '@/shared/teacher-home';
+import { teacherCoursesActive, teacherExamsActive, teacherHomeHref, teacherHomeworkActive, teacherNav, teacherNavSoon, teacherSettingsActive } from '@/shared/teacher-home';
 import { UnreadProvider, useUnread } from './unread';
 
 const SETTINGS = '/teacher/settings';
@@ -21,6 +21,7 @@ const HELP = '/support';
 const NOTIFICATIONS = '/notifications';
 const COURSES = '/teacher/courses';
 const HOMEWORK = '/teacher/homework';
+const EXAMS = '/teacher/exams';
 
 /** Signing out while an attendance save is running asks first, like every other way out of that page. */
 function useSignOut() {
@@ -83,18 +84,18 @@ function PhoneHeader() {
   </header>;
 }
 
-const tabIcon: Record<(typeof teacherNav)[number]['key'], IconName> = { home: 'home', groups: 'groups', students: 'students', courses: 'courses', homework: 'homework' };
+const tabIcon: Record<(typeof teacherNav)[number]['key'], IconName> = { home: 'home', groups: 'groups', students: 'students', courses: 'courses', homework: 'homework', exams: 'exams' };
 
-/** Phone: Home, Groups, Students, and More for the rest. Courses and Homework are menu items on a desktop and live in More on a phone. */
+/** Phone: Home, Groups, Students, and More for the rest. Courses, Homework and Exams are menu items on a desktop and live in More on a phone. */
 function BottomTabs({ pathname }: { pathname: string }) {
   const { t } = useLanguage();
   const [more, setMore] = useState(false);
   const signOut = useSignOut();
-  const inMore = teacherCoursesActive(pathname) || teacherHomeworkActive(pathname) || teacherSettingsActive(pathname) || pathname === HELP || pathname.startsWith(`${HELP}/`);
+  const inMore = teacherCoursesActive(pathname) || teacherHomeworkActive(pathname) || teacherExamsActive(pathname) || teacherSettingsActive(pathname) || pathname === HELP || pathname.startsWith(`${HELP}/`);
   const close = () => setMore(false);
   return <>
     <nav aria-label={t('th.nav.label')} data-teacher-tabs className="d-bottom-tabs">
-      {teacherNav.filter(item => item.key !== 'courses' && item.key !== 'homework').map(item => <Link key={item.key} href={item.href} aria-current={item.match(pathname) ? 'page' : undefined} data-bottom-tab={item.key} className="d-bottom-tab">
+      {teacherNav.filter(item => item.key !== 'courses' && item.key !== 'homework' && item.key !== 'exams').map(item => <Link key={item.key} href={item.href} aria-current={item.match(pathname) ? 'page' : undefined} data-bottom-tab={item.key} className="d-bottom-tab">
         <span className="d-bottom-tab-icon"><Icon name={tabIcon[item.key]} size={22} /></span><L id={`th.nav.${item.key}`} />
       </Link>)}
       <button type="button" data-bottom-tab="more" data-active={inMore ? 'true' : undefined} aria-haspopup="dialog" aria-expanded={more} onClick={() => setMore(true)} className="d-bottom-tab">
@@ -105,6 +106,7 @@ function BottomTabs({ pathname }: { pathname: string }) {
       <div className="d-sheet-list">
         <Link href={COURSES} onClick={close} data-more-item="courses" className="d-sheet-item"><Icon name="courses" size={20} /><L id="th.nav.courses" /></Link>
         <Link href={HOMEWORK} onClick={close} data-more-item="homework" aria-current={teacherHomeworkActive(pathname) ? 'page' : undefined} className="d-sheet-item"><Icon name="homework" size={20} /><L id="th.nav.homework" /></Link>
+        <Link href={EXAMS} onClick={close} data-more-item="exams" aria-current={teacherExamsActive(pathname) ? 'page' : undefined} className="d-sheet-item"><Icon name="exams" size={20} /><L id="th.nav.exams" /></Link>
         {teacherNavSoon.map(key => <span key={key} role="link" aria-disabled="true" title={t('th.nav.coming_soon')} data-more-item={key} data-soon className="d-sheet-item d-sheet-item--soon"><Icon name={key} size={20} /><L id={`th.nav.${key}`} /><span className="d-soon"><L id="th.nav.soon" /></span></span>)}
         <Link href={SETTINGS} onClick={close} data-more-item="settings" className="d-sheet-item"><Icon name="settings" size={20} /><L id="th.nav.settings" /></Link>
         <a href={HELP} onClick={close} data-more-item="help" className="d-sheet-item"><Icon name="help" size={20} /><L id="th.nav.help" /></a>

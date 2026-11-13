@@ -178,20 +178,22 @@ export function setKind(q: WizardQuestion, kind: 'choice' | 'essay', id: Ids): W
 export const choiceType = (q: Pick<WizardQuestion, 'correctIds'>) => q.correctIds.length > 1 ? 'multiple_choice' as const : 'single_choice' as const;
 /** Every answer text is empty: the screen shows the answers as a row of letters. */
 export const blankAnswers = (q: Pick<WizardQuestion, 'options'>) => q.options.every(o => !o.text.trim());
+/** Any question of the Questions step: Homework's, or an exam's (which adds Number). The answer helpers below keep the caller's type. */
+export type QuestionLike = Omit<WizardQuestion, 'kind'> & { kind: string };
 /** Tap an answer to mark it right, tap it again to unmark it. Any number of answers may be right. */
-export function toggleCorrect(q: WizardQuestion, optionId: string): WizardQuestion {
+export function toggleCorrect<Q extends QuestionLike>(q: Q, optionId: string): Q {
   if (!q.options.some(o => o.id === optionId)) return q;
   return { ...q, correctIds: q.correctIds.includes(optionId) ? q.correctIds.filter(c => c !== optionId) : [...q.correctIds, optionId] };
 }
-export function addOption(q: WizardQuestion, id: Ids): WizardQuestion {
+export function addOption<Q extends QuestionLike>(q: Q, id: Ids): Q {
   return q.kind !== 'choice' || q.options.length >= MAX_OPTIONS ? q : { ...q, options: [...q.options, { id: id(), text: '' }] };
 }
-export function removeOption(q: WizardQuestion, optionId: string): WizardQuestion {
+export function removeOption<Q extends QuestionLike>(q: Q, optionId: string): Q {
   return q.kind !== 'choice' || q.options.length <= MIN_OPTIONS ? q : { ...q, options: q.options.filter(o => o.id !== optionId), correctIds: q.correctIds.filter(c => c !== optionId) };
 }
 export const clampMarks = (n: number) => Math.min(MAX_MARKS, Math.max(0, Math.round(n)));
 export const clampTries = (n: number) => Math.min(MAX_TRIES, Math.max(MIN_TRIES, Math.round(n)));
-export function moveQuestion(list: WizardQuestion[], from: number, to: number) {
+export function moveQuestion<Q>(list: Q[], from: number, to: number) {
   if (from < 0 || from >= list.length || to < 0 || to >= list.length || from === to) return list;
   const next = list.slice(); const [row] = next.splice(from, 1); next.splice(to, 0, row); return next;
 }

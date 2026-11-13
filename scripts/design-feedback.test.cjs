@@ -129,7 +129,7 @@ test('Motion: all of it is inside no-preference and starts with the New look, so
 
 test('Homework, Exams and Reports: in the data as not-yet-links, in both languages', () => {
   const { messages } = load('frontend/locales/messages.ts');
-  assert.deepEqual([...teacherNavSoon], ['exams', 'reports']);
+  assert.deepEqual([...teacherNavSoon], ['reports']);
   for (const item of teacherNav) assert.equal(typeof item.href, 'string');
   assert.ok(!teacherNav.some(i => teacherNavSoon.includes(i.key)), 'an item is one or the other');
   assert.equal(messages.en['th.nav.soon'], 'Soon'); assert.equal(messages.ar['th.nav.soon'], 'قريبًا'); assert.equal(messages.en['th.nav.coming_soon'], 'Coming soon');

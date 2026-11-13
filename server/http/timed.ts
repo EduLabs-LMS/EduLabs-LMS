@@ -9,6 +9,7 @@ import { createCoursePOST } from './teacher-course';
 import { updateCoursePATCH } from './teacher-course';
 import { courseContentGET, courseContentPOST } from './course-content';
 import { homeworkDeleteImagesPOST, homeworkGET, homeworkLifecyclePOST, homeworkPortalGET, homeworkQueueGET, homeworkReleaseManyPOST, homeworkSavePOST, homeworkTryGET, homeworkTryPOST } from './teacher-homework';
+import { examGET, examLifecyclePOST, examMarksPOST, examPortalGET, examQueueGET, examReleaseManyPOST, examSavePOST, examSheetGET, examTryGET, examUploadPOST, examWindowPOST, examWorkPOST } from './teacher-exams';
 
 /** Every API route's handler with the optional Server-Timing header (LMS_SERVER_TIMING=1, staging only). The route files stay one-line adapters. */
 export const timedCommunicationsPOST = withServerTiming(communicationsPOST);
@@ -29,3 +30,15 @@ export const timedHomeworkQueueGET = withServerTiming(homeworkQueueGET);
 export const timedHomeworkTryGET = withServerTiming(homeworkTryGET);
 export const timedHomeworkTryPOST = withServerTiming(homeworkTryPOST);
 export const timedHomeworkReleaseManyPOST = withServerTiming(homeworkReleaseManyPOST);
+export const timedExamPortalGET = withServerTiming(examPortalGET);
+export const timedExamGET = withServerTiming(examGET);
+export const timedExamSavePOST = withServerTiming(examSavePOST);
+export const timedExamLifecyclePOST = withServerTiming(examLifecyclePOST);
+export const timedExamWindowPOST = withServerTiming(examWindowPOST);
+export const timedExamUploadPOST = withServerTiming(examUploadPOST);
+export const timedExamQueueGET = withServerTiming(examQueueGET);
+export const timedExamTryGET = withServerTiming(examTryGET);
+export const timedExamWorkPOST = withServerTiming(examWorkPOST);
+export const timedExamReleaseManyPOST = withServerTiming(examReleaseManyPOST);
+export const timedExamSheetGET = withServerTiming(examSheetGET);
+export const timedExamMarksPOST = withServerTiming(examMarksPOST);

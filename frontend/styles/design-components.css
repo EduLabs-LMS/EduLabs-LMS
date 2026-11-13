@@ -728,3 +728,16 @@ html[dir="rtl"] .d-auth-arrow { transform: scaleX(-1); }
 .d-correct-photo img { display: block; max-inline-size: 100%; max-block-size: 420px; border-radius: var(--d-radius-field); border: var(--d-divider-width) solid var(--d-divider); }
 .d-correct-ready { padding-block-start: var(--d-space-4); border-block-start: 0; }
 @media (max-width: 767px) { .d-correct-photo img { max-block-size: 260px; } }
+
+/* Exams (claude/exams-ui): chapter chips, the Live now dot and the paper mark sheet. Tokens only, so Classic and New both follow. */
+.d-ex-chip { display: inline-flex; align-items: center; gap: var(--d-space-1); min-block-size: var(--d-target); padding-inline: var(--d-space-3); border-radius: 999px; border: var(--d-control-border-width) solid var(--d-field-edge); background: var(--d-surface); color: var(--d-ink); font: inherit; cursor: pointer; }
+.d-ex-chip[aria-checked="true"] { background: var(--d-choice-on-bg); border-color: var(--d-choice-on-border); color: var(--d-choice-on-text); font-weight: 600; }
+.d-live-dot { inline-size: 10px; block-size: 10px; border-radius: 999px; background: var(--d-pill-success-bg); box-shadow: 0 0 0 3px var(--d-pill-success-bg); opacity: .9; flex: none; }
+@media (prefers-reduced-motion: no-preference) { .d-live-dot { animation: d-live 2s ease-in-out infinite; } }
+@keyframes d-live { 50% { opacity: .35; } }
+.d-ex-mark-row { align-items: center; flex-wrap: wrap; }
+.d-ex-mark-controls { display: flex; align-items: center; gap: var(--d-space-3); flex-wrap: wrap; }
+.d-ex-mark-box { display: inline-flex; align-items: center; gap: var(--d-space-2); }
+.d-ex-mark-input { inline-size: 5.5rem; min-block-size: var(--d-target); text-align: center; font-variant-numeric: tabular-nums; }
+.d-ex-group-pick { min-inline-size: 12rem; margin-inline-start: auto; }
+@media (max-width: 479px) { .d-ex-mark-row .d-row-body { flex-basis: 100%; } .d-ex-mark-controls { inline-size: 100%; justify-content: space-between; } .d-ex-group-pick { min-inline-size: 0; inline-size: 100%; } }

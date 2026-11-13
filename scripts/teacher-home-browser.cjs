@@ -144,7 +144,7 @@ createRoot(document.getElementById('root')).render(
  const step = async (name, fn) => { if (only && !only.test(name)) return; try { await fn(); results.push('PASS ' + name); console.log('PASS', name); } catch (e) { console.log('FAIL', name); throw e; } };
  const phone = { width: 390, height: 844 }, desktop = { width: 1440, height: 900 };
  const sections = ['th-next', 'th-coming', 'th-updates'];
- const menuItems = ['Home', 'Groups', 'Students', 'Courses', 'Homework'];
+ const menuItems = ['Home', 'Groups', 'Students', 'Courses', 'Homework', 'Exams'];
 
  await step('Home with data, English desktop: the sections (the Homework card hidden while its read is unavailable), real data, real tree mark, the menu', async () => {
   const { page, context } = await open(desktop, 'view=home&s=full');
@@ -163,7 +163,7 @@ createRoot(document.getElementById('root')).render(
   assert.equal(await page.locator('[data-home-courses-link]').count(), 0, 'no Courses link or block on Home');
   assert.ok(await page.locator('aside svg').first().isVisible(), 'the real tree mark is shown');
   const nav = page.locator('[data-teacher-nav] a'); assert.deepEqual(await nav.allInnerTexts(), menuItems);
-  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses', 'homework', 'exams', 'reports'], 'in the agreed order; Exams and Reports are shown as Soon until they are built');
+  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses', 'homework', 'exams', 'reports'], 'in the agreed order; Reports is shown as Soon until it is built');
   assert.equal(await page.locator('[data-teacher-nav] a[data-nav="homework"], [data-teacher-nav] a[href="/teacher/homework"]').count(), 1, 'Homework is a link'); assert.doesNotMatch(await page.locator('[data-teacher-nav] [data-nav="homework"]').innerText(), /Soon/);
   assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Home');
   const footer = page.locator('[data-teacher-footer]'); assert.equal(await footer.locator('[data-profile-name]').innerText(), 'Synthetic Teacher'); assert.equal(await footer.locator('[data-profile-space]').innerText(), 'Synthetic space');

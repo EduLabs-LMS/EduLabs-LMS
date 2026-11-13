@@ -152,7 +152,7 @@ test('wizard: course and lesson move until a student starts or for a later versi
 });
 test('wizard: photo answers off make every essay text only; on, essays take text or a photo; choices are always chosen', () => {
  const s = complete();
- assert.match(read('frontend/features/teacher-homework/homework-wizard.tsx'), /data-photos>\n\s*<legend className="d-field-label"><L id="hw.w.answer_heading" \/>/, 'the switch is on the Rules step under How students answer');
+ assert.match(read('frontend/features/teacher-homework/homework-wizard.tsx'), /data-photos>\r?\n\s*<legend className="d-field-label"><L id="hw.w.answer_heading" \/>/, 'the switch is on the Rules step under How students answer');
  assert.deepEqual(plain(hw.toDefinition(s, true).questions.map(q => q.responseMode)), ['text', 'text', 'both']);
  const off = hw.toDefinition({ ...s, photos: false }, true);
  assert.ok(off.questions.every(q => q.responseMode === 'text')); assert.equal(off.rules.photosAllowed, false);
@@ -559,7 +559,7 @@ test('screens: no native checkbox, no disabled attribute, only the teacher homew
 test('menu: Homework is a real page, no longer Soon, on the desktop menu and the phone More sheet', () => {
  const nav = load('shared/teacher-home.ts', { '@/shared/teacher-groups': { unsavedSessions: () => [] }, '@/shared/teacher-attendance': { canTakeAttendance: () => false } });
  assert.ok(nav.teacherNav.some(i => i.key === 'homework' && i.href === '/teacher/homework'));
- assert.deepEqual(plain(nav.teacherNavSoon), ['exams', 'reports']);
+ assert.deepEqual(plain(nav.teacherNavSoon), ['reports']);
  assert.ok(nav.teacherHomeworkActive('/teacher/homework')); assert.ok(nav.teacherHomeworkActive('/teacher/homework/new')); assert.ok(!nav.teacherHomeworkActive('/teacher/homeworks'));
  assert.match(read('frontend/features/teacher-frame/teacher-frame.tsx'), /data-more-item="homework"|data-more-item=\{?['"]homework/);
 });

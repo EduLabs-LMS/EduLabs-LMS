@@ -249,14 +249,14 @@ const helpers = () => {
  const box = (page, selector) => page.locator(selector).first().boundingBox();
  const css1 = (page, selector, property) => page.locator(selector).first().evaluate((e, p) => getComputedStyle(e)[p], property);
 
- await step('Desktop frame, both looks: a 240px sidebar flush to the edge, four links, Notifications, Settings and the profile row at the bottom', async () => {
+ await step('Desktop frame, both looks: a 240px sidebar flush to the edge, six links, Notifications, Settings and the profile row at the bottom', async () => {
   for (const look of ['classic', 'new']) {
    const { page, context } = await open(desktop, 'view=home', look);
    await page.locator('[data-teacher-home]').waitFor();
    const side = await box(page, '[data-teacher-sidebar]');
    assert.equal(side.x, 0, look); assert.equal(side.y, 0, look); assert.equal(side.width, 240, look); assert.equal(side.height, desktop.height, look);
-   assert.deepEqual(await page.locator('[data-teacher-nav] a').evaluateAll(n => n.map(e => e.textContent.trim())), ['Home', 'Groups', 'Students', 'Courses'], look);
-   assert.deepEqual(await page.locator('[data-teacher-nav] a').evaluateAll(n => n.map(e => e.getAttribute('href'))), ['/home', '/teacher/groups', '/teacher/students', '/teacher/courses'], look);
+   assert.deepEqual(await page.locator('[data-teacher-nav] a').evaluateAll(n => n.map(e => e.textContent.trim())), ['Home', 'Groups', 'Students', 'Courses', 'Homework', 'Exams'], look);
+   assert.deepEqual(await page.locator('[data-teacher-nav] a').evaluateAll(n => n.map(e => e.getAttribute('href'))), ['/home', '/teacher/groups', '/teacher/students', '/teacher/courses', '/teacher/homework', '/teacher/exams'], look);
    assert.match(await page.locator('[data-teacher-sidebar] a.d-logo').innerText(), /EduLabs/); assert.equal(await page.locator('[data-teacher-sidebar] a.d-logo').count(), 1, 'one link to Home'); assert.equal(await page.locator('[data-teacher-sidebar] a.d-logo').getAttribute('href'), '/home');
    assert.equal(await page.locator('[data-unread-count]').innerText(), '3');
    const nav = await box(page, '[data-nav="notifications"]'), settings = await box(page, '[data-nav="settings"]'), profile = await box(page, '[data-teacher-profile]');

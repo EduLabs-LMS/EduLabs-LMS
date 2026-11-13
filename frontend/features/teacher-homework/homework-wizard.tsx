@@ -21,6 +21,7 @@ import {
   type HomeworkFailure, type HomeworkPageLoad, type Issue, type TeacherHomeworkView, type WizardQuestion, type WizardState, type WizardStep,
 } from '@/shared/teacher-homework';
 import { countText, failureWords, homeworkCall, triesText } from './homework-words';
+import { FilePick, QuestionsStep, Stepper, TextArea } from './questions-step';
 
 const API = '/api/teacher/homework';
 type Save = 'idle' | 'saving' | 'saved' | 'waiting' | 'failed' | 'stale';
@@ -46,7 +47,6 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
   const [readFailure, setReadFailure] = useState<HomeworkFailure | null>(null);
   const [legacy, setLegacy] = useState(false);
   const [step, setStep] = useState<WizardStep>('details');
-  const [current, setCurrent] = useState(0);
   const [save, setSave] = useState<Save>('idle');
   const [failure, setFailure] = useState<HomeworkFailure | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -58,8 +58,6 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
   const [upload, setUpload] = useState<{ at: string; percent: number } | null>(null);
   const [uploadFailure, setUploadFailure] = useState<{ at: string; text: string } | null>(null);
   const [picture, setPicture] = useState<Record<string, string>>({});
-  // Questions whose blank answers the teacher chose to write out (a list instead of the row of letters).
-  const [writing, setWriting] = useState<Record<string, boolean>>({});
   const [finishing, setFinishing] = useState(false);
   const [live, setLive] = useState('');
   const edits = useRef(0), saved = useRef(0), saving = useRef(false), latest = useRef<WizardState | null>(null);
@@ -204,8 +202,6 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
   if (!homeworkId && !editable.length) return <Frame title={<L id="hw.w.new" />} status={null}><div data-state="empty" className="d-card d-card--pad"><p className="d-body"><L id="hw.w.no_courses" /></p></div></Frame>;
 
   const index = WIZARD_STEPS.indexOf(step);
-  const q = state.questions[Math.min(current, state.questions.length - 1)];
-  const qi = state.questions.indexOf(q);
   const go = (next: WizardStep) => { setIssues([]); setStep(next); if (typeof window !== 'undefined') window.scrollTo({ top: 0 }); };
   const next = () => { const found = stepIssues(state, step, Date.now()); if (found.length) { setIssues(found); return; } go(WIZARD_STEPS[index + 1]); };
   // Course and lesson stay where they are once a student started or for a later version; a new or untouched homework may still move.
@@ -243,82 +239,11 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
     <TextArea label={<><L id="hw.w.instructions" /> <span className="d-meta"><L id="hw.w.optional" /></span></>} value={state.instructions} maxLength={20000} rows={3} onChange={v => change(s => ({ ...s, instructions: v }))} data="instructions" />
   </Card>;
 
-  const setQ = (fn: (q: WizardQuestion) => WizardQuestion) => change(s => ({ ...s, questions: s.questions.map(x => x.id === q.id ? fn(x) : x) }));
-  const questionMenu = <ActionMenu label={t('hw.w.q_actions', { n: qi + 1 })} triggerData={{ 'data-question-menu': '' }} items={[
-    { key: 'up', label: t('hw.w.q_up'), unavailable: qi === 0, reason: qi === 0 ? t('hw.w.q_first') : undefined, data: { 'data-action': 'up' }, onSelect: () => { change(s => ({ ...s, questions: moveQuestion(s.questions, qi, qi - 1) })); setCurrent(qi - 1); } },
-    { key: 'down', label: t('hw.w.q_down'), unavailable: qi === state.questions.length - 1, reason: qi === state.questions.length - 1 ? t('hw.w.q_last') : undefined, data: { 'data-action': 'down' }, onSelect: () => { change(s => ({ ...s, questions: moveQuestion(s.questions, qi, qi + 1) })); setCurrent(qi + 1); } },
-    { key: 'remove', label: t('hw.w.q_remove'), destructive: state.questions.length > 1, unavailable: state.questions.length === 1, reason: state.questions.length === 1 ? t('hw.w.q_only') : undefined, data: { 'data-action': 'remove' }, onSelect: () => { change(s => ({ ...s, questions: s.questions.filter(x => x.id !== q.id) })); setCurrent(Math.max(0, qi - 1)); } },
-  ]} />;
-  const pictureAt = `picture-${q.id}`, modelAt = `model-${q.id}`;
-  // Blank answers show as a row of letters until the teacher writes one out; any answer text shows the list.
-  const chips = q.kind === 'choice' && blankAnswers(q) && !writing[q.id];
-  const questions = <div className="d-stack-sm">
-    <div role="tablist" aria-label={t('hw.w.step.questions')} data-question-tabs className="d-hw-qtabs">
-      {state.questions.map((x, i) => <button key={x.id} type="button" role="tab" aria-selected={i === qi} data-question-tab={i + 1} className="d-hw-qtab d-focus" onClick={() => setCurrent(i)}>
-        <b>{i + 1}</b>{!phone && <span>{t(x.kind === 'essay' ? 'hw.w.kind.essay' : 'hw.w.kind.choice')}</span>}
-      </button>)}
-      <Button variant="tertiary" data-add-question aria-label={phone ? t('hw.w.add_question') : undefined} aria-disabled={state.questions.length >= MAX_QUESTIONS || undefined} onClick={() => { if (state.questions.length >= MAX_QUESTIONS) return; change(s => ({ ...s, questions: [...s.questions, newQuestion('choice', ids)] })); setCurrent(state.questions.length); }}><Icon name="plus" size={16} />{!phone && <L id="hw.w.add_question" />}</Button>
-      <span className="d-meta" data-question-count>{phone ? countText(t, 'mark', totalMarks(state)) : `${countText(t, 'question', state.questions.length)} · ${countText(t, 'mark', totalMarks(state))}`}</span>
-    </div>
-    <section aria-labelledby="hw-q" data-question={qi + 1} className="d-card d-card--pad d-stack-sm">
-      <div className="d-hw-qhead">
-        <h2 id="hw-q" className="d-section">{t('hw.w.question_n', { n: qi + 1 })} · {t(q.kind === 'essay' ? 'hw.w.kind.essay' : 'hw.w.kind.choice')}</h2>
-        <Stepper value={q.points} min={0} max={100} label={t('hw.w.marks_label')} less={t('hw.w.fewer_marks')} more={t('hw.w.more_marks')} shown={countText(t, 'mark', q.points)} onChange={n => setQ(x => ({ ...x, points: clampMarks(n) }))} data="marks" />
-        {questionMenu}
-      </div>
-      <SegmentedControl label={t('hw.w.kind_label')} value={q.kind} onChange={kind => setQ(x => setKind(x, kind, ids))} options={[{ value: 'choice', label: t('hw.w.kind.choice'), 'data-kind': 'choice' }, { value: 'essay', label: t('hw.w.kind.essay'), 'data-kind': 'essay' }]} />
-      <TextArea label={q.kind === 'choice' ? <><L id="hw.w.question_text" /> <span className="d-meta"><L id="hw.w.optional" /></span></> : <L id="hw.w.question_text" />} value={q.text} maxLength={10000} rows={3} onChange={v => setQ(x => ({ ...x, text: v }))} data="question-text" />
-      <div className="d-stack-xs" data-picture>
-        {q.imageId ? <div className="d-hw-file">
-          {/* A short-lived signed Storage URL, not an optimisable asset. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {picture[q.imageId] ? <img src={picture[q.imageId]} alt={t('hw.w.picture_alt', { n: qi + 1 })} className="d-hw-picture" /> : <Icon name="check" />}
-          <span className="d-meta"><L id="hw.w.picture_added" /></span>
-          <Button variant="tertiary" data-picture-remove onClick={() => setQ(x => ({ ...x, imageId: null }))}><L id="hw.w.remove" /></Button>
-        </div> : <FilePick at={pictureAt} accept="image/png,image/jpeg,image/webp" label={upload?.at === pictureAt ? t('hw.w.uploading', { n: upload.percent }) : t('hw.w.picture_add')} blocked={!state.id ? t('hw.w.picture_wait') : upload ? t('hw.w.uploading', { n: upload.percent }) : null}
-          onFile={file => void uploadTo(pictureAt, file, 'question', row => setQ(x => ({ ...x, imageId: row.id })))} />}
-        {uploadFailure?.at === pictureAt && <p role="alert" className="d-field-error">{uploadFailure.text}</p>}
-      </div>
-      {q.kind === 'choice' && <fieldset className="d-stack-xs" data-options={chips ? 'chips' : 'list'} data-choice-type={choiceType(q)}>
-        <legend className="d-field-label"><L id="hw.w.answers" /></legend>
-        {/* Any number of answers may be right: one makes it single choice, more make it multiple choice. Students are told which. */}
-        <div role="group" aria-label={t('hw.w.answers')} aria-describedby="hw-choice-type" className={chips ? 'd-hw-chips' : 'd-stack-xs'}>
-          {q.options.map((o, i) => chips
-            ? <button key={o.id} type="button" role="checkbox" aria-checked={q.correctIds.includes(o.id)} aria-label={t('hw.w.mark_correct', { letter: letter(i, lang) })} data-option={letter(i)} data-correct={q.correctIds.includes(o.id) ? '' : undefined} className="d-hw-mark d-focus" onClick={() => setQ(x => toggleCorrect(x, o.id))}>
-              <span aria-hidden="true">{letter(i, lang)}</span>
-            </button>
-            : <div key={o.id} className="d-hw-option" data-option={letter(i)}>
-              <button type="button" role="checkbox" aria-checked={q.correctIds.includes(o.id)} aria-label={t('hw.w.mark_correct', { letter: letter(i, lang) })} data-correct={q.correctIds.includes(o.id) ? '' : undefined} className="d-hw-mark d-focus" onClick={() => setQ(x => toggleCorrect(x, o.id))}>
-                <span aria-hidden="true">{q.correctIds.includes(o.id) ? <Icon name="check" size={16} /> : letter(i, lang)}</span>
-              </button>
-              <input className="d-field-input" value={o.text} maxLength={2000} dir="auto" placeholder={t('hw.w.optional')} aria-label={t('hw.w.option_n', { letter: letter(i, lang) })} data-option-text={letter(i)} onChange={e => setQ(x => ({ ...x, options: x.options.map(y => y.id === o.id ? { ...y, text: e.target.value } : y) }))} />
-              <Button variant="icon" aria-label={t('hw.w.remove_option', { letter: letter(i, lang) })} aria-disabled={q.options.length <= MIN_OPTIONS || undefined} aria-describedby={q.options.length <= MIN_OPTIONS ? 'hw-min-options' : undefined} onClick={() => setQ(x => removeOption(x, o.id))} data-remove-option={letter(i)}><Icon name="close" size={18} /></Button>
-            </div>)}
-        </div>
-        <p id="hw-choice-type" className="d-meta" data-choice-hint>{t(q.correctIds.length === 0 ? 'hw.w.type_none' : choiceType(q) === 'multiple_choice' ? 'hw.w.type_many' : 'hw.w.type_one')}</p>
-        <div className="d-hw-option-actions">
-          <Button variant="tertiary" data-add-option aria-disabled={q.options.length >= MAX_OPTIONS || undefined} aria-describedby={q.options.length >= MAX_OPTIONS ? 'hw-max-options' : undefined} onClick={() => setQ(x => addOption(x, ids))}><Icon name="plus" size={16} /><L id="hw.w.add_option" /></Button>
-          {chips && <Button variant="tertiary" data-remove-last aria-disabled={q.options.length <= MIN_OPTIONS || undefined} aria-describedby={q.options.length <= MIN_OPTIONS ? 'hw-min-options' : undefined} onClick={() => setQ(x => removeOption(x, x.options[x.options.length - 1].id))}><Icon name="close" size={16} />{t('hw.w.remove_option', { letter: letter(q.options.length - 1, lang) })}</Button>}
-          {chips && <Button variant="tertiary" data-write-answers onClick={() => setWriting(w => ({ ...w, [q.id]: true }))}><L id="hw.w.write_answers" /></Button>}
-        </div>
-        {q.options.length <= MIN_OPTIONS && <p id="hw-min-options" className="d-meta"><L id="hw.w.min_options" /></p>}
-        {q.options.length >= MAX_OPTIONS && <p id="hw-max-options" className="d-meta"><L id="hw.w.max_options" /></p>}
-      </fieldset>}
-      {/* Every question: an essay's model answer, a choice's explanation, each with an optional picture. Students see both when the solutions open. */}
-      <div className="d-stack-xs" data-model={q.kind}>
-        <TextArea label={<><L id={q.kind === 'essay' ? 'hw.w.model_answer' : 'hw.w.explanation'} /> <span className="d-meta"><L id="hw.w.model_answer_hint" /></span></>} value={q.modelAnswer} maxLength={10000} rows={2} onChange={v => setQ(x => ({ ...x, modelAnswer: v }))} data="model-answer" />
-        {/* The model answer picture: images only, the same limit as a question picture; students see it when the solutions open. */}
-        {q.modelImageId ? <div className="d-hw-file" data-model-picture>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {picture[q.modelImageId] ? <img src={picture[q.modelImageId]} alt={t('hw.w.model_picture_alt', { n: qi + 1 })} className="d-hw-picture" /> : <Icon name="check" />}
-          <span className="d-meta"><L id="hw.w.model_picture_added" /></span>
-          <Button variant="tertiary" data-model-picture-remove onClick={() => setQ(x => ({ ...x, modelImageId: null }))}><L id="hw.w.remove" /></Button>
-        </div> : <FilePick at={modelAt} accept="image/png,image/jpeg,image/webp" label={upload?.at === modelAt ? t('hw.w.uploading', { n: upload.percent }) : t('hw.w.model_picture_add')} blocked={!state.id ? t('hw.w.picture_wait') : upload ? t('hw.w.uploading', { n: upload.percent }) : null}
-          onFile={file => { if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { setUploadFailure({ at: modelAt, text: t('hw.w.picture_failed') }); return; } void uploadTo(modelAt, file, 'solution', row => setQ(x => ({ ...x, modelImageId: row.id }))); }} />}
-        {uploadFailure?.at === modelAt && <p role="alert" className="d-field-error">{uploadFailure.text}</p>}
-      </div>
-    </section>
-  </div>;
+  const questions = <QuestionsStep questions={state.questions} kinds={['choice', 'essay']} change={fn => change(s => ({ ...s, questions: fn(s.questions) }))}
+    create={kind => newQuestion(kind === 'essay' ? 'essay' : 'choice', ids)} setKind={(x, kind) => setKind(x, kind === 'essay' ? 'essay' : 'choice', ids)}
+    picture={picture} upload={upload} uploadFailure={uploadFailure} uploadBlocked={!state.id ? t('hw.w.picture_wait') : null}
+    onUploadFailure={at => setUploadFailure({ at, text: t('hw.w.picture_failed') })}
+    onUpload={(at, file, purpose, done) => void uploadTo(at, file, purpose === 'model' ? 'solution' : 'question', done)} />;
 
   const deadline = wizardDeadline(state);
   const essayCount = state.questions.filter(x => x.kind === 'essay').length;
@@ -442,33 +367,6 @@ function Card({ title, hint, children }: { title: MessageKey; hint: MessageKey; 
     <div className="d-stack-xs"><h2 id="hw-card" className="d-section"><L id={title} /></h2><p className="d-meta"><L id={hint} /></p></div>
     {children}
   </section>;
-}
-
-function TextArea({ label, value, onChange, maxLength, rows, data }: { label: ReactNode; value: string; onChange: (v: string) => void; maxLength: number; rows: number; data: string }) {
-  return <label className="d-field" data-field={data}><span className="d-field-label">{label}</span>
-    <textarea className="d-field-input d-textarea" value={value} maxLength={maxLength} rows={rows} dir="auto" onChange={e => onChange(e.target.value)} />
-  </label>;
-}
-
-/** − n +. At a limit the button stays reachable and says why it does nothing (aria-disabled with the reason). */
-function Stepper({ value, min, max, label, less, more, shown, lessReason, moreReason, onChange, data }: { value: number; min: number; max: number; label: string; less: string; more: string; shown: string; lessReason?: string; moreReason?: string; onChange: (n: number) => void; data: string }) {
-  const atMin = value <= min, atMax = value >= max;
-  return <span role="group" aria-label={label} className="d-hw-stepper" data-stepper={data}>
-    <button type="button" className="d-btn d-btn--secondary d-hw-step-btn" aria-label={less} aria-disabled={atMin || undefined} aria-describedby={atMin && lessReason ? `${data}-min` : undefined} onClick={() => { if (!atMin) onChange(value - 1); }}>−</button>
-    <span aria-live="polite" className="d-label d-hw-step-value" data-stepper-value={value}>{shown}</span>
-    <button type="button" className="d-btn d-btn--secondary d-hw-step-btn" aria-label={more} aria-disabled={atMax || undefined} aria-describedby={atMax && moreReason ? `${data}-max` : undefined} onClick={() => { if (!atMax) onChange(value + 1); }}>+</button>
-    {atMin && lessReason && <span id={`${data}-min`} className="sr-only">{lessReason}</span>}
-    {atMax && moreReason && <span id={`${data}-max`} className="sr-only">{moreReason}</span>}
-  </span>;
-}
-
-/** A file chooser that looks like a button. The input is visually hidden and reached through its 44 px label. */
-function FilePick({ at, accept, label, blocked, onFile }: { at: string; accept: string; label: string; blocked: string | null; onFile: (file: File) => void }) {
-  if (blocked) return <span className="d-stack-xs"><button type="button" className={buttonClass('tertiary')} aria-disabled="true" aria-describedby={`${at}-why`} data-file-pick={at}><Icon name="plus" size={16} />{label}</button><span id={`${at}-why`} className="d-meta">{blocked}</span></span>;
-  return <label className={`${buttonClass('tertiary')} d-self-start`} data-file-pick={at}>
-    <Icon name="plus" size={16} />{label}
-    <input type="file" accept={accept} className="sr-only" onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) onFile(file); }} />
-  </label>;
 }
 
 function ReviewRow({ k, go, children }: { k: 'details' | 'questions' | 'rules' | 'solutions'; go: (step: WizardStep) => void; children: ReactNode }) {
