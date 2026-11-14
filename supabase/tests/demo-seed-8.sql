@@ -48,7 +48,7 @@ select pg_temp.ok(pg_get_functiondef('private.demo_fill_core(uuid,uuid)'::regpro
 -- The Cairo wall times of every session and homework deadline of the space, as 'group|title|HH24:MI' lines.
 create function pg_temp.wall(p_org uuid) returns text language sql security definer set search_path='' as $$
  select string_agg(g.name||'|'||s.title||'|'||to_char(s.starts_at at time zone 'Africa/Cairo','HH24:MI'),',' order by g.name,s.starts_at,s.title)
- from public.group_sessions s join public.study_groups g on g.id=s.group_id join public.course_offerings o on o.id=g.offering_id join public.courses c on c.id=o.course_id where c.organization_id=p_org$$;
+ from public.group_sessions s join public.study_groups g on g.id=s.group_id join public.course_offerings o on o.id=g.offering_id join public.courses c on c.id=o.course_id where c.organization_id=p_org and s.title<>'Demo live class'$$;
 create function pg_temp.deadlines(p_org uuid) returns text language sql security definer set search_path='' as $$
  select string_agg(distinct to_char(a.deadline_at at time zone 'Africa/Cairo','HH24:MI'),',') from public.homework_assignments a join public.course_offerings o on o.id=a.offering_id join public.courses c on c.id=o.course_id where c.organization_id=p_org$$;
 
@@ -57,7 +57,7 @@ do $$ declare tz text; w text; d text; r jsonb; org_ uuid := (select id from pg_
  foreach tz in array array['UTC','Africa/Cairo','America/Los_Angeles','Pacific/Kiritimati'] loop
   perform set_config('TimeZone',tz,true);
   r := private.demo_fill_core(org_,adm);
-  if r is distinct from jsonb_build_object('seedVersion',8,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5,'exams',5) then raise exception 'FAILED fill result under %: %',tz,r; end if;
+  if r is distinct from jsonb_build_object('seedVersion',9,'courses',2,'lessons',6,'groups',2,'sessions',10,'students',28,'homework',5,'exams',5) then raise exception 'FAILED fill result under %: %',tz,r; end if;
   w := pg_temp.wall(org_); d := pg_temp.deadlines(org_);
   -- Group 1: the two earlier sessions and the three upcoming ones at 18:00; Group 2: the two earlier and the two upcoming ones at 20:00. Nothing at midnight.
   if w is distinct from 'Demo Group 1|Demo earlier session 1|18:00,Demo Group 1|Demo earlier session 2|18:00,Demo Group 1|Demo session 1|18:00,Demo Group 1|Demo session 2|18:00,Demo Group 1|Demo session 3|18:00,Demo Group 2|Demo earlier session 1|20:00,Demo Group 2|Demo earlier session 2|20:00,Demo Group 2|Demo session 1|20:00,Demo Group 2|Demo session 2|20:00'
@@ -69,13 +69,13 @@ do $$ declare tz text; w text; d text; r jsonb; org_ uuid := (select id from pg_
  end loop;
 end $$;
 
--- The space ends at seed version 8.
-select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion'='8','the space fills at seed version 8');
-select pg_temp.ok((select seed_version=8 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 8');
+-- The space ends at the latest seed version (9: version 8 plus the live class of 20261119120000).
+select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion'='9','the space fills at seed version 9 (version 8 plus the live class of 20261119120000)');
+select pg_temp.ok((select seed_version=9 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 9');
 set local role authenticated; select pg_temp.claim('admin');
-select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=8 and (public.platform_demo_status(pg_temp.key('org'))->>'seedVersion')::int=8,'the status reports seed version 8 as the latest');
+select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=9 and (public.platform_demo_status(pg_temp.key('org'))->>'seedVersion')::int=9,'the status reports seed version 9 as the latest');
 reset role;
-select pg_temp.ok((select (detail->>'seedVersion')::int=8 from private.platform_audit where organization_id=pg_temp.key('org') and action='demo.fill' order by id desc limit 1),'the audit row records seed version 8');
+select pg_temp.ok((select (detail->>'seedVersion')::int=9 from private.platform_audit where organization_id=pg_temp.key('org') and action='demo.fill' order by id desc limit 1),'the audit row records seed version 9');
 
 -- (b) The notice link.
 select pg_temp.put('course',(select id from public.courses where organization_id=pg_temp.key('org') and status='published'));

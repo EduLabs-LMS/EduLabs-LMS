@@ -63,5 +63,5 @@ test('what it keeps', () => {
  assert.doesNotMatch(code, /(function|table|on|into|update) (public|private)\.(assessment|exam)[a-z_]*/i, 'no exam table or function is touched (Clear still refuses a space with exams)');
  assert.match(code, /public\.offering_assessments where offering_id=any\(offerings_\)\) then blockers_ := array_append\(blockers_,'exams'::text\)/);
  assert.match(code, /'latestSeedVersion',5/); assert.match(code, /update private\.demo_spaces set seed_version=5/);
- assert.match(read('shared/contracts/platform-demo.ts'), /latestDemoSeedVersion = 8/);
+ assert.match(read('shared/contracts/platform-demo.ts'), /latestDemoSeedVersion = 9/);
 });

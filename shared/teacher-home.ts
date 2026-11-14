@@ -11,7 +11,8 @@ export type CourseStatus = 'draft' | 'published' | 'archived';
 export type HomeCourse = { id: string; title: string; status: CourseStatus };
 export type HomeSession = { id: string; groupId: string; groupName: string; title: string; startsAt: string; endsAt: string; mode: 'online' | 'center'; location: string;
   /** Where the attendance sheet stands: only `finalized` means it was taken (a draft with marks is still being taken, a reopened one is being edited). */ attendance: GroupSession['attendance_state'];
-  /** The session has started and is not cancelled (judged on the server clock when Home was read), so attendance can be taken. */ happening: boolean };
+  /** The session has started and is not cancelled (judged on the server clock when Home was read), so attendance can be taken. */ happening: boolean;
+  /** An online Session with no link: the EduLabs class (shared/live-class.ts). Optional so older fixtures stay valid. */ liveClass?: boolean };
 /** A finished session whose attendance was not finalized: the same rule as the "attendance not saved" line on a Group card. */
 export type HomeUnsaved = { id: string; groupId: string; groupName: string; title: string; startsAt: string; endsAt: string };
 export type HomeUpdate = { id: string; event: NotificationEvent; createdAt: string; link: string | null; sessionChange: boolean };
@@ -120,7 +121,7 @@ export function mapSessions(upcoming: RawInputs['upcoming'], staffIds: Map<strin
   const mine = upcoming.value.rows
     .filter(s => staffIds.has(s.group_id) && !s.cancelled && Date.parse(s.ends_at) > now)
     .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at) || a.id.localeCompare(b.id))
-    .map((s): HomeSession => ({ id: s.id, groupId: s.group_id, groupName: staffIds.get(s.group_id) ?? s.group_name ?? '', title: s.title, startsAt: s.starts_at, endsAt: s.ends_at, mode: s.mode, location: s.location, attendance: s.attendance_state, happening: canTakeAttendance(s, now) }));
+    .map((s): HomeSession => ({ id: s.id, groupId: s.group_id, groupName: staffIds.get(s.group_id) ?? s.group_name ?? '', title: s.title, startsAt: s.starts_at, endsAt: s.ends_at, mode: s.mode, location: s.location, attendance: s.attendance_state, happening: canTakeAttendance(s, now), liveClass: s.mode === 'online' && !s.join_url }));
   return { state: 'ready', data: { next: mine[0] ?? null, comingUp: mine.slice(1, 1 + COMING_UP_LIMIT), partial: groups.data.partial || Boolean(upcoming.value.hasMore) } };
 }
 

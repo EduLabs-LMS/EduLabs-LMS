@@ -1,9 +1,9 @@
 import { z } from 'zod';
-export const notificationEvents = ['account_approved','lesson_published','session_details','session_starting','exam_released','homework_released','support_reply'] as const;
+export const notificationEvents = ['account_approved','lesson_published','session_details','session_starting','exam_released','homework_released','support_reply','class_started'] as const;
 export type NotificationEvent = typeof notificationEvents[number];
 export const eventLabels: Record<NotificationEvent,string> = {
  account_approved:'Learning access approved',lesson_published:'A new lesson is available',session_details:'Online session details published',
- session_starting:'Your online session starts soon',exam_released:'Your exam results are available',homework_released:'Your homework feedback is available',support_reply:'You have a support reply',
+ session_starting:'Your online session starts soon',exam_released:'Your exam results are available',homework_released:'Your homework feedback is available',support_reply:'You have a support reply',class_started:'Your class has started',
 };
 const uuid=z.string().uuid();
 export const communicationRequest=z.object({

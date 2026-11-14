@@ -36,6 +36,7 @@ supabase/migrations/20261116120000_demo_seed_8_and_notice_links.sql -text
 scripts/snapshots/password-reset-email/* -text
 supabase/migrations/20261117120000_reports.sql -text
 supabase/migrations/20261118120000_reports_last_4_weeks.sql -text
+supabase/migrations/20261119120000_live_class.sql -text
 
 # Live-class server files run on Linux.
 infra/jitsi/** text eol=lf

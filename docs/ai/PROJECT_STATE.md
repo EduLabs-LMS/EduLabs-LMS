@@ -64,3 +64,9 @@ remain available here. Real provider/email/push acceptance has not run for this 
 - Exams part 2 (branch `claude/exams-student`): student Exams screens (`/exams`, `/exams/<id>`) and routes (`/api/exams*`), the teacher Home
   "Live now" card, drafts that keep unfinished questions, demo seed v7. One new migration `20261115120000_exams_drafts_and_demo_v7.sql`, **not
   applied**. Verified with synthetic loopback data only; not real Firebase/Supabase acceptance. Not deployed.
+
+## Live online classes (`claude/online-class`, 2026-11-14)
+
+- Part A: self-hosted Jitsi (stable-11248-3) server files under `infra/jitsi/`, the runbook `docs/ai/ONLINE_CLASS_RUNBOOK.md` and the audit `docs/ai/ONLINE_CLASS_AUDIT.md`. Nothing was run on the VPS; the owner runs the runbook. Ports opened: 443/tcp (TURN over TLS), 3478/udp (TURN), 10000/udp (media).
+- Part B: draft migration `20261119120000_live_class.sql` (**not applied anywhere**), routes `/api/live-class/open` and `/api/live-class/joined`, the class page `/class/<session>`, Start/Join buttons, "Joined online" on Take attendance, notification type `class_started`, demo seed v9. Off until `LIVE_CLASS_*` is set on the web server.
+- Verified with the local PostgreSQL suites and unit tests only; not against a real Jitsi server, Firebase or Supabase. Not deployed.

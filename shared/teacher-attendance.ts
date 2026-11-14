@@ -49,6 +49,15 @@ export function markRestPresent(marks: Marks): Marks {
   return Object.fromEntries(Object.entries(marks).map(([id, mark]) => [id, mark === 'not_marked' ? 'attended' as const : mark]));
 }
 
+/**
+ * The EduLabs class: the students who opened the class and are still "not marked", both as saved and on screen, become Present. A mark is never
+ * changed (Absent stays Absent, a tap made meanwhile wins). Null when nobody changes, so nothing is saved.
+ */
+export function joinedToMark(joined: ReadonlySet<string>, saved: Marks, current: Marks): Marks | null {
+  const ids = Object.keys(current).filter(id => joined.has(id) && current[id] === 'not_marked' && (saved[id] ?? 'not_marked') === 'not_marked');
+  return ids.length ? { ...current, ...Object.fromEntries(ids.map(id => [id, 'attended' as const])) } : null;
+}
+
 /** Pressing the mark a student already has takes it back to "not marked". */
 export function toggled(current: Mark, pressed: 'attended' | 'absent'): Mark {
   return current === pressed ? 'not_marked' : pressed;

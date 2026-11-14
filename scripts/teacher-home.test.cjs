@@ -245,8 +245,11 @@ test('unsaved attendance: a failed read is an error, never "all clear"; without 
 });
 test('Home view: Take attendance and the unsaved rows, with their tour targets and 44px or larger buttons', () => {
  const view = read('frontend/features/teacher-home/home-view.tsx');
- assert.match(view, /\{now && !taken && <Link href=\{attendanceHref\(next\.groupId, next\.id\)\} data-tour="take-attendance" data-take-attendance className=\{buttonClass\('primary'/, 'during a live class Take attendance is the primary button');
- assert.match(view, /data-open-group className=\{buttonClass\(now \? 'secondary' : 'primary'/, 'and Open group is the secondary one');
+ // An EduLabs class (online, no link, the meeting server configured) inside its window puts Start class first; otherwise Take attendance leads.
+ assert.match(view, /\{now && !taken && <Link href=\{attendanceHref\(next\.groupId, next\.id\)\} data-tour="take-attendance" data-take-attendance className=\{buttonClass\(live \? 'secondary' : 'primary'/, 'during a class Take attendance is the primary button (after Start class in an EduLabs class)');
+ assert.match(view, /\{live && <Link href=\{classHref\(next\.id, true\)\} data-live-class-start className=\{buttonClass\('primary'/);
+ assert.ok(view.indexOf('data-live-class-start') < view.indexOf('data-take-attendance'), 'Start class comes first');
+ assert.match(view, /data-open-group className=\{buttonClass\(now \|\| live \? 'secondary' : 'primary'/, 'and Open group is the secondary one');
  assert.ok(view.indexOf('data-take-attendance') < view.indexOf('data-open-group'), 'Take attendance comes first');
  assert.match(view, /const now = next\.happening/); assert.match(view, /id=\{now \? 'th\.next\.now' : 'th\.next\.title'\}/);
  assert.match(view, /data-tour="next-session"/); assert.match(view, /data-tour="unsaved-attendance"/);

@@ -8,6 +8,8 @@ import { useApplicationAuth, useWebsiteNavigation } from '@/frontend/components/
 import { eventLabels } from '@/shared/contracts/communications';
 import { cairoHour, greetingKey, sessionsTodayKey, type HomeSession, type HomeUnsaved, type TeacherHomeLoad } from '@/shared/teacher-home';
 import { attendanceHref } from '@/shared/teacher-attendance';
+import { classHref, liveClassOpenAt } from '@/shared/live-class';
+import { useLiveClassOn } from '@/frontend/features/live-class/use-live-class';
 import { useCountUp } from '@/frontend/lib/page-entry';
 import { useServerNow } from './use-server-now';
 import { CreateCourse } from './create-course';
@@ -82,6 +84,7 @@ function Facts({ next, facts }: { next: HomeSession; facts: HomeData['nextFacts'
 /** The one heavy thing on the screen: the class happening now, or the next one. */
 function NextSession({ data, facts, retry, now: clock, emptyId = 'th.next.empty' }: { data: HomeData['sessions']; facts: HomeData['nextFacts']; retry: Retry; now: number; emptyId?: 'th.next.empty' | 'th.first.next' }) {
   const next = data.state === 'ready' ? data.data.next : null;
+  const liveOn = useLiveClassOn();
   if (data.state === 'unavailable') return null;
   if (!next) return <Card list aria-labelledby="th-next" data-section="th-next">
     <CardHead id="th-next" title={<L id="th.next.title" />} />
@@ -91,6 +94,8 @@ function NextSession({ data, facts, retry, now: clock, emptyId = 'th.next.empty'
   // The live class's attendance was finished: say so and offer to edit it, instead of asking for it again. A draft (even with marks) still says Take attendance and continues.
   const taken = now && next.attendance === 'finalized';
   const ring = now && facts?.kind === 'marked' && facts.total > 0 ? facts : null;
+  // The EduLabs class, from 15 minutes before its start: Start class comes first (it joins when an assistant already started it).
+  const live = liveOn && Boolean(next.liveClass) && liveClassOpenAt({ starts_at: next.startsAt, ends_at: next.endsAt }, clock);
   return <section aria-labelledby="th-next" data-section="th-next"><div data-tour="next-session" data-next-session={next.id} data-happening-now={now ? 'true' : undefined} className="d-hero">
     <div className="d-hero-main">
       {ring && <Ring marked={ring.marked} total={ring.total} />}
@@ -105,10 +110,11 @@ function NextSession({ data, facts, retry, now: clock, emptyId = 'th.next.empty'
     </div>
     <div className="d-hero-actions">
       {/* During a live class, taking attendance is the main thing to do: it is first, on every width, and opening the Group is the quiet second button. */}
-      {now && !taken && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={buttonClass('primary', { size: 'lg' })}><L id="th.next.attendance" /></Link>}
+      {live && <Link href={classHref(next.id, true)} data-live-class-start className={buttonClass('primary', { size: 'lg' })}><Icon name="video" size={16} /><L id="lc.start" /></Link>}
+      {now && !taken && <Link href={attendanceHref(next.groupId, next.id)} data-tour="take-attendance" data-take-attendance className={buttonClass(live ? 'secondary' : 'primary', { size: 'lg' })}><L id="th.next.attendance" /></Link>}
       {taken && <p data-attendance-taken className="d-hero-taken"><Icon name="check" /><L id="th.next.taken" /></p>}
       {taken && <Link href={attendanceHref(next.groupId, next.id)} data-edit-attendance className={buttonClass('primary', { size: 'lg' })}><L id="ta.edit" /></Link>}
-      <Link href={`/teacher/groups/${next.groupId}`} data-open-group className={buttonClass(now ? 'secondary' : 'primary', { size: 'lg' })}><L id="th.next.open" /></Link>
+      <Link href={`/teacher/groups/${next.groupId}`} data-open-group className={buttonClass(now || live ? 'secondary' : 'primary', { size: 'lg' })}><L id="th.next.open" /></Link>
     </div>
   </div></section>;
 }

@@ -15,7 +15,7 @@ test('notification commands reject custom link and recipient injection',()=>{
  assert.throws(()=>contract.validateCommunication('notifications','preference',{event:'arbitrary',inApp:true,push:true}));
  assert.throws(()=>contract.validateCommunication('notifications','read',{id:'10000000-0000-0000-0000-000000000005',link:'https://evil.example'}));
 });
-test('all required notification events have informative labels',()=>{assert.equal(contract.notificationEvents.length,7);for(const event of contract.notificationEvents)assert.ok(contract.eventLabels[event].length>10);});
+test('all required notification events have informative labels',()=>{assert.equal(contract.notificationEvents.length,8);for(const event of contract.notificationEvents)assert.ok(contract.eventLabels[event].length>10);});
 test('mobile header has one menu entry and delegates account notifications to the drawer sidebar',()=>{
  const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
  const shell=({children})=>React.createElement('div',null,children);

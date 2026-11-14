@@ -87,3 +87,5 @@ Next: owner review of the screens (`docs/design/screenshots/exams-student/`), th
 Password reset (`claude/password-reset`, 2026-11-14): V1 part 3 is built (own forgot/reset pages, designed en/ar email via Brevo, per-email and per-IP limits, no enumeration)
 with demo seed 8 (migration `20261116120000`, not applied). Open questions for the owner are at the end of `docs/ai/PASSWORD_RESET_AUDIT.md`. Next: owner review of
 `docs/design/screenshots/password-reset/`, a real-inbox test, and the decision to apply the migration.
+
+Live online classes (`claude/online-class`, 2026-11-14): Part A (Jitsi server files, runbook, audit) and Part B (draft migration `20261119120000_live_class.sql`, not applied; class page, Start/Join, "Joined online", `class_started` notification, demo seed 9) are built. Next: the owner gives `APP_ORIGIN` (runbook step 0), runs the runbook on the VPS, reviews the screens, and decides on applying the migration and setting `LIVE_CLASS_*`.

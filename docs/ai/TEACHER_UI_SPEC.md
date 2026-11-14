@@ -202,3 +202,14 @@ No Reports menu item or page. Existing design components, both looks, light and 
 - **Students list:** a "Needs attention · N" chip beside the course and status filters (tour `needs-attention-filter`): all Groups and No Group, last 4 weeks, worst first, each row with its Group and reasons, 25 a page.
 - **Student page:** keeps status, Groups and Suspend/Reactivate; adds (tour `student-marks`) the month picker, three numbers, the month's sessions as P/A boxes with the day number under each (letters, not colour alone), a Homework list (mark / Missing / Open / Waiting for marks) and an Exams list (score/max, online or paper, Absent).
 - **Course page:** a Content / Results switch (tour `course-results-switch`). Results: one card per chapter with a bar and % per Group, "N exams · M homework", a "Weakest" flag, and "No marks yet" for empty chapters.
+
+## Live classes (built on `claude/online-class`, awaiting owner approval)
+
+Only when the meeting server is configured; otherwise nothing below shows and Own link works as before. An EduLabs class is an online Session with no link.
+
+- **Group page, Sessions:** inside the class window (15 minutes before to 30 minutes after) the Session row shows **Start class** (primary) and Take attendance becomes secondary.
+- **Home, next session card:** Start class is the primary button while the window is open.
+- **Create/Edit Group:** under the online link field: "Leave the link empty to hold the class in EduLabs: no Zoom or Meet needed."
+- **Class page `/class/<session>`:** back link to the Group, the title, Group and times; states: opens at (early), Start class with a recording note (staff, not started), the meeting on the page (open), waiting for the teacher (students; asks again by itself), ended, cancelled, not allowed, not available. Leaving shows Rejoin.
+- **Take attendance:** a "Joined online" tag next to students who opened the class; joined students still not marked are saved as Present once per visit (never a mark changed, never Finish).
+- **Students:** "Join class" on the Group card and the Home next-class card inside the window; the "Your class has started" and "starts soon" notifications open the class page.

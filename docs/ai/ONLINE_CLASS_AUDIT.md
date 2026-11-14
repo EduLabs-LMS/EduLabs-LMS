@@ -194,3 +194,16 @@ blocks a screen at the bridge was not verified. It is an owner decision for late
   127.0.0.1:8888, jvb 10000/udp and 127.0.0.1:8080; prosody only `expose`s; the whiteboard publishes nothing; no 4443. `./jitsi.sh
   ports` lists them from `docker compose config`, `check`/`up` refuse any non-loopback port except 10000/udp, and the runbook
   lists the expected `ss -tulpn` lines after start.
+
+## 9. Part B as built (2026-11-14; differs from the plan in section 4 where noted)
+
+- **No Group choice column.** Section 4 planned an `edulabs`/`link` setting per Group. Built instead: an online Session with no link is an EduLabs class (DECISIONS.md, "Live classes"). It gives exactly the owner's answer 1 with no data change, and nothing in `group_command`/`group_view` changes.
+- **One open route instead of start and join:** `POST /api/live-class/open` with `{ sessionId, start }` (strict body, 512 bytes), and `GET /api/live-class/joined?sessionId=` for Take attendance. Both: Firebase staging, configured, exact origin (`validFirebaseOrigin`) or same-origin read, sign-in, 30 (open) and 60 (joined) calls a minute per person, `no-store`, no referrer.
+- **Database:** `private.live_class_rooms` and `private.live_class_joins` (RLS on, no grants), `private.live_class_open` and `private.live_class_joined` (definer, `search_path=''`, caller from `private.current_app_user_id()`) behind public invoker wrappers for `authenticated`, `private.emit_class_started`. Both event-type checks gain `class_started`. Replaced (marked "live class"): `notification_current`, `notification_link`, `emit_session_notice`, `notification_business_event`, `notification_worker`.
+- **Known limits:**
+  - A join row means EduLabs issued a token, not that the student stayed connected; a student who joins and leaves at once is still pre-marked Present (the teacher can change it).
+  - "Starts soon" and "class started" are sent even when the web server is not configured; the link then shows "not available".
+  - Jitsi's `MAX_PARTICIPANTS` (40 in `jitsi.env.example`) is not tied to the Group's capacity; a larger Group's later joiners would be refused by Jitsi.
+  - Room and join rows go with their Session (ON DELETE CASCADE), so the demo Clear's removed-row count does not include them.
+  - The class page frames the meeting host; the meeting page's `frame-ancestors` needs the EduLabs origin (`APP_ORIGIN`, still to be given by the owner).
+  - No browser harness for the class page (TESTING.md).

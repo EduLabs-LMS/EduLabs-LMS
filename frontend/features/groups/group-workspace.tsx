@@ -6,6 +6,10 @@ import { GroupSummaryPanel } from './group-summary-panel';
 import GroupRosterView from '@/frontend/features/groups/group-roster-view';
 import { attendanceLabel, cairoSessionLabel, nextSession, sessionState } from '@/shared/contracts/groups';
 import type { GroupDefinition, StudyGroup, GroupSession, GroupRow, GroupPage } from '@/shared/contracts/groups';
+import Link from 'next/link';
+import { L } from '@/frontend/components/language-provider';
+import { useLiveClassOn } from '@/frontend/features/live-class/use-live-class';
+import { classHref, isLiveClass, liveClassAhead } from '@/shared/live-class';
 const panel = 'relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm';
 const field = 'w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900';
 const button = 'rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 disabled:opacity-50';
@@ -131,6 +135,9 @@ export function GroupWorkspace({ initial, initialOfferings }: {
             void choose(initial.rows[0]);
     }, [initial.rows, choose]);
     const next = nextSession([...(sessions.nextSession ? [sessions.nextSession] : []), ...sessions.rows], now ?? 0), state = next && now !== null ? sessionState(next, now) : null;
+    // The EduLabs class (online, no link): Join opens the class page, which waits for the teacher and opens by itself.
+    const liveOn = useLiveClassOn();
+    const liveNext = liveOn && next && now !== null && isLiveClass(next) && liveClassAhead(next, now) ? next : null;
     return <div className="mx-auto max-w-5xl space-y-8 pb-16 pt-2 animate-in fade-in-50 slide-in-from-bottom-2 duration-200" aria-busy={busy || loading}>
   <section className={panel}><div className="flex flex-wrap items-center justify-between gap-3"><h1 className="flex items-center gap-2 text-2xl font-extrabold text-slate-950"><Users className="text-cyan-600"/>Sessions &amp; Groups</h1></div>
 
@@ -148,7 +155,7 @@ export function GroupWorkspace({ initial, initialOfferings }: {
    <GroupRosterView phase1 privacySafe streamLabel={selected.stream_label} streamIcon={selected.stream_icon} groupName={selected.name} serverNow={sessions.serverNow} nextSession={next ? { date: next.starts_at, dayLabel: '', timeLabel: '', fullFormatted: cairoSessionLabel(next.starts_at), endDate: next.ends_at } : null} peers={[]} mode={selected.mode} location={selected.location}/>
    <GroupSummaryPanel summary={summary} staff={false}/>
    <section className={panel}><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">{selected.name} · {selected.offering_name}</h2><p className="mt-2 text-sm text-slate-500">{selected.description}</p></div></div>
-    {sessions.catchingUp && <p role="status" className="mt-3 text-sm text-slate-500">Catching up dated sessions…</p>}{next ? <div className="mt-5 space-y-3"><h3 className="font-bold">{state === 'ongoing' ? 'In Progress' : 'Next class'} · {cairoSessionLabel(next.starts_at)}</h3><p className="text-sm">{next.mode === 'online' ? <Video className="mr-1 inline h-4 w-4"/> : <MapPin className="mr-1 inline h-4 w-4"/>}{next.mode === 'online' ? 'Online' : next.location}</p>{next.mode === 'online' && next.join_url && <a className="text-cyan-700 underline" href={next.join_url} target="_blank" rel="noopener noreferrer">Join class</a>}<p className="text-sm text-slate-500">{next.instructions}</p></div> : <p className="mt-4 text-sm text-slate-500">{sessions.catchingUp ? 'Session catch-up is in progress.' : 'No upcoming session is scheduled.'}</p>}
+    {sessions.catchingUp && <p role="status" className="mt-3 text-sm text-slate-500">Catching up dated sessions…</p>}{next ? <div className="mt-5 space-y-3"><h3 className="font-bold">{state === 'ongoing' ? 'In Progress' : 'Next class'} · {cairoSessionLabel(next.starts_at)}</h3><p className="text-sm">{next.mode === 'online' ? <Video className="mr-1 inline h-4 w-4"/> : <MapPin className="mr-1 inline h-4 w-4"/>}{next.mode === 'online' ? 'Online' : next.location}</p>{next.mode === 'online' && next.join_url && <a className="text-cyan-700 underline" href={next.join_url} target="_blank" rel="noopener noreferrer">Join class</a>}{liveNext && <Link href={classHref(liveNext.id)} data-live-class-join className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-cyan-700 px-4 text-sm font-bold text-white hover:bg-cyan-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-700"><Video className="h-4 w-4" aria-hidden/><L id="lc.join"/></Link>}<p className="text-sm text-slate-500">{next.instructions}</p></div> : <p className="mt-4 text-sm text-slate-500">{sessions.catchingUp ? 'Session catch-up is in progress.' : 'No upcoming session is scheduled.'}</p>}
     <p className="mt-3 text-xs text-slate-500">External meetings use the teacher’s provider. An LMS link does not make the meeting private.</p>
    </section>
 

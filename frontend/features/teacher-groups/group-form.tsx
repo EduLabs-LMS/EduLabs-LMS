@@ -11,6 +11,7 @@ import { useRetry } from '@/frontend/features/teacher-home/parts';
 import type { MessageKey } from '@/frontend/locales/messages';
 import type { StudyGroup } from '@/shared/contracts/groups';
 import { GROUP_LENGTHS, MAX_WEEKLY_TIMES, checkGroupForm, editPayload, emptyGroupForm, emptyTime, failureKind, formFromGroup, placeChanged, timesRemoved, weeklyReference, type CourseChoice, type GroupForm, type GroupFormProblem, type WeeklyTime } from '@/shared/teacher-groups';
+import { useLiveClassOn } from '@/frontend/features/live-class/use-live-class';
 import { groupCall, postJson } from './api';
 import { GroupError, useCommand } from './parts';
 
@@ -27,6 +28,7 @@ function Problem({ id, problems, of }: { id: string; problems: GroupFormProblem[
 function GroupFormFields({ form, set, problems }: { form: GroupForm; set: (next: GroupForm) => void; problems: GroupFormProblem[] }) {
   const { t, language } = useLanguage();
   const id = useId();
+  const live = useLiveClassOn();
   const day = new Intl.DateTimeFormat(language, { weekday: 'long', timeZone: 'UTC' });
   const setTime = (i: number, change: Partial<GroupForm['times'][number]>) => set({ ...form, times: form.times.map((row, n) => n === i ? { ...row, ...change } : row) });
   return <>
@@ -42,6 +44,8 @@ function GroupFormFields({ form, set, problems }: { form: GroupForm; set: (next:
       {form.mode === 'center'
         ? <label className="d-field" htmlFor={`${id}-l`}><span className="d-field-label"><L id="tg.form.location" /></span><input id={`${id}-l`} data-group-location className={field} value={form.location} maxLength={1000} onChange={e => set({ ...form, location: e.target.value })} aria-invalid={problems.includes('location')} /></label>
         : <label className="d-field" htmlFor={`${id}-j`}><span className="d-field-label"><L id="tg.form.join" /></span><input id={`${id}-j`} data-group-join dir="ltr" inputMode="url" className={field} value={form.joinUrl} maxLength={2000} placeholder="https://" onChange={e => set({ ...form, joinUrl: e.target.value })} aria-invalid={problems.includes('join')} /></label>}
+      {/* With the EduLabs class on, an online Group with no link meets in EduLabs (an empty link is the EduLabs class; a link is "Own link"). */}
+      {form.mode === 'online' && live && <p data-live-class-hint className="d-meta"><L id={form.joinUrl.trim() ? 'lc.kind.link' : 'lc.kind.edulabs'} />: <L id="lc.form_hint" /></p>}
       <Problem id={`${id}-pp`} problems={problems} of={['location', 'join']} />
     </div>
 

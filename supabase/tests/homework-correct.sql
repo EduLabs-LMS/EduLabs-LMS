@@ -47,12 +47,12 @@ insert into public.organization_memberships(organization_id,user_id,role,status,
 insert into private.demo_spaces(organization_id,marked_by) values(pg_temp.key('org'),pg_temp.uid('admin'));
 
 -- 1. Fill: seed version 8.
-select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))=jsonb_build_object('seedVersion',8,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5,'exams',5),
+select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))=jsonb_build_object('seedVersion',9,'courses',2,'lessons',6,'groups',2,'sessions',10,'students',28,'homework',5,'exams',5),
  'fill reports seed version 7: six lessons and five homework');
-select pg_temp.ok((select seed_version=8 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 8');
-select pg_temp.ok((select (detail->>'seedVersion')::int=8 and (detail->>'homework')::int=5 from private.platform_audit where organization_id=pg_temp.key('org') and action='demo.fill' order by id desc limit 1),'the audit row says seed version 8');
+select pg_temp.ok((select seed_version=9 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 9');
+select pg_temp.ok((select (detail->>'seedVersion')::int=9 and (detail->>'homework')::int=5 from private.platform_audit where organization_id=pg_temp.key('org') and action='demo.fill' order by id desc limit 1),'the audit row says seed version 9');
 set local role authenticated; select pg_temp.claim('admin');
-select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=8 and (public.platform_demo_status(pg_temp.key('org'))->>'seedVersion')::int=8,'the status reports seed version 8 as the latest and as filled');
+select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=9 and (public.platform_demo_status(pg_temp.key('org'))->>'seedVersion')::int=9,'the status reports seed version 9 as the latest and as filled');
 reset role;
 insert into hc_ids select 'course',id from public.courses where organization_id=pg_temp.key('org') and status='published';
 insert into hc_ids select 'off',o.id from public.course_offerings o where o.course_id=pg_temp.key('course');
@@ -210,7 +210,7 @@ select pg_temp.ok(not exists(select 1 from public.lessons where id=pg_temp.key('
  and not exists(select 1 from private.homework_uploads where assignment_id=pg_temp.key('hw')) and not exists(select 1 from public.courses where organization_id=pg_temp.key('org')),'Clear removes the lesson, its homework, the photo rows and the courses');
 select pg_temp.ok(not exists(select 1 from private.demo_seed_rows where organization_id=pg_temp.key('org')),'nothing recorded is left');
 select pg_temp.ok(not exists(select 1 from public.notifications n where n.recipient_id in (select id from public.profiles where display_name like 'Demo Student %')),'no notification of a released demo try remains');
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=8,'the space fills again at seed version 8');
-select pg_temp.ok((private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'removedRows')::int=1567,'a plain Clear removes exactly the 1567 rows (800 recorded before seed version 7, plus the 767 exam rows)');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=9,'the space fills again at seed version 9');
+select pg_temp.ok((private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'removedRows')::int=1568,'a plain Clear removes exactly the 1568 rows (800 recorded before seed version 7, plus the 767 exam rows)');
 select count(*)::integer homework_correct_tests from hc_results;
 rollback;

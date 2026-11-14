@@ -22,6 +22,10 @@ import {
   type Mark, type Marks,
 } from '@/shared/teacher-attendance';
 import { LeaveQuestion, useLeaveGuard } from './leave-guard';
+import { useLiveClassOn } from '@/frontend/features/live-class/use-live-class';
+import { readJoined } from '@/frontend/features/live-class/api';
+import { isLiveClass } from '@/shared/live-class';
+import { joinedToMark } from '@/shared/teacher-attendance';
 
 type Detail = { group: StudyGroup; serverNow: string };
 type Sheet = { session: GroupSession; rows: GroupRow[]; complete: boolean };
@@ -92,6 +96,9 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
   const editRef = useRef<HTMLButtonElement>(null);
   const editHint = useId();
   const phone = usePhone();
+  const liveOn = useLiveClassOn();
+  const [joined, setJoined] = useState<ReadonlySet<string>>(() => new Set());
+  const premarked = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; if (timer.current) clearTimeout(timer.current); }; }, []);
 
   useEffect(() => {
@@ -134,6 +141,26 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
     return () => { stopped = true; timers.forEach(clearTimeout); controller.abort(); };
   }, [load, groupId, sessionId, revision]);
 
+  // The EduLabs class: who opened it ("Joined online"). Once per visit, the joined students still not marked are saved as Present by this
+  // screen's own queue (recorded as the teacher, never over a mark, never finishing the sheet). A student's Join never writes attendance.
+  const liveSession = sheet.state === 'ready' && liveOn && isLiveClass(sheet.value.session) ? sheet.value.session : null;
+  const liveId = liveSession?.id ?? null;
+  useEffect(() => {
+    if (!liveId) return;
+    const controller = new AbortController();
+    void readJoined(liveId, controller.signal).then(r => {
+      if (!r || !r.liveClass || controller.signal.aborted || !alive.current) return;
+      const ids = new Set(r.joined);
+      setJoined(ids);
+      const s = sessionRef.current;
+      if (premarked.current || !s || s.cancelled || s.attendance_state === 'finalized' || Date.parse(s.starts_at) > Date.now()) return;
+      premarked.current = true;
+      const next = joinedToMark(ids, savedRef.current, marksRef.current);
+      if (next) mark(next);
+    });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per Session and load; mark() reads the refs
+  }, [liveId, revision]);
   const counts = useMemo(() => countMarks(marks), [marks]);
   const value = sheet.state === 'ready' ? sheet.value : null;
   const group = detail.state === 'ready' ? detail.value.group : null;
@@ -306,7 +333,7 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
         : shown.length === 0
           ? <p data-search-empty className="d-body"><L id="ta.search_none" /></p>
           : <ul data-tour="student-rows" data-student-list className="d-list d-card d-card--pad">
-            {shown.map(r => <StudentRow key={r.user_id} row={r} mark={marks[r.user_id] ?? 'not_marked'} editable={editable} onMark={m => mark({ ...marksRef.current, [r.user_id]: m })} />)}
+            {shown.map(r => <StudentRow key={r.user_id} row={r} joined={joined.has(r.user_id)} mark={marks[r.user_id] ?? 'not_marked'} editable={editable} onMark={m => mark({ ...marksRef.current, [r.user_id]: m })} />)}
           </ul>}
       <div data-tour="save-actions" data-actions className={locked ? (canEdit && phone ? 'd-float-bar' : 'd-attendance-actions') : 'd-attendance-actions d-attendance-bar'}>
         {guard.asking && <LeaveQuestion stay={guard.stay} leave={guard.leave} />}
@@ -345,9 +372,9 @@ export function TeacherAttendanceView({ groupId, sessionId }: { groupId: string;
   </div>;
 }
 
-function StudentRow({ row, mark, editable, onMark }: { row: GroupRow; mark: Mark; editable: boolean; onMark: (m: Mark) => void }) {
-  return <li data-student={row.user_id} data-mark={mark} className="d-row">
-    <p className="d-row-body d-label d-wrap"><span><bdi dir="auto">{row.display_name}</bdi></span></p>
+function StudentRow({ row, mark, editable, onMark, joined = false }: { row: GroupRow; mark: Mark; editable: boolean; onMark: (m: Mark) => void; joined?: boolean }) {
+  return <li data-student={row.user_id} data-mark={mark} data-joined-online={joined ? 'true' : undefined} className="d-row">
+    <p className="d-row-body d-label d-wrap"><span><bdi dir="auto">{row.display_name}</bdi></span>{joined && <span data-joined-tag className="d-joined-tag"><Icon name="video" size={14} /><L id="lc.joined_online" /></span>}</p>
     {editable
       ? <div role="group" aria-label={row.display_name} className="d-seg d-seg--marks">
         <button type="button" data-mark-button="attended" aria-pressed={mark === 'attended'} onClick={() => onMark(toggled(mark, 'attended'))} className="d-seg-option"><L id="ta.present" /></button>

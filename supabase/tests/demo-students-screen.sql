@@ -60,9 +60,9 @@ insert into private.student_admin_audit(offering_id,actor_id,action,before_data,
 select set_config('dss.b_before',pg_temp.traces(pg_temp.key('org_b')),true);
 
 -- 1. Fill: the demo students are in the teacher's roster (the seed is unchanged: no new rows, still seed version 3).
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_a'),(select id from dss_users where label='admin'))->>'sessions')::int=9,'fill creates the nine sessions');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_a'),(select id from dss_users where label='admin'))->>'sessions')::int=10,'fill creates the ten sessions');
 select set_config('dss.a_off',(select o.id::text from public.course_offerings o join public.courses c on c.id=o.course_id where c.organization_id=pg_temp.key('org_a') order by o.id limit 1),true);
-select pg_temp.ok((select seed_version=8 from private.demo_spaces where organization_id=pg_temp.key('org_a')),'the seed version is what Fill stored (8): the Students screen did not change it');
+select pg_temp.ok((select seed_version=9 from private.demo_spaces where organization_id=pg_temp.key('org_a')),'the seed version is what Fill stored (9): the Students screen did not change it');
 set local role authenticated;
 select pg_temp.claim('teacher');
 select pg_temp.ok(jsonb_array_length(public.student_administration('roster',pg_temp.key('a_off'),null,null,null,'{"page":0,"search":"","filter":"all"}')->'rows')=25,'the roster lists the demo students (first page of 28)');
@@ -90,7 +90,7 @@ select pg_temp.ok((select (detail->'removedByTable'->>'student_access_links')::i
 select pg_temp.ok(pg_temp.traces(pg_temp.key('org_b'))=current_setting('dss.b_before'),'another space''s link and audit row are untouched');
 
 -- 4. A real person uses a link of the demo space. The fill again, a link, and the real student asks to join.
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_a'),(select id from dss_users where label='admin'))->>'sessions')::int=9,'the cleared space is filled again');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_a'),(select id from dss_users where label='admin'))->>'sessions')::int=10,'the cleared space is filled again');
 select set_config('dss.a_off',(select o.id::text from public.course_offerings o join public.courses c on c.id=o.course_id where c.organization_id=pg_temp.key('org_a') order by o.id limit 1),true);
 set local role authenticated;
 select pg_temp.claim('teacher');

@@ -488,8 +488,8 @@ insert into public.organizations(id,name,slug) values(pg_temp.key('org_d'),'Synt
 insert into public.organization_memberships(organization_id,user_id,role,status,joined_at) values(pg_temp.key('org_d'),pg_temp.uid('demoteacher'),'owner','active',now());
 insert into private.demo_spaces(organization_id,marked_by) values(pg_temp.key('org_d'),pg_temp.uid('admin'));
 select set_config('ccs.fill',private.demo_fill_core(pg_temp.key('org_d'),pg_temp.uid('admin'))::text,true);
-select pg_temp.ok(current_setting('ccs.fill')::jsonb=jsonb_build_object('seedVersion',8,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5,'exams',5),'fill reports seed version 8, six lessons and five homework');
-select pg_temp.ok((select seed_version=8 from private.demo_spaces where organization_id=pg_temp.key('org_d')),'the space stores seed version 8');
+select pg_temp.ok(current_setting('ccs.fill')::jsonb=jsonb_build_object('seedVersion',9,'courses',2,'lessons',6,'groups',2,'sessions',10,'students',28,'homework',5,'exams',5),'fill reports seed version 9, six lessons and five homework');
+select pg_temp.ok((select seed_version=9 from private.demo_spaces where organization_id=pg_temp.key('org_d')),'the space stores seed version 9');
 select set_config('ccs.demo_course',(select id::text from public.courses where organization_id=pg_temp.key('org_d') and status='published'),true);
 select set_config('ccs.demo_draft',(select id::text from public.courses where organization_id=pg_temp.key('org_d') and status='draft'),true);
 select pg_temp.ok((select array_agg(m.title order by m.position)=array['Electric current','Magnetism','Electromagnetic induction'] from public.course_modules m where m.course_id=pg_temp.key('demo_course')),'the published demo course has the three chapters of the board');
@@ -502,7 +502,7 @@ select pg_temp.ok((select array_agg(l.title||':'||(select count(*) from public.h
 select pg_temp.ok((select e.resource_id in (select row_id from private.demo_seed_rows where table_name='lessons') from private.notification_events e where e.event_key='demo:'||pg_temp.key('org_d')::text||':notification:2'),'the lesson_published notification points at a recorded lesson');
 set local role authenticated;
 select pg_temp.claim('admin');
-select pg_temp.ok((public.platform_demo_status(pg_temp.key('org_d'))->>'latestSeedVersion')::int=8,'the status reports seed version 8 as the latest');
+select pg_temp.ok((public.platform_demo_status(pg_temp.key('org_d'))->>'latestSeedVersion')::int=9,'the status reports seed version 9 as the latest');
 -- The teacher tries everything in the demo space, then Clear still removes it all.
 select pg_temp.claim('demoteacher');
 select set_config('ccs.dtree',public.course_structure(pg_temp.key('demo_course'))::text,true);
@@ -526,7 +526,7 @@ select pg_temp.ok((private.demo_clear_core(pg_temp.key('org_d'),pg_temp.uid('adm
 select pg_temp.ok((select count(*)=0 from public.courses where organization_id=pg_temp.key('org_d')) and not pg_temp.has_chapter(pg_temp.key('dch')) and not pg_temp.has_lesson(pg_temp.key('dl')),'and removes every chapter and lesson');
 select pg_temp.ok((select count(*)=0 from private.demo_seed_rows where organization_id=pg_temp.key('org_d')),'nothing stays recorded');
 select pg_temp.ok(pg_temp.has_lesson(pg_temp.key('l13')) and pg_temp.has_lesson(pg_temp.key('l_b')) and pg_temp.has_chapter(pg_temp.key('ch_b')),'other spaces keep theirs');
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_d'),pg_temp.uid('admin'))->>'seedVersion')::int=8,'the space fills again');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_d'),pg_temp.uid('admin'))->>'seedVersion')::int=9,'the space fills again');
 
 select count(*) as course_content_tree_tests from ccs_results;
 rollback;

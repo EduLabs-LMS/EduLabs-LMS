@@ -13,6 +13,7 @@ import { studentExamGET, studentExamUploadPOST, studentExamWorkPOST, studentExam
 import { examGET, examLifecyclePOST, examMarksPOST, examPortalGET, examQueueGET, examReleaseManyPOST, examSavePOST, examSheetGET, examTryGET, examUploadPOST, examWindowPOST, examWorkPOST } from './teacher-exams';
 
 import { reportAttentionGET, reportCourseGET, reportGroupGET, reportGroupsGET, reportStudentGET } from './teacher-reports';
+import { liveClassJoinedGET, liveClassOpenPOST } from './live-class';
 /** Every API route's handler with the optional Server-Timing header (LMS_SERVER_TIMING=1, staging only). The route files stay one-line adapters. */
 export const timedCommunicationsPOST = withServerTiming(communicationsPOST);
 export const timedStudentAdministrationPOST = withServerTiming(studentAdministrationPOST);
@@ -53,3 +54,5 @@ export const timedReportGroupGET = withServerTiming(reportGroupGET);
 export const timedReportAttentionGET = withServerTiming(reportAttentionGET);
 export const timedReportStudentGET = withServerTiming(reportStudentGET);
 export const timedReportCourseGET = withServerTiming(reportCourseGET);
+export const timedLiveClassOpenPOST = withServerTiming(liveClassOpenPOST);
+export const timedLiveClassJoinedGET = withServerTiming(liveClassJoinedGET);

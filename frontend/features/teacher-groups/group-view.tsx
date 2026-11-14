@@ -20,6 +20,8 @@ import { Tabs } from '@/frontend/components/design/tabs';
 import { sessionTime } from '@/frontend/features/teacher-home/parts';
 import { cairoWallTime, sessionDefinition, sessionState, type GroupPage, type GroupRow, type GroupSession, type StudyGroup } from '@/shared/contracts/groups';
 import { attendanceHref, canTakeAttendance } from '@/shared/teacher-attendance';
+import { classHref, isLiveClass, liveClassOpenAt } from '@/shared/live-class';
+import { useLiveClassOn } from '@/frontend/features/live-class/use-live-class';
 import { NEEDS_SHOWN, attendanceSummary, cairoFields, currentMembers, groupSessions, inviteHref, studentsByName, type WeeklyTime } from '@/shared/teacher-groups';
 import { GroupCallError, groupCall, isAbort } from './api';
 import { readAttendanceTotals, type Totals } from './attendance-totals';
@@ -200,6 +202,8 @@ function SessionsPanel({ group, now, revision, onChanged }: { group: StudyGroup;
 function SessionItem({ s, now, group, strong, canCancel, onChanged }: { s: GroupSession; now: number; group: StudyGroup; strong: boolean; canCancel: boolean; onChanged: () => void }) {
   const state = sessionState(s, now), att = attendanceSummary(s, now);
   const opens = canTakeAttendance(s, now), { t } = useLanguage();
+  // The EduLabs class (an online Session with no link), from 15 minutes before to 30 minutes after: Start class (it joins when already started).
+  const live = useLiveClassOn() && isLiveClass(s) && liveClassOpenAt(s, now);
   const [dialog, setDialog] = useState<'cancel' | 'reschedule' | null>(null);
   const actions: MenuAction[] = canCancel && state === 'upcoming' ? [
     { key: 'reschedule', label: <L id="tg.reschedule.button" />, onSelect: () => setDialog('reschedule'), data: { 'data-reschedule-session': '' } },
@@ -215,7 +219,8 @@ function SessionItem({ s, now, group, strong, canCancel, onChanged }: { s: Group
     <div className="d-row-trailing">
       {state === 'ongoing' && <StatusPill tone="success" dot><L id="tg.state.ongoing" /></StatusPill>}
       {state === 'cancelled' && <StatusPill tone="danger"><L id="tg.state.cancelled" /></StatusPill>}
-      {opens && <Link href={attendanceHref(group.id, s.id)} data-attendance-link aria-label={`${s.title}. ${t(strong ? 'tg.session.take' : 'ta.open')}`} className={buttonClass(strong ? 'primary' : 'secondary')}><L id={strong ? 'tg.session.take' : 'ta.open'} /></Link>}
+      {live && <Link href={classHref(s.id, true)} data-live-class-start aria-label={`${s.title}. ${t('lc.start')}`} className={buttonClass('primary')}><Icon name="video" size={16} /><L id="lc.start" /></Link>}
+      {opens && <Link href={attendanceHref(group.id, s.id)} data-attendance-link aria-label={`${s.title}. ${t(strong ? 'tg.session.take' : 'ta.open')}`} className={buttonClass(strong && !live ? 'primary' : 'secondary')}><L id={strong ? 'tg.session.take' : 'ta.open'} /></Link>}
       {actions.length > 0 && <ActionMenu items={actions} label={t('tg.session.menu', { name: s.title })} triggerData={{ 'data-session-menu': '' }} />}
     </div>
     {actions.length > 0 && <>

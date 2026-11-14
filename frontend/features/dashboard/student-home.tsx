@@ -28,6 +28,8 @@ import { useGroupSummary } from '@/frontend/features/groups/use-group-summary';
 import { useGroupSessions } from '@/frontend/features/groups/use-group-sessions';
 import { TextbookWaveTopRight, TextbookWaveBottomLeft } from '@/frontend/components/textbook-accent';
 import UpcomingSession from '@/frontend/components/upcoming-session';
+import { useLiveClassOn } from '@/frontend/features/live-class/use-live-class';
+import { classHref, isLiveClass, liveClassAhead } from '@/shared/live-class';
 import { LessonCard, getLessonCardStatus } from '@/frontend/features/courses/lesson-card';
 import { chapterKey } from '@/shared/chapter-label';
 
@@ -220,6 +222,9 @@ const StudentHome = ({
 	);
 	const upcomingSessions = phase1 ? liveGroups.sessions : legacySessions;
 	const nextSession = upcomingSessions[0] || null;
+	// The EduLabs class (an online Session with no link): Join opens the class page, which waits for the teacher and opens by itself.
+	const liveOn = useLiveClassOn();
+	const liveNext = phase1 && liveOn && liveGroups.sessions[0] && isLiveClass(liveGroups.sessions[0]) && liveClassAhead(liveGroups.sessions[0], Date.now()) ? liveGroups.sessions[0] : null;
 
 	// Lesson numbers restart at 1 inside each chapter (scoped by chapter type + number),
 	// instead of using the course-wide array index.
@@ -329,6 +334,7 @@ const StudentHome = ({
 						serverNow={phase1 ? liveGroups.serverNow : undefined}
 						session={nextSession}
 						groupName={phase1 ? liveGroups.sessions[0]?.group_name ?? null : groupName}
+						joinHref={liveNext ? classHref(liveNext.id) : null}
 						className="flex-1"
 					/>}
 

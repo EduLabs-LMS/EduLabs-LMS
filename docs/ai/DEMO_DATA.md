@@ -46,13 +46,15 @@ highest version in this table is the **latest seed version**.
 | Correcting, lesson page | `courses`, `homework` | 6 | A third Magnetism lesson, "Magnetism review", published with no part, and its homework (closed yesterday, late allowed): 14 tries for correcting (7 waiting, 2 of them late, 4 corrected and not released, 3 released), 3 photos, one deleted to free space (see "Correcting and a lesson with no parts") |
 | Exams | `exams` | 7 | Five exams in the Physics course (migration `20261115120000_exams_drafts_and_demo_v7.sql`): an online one OPEN NOW for Demo Group 1 (window an hour before to three hours after the fill; students 1-3 handed in, 4-5 working, the rest not started; Group 2 follows its next session); a closed one with essays waiting and some corrected-not-released; a released one with answer review open; an upcoming one in each Group's next session; a paper one out of 50 (marks entered, one Absent, some missing) |
 | Times in Cairo | `groups`, `homework` | 8 | Nothing new is created. The seed's Cairo wall times are right whatever time zone the database session is on (migration `20261116120000_demo_seed_8_and_notice_links.sql`): Group 1's Sessions at 18:00, Group 2's at 20:00 and every homework deadline at 20:00. On the hosted database (UTC) Group 2's Sessions had landed at midnight, Group 1's at 22:00. |
+| Live classes | `live_class` | 9 | Demo Group 2 (online, no link) is an EduLabs class (migration `20261119120000_live_class.sql`). Its draft earlier Session was held as one: started by the teacher, opened by students 17 to 26. A one-off Group 2 Session, "Demo live class", starts 5 minutes after the fill and lasts an hour, not started (see "Demo live classes") |
 
 Tables the seed may write (the `table_name` check of `private.demo_seed_rows`): `courses`, `course_modules`, `lessons`,
 `course_offerings`, `study_groups`, `group_staff`, `group_sessions`, and from seed version 2 (migration
 `20261030120000_demo_students.sql`) `profiles`, `enrollments`, `group_memberships`, and from seed version 5 (draft migration
 `20261109120000_homework_teacher_rules.sql`) `homework_assignments`, `homework_questions`, `homework_options`, `homework_keys`,
 `homework_solutions`, `homework_submissions`, `homework_responses`, `homework_marks`, `homework_corrections`, `homework_uploads`,
-`homework_submission_files`. (`homework_carried`, the kept answers of a try, has a two-column key; it is removed with its tries.)
+`homework_submission_files`. (`homework_carried`, the kept answers of a try, has a two-column key; it is removed with its tries.) From seed version 9
+(migration `20261119120000_live_class.sql`): `live_class_rooms` and `live_class_joins` (both private; they also go with their Session).
 
 ## The content tree (seed version 4)
 
@@ -129,6 +131,14 @@ The same migration also lets a DRAFT exam keep unfinished questions (see DECISIO
 - **The fix:** `v_day` is a plain `timestamp`. Nothing else in the fill changed, so the counts are the same as version 7 (1567 recorded rows).
 - A space filled at an earlier seed version is not upgraded in place. To get the right times: Clear, then Fill again.
 - The same migration changes one notice link (not seed data): see DECISIONS.md.
+
+## Demo live classes (seed version 9, migration `20261119120000_live_class.sql`)
+
+- Demo Group 2 is online with no link, so its Sessions are EduLabs classes (DECISIONS.md, "Live classes"). Group 1 is at a centre and has none.
+- **A class that was held:** Group 2's draft earlier Session has a room started by the teacher at its start time, a join row for the teacher, and join rows for students 17 to 26 (the 3rd to 12th students of the Group), a minute apart. On Take attendance they show "Joined online". The joined students still not marked (23 to 26) are saved as Present the first time the teacher opens the sheet; 18 and 22 joined but stay Absent, because a mark is never changed. 27 and 28 neither joined nor are marked.
+- **A class to start:** a one-off Group 2 Session, "Demo live class", 5 minutes after the fill, one hour long. Nobody has started it, so the teacher sees Start class on the Group page and on Home, and a student who opens it waits for the teacher.
+- Only works end to end when the meeting server is configured (LIVE_CLASS_* on the web server); otherwise the buttons are hidden and the data is just there.
+- Counts: one more Session (10 recorded Sessions, 1568 recorded rows that Clear reports). The room and join rows are recorded too, but Clear removes them with their Session (ON DELETE CASCADE), so Clear's removed-row count does not include them.
 
 ## Demo notifications (seed version 3)
 

@@ -23,6 +23,7 @@ import { firstOpenScript } from '@/frontend/lib/first-load';
 import ScrollToTop from '@/frontend/components/scroll-to-top';
 import { isFirebaseStaging } from '@/shared/auth-config';
 import { FirebaseAuthProvider } from '@/frontend/components/providers/firebase-auth-provider';
+import { liveClassConfigured } from '@/server/services/live-class-provider';
 
 const figtree = Figtree({ subsets: ['latin'], variable: '--font-body', display: 'swap' });
 const caprasimo = Caprasimo({ subsets: ['latin'], weight: '400', variable: '--font-display', display: 'swap' });
@@ -53,7 +54,7 @@ export default async function RootLayout({
 
 	return (
 		<AuthProvider {...(firebase ? {} : { afterSignOutUrl: '/', appearance: { options: { showOptionalFields: true } } })}>
-			<html lang={language} dir={languageDirection(language)} data-lms-appearance data-design={design} suppressHydrationWarning>
+			<html lang={language} dir={languageDirection(language)} data-lms-appearance data-design={design} data-live-class={firebase && liveClassConfigured() ? 'on' : undefined} suppressHydrationWarning>
 				<head>
 					{/* Before anything paints: is this a fresh opening of the site in this tab? See frontend/lib/first-load.ts. A constant string: nothing from the request goes in it. */}
 					<script dangerouslySetInnerHTML={{ __html: firstOpenScript }} />

@@ -45,7 +45,7 @@ select pg_temp.put('org',gen_random_uuid());
 insert into public.organizations(id,name,slug) values(pg_temp.key('org'),'Synthetic demo exams','rd-'||current_setting('rd.run'));
 insert into public.organization_memberships(organization_id,user_id,role,status,joined_at) values(pg_temp.key('org'),pg_temp.uid('teacher'),'owner','active',now());
 insert into private.demo_spaces(organization_id,marked_by) values(pg_temp.key('org'),pg_temp.uid('admin'));
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=8,'the demo space fills (seed version 8: five exams)');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=9,'the demo space fills (seed version 9: five exams)');
 select pg_temp.ok((select count(*)=5 from private.exams e join public.courses c on c.id=e.course_id where c.organization_id=pg_temp.key('org')),'the seed adds five exams');
 select pg_temp.put('course',(select id from public.courses where organization_id=pg_temp.key('org') and status='published' order by title limit 1));
 select pg_temp.put('off',(select o.id from public.course_offerings o where o.course_id=pg_temp.key('course') order by o.id limit 1));
