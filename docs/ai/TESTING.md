@@ -394,3 +394,12 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
   **A new migration needs exactly one new line**: `node scripts/lib/migrations.cjs supabase/migrations/<file>.sql >> scripts/migrations.sha256`.
   A migration's own test file checks its own shape (transaction, functions, grants, `-text`) and must not assert where it sits in the list
   or what comes after it. A migration that was applied is never edited; a draft amended before it is applied needs its line updated.
+
+## Password reset (`claude/password-reset`)
+
+- `scripts/password-reset.test.cjs`: request route (same reply for known and unknown address, limits, bad bodies, no email/code/link in logs), limiter,
+  page states, strength/rules, email render snapshots (`scripts/snapshots/password-reset-email/`, `UPDATE_SNAPSHOTS=1` regenerates; `-text` in .gitattributes).
+- `scripts/password-reset-browser.cjs`: both real containers in Chromium with a synthetic Firebase SDK and a loopback endpoint; takes the 50 pictures in
+  `docs/design/screenshots/password-reset/` (`LMS_COPY_SHOTS=1`). Needs the same `LMS_BROWSER_RUNTIME`, `LMS_ESBUILD_RUNTIME`, `LMS_CHROMIUM_EXECUTABLE` as the sign-in harness.
+- SQL: `supabase/tests/demo-seed-8.sql` (fills under four server time zones).
+- Not covered: a real inbox, a real Firebase link, Brevo click tracking, session revocation on a live provider.

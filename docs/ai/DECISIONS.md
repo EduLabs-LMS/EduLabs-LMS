@@ -545,3 +545,23 @@ Draft migration `20261115120000_exams_drafts_and_demo_v7.sql`, **not applied any
    started / total and the time left; hidden when nothing is open; no new per-row authorization.
 6. **Demo seed v7** adds five Physics exams (open now, closed with essays waiting, corrected-not-released, upcoming per Group, paper with
    marks and one Absent) tracked in `demo_seed_rows`; Clear still removes teacher-added work only through the existing refusal rules.
+
+## Password reset (2026-11-14, branch `claude/password-reset`; migration `20261116120000` not applied)
+
+1. **Own pages, not Firebase's.** `/forgot-password` asks for an email; `/reset-password?oobCode=...` verifies the code (`verifyPasswordResetCode`), shows the
+   email, takes the new password twice (12+ characters, strength hint) and calls `confirmPasswordReset`. Expired, used, invalid, disabled and offline
+   states each have their own screen; expired/used/invalid offer "Send a new link". The code is removed from the address bar after use.
+2. **No enumeration.** The route answers 202 with the same body before any account lookup; the lookup, link and email run after the reply
+   (`after()`), so timing does not tell either. Bad body is 400, a limit 429, an unconfigured mailer 503, each the same for every address.
+3. **Link minted on the server** with `generatePasswordResetLink`; only its `oobCode` is kept and the email links to our own page. Only accounts with the
+   password provider that are not disabled are sent a link (a Google-only account would otherwise gain a password and link by email).
+4. **Rate limits (owner's question 2).** In-memory fixed windows per process, hashed keys, bounded: email 3 per 15 minutes, IP 20, shared bucket 200 when
+   no trusted IP header is configured (`PASSWORD_RESET_CLIENT_IP_HEADER`, last entry). No new table or provider. On several instances the limit is per
+   instance; moving it to the database is a follow-up if the owner wants it.
+5. **Email** through the existing Brevo setup (`BREVO_API_KEY`, `AUTH_EMAIL_FROM`, tag `edulabs-password-reset`): table layout, inline styles, VML button for
+   Outlook, a dark-mode query, a phone query, the link also as text, a text part, English, Arabic (RTL) or both when no language is known. The logo is
+   `public/email/edulabs-mark.png`. Nothing logs an address, code or link: only a fixed event name.
+6. **Other sessions.** A password change makes Firebase invalidate refresh tokens, and the app verifies every session cookie with the revocation check, so other
+   devices are asked to sign in again. No server-side revocation call was added; not verified against a live provider.
+7. **Demo seed 8** (same migration): Group 2 sessions no longer land at 12:00 AM Cairo (a `timestamptz` variable held a Cairo wall time), and a
+   `homework_released` notice for a lesson with no published part links to the student lesson page by lesson id.

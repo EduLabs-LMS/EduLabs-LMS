@@ -32,6 +32,7 @@ test('restored-session and form completion navigate home only once', async () =>
     '@/frontend/lib/signup-recovery': {},
     '@/frontend/lib/account-draft': {},
     '@/frontend/components/edulabs-mark': {},
+    '@/frontend/components/language-provider': { useLanguage: () => ({ t: key => key }) },
     '@/frontend/components/design/button': { Button: 'Button' },
     '@/frontend/components/design/field': { Field: 'Field' },
     './avatar-picker': {}, './provider-icons': {},

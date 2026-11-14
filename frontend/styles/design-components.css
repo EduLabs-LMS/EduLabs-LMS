@@ -617,6 +617,7 @@ html[dir="rtl"] .d-auth-arrow { transform: scaleX(-1); }
 .d-field-wrap { position: relative; display: block; }
 .d-field-input--trailing { padding-inline-end: var(--d-target); }
 .d-field-trailing { position: absolute; inset-block: 0; inset-inline-end: 0; display: flex; align-items: center; }
+html[dir="rtl"] .d-field-input--trailing[dir="ltr"] { padding-inline-end: var(--d-space-3); padding-inline-start: var(--d-target); } /* an LTR input under a right-to-left page: the toggle sits on its left (the page end), so the room is left there */
 .d-field-toggle { display: grid; place-items: center; width: var(--d-target); height: var(--d-target); padding: 0; background: none; border: 0; border-radius: var(--d-radius-field); color: var(--d-text-2); cursor: pointer; }
 .d-field-toggle:focus-visible { outline: 2px solid var(--d-focus); outline-offset: -4px; }
 /* Choose a photo: a secondary button that is really a file label. */
@@ -741,3 +742,20 @@ html[dir="rtl"] .d-auth-arrow { transform: scaleX(-1); }
 .d-ex-mark-input { inline-size: 5.5rem; min-block-size: var(--d-target); text-align: center; font-variant-numeric: tabular-nums; }
 .d-ex-group-pick { min-inline-size: 12rem; margin-inline-start: auto; }
 @media (max-width: 479px) { .d-ex-mark-row .d-row-body { flex-basis: 100%; } .d-ex-mark-controls { inline-size: 100%; justify-content: space-between; } .d-ex-group-pick { min-inline-size: 0; inline-size: 100%; } }
+
+/* Password reset (forgot-password and reset-password): the outcome panels, the strength hint and the checking line. No motion. */
+.d-auth-outcome { display: flex; flex-direction: column; align-items: flex-start; gap: var(--d-space-3); }
+.d-auth-outcome-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--d-tint); color: var(--d-ink); border: var(--d-control-border-width) solid var(--d-field-edge); }
+.d-auth-outcome[data-tone="good"] .d-auth-outcome-icon { background: var(--d-pill-success-bg); color: var(--d-pill-success); }
+.d-auth-outcome[data-tone="bad"] .d-auth-outcome-icon { background: var(--d-pill-danger-bg); color: var(--d-pill-danger); }
+.d-auth-outcome-title { margin: 0; font-family: var(--d-font-title); font-weight: 400; font-size: var(--d-title-md); line-height: var(--d-title-md-lh); color: var(--d-ink); overflow-wrap: anywhere; }
+.d-auth-actions { display: flex; flex-direction: column; gap: var(--d-space-3); align-self: stretch; margin-block-start: var(--d-space-2); }
+.d-auth-checking { margin: 0; }
+.d-strength { display: flex; flex-direction: column; gap: var(--d-space-2); }
+.d-strength-bars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--d-space-2); }
+.d-strength-bar { height: 8px; border-radius: 4px; background: var(--d-skeleton); }
+.d-strength[data-level="0"] .d-strength-bar[data-on="true"], .d-strength[data-level="1"] .d-strength-bar[data-on="true"] { background: var(--d-pill-danger); }
+.d-strength[data-level="2"] .d-strength-bar[data-on="true"] { background: var(--d-pill-warning); }
+.d-strength[data-level="3"] .d-strength-bar[data-on="true"], .d-strength[data-level="4"] .d-strength-bar[data-on="true"] { background: var(--d-pill-success); }
+.d-strength-text { margin: 0; font-size: var(--d-meta-size); line-height: var(--d-meta-lh); font-weight: 600; color: var(--d-ink); }
+[data-met="true"] { font-weight: 600; }

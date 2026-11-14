@@ -66,6 +66,8 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (/^\/api\/secure-exams\/[0-9a-f-]{36}\/(state|start|answers|submit|decision|result|photo|grading|grade|release|release-review|definition)$/.test(path)) return NextResponse.next();
   if (/^\/join\/[A-Za-z0-9_-]{43}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   if (path === '/api/student-administration' || path === '/api/communications' || path === '/api/study-groups' || path === '/api/study-groups/course-run' || path.startsWith('/sign-in') || path.startsWith('/sign-up') || path === '/lms-staging' || isPhaseOneRoute(path)) return NextResponse.next();
+  // Password reset: these two pages only. The reset link carries a one-time code in its address, so they stay out of caches, indexes and referrers.
+  if (path === '/forgot-password' || path === '/reset-password') {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');response.headers.set('X-Robots-Tag','noindex, nofollow');return response;}
   // No Firebase UID may enter an unmigrated Clerk/Prisma or UploadThing handler.
   if (path.startsWith('/api/') || path.startsWith('/trpc/')) return NextResponse.json({ error: 'This legacy workflow is unavailable in Firebase staging.' }, { status: 503 });
   return NextResponse.redirect(new URL('/unavailable', request.url));

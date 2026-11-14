@@ -97,7 +97,7 @@ const resolveAlias = p => { for (const c of [p + '.tsx', p + '.ts', path.join(p,
   const unverified = JSON.stringify({ uid: 'synthetic-user', email: 'unverified@example.invalid', emailVerified: false });
   const fill = async (page, email, password) => { await page.getByLabel('Email', { exact: true }).fill(email); await page.getByLabel('Password', { exact: true }).fill(password); };
   try {
-    await step('sign-in: the form, the show-password control, Forgot password and a failed sign-in keep their wording', async () => {
+    await step('sign-in: the form, the show-password control, the Forgot your password link and a failed sign-in keep their wording', async () => {
       const { page, context } = await open();
       await page.getByRole('heading', { name: 'Welcome back', exact: true }).waitFor();
       assert.equal(await page.locator('[data-auth-surface]').count(), 1, 'the sign-in surface is marked');
@@ -108,12 +108,11 @@ const resolveAlias = p => { for (const c of [p + '.tsx', p + '.ts', path.join(p,
       assert.equal(await page.getByRole('button', { name: 'Hide password', exact: true }).getAttribute('aria-pressed'), 'true');
       await page.getByRole('button', { name: 'Hide password', exact: true }).click();
       assert.equal(await password.getAttribute('type'), 'password');
-      const forgot = page.getByRole('button', { name: 'Forgot password?', exact: true });
-      assert.equal(await forgot.isDisabled(), true, 'needs an email first');
-      await page.getByLabel('Email', { exact: true }).fill('someone@example.invalid');
-      await forgot.click();
-      await page.getByRole('status').filter({ hasText: 'If an account exists, a password reset email has been sent.' }).waitFor();
-      assert.deepEqual(await page.evaluate(() => window.__calls.reset), ['someone@example.invalid']);
+      // Forgot password is a link to EduLabs' own page (/forgot-password); the page no longer asks Firebase to send mail.
+      const forgot = page.getByRole('link', { name: 'Forgot your password?', exact: true });
+      assert.equal(await forgot.getAttribute('href'), '/forgot-password');
+      assert.equal(await page.getByRole('button', { name: 'Forgot password?' }).count(), 0, 'the old button is gone');
+      assert.deepEqual(await page.evaluate(() => window.__calls.reset), [], 'nothing is sent to Firebase from here');
       await fill(page, 'wrong@example.invalid', 'synthetic-local-only-123!');
       await page.getByRole('button', { name: 'Sign in', exact: true }).click();
       await page.getByRole('status').filter({ hasText: 'Email or password is incorrect.' }).waitFor();

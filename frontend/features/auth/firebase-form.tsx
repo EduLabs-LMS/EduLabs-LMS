@@ -2,7 +2,7 @@
 import { useCallback,useEffect,useRef,useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GoogleAuthProvider,OAuthProvider,sendEmailVerification,sendPasswordResetEmail,signInWithEmailAndPassword,signInWithPopup,signInWithRedirect,getRedirectResult,getAdditionalUserInfo } from 'firebase/auth';
+import { GoogleAuthProvider,OAuthProvider,sendEmailVerification,signInWithEmailAndPassword,signInWithPopup,signInWithRedirect,getRedirectResult,getAdditionalUserInfo } from 'firebase/auth';
 import { Eye,EyeOff,ArrowRight,ShieldCheck } from 'lucide-react';
 import { getFirebaseAuth,restoreFirebaseAuth } from '@/frontend/lib/firebase';
 import { synchronizeFirebaseSession,useFirebaseAuth } from '@/frontend/components/providers/firebase-auth-provider';
@@ -14,6 +14,7 @@ import { invitationPagePath } from '@/shared/invitation-link';
 import { registerFirebaseAccount } from '@/frontend/lib/signup-recovery';
 import { storeAccountDraft } from '@/frontend/lib/account-draft';
 import EduLabsMark from '@/frontend/components/edulabs-mark';
+import { useLanguage } from '@/frontend/components/language-provider';
 import { Button } from '@/frontend/components/design/button';
 import { Field } from '@/frontend/components/design/field';
 import { AvatarPicker } from './avatar-picker';
@@ -33,7 +34,7 @@ async function rememberProviderProfile(credential:import('firebase/auth').UserCr
 function authDestination(raw:string|null){if(raw===invitationPagePath)return invitationPagePath;const destination=safeStudentAuthDestination(raw);return destination==='/home'&&hasPendingInvitation()?invitationPagePath:destination;}
 function readRememberedNext(){try{return sessionStorage.getItem('edulabs-auth-next');}catch{return null;}}
 export function FirebaseForm({register=false}:{register?:boolean}){
- const router=useRouter();
+ const router=useRouter();const {t}=useLanguage();
  const {beginFirstLoad}=useGlobalLoading();
  const {user,loading,error,refresh}=useFirebaseAuth();
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[firstName,setFirstName]=useState(''),[lastName,setLastName]=useState(''),[photo,setPhoto]=useState<File|null>(null),[show,setShow]=useState(false),[next,setNext]=useState('/home'),[busy,setBusy]=useState(false),[message,setMessage]=useState<string|null>(null),[retryAt,setRetryAt]=useState(0),[now,setNow]=useState(0);
@@ -64,7 +65,7 @@ export function FirebaseForm({register=false}:{register?:boolean}){
     <Button type="submit" variant="primary" size="lg" block>{busy?'Please wait…':register?'Create account':'Sign in'}<ArrowRight className="d-auth-arrow h-4 w-4"/></Button>
    </fieldset></form>
    <div className="d-auth-providers"><Button block disabled={busy||loading} onClick={()=>void provider('google')}><GoogleIcon/>Continue with Google</Button><Button block disabled={!apple||busy||loading} aria-describedby={!apple?'apple-setup':undefined} onClick={()=>void provider('apple')}><AppleIcon/>Continue with Apple</Button>{!apple&&<p id="apple-setup" className="d-field-hint">Apple sign-in requires provider setup and is currently unavailable.</p>}</div>
-   {!register&&<div className="d-auth-links"><Button variant="tertiary" disabled={busy||!email} onClick={()=>void run(async()=>{try{await sendPasswordResetEmail(getFirebaseAuth(),email.trim());}catch(e){if(!['auth/user-not-found','auth/invalid-email'].includes((e as {code:string}).code))throw e;}setMessage('If an account exists, a password reset email has been sent.');})}>Forgot password?</Button></div>}
+   {!register&&<p className="d-auth-links"><Link className="d-inline-link" href="/forgot-password">{t('pr.signin_link')}</Link></p>}
    {user&&!user.emailVerified&&<div className="d-auth-verify"><p>Check your inbox and spam folder. Learning access remains locked until your email is verified.</p><div className="d-auth-links"><Button variant="tertiary" disabled={busy||now<retryAt} onClick={()=>void run(async()=>{if(Date.now()<retryAt)throw Error('Wait before requesting another verification email.');setRetryAt(Date.now()+60000);await sendEmailVerification(user);setMessage('Verification email sent. Check your inbox.');})}>{now<retryAt?`Resend in ${Math.ceil((retryAt-now)/1000)}s`:'Resend verification'}</Button><Button variant="tertiary" disabled={busy} onClick={()=>void run(async()=>{await refresh();goHome();})}>I verified my email</Button></div></div>}
    {(message||error)&&<p role="status" aria-live="polite" className="d-notice d-auth-message">{message||error}</p>}
    <p className="d-auth-links"><Link className="d-inline-link" href={(register?'/sign-in':'/sign-up')+(next==='/home'?'':'?next='+encodeURIComponent(next))}>{register?'Already have an account? Sign in':'Create an account'}</Link></p>

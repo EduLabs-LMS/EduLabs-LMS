@@ -1,0 +1,23 @@
+Reset your password
+
+Someone asked to reset the password for your EduLabs account. Open this link to choose a new one:
+
+https://app.example.test/reset-password?oobCode=EXAMPLE_CODE_0123456789
+
+This link expires in 1 hour.
+If you didn't ask, ignore this email. Your password won't change.
+
+— The EduLabs team
+
+----------------------------------------
+
+إعادة تعيين كلمة المرور
+
+طلب أحدهم إعادة تعيين كلمة المرور لحسابك على EduLabs. افتح هذا الرابط لاختيار كلمة مرور جديدة:
+
+https://app.example.test/reset-password?oobCode=EXAMPLE_CODE_0123456789
+
+ينتهي هذا الرابط خلال ساعة واحدة.
+إذا لم تطلب ذلك، تجاهل هذه الرسالة. لن تتغير كلمة مرورك.
+
+— فريق EduLabs

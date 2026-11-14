@@ -83,3 +83,7 @@ to the student view; (3) links release notices to `/exams/<id>`; (4) fills demo 
 every question on autosave (the leave-them-out logic is gone). Student screens: `/exams` (list) and `/exams/<id>` (overview, taking,
 hand-in, second try, answer review) with routes under `/api/exams`; the teacher Home has a "Live now" card from `exam_portal`.
 Next: owner review of the screens (`docs/design/screenshots/exams-student/`), then the owner decides on applying the migration.
+
+Password reset (`claude/password-reset`, 2026-11-14): V1 part 3 is built (own forgot/reset pages, designed en/ar email via Brevo, per-email and per-IP limits, no enumeration)
+with demo seed 8 (migration `20261116120000`, not applied). Open questions for the owner are at the end of `docs/ai/PASSWORD_RESET_AUDIT.md`. Next: owner review of
+`docs/design/screenshots/password-reset/`, a real-inbox test, and the decision to apply the migration.

@@ -22,7 +22,7 @@ export type MailOutcome = { outcome: 'sent'; providerRef: string | null } | { ou
 export type InvitationMessage = { to: string; link: string; expiresAt: string; idempotencyKey: string };
 export type InvitationMailer = { configured(): boolean; send(message: InvitationMessage): Promise<MailOutcome> };
 
-const sender = /^(?:[^<>\r\n@]{1,80} )?<[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+>$|^[^@\s<>\r\n]+@[^@\s<>]+\.[^@\s<>]+$/;
+export const mailSender = /^(?:[^<>\r\n@]{1,80} )?<[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+>$|^[^@\s<>\r\n]+@[^@\s<>]+\.[^@\s<>]+$/;
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 /** Content is bilingual because the invited teacher's language is not known before they sign in. Only the link is sensitive. */
@@ -51,18 +51,18 @@ export function invitationEmailContent(message: Pick<InvitationMessage, 'link' |
  return { subject, text, html };
 }
 
-type Transport = (payload: { from: string; to: string; subject: string; html: string; text: string }, idempotencyKey: string) => Promise<{ data?: { id?: string } | null; error?: { statusCode?: number | null } | null }>;
+export type MailTransport = (payload: { from: string; to: string; subject: string; html: string; text: string; tag?: string }, idempotencyKey: string) => Promise<{ data?: { id?: string } | null; error?: { statusCode?: number | null } | null }>;
 
-function brevoParty(from: string): { name: string; email: string } {
+export function brevoParty(from: string): { name: string; email: string } {
  const parsed = /^(?:([^<>\r\n]+?)\s*)?<([^\s<>@]+@[^\s<>@]+)>$/.exec(from);
  return parsed ? { name: parsed[1]?.trim() || 'EduLabs', email: parsed[2].toLowerCase() } : { name: 'EduLabs', email: from.toLowerCase() };
 }
-function brevoTransport(apiKey: string): Transport {
+export function brevoTransport(apiKey: string): MailTransport {
  return async (payload) => {
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
    method: 'POST',
    headers: { 'api-key': apiKey, accept: 'application/json', 'content-type': 'application/json' },
-   body: JSON.stringify({ sender: brevoParty(payload.from), to: [{ email: payload.to }], subject: payload.subject, htmlContent: payload.html, textContent: payload.text, tags: ['edulabs-teacher-invitation'] }),
+   body: JSON.stringify({ sender: brevoParty(payload.from), to: [{ email: payload.to }], subject: payload.subject, htmlContent: payload.html, textContent: payload.text, tags: [payload.tag ?? 'edulabs-teacher-invitation'] }),
    cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) return { error: { statusCode: response.status } };
@@ -75,15 +75,15 @@ function brevoTransport(apiKey: string): Transport {
  * Brevo, with the same key and sender as the branded auth e-mail (BREVO_API_KEY, AUTH_EMAIL_FROM). A missing key or sender means
  * "not configured": nothing is sent or claimed. Brevo has no idempotency key, so a send is never repeated automatically.
  */
-export function createInvitationMailer(env: Record<string, string | undefined> = process.env, transport?: Transport, timeoutMs = 15000): InvitationMailer {
+export function createInvitationMailer(env: Record<string, string | undefined> = process.env, transport?: MailTransport, timeoutMs = 15000): InvitationMailer {
  const apiKey = env.BREVO_API_KEY?.trim(), from = env.AUTH_EMAIL_FROM?.trim();
- const configured = () => Boolean(apiKey && from && sender.test(from));
+ const configured = () => Boolean(apiKey && from && mailSender.test(from));
  return {
   configured,
   async send(message) {
    if (!configured()) return { outcome: 'rejected' };
    const { subject, text, html } = invitationEmailContent(message);
-   const send: Transport = transport ?? brevoTransport(apiKey!);
+   const send: MailTransport = transport ?? brevoTransport(apiKey!);
    try {
     const verdict = await Promise.race([
      send({ from: from!, to: message.to, subject, html, text }, `teacher-invitation-${message.idempotencyKey}`),
