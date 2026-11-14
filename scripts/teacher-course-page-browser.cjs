@@ -111,6 +111,7 @@ const bump = () => { tick++; S.updatedAt = `2026-11-05T09:00:${String(tick).padS
    S.status = b.status; bump(); return send({ id: COURSE });
   });
   if (url.pathname === '/api/teacher/courses/' + COURSE + '/content' && req.method === 'GET') return send({ archived: S.status === 'archived', canEdit: S.canEdit, chapters: [{ id: uuid(80), title: 'Synthetic Motion', type: 'chapter', number: 1, position: 0, updatedAt: S.updatedAt }], lessons: [{ id: uuid(81), chapterId: uuid(80), title: 'Synthetic Speed', position: 0, status: 'draft', updatedAt: S.updatedAt, homework: 0, draftHomework: 0, deleteBlockers: [], contentBlocks: 0, hasCover: false, parts: 0 }] });
+  { const report = require('./reports-fixture.cjs')(url); if (report) return send(report.body, report.status); }
   if (url.pathname.startsWith('/api/')) { if (url.pathname === '/api/communications') return send({ rows: [], page: 0, unread: 0 }); if (url.pathname === '/api/user/status') return send({ user: { role: 'teacher' } }); return send({ error: 'harness: not served' }, 404); }
   const h = decision.headers || new Map();
   res.setHeader('Content-Type', 'text/html; charset=utf-8'); for (const [k, v] of h) res.setHeader(k, v);

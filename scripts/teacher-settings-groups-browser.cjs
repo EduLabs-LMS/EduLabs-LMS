@@ -217,6 +217,7 @@ function command(body) {
     try { send(command({ action: 'course-run', groupId: null, data })); } catch (e) { if (e instanceof Fail) return send({ error: 'x' }, e.status); throw e; }
    }); return;
   }
+  { const report = require('./reports-fixture.cjs')(url); if (report) return send(report.body, report.status); }
   if (url.pathname.startsWith('/api/')) { if (url.pathname === '/api/communications') return send({ rows: [], page: 0, unread: 0 }); if (url.pathname === '/api/user/status') return send({ user: { role: 'teacher' } }); return send({ error: 'harness: not served' }, 404); }
   res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Cache-Control', 'no-store');
   res.end(`<!doctype html><html lang="en" data-lms-appearance><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Harness</title><link rel="stylesheet" href="/__style.css"></head><body class="${fontVars} font-sans"><div id="root"></div><script src="/__app.js"></script></body></html>`);
@@ -341,7 +342,7 @@ function command(body) {
   const { page, context } = await open(desktop, '/teacher/groups/' + G.alg);
   await page.locator('[data-group-sessions]').waitFor();
   assert.equal(await page.locator('h1').innerText(), 'Synthetic Algebra Group'); assert.match(await page.locator('[data-teacher-group]').innerText(), /Synthetic Maths/); assert.equal(await page.locator('[data-status]').innerText(), 'Active');
-  await page.locator('[data-header-students]').waitFor(); assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['Sessions', 'Students · 12', 'Details']); assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Groups');
+  await page.locator('[data-header-students]').waitFor(); assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['Sessions', 'Students · 12', 'Report', 'Details']); assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Groups');
   assert.doesNotMatch(await page.locator('[data-teacher-group]').innerText(), /Demo offering/, 'the run never shows');
   const headerMeta = await page.locator('.d-page-header-main .d-meta').innerText(); assert.match(headerMeta, /Synthetic Maths · Sun[^\n]*5:00[^\n]* · Synthetic Centre, Room 4 · 12 students/, 'one meta line: ' + headerMeta);
   assert.equal(await page.locator('[data-group-panel]').count(), 0, 'the facts are in the header, no side panel');
@@ -389,7 +390,7 @@ function command(body) {
    await page.locator('[data-group-sessions]').waitFor();
    assert.ok(await overflow(page), 'no overflow ' + lang); assert.deepEqual(await smallText(page), [], 'text ' + lang); assert.deepEqual(await tinyTargets(page), [], 'targets ' + lang);
    assert.equal(await page.locator('[data-sticky-primary] [data-invite-group]').count(), 1, 'Invite in the sticky bar'); assert.equal(await page.locator('[data-sticky-primary] [data-add-session]').count(), 1, 'Add a Session in the sticky bar');
-   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); await page.locator('[data-header-students]').waitFor(); assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['الحصص', 'الطلاب · 12', 'التفاصيل']); const t = await main(page); assert.match(t, /القادمة/); assert.match(t, /ملغاة/); assert.match(t, /السابقة/); assert.match(t, /بانتظار الحضور/); assert.match(t, /لم يُحفظ الحضور/); assert.doesNotMatch(t, forbidden); assert.equal(await page.locator('.d-back svg').evaluate(e => getComputedStyle(e).transform !== 'none'), true, 'the back arrow is mirrored'); }
+   if (lang === 'ar') { assert.equal(await page.locator('html').getAttribute('dir'), 'rtl'); await page.locator('[data-header-students]').waitFor(); assert.deepEqual(await page.locator('[role="tab"]').allInnerTexts(), ['الحصص', 'الطلاب · 12', 'التقرير', 'التفاصيل']); const t = await main(page); assert.match(t, /القادمة/); assert.match(t, /ملغاة/); assert.match(t, /السابقة/); assert.match(t, /بانتظار الحضور/); assert.match(t, /لم يُحفظ الحضور/); assert.doesNotMatch(t, forbidden); assert.equal(await page.locator('.d-back svg').evaluate(e => getComputedStyle(e).transform !== 'none'), true, 'the back arrow is mirrored'); }
    await shot(page, `group-sessions-${lang}-390`);
    await page.locator('[data-tab="details"]').click(); await shot(page, `group-details-${lang}-390`);
    await page.locator('[data-tab="students"]').click(); await page.locator('[data-group-students]').waitFor(); await shot(page, `group-students-${lang}-390`);
@@ -677,6 +678,6 @@ function command(body) {
  assert.deepEqual(errors, [], 'no uncaught or console errors');
  assert.deepEqual(external, [], 'no external requests');
  const apis = [...new Set(requests.slice(probes).filter(r => /\/api\//.test(r) && !/^GET \/api\/study-groups\//.test(r)))].sort(); // those GETs are the Create step's middleware probes
- assert.deepEqual(apis.filter(r => !/\/api\/(study-groups(\/course-run)?|student-administration|communications|user\/status)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
+ assert.deepEqual(apis.filter(r => !/\/api\/(study-groups(\/course-run)?|student-administration|communications|user\/status|teacher\/reports\/[a-z]+(\/[^/]+)?)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
  console.log(`Teacher Settings and Groups browser checks passed: ${results.length} groups (real middleware, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);
 })().catch(e => { console.error(e); process.exit(1); });

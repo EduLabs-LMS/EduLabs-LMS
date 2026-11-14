@@ -234,8 +234,8 @@ select pg_temp.ok((pg_temp.g('gp')->'summary'->'exams'->>'count')='1' and (pg_te
 select pg_temp.ok((pg_temp.g('gp')->'summary'->'homework'->>'given')='1','last month homework: H5');
 select set_config('rp.sall',public.report_student(pg_temp.uid('a'),pg_temp.key('off'),'all')::text,true);
 select pg_temp.ok((pg_temp.g('sall')->>'month')='all' and (pg_temp.g('sall')->'attendance'->>'present')='3' and (pg_temp.g('sall')->'attendance'->>'total')='5','Whole course: A attended 3 of 5 finalized sessions (cancelled and unsaved still excluded)');
-select pg_temp.ok((pg_temp.g('sall')->'homework'->>'given')='6' and (pg_temp.g('sall')->'homework'->>'done')='4' and (pg_temp.g('sall')->'homework'->>'missing')='1','Whole course: A has 6 homework given, 4 done, 1 missing; one is not due yet and is not missing');
-select pg_temp.ok((select x->>'state' from jsonb_array_elements(pg_temp.g('sall')->'homeworkList') x where x->>'title'='Not due yet')='due','Whole course: homework not due yet is listed as due');
+select pg_temp.ok((pg_temp.g('sall')->'homework'->>'given')='5' and (pg_temp.g('sall')->'homework'->>'done')='4' and (pg_temp.g('sall')->'homework'->>'missing')='1','Whole course: A has 5 homework given, 4 done, 1 missing; the one not due yet is open, not given and not missing');
+select pg_temp.ok((select x->>'state' from jsonb_array_elements(pg_temp.g('sall')->'homeworkList') x where x->>'title'='Not due yet')='open','Whole course: homework not due yet is listed as Open');
 select set_config('rp.call',public.report_group(pg_temp.key('g1'),'all')::text,true);
 select pg_temp.ok((pg_temp.g('call')->'summary'->'exams'->>'count')='3','Whole course: three exams in the Saturday group');
 -- Empty course
@@ -258,11 +258,72 @@ set local role authenticated;
 select pg_temp.claim('ta');
 select pg_temp.ok(public.report_group(pg_temp.key('g1'),null)->'group'->>'name'='Saturday group','an assistant with correcting and releasing off still reads the Group report');
 select pg_temp.claim('owner');
--- Pace: the highest lesson of the run that has homework given
-select pg_temp.ok(pg_temp.g('g1')->'pace'->'reached'->>'label'='2.1' and (pg_temp.g('g1')->'pace'->>'homeworkGiven')='6','pace: reached lesson 2.1 with 6 homework given');
 -- Nothing was written
 reset role;
 select pg_temp.ok((select count(*) from public.group_sessions where group_id in (pg_temp.key('g1'),pg_temp.key('g2')))=9,'the reads wrote nothing');
+
+-- ---------------------------------------------------------------- Review fixes: not_marked, homework visibility, open homework, exam edge cases. One more run (off3) with its own Group G4.
+-- a and b are in G4 all along; d is in no Group. Homework: HP (published lesson) a handed in, b did not; HD in a DRAFT lesson (published homework, invisible to students);
+-- HO due a minute before the month ends, handed in by nobody (open). Sessions X1, X2: a attended both; b attended X1 and is not_marked in X2.
+-- Exams (online, per Group, window of G4 = the first 20 minutes of the month): X5 a took it, b has a result with no final attempt, d (no Group) did not come;
+-- X6 a's result names an attempt whose Group (G1) has no window, b and d did not come.
+reset role;
+select pg_temp.put(k,gen_random_uuid()) from unnest(array['course3','off3','g4','m4','lp','ld','hp','hd','ho','x1','x2','x5','x6']) k;
+insert into public.courses(id,organization_id,title,slug,status,visibility,created_by) values(pg_temp.key('course3'),pg_temp.key('org'),'Synthetic Chemistry','rp-chem','published','private',pg_temp.uid('owner'));
+insert into public.course_offerings(id,course_id,name,delivery_mode,status) values(pg_temp.key('off3'),pg_temp.key('course3'),'Chemistry run','scheduled','active');
+insert into public.course_modules(id,course_id,title,position) values(pg_temp.key('m4'),pg_temp.key('course3'),'Acids',0);
+insert into public.lessons(id,module_id,title,position,status) values(pg_temp.key('lp'),pg_temp.key('m4'),'pH',0,'published'),(pg_temp.key('ld'),pg_temp.key('m4'),'Draft lesson',1,'draft');
+insert into public.enrollments(offering_id,user_id,status,enrolled_at) select pg_temp.key('off3'),pg_temp.uid(l),'active',now()-interval '60 days' from unnest(array['a','b','d']) l;
+insert into public.study_groups(id,offering_id,name,mode,location,created_by) values(pg_temp.key('g4'),pg_temp.key('off3'),'Chemistry group','center','Room 4',pg_temp.uid('owner'));
+insert into public.group_memberships(id,group_id,offering_id,user_id,enrollment_id,starts_at,ends_at,created_by)
+ select pg_temp.put('mem4_'||e.user_id,gen_random_uuid()),pg_temp.key('g4'),e.offering_id,e.user_id,e.id,now()-interval '50 days',null,pg_temp.uid('owner')
+ from public.enrollments e where e.offering_id=pg_temp.key('off3') and e.user_id in (pg_temp.uid('a'),pg_temp.uid('b'));
+insert into public.group_sessions(id,group_id,title,starts_at,ends_at,original_starts_at,original_ends_at,mode,cancelled,attendance_state,created_by,updated_by)
+ select pg_temp.put(v.k,gen_random_uuid()),pg_temp.key('g4'),v.k,v.t,v.t+interval '1 second',v.t,v.t+interval '1 second','center',false,'finalized',pg_temp.uid('owner'),pg_temp.uid('owner')
+ from (values ('x1',pg_temp.lo()+interval '1 second'),('x2',pg_temp.lo()+interval '2 seconds')) v(k,t);
+insert into public.session_attendance(session_id,user_id,membership_id,status)
+ select pg_temp.key(v.s),pg_temp.uid(v.l),pg_temp.key('mem4_'||pg_temp.uid(v.l)),v.st from (values ('x1','a','attended'),('x2','a','attended'),('x1','b','attended'),('x2','b','not_marked')) v(s,l,st);
+insert into public.homework_assignments(id,course_id,offering_id,lesson_id,title,status,family_id,created_by,deadline_at,uses_marks,workflow,mode,tries_mode,max_tries,solutions_open)
+ select pg_temp.key(v.k),pg_temp.key('course3'),pg_temp.key('off3'),pg_temp.key(v.l),v.t,'published',pg_temp.key(v.k),pg_temp.uid('owner'),v.d,true,'questions','PLATFORM_QUESTIONS','one_time',1,'after_deadline' from (values
+  ('hp','lp','Published homework',pg_temp.lo()+interval '3 seconds'),('hd','ld','Homework in a draft lesson',pg_temp.lo()+interval '4 seconds'),
+  ('ho','lp','Still open',pg_temp.lo()+interval '1 month'-interval '1 minute')) v(k,l,t,d);
+insert into public.homework_submissions(id,assignment_id,user_id,number,status,submitted_at) values(gen_random_uuid(),pg_temp.key('hp'),pg_temp.uid('a'),1,'submitted',now()-interval '1 day');
+insert into private.exams(id,family_id,course_id,offering_id,kind,title,status,published_at,timing,tries_mode,starting_from,created_by)
+ select pg_temp.key(v.k),pg_temp.key(v.k),pg_temp.key('course3'),pg_temp.key('off3'),'online',v.t,'published',now()-interval '30 days','per_group','one_time',(pg_temp.lo() at time zone 'Africa/Cairo')::date-1,pg_temp.uid('owner') from (values ('x5','Quiz 5'),('x6','Quiz 6')) v(k,t);
+insert into private.exam_chapters(exam_id,module_id) values(pg_temp.key('x5'),pg_temp.key('m4')),(pg_temp.key('x6'),pg_temp.key('m4'));
+insert into private.exam_group_windows(exam_id,group_id,source,custom_opens_at,custom_closes_at) values
+ (pg_temp.key('x5'),pg_temp.key('g4'),'custom',pg_temp.lo()+interval '1 minute',pg_temp.lo()+interval '20 minutes'),(pg_temp.key('x6'),pg_temp.key('g4'),'custom',pg_temp.lo()+interval '1 minute',pg_temp.lo()+interval '20 minutes');
+insert into private.exam_attempts(id,exam_id,user_id,number,window_group_id,started_at,deadline_at,submitted_at,status) values
+ (pg_temp.put('try5a',gen_random_uuid()),pg_temp.key('x5'),pg_temp.uid('a'),1,pg_temp.key('g4'),pg_temp.lo()+interval '2 minutes',pg_temp.lo()+interval '15 minutes',pg_temp.lo()+interval '10 minutes','submitted'),
+ (pg_temp.put('try6a',gen_random_uuid()),pg_temp.key('x6'),pg_temp.uid('a'),1,pg_temp.key('g1'),pg_temp.lo()+interval '2 minutes',pg_temp.lo()+interval '15 minutes',pg_temp.lo()+interval '10 minutes','submitted');
+insert into private.exam_results(exam_id,user_id,final_attempt_id,absent,status,score,max_score,released_at,released_by) values
+ (pg_temp.key('x5'),pg_temp.uid('a'),pg_temp.key('try5a'),false,'corrected',18,20,now(),pg_temp.uid('owner')),
+ (pg_temp.key('x5'),pg_temp.uid('b'),null,false,'corrected',10,20,now(),pg_temp.uid('owner')),
+ (pg_temp.key('x6'),pg_temp.uid('a'),pg_temp.key('try6a'),false,'corrected',16,20,now(),pg_temp.uid('owner'));
+set local role authenticated;
+select pg_temp.claim('owner');
+select set_config('rp.g4',public.report_group(pg_temp.key('g4'),null)::text,true);
+select set_config('rp.s4a',public.report_student(pg_temp.uid('a'),pg_temp.key('off3'),null)::text,true);
+select set_config('rp.s4b',public.report_student(pg_temp.uid('b'),pg_temp.key('off3'),null)::text,true);
+select set_config('rp.s4d',public.report_student(pg_temp.uid('d'),pg_temp.key('off3'),null)::text,true);
+-- 1. not_marked is neither present nor absent
+select pg_temp.ok((pg_temp.g('s4b')->'attendance'->>'present')='1' and (pg_temp.g('s4b')->'attendance'->>'total')='1' and (pg_temp.g('s4b')->'attendance'->>'pct')='100','a not_marked row in a finalized session leaves the student numbers as they were (1 of 1)');
+select pg_temp.ok(jsonb_array_length(pg_temp.g('s4b')->'sessions')=1 and (pg_temp.g('s4a')->'attendance'->>'total')='2','the not_marked session is not in the student session boxes');
+-- 2. homework of a lesson that is not published is not given
+select pg_temp.ok(not exists(select 1 from jsonb_array_elements(pg_temp.g('s4a')->'homeworkList') x where x->>'title'='Homework in a draft lesson') and not exists(select 1 from jsonb_array_elements(pg_temp.g('s4b')->'homeworkList') x where x->>'title'='Homework in a draft lesson'),'published homework in a draft lesson counts for nobody');
+select pg_temp.ok((pg_temp.g('g4')->'summary'->'homework'->>'given')='1','the Group has one homework given (the published lesson), not the draft lesson one');
+-- 3. open homework is not counted yet
+select pg_temp.ok((pg_temp.g('s4a')->'homework'->>'given')='1' and (pg_temp.g('s4a')->'homework'->>'done')='1' and (pg_temp.g('s4b')->'homework'->>'missing')='1' and (pg_temp.g('s4b')->'homework'->>'given')='1','homework due at the end of the month and not handed in is left out of given and of missing');
+select pg_temp.ok((select x->>'state' from jsonb_array_elements(pg_temp.g('s4b')->'homeworkList') x where x->>'title'='Still open')='open','it is listed as Open on the Student page');
+select pg_temp.ok((pg_temp.g('g4')->'summary'->'homework'->>'pct')='50','the Group homework % ignores the open homework (1 of 2 students handed in the due one)');
+-- the Group report has no Pace
+select pg_temp.ok(not (pg_temp.g('g4') ? 'pace'),'the Group report carries no Pace');
+-- 5a. a student in no Group could take the per-Group exam: the no-show is Absent
+select pg_temp.ok((pg_temp.g('s4d')->'exams'->>'absent')='2','a student in no Group who did not come to two per-Group online exams is Absent from both');
+-- 5b. a per-Group result with no final attempt, or with an attempt of a Group that has no window, still counts
+select pg_temp.ok((select x->>'state' from jsonb_array_elements(pg_temp.g('s4b')->'examList') x where x->>'title'='Quiz 5')='marked' and (pg_temp.g('s4b')->'exams'->>'pct')='50','a result with no final attempt stays in the numbers (10 of 20)');
+select pg_temp.ok((select x->>'state' from jsonb_array_elements(pg_temp.g('s4a')->'examList') x where x->>'title'='Quiz 6')='marked' and (pg_temp.g('s4a')->'exams'->>'pct')='85','a result whose attempt names a Group with no window stays in the numbers ((18+16) of 40)');
+select pg_temp.ok((pg_temp.g('s4b')->'exams'->>'absent')='1','b is Absent only from the exam they did not come to');
 
 select count(*)::integer reports_tests from rp_results;
 rollback;

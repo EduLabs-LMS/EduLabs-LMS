@@ -23,7 +23,10 @@ Homework and exams carry no Group. The Group of a student for an item is the Gro
 - **No Group on homework.** Derived from memberships (above).
 - **No stored publish time on homework.** `created_at` is used when there is no deadline.
 - **Online exam no-shows.** Counted as Absent, like a paper exam marked absent.
-- **No "lesson covered by a session".** A session does not record the lesson it covered. The Pace line therefore says how far the course content goes (the furthest lesson with published homework) and how many homework were given. A teacher marking the lesson per session is deferred until after V1 (own decisions first).
+- **No "lesson covered by a session".** A session does not record the lesson it covered, so there is no Pace line (homework belongs to the run, not a Group, so it would read the same for every Group). "Pace per Group" and the teacher marking the lesson per session are deferred until after V1 (own decisions first).
+- **Attendance `not_marked`** is neither present nor absent: those rows are left out of the count and of the total.
+- **Which homework is "given".** The rule students are held to (`private.homework_enrolled`): the homework is published, its lesson is published, its segment (if any) is published, and the course is published. Homework in a draft lesson is invisible to students and counts for nobody. Open homework (not handed in and the deadline is ahead or there is none) is not counted yet: it is left out of the percentage and of "missing" and is listed as "Open". Given = handed in or deadline passed.
+- **Per-Group online exams.** A student in no Group can take them (window = earliest opening to last closing, `private.exam_student_window`), so a no-show is Absent after the last close. A result with no final attempt, or whose attempt names a Group with no window, is kept at the exam's last window.
 - **Marks not yet given** (waiting for marks) are not counted in any percentage; they show as "Waiting for marks".
 
 ## Counting rules (DECISIONS.md, "Reports")

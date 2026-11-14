@@ -51,7 +51,6 @@ export type StudentLine = {
 export type GroupReport = ReportRange & {
   firstMonth: string;
   group: { id: string; name: string };
-  pace: { reached: { chapter: number; lesson: number; lessonId: string; label: string } | null; homeworkGiven: number };
   summary: { attendance: { pct: Pct; sessions: number }; homework: { pct: Pct; given: number }; exams: { pct: Pct; count: number } };
   attentionTotal: number; attention: StudentLine[]; everyoneTotal: number; everyone: StudentLine[];
 };
@@ -60,7 +59,7 @@ export type AttentionRow = { userId: string; name: string; offeringId: string; c
 export type AttentionReport = ReportRange & { page: number; pageSize: number; total: number; rows: AttentionRow[] };
 
 export type SessionMark = { id: string; groupId: string | null; day: number; date: string; state: 'present' | 'absent' };
-export type HomeworkLine = { id: string; title: string; groupId: string | null; state: 'done' | 'missing' | 'due'; score: number | null; max: number | null; detail: 'released' | 'waiting' | null; dueAt: string };
+export type HomeworkLine = { id: string; title: string; groupId: string | null; state: 'done' | 'missing' | 'open'; score: number | null; max: number | null; detail: 'released' | 'waiting' | null; dueAt: string };
 export type ExamLine = { id: string; title: string; groupId: string | null; state: 'marked' | 'waiting' | 'absent'; score: number | null; max: number | null; kind: 'online' | 'paper'; at: string };
 export type StudentReport = ReportRange & {
   firstMonth: string | null; groups: { id: string; name: string }[];

@@ -22,7 +22,7 @@ export function StudentMarks({ studentId, offeringId }: { studentId: string; off
   if (data.state === 'ready' && data.value.firstMonth !== firstMonth) setFirst(data.value.firstMonth);
   return <section data-student-marks data-tour="student-marks" className="d-stack-lg">
     <MonthPicker value={month} firstMonth={firstMonth} onChange={setMonth} />
-    {data.state === 'loading' && <div role="status" data-state="loading" className="d-stack"><DesignSkeleton className="h-24" /><DesignSkeleton className="h-32" /><span className="sr-only"><L id="rp.loading" /></span></div>}
+    {data.state === 'loading' && <div role="status" data-state="loading" className="d-stack"><DesignSkeleton className="h-24" /><DesignSkeleton className="h-20" /><DesignSkeleton className="h-56" /><DesignSkeleton className="h-56" /><span className="sr-only"><L id="rp.loading" /></span></div>}
     {data.state === 'error' && <GroupError kind={data.error.kind} onRetry={retry} />}
     {data.state === 'ready' && <Body report={data.value} />}
   </section>;
@@ -68,9 +68,10 @@ function HomeworkRow({ line }: { line: HomeworkLine }) {
   const due = new Date(line.dueAt).toLocaleDateString(language, dayOnly);
   return <li><div className="d-rp-row" data-homework-state={line.state}>
     <span className="d-rp-row-body"><span className="d-label"><bdi dir="auto">{line.title}</bdi></span><span className="d-meta"><L id="rp.hw.due" values={{ date: due }} /></span></span>
-    {line.state === 'missing' ? <StatusPill tone="danger"><L id="rp.hw.missing" /></StatusPill>
+    {line.state === 'open' ? <StatusPill tone="info"><L id="rp.hw.open" /></StatusPill>
+      : line.state === 'missing' ? <StatusPill tone="danger"><L id="rp.hw.missing" /></StatusPill>
       : line.score !== null ? <Mark score={line.score} max={line.max} />
-        : <StatusPill tone="neutral"><L id={line.detail === 'waiting' || line.state === 'done' ? 'rp.hw.waiting' : 'rp.hw.handed'} /></StatusPill>}
+        : <StatusPill tone="neutral"><L id={line.detail === 'waiting' ? 'rp.hw.waiting' : 'rp.hw.handed'} /></StatusPill>}
   </div></li>;
 }
 

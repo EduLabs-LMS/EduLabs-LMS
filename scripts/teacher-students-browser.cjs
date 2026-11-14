@@ -246,6 +246,7 @@ function groupsCommand(body) {
   if (url.pathname === '/api/student-administration' && req.method === 'POST') return readBody(b => run(administration, b));
   if (url.pathname === '/api/study-groups' && req.method === 'POST') return readBody(b => { if (b.action !== 'view') S.posts.push(b); run(b.action === 'view' ? groupsView : groupsCommand, b); });
   if (url.pathname === '/api/study-groups/course-run' && req.method === 'POST') return readBody(b => { S.posts.push({ action: 'course-run', data: b }); run(groupsCommand, { action: 'course-run', groupId: null, data: b }); });
+  { const report = require('./reports-fixture.cjs')(url); if (report) return send(report.body, report.status); }
   if (url.pathname.startsWith('/api/')) { if (url.pathname === '/api/communications') return send({ rows: [], page: 0, unread: 0 }); if (url.pathname === '/api/user/status') return send({ user: { role: 'teacher' } }); return send({ error: 'harness: not served' }, 404); }
   // The page itself: the middleware's headers are the ones the browser sees.
   const h = decision.headers || new Map();
@@ -513,7 +514,7 @@ function groupsCommand(body) {
   assert.match(await page.locator('[data-student-page]').innerText(), /Active/); assert.match(await page.locator('[data-student-groups-section]').innerText(), /Synthetic Algebra Group/);
   assert.equal(await page.locator(`[data-group-link="${G.alg}"]`).getAttribute('href'), '/teacher/groups/' + G.alg);
   const rows = await page.locator('[data-attendance-row]').allInnerTexts(); assert.equal(rows.length, 3, 'the unmarked session is not shown'); assert.match(rows[0], /Absent/); assert.match(rows[1], /Present/);
-  assert.match(await page.locator('[data-attendance-counts]').innerText(), /2 present · 1 absent/); assert.doesNotMatch(await main(page), /grade|homework/i);
+  assert.match(await page.locator('[data-attendance-counts]').innerText(), /2 present · 1 absent/); assert.doesNotMatch(await main(page), /grade/i); /* the marks section (Homework, Exams) is part of this page since Reports */
   await checkClean(page, 'student page desktop'); await shot(page, 'student-page-en-1440');
   await page.locator('[data-ask-access]').click(); assert.equal((await posts()).admin.length, 0, 'asked first'); assert.match(await page.locator('[data-access-confirm]').innerText(), /Suspend Synthetic student 01\?/);
   await page.locator('[data-keep-access]').click(); assert.equal(await page.locator('[data-access-confirm]').count(), 0);
@@ -591,6 +592,6 @@ function groupsCommand(body) {
  assert.deepEqual(errors, [], 'no uncaught or console errors');
  assert.deepEqual(external, [], 'no external requests');
  const apis = [...new Set(requests.slice(probes).filter(r => /\/api\//.test(r)).map(r => r.replace(/^(\w+) (\/[^?]*).*/, '$1 $2')))].sort();
- assert.deepEqual(apis.filter(r => !/\/api\/(student-administration|study-groups(\/course-run)?|communications|user\/status)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
+ assert.deepEqual(apis.filter(r => !/\/api\/(student-administration|study-groups(\/course-run)?|communications|user\/status|teacher\/reports\/[a-z]+(\/[^/]+)?)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
  console.log(`Teacher Students browser checks passed: ${results.length} groups (real middleware, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);
 })().catch(e => { console.error(e); process.exit(1); });

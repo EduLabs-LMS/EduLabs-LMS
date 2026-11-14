@@ -42,7 +42,6 @@ function ReportBody({ report, offeringId }: { report: GroupReport; offeringId: s
       <Stat label={t('rp.stat.homework')} value={pct(s.homework.pct)} sub={t('rp.stat.given', { count: number(s.homework.given) })} data-stat="homework" />
       <Stat label={t('rp.stat.exams')} value={pct(s.exams.pct)} sub={exams} data-stat="exams" />
     </div>
-    <p className="d-meta" data-pace>{report.pace.reached ? <L id="rp.pace" values={{ label: report.pace.reached.label, count: number(report.pace.homeworkGiven) }} /> : <L id="rp.pace_none" />}</p>
     {empty && <p data-state="empty" className="d-body"><L id="rp.group.nobody" /></p>}
     {!empty && <>
       <section className="d-rp-section" data-attention-list>

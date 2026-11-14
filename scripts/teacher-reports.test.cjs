@@ -80,3 +80,14 @@ test('the screens carry their tour targets and no screen reads with a service ke
  assert.match(read('frontend/features/teacher-reports/student-marks.tsx'), /student-marks/);
  for (const f of fs.readdirSync('frontend/features/teacher-reports')) assert.doesNotMatch(read('frontend/features/teacher-reports/' + f), /service_role|SERVICE_ROLE/);
 });
+test('review changes: no Pace anywhere, and homework has an Open state in both languages', () => {
+ assert.ok(!Object.keys(messages.en).some(k => k.startsWith('rp.pace')) && !Object.keys(messages.ar).some(k => k.startsWith('rp.pace')));
+ assert.ok(messages.en['rp.hw.open'] && messages.ar['rp.hw.open']);
+ assert.doesNotMatch(read('shared/contracts/teacher-reports.ts'), /pace/i);
+ assert.doesNotMatch(read('frontend/features/teacher-reports/group-report.tsx'), /pace/i);
+ assert.match(read('frontend/features/teacher-reports/student-marks.tsx'), /state === 'open'/);
+ const sql = read('supabase/migrations/20261117120000_reports.sql');
+ assert.doesNotMatch(sql, /'pace'/);
+ assert.match(sql, /a\.status in \('attended','absent'\)/, 'not_marked is neither present nor absent');
+ assert.match(sql, /l\.status='published'/, 'homework needs a published lesson');
+});
