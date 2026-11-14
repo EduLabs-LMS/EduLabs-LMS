@@ -26,7 +26,12 @@ run by Claude: the files were written and checked on a development PC only (see 
 | **443/tcp** | public | coturn **TURN over TLS** for phones on networks that block UDP (it looks like HTTPS). Caddy is on 127.0.0.1 only, so the public 443 is free (step 1 checks it). |
 | **3478/udp** | public | coturn TURN/STUN over UDP for networks that block port 10000 but allow 3478. |
 | 127.0.0.1:8000/tcp | loopback | Jitsi web, reached only by the Cloudflare Tunnel (meet hostname). |
-| 127.0.0.1:8443, :8080, :8888/tcp | loopback | Jitsi's own (unused HTTPS; bridge and focus health/stats). Upstream binds them to loopback. |
+| 127.0.0.1:8444, :8090, :8888/tcp | loopback | Jitsi's own (unused HTTPS; bridge and focus health/stats). Loopback only. |
+
+EduLabs' Caddy already publishes **127.0.0.1:8080 and 127.0.0.1:8443** (the Cloudflare Tunnel uses them), so Jitsi is moved
+off both on the host side: `HTTPS_PORT=127.0.0.1:8444` (web's unused HTTPS, container port 8443) and `JVB_COLIBRI_PORT=8090`
+(bridge REST, container port 8080). `./jitsi.sh check` and `./jitsi.sh up` refuse to start if 8000, 8444, 8090 or 8888 is
+already in use by anything but this Jitsi project, and name the process (and container) holding it.
 
 Port 80 is **not** opened: the TURN certificate is issued through DNS (step 7).
 
@@ -47,9 +52,9 @@ stable-11248-3 `docker-compose.yml` with this override (never `whiteboard.yml`),
 coturn host-network (listeners set by its own config; see ss -tulpn)
 jicofo 127.0.0.1:8888->8888/tcp
 jvb 0.0.0.0:10000->10000/udp
-jvb 127.0.0.1:8080->8080/tcp
+jvb 127.0.0.1:8090->8080/tcp
 web 127.0.0.1:8000->8000/tcp
-web 127.0.0.1:8443->8443/tcp
+web 127.0.0.1:8444->8443/tcp
 ```
 
 Prosody only `expose`s 5222, 5269, 5347 and 5280 inside the Docker network (not published). There is no whiteboard container. There is no 4443/tcp in this release. `./jitsi.sh check` and
@@ -85,6 +90,8 @@ ss -ltnup | sort -k5
 ss -Hltnp 'sport = :443'          # expected: empty, or only 127.0.0.1:443 / [::1]:443 (Caddy)
 ss -Hlunp 'sport = :3478'         # expected: empty
 ss -Hlunp 'sport = :10000'        # expected: empty
+# Jitsi's loopback ports. Caddy holds 127.0.0.1:8080 and :8443; Jitsi uses 8000, 8444, 8090, 8888 instead.
+for p in 8000 8444 8090 8888; do ss -Hltnp "sport = :$p"; done   # expected: empty (jitsi.sh check refuses otherwise)
 
 # The address really is on this machine (no 1:1 NAT in front of it).
 ip -4 addr show | grep -w "$PUBLIC_IP" || echo "WARNING: $PUBLIC_IP is not on an interface; stop and ask"
@@ -238,13 +245,13 @@ Verify what actually listens, after the start:
 ss -Htulpn | awk '{print $1, $5, $7}' | sort
 ```
 
-The Jitsi lines must be exactly these (plus whatever EduLabs, SSH and cloudflared had in step 1; ignore ephemeral
+The Jitsi lines must be exactly these (plus whatever EduLabs, SSH and cloudflared had in step 1, including Caddy's 127.0.0.1:8080 and :8443; ignore ephemeral
 `127.0.0.1` ports of cloudflared):
 
 ```
 tcp 127.0.0.1:8000  docker-proxy       (web)
-tcp 127.0.0.1:8443  docker-proxy       (web, unused)
-tcp 127.0.0.1:8080  docker-proxy       (bridge REST)
+tcp 127.0.0.1:8444  docker-proxy       (web, unused)
+tcp 127.0.0.1:8090  docker-proxy       (bridge REST)
 tcp 127.0.0.1:8888  docker-proxy       (focus REST)
 udp 0.0.0.0:10000   docker-proxy       (bridge media; may also show [::]:10000)
 tcp 51.195.252.97:443   turnserver     (TURN over TLS)

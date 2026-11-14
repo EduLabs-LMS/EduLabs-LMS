@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The ONE way to run the EduLabs live-class (Jitsi) Compose project. Run as root on the VPS from /opt/jitsi/edulabs.
 #
-#   ./jitsi.sh check      preflight only: settings, secrets, pinned checkout, files, ports. Changes nothing.
+#   ./jitsi.sh check      preflight only: settings, secrets, pinned checkout, files, ports (free and allowed). Changes nothing.
 #   ./jitsi.sh up         preflight, then start (or update) every container in the background
 #   ./jitsi.sh down       stop and remove the containers (configuration and certificates stay)
 #   ./jitsi.sh restart [service]
@@ -45,7 +45,8 @@ preflight() {
   [ -z "$(git -C "$UPSTREAM" status --porcelain)" ] || die "$UPSTREAM has local changes; EduLabs changes belong in compose.override.yml"
   [ ! -e "$UPSTREAM/.env" ] || die "$UPSTREAM/.env exists; settings live only in $ENV_FILE"
   [ "$(envget HTTP_PORT)" = "127.0.0.1:8000" ] || die "HTTP_PORT must stay 127.0.0.1:8000 (loopback only)"
-  [ "$(envget HTTPS_PORT)" = "127.0.0.1:8443" ] || die "HTTPS_PORT must stay 127.0.0.1:8443 (loopback only)"
+  [ "$(envget HTTPS_PORT)" = "127.0.0.1:8444" ] || die "HTTPS_PORT must be 127.0.0.1:8444 (loopback only; Caddy holds 127.0.0.1:8443)"
+  [ "$(envget JVB_COLIBRI_PORT)" = "8090" ] || die "JVB_COLIBRI_PORT must be 8090 (Caddy holds 127.0.0.1:8080)"
   [ "$(envget ENABLE_GUESTS)" = "0" ] && [ "$(envget AUTH_TYPE)" = "jwt" ] || die "token auth must be on and guests off"
   # The meeting page may be framed only by the listed EduLabs origins: exact https origins, host only, separated by single spaces.
   local csp csp_re='^frame-ancestors( https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)+$'
@@ -73,6 +74,23 @@ preflight() {
   # Public TCP 443 must be free for coturn (or already be coturn). Caddy must be on loopback only.
   local holder; holder=$(ss -Hltnp 'sport = :443' | grep -v '127.0.0.1:443' | grep -v '\[::1\]:443' || true)
   if [ -n "$holder" ] && ! grep -q turnserver <<<"$holder"; then die "something else listens on public TCP 443: $holder"; fi
+  loopback_ports_free
+}
+
+# The loopback ports Jitsi publishes (web 8000, its unused HTTPS 8444, bridge REST 8090, focus REST 8888) must be free, or already
+# be Jitsi's own (an update of a running project). Anything else holding one is named, with its process and container.
+JITSI_LOOPBACK_PORTS="8000 8444 8090 8888"
+loopback_ports_free() {
+  local p listeners ours others
+  for p in $JITSI_LOOPBACK_PORTS; do
+    ours=$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "publish=$p/tcp")
+    [ -z "$ours" ] || continue
+    listeners=$(ss -Hltnp "sport = :$p" | awk '{print $4, $6}')
+    others=$(docker ps --filter "publish=$p/tcp" --format '{{.Names}} ({{.Image}}, compose project {{.Label "com.docker.compose.project"}})')
+    if [ -n "$listeners" ] || [ -n "$others" ]; then
+      die "TCP port $p, which Jitsi publishes on 127.0.0.1, is already in use: ${listeners:-no host listener}${others:+; container: $others}. Free it or ask; do not move EduLabs."
+    fi
+  done
 }
 
 # Every published port as "service host_ip:published->target/protocol". Docker publishes around ufw, so this list IS the
@@ -117,7 +135,7 @@ case "${1:-}" in
     probe="edulabs-health-$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n')"
     curl -s -o /dev/null "http://127.0.0.1:8000/healthroom?jwt=$probe&token=$probe"; sleep 2
     if compose logs --since 2m web 2>&1 | grep -q "$probe"; then echo "web      a query string WAS logged"; ok=1; else echo "web      query strings are not logged"; fi
-    code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/about/health) ; echo "bridge   http://127.0.0.1:8080/about/health -> $code"; [ "$code" = 200 ] || ok=1
+    code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/about/health) ; echo "bridge   http://127.0.0.1:8090/about/health -> $code"; [ "$code" = 200 ] || ok=1
     code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8888/about/health) ; echo "focus    http://127.0.0.1:8888/about/health -> $code"; [ "$code" = 200 ] || ok=1
     ip=$(envget PUBLIC_IP); host=$(envget TURN_HOST)
     if ss -Hlunp 'sport = :3478' | grep -q turnserver; then echo "turn     udp $ip:3478 listening"; else echo "turn     udp 3478 NOT listening"; ok=1; fi
@@ -125,6 +143,6 @@ case "${1:-}" in
     exit $ok ;;
   stats)
     docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}' $(compose ps -q) $(docker ps -q --filter name=edulabs) 2>/dev/null || true
-    echo; echo "bridge:"; curl -s http://127.0.0.1:8080/colibri/stats | python3 -c 'import json,sys; s=json.load(sys.stdin); [print(f"  {k}: {s.get(k)}") for k in ("conferences","participants","endpoints_sending_audio","endpoints_sending_video","bit_rate_download","bit_rate_upload","packet_rate_download","packet_rate_upload","stress_level")]' || echo "  (colibri stats unavailable)" ;;
+    echo; echo "bridge:"; curl -s http://127.0.0.1:8090/colibri/stats | python3 -c 'import json,sys; s=json.load(sys.stdin); [print(f"  {k}: {s.get(k)}") for k in ("conferences","participants","endpoints_sending_audio","endpoints_sending_video","bit_rate_download","bit_rate_upload","packet_rate_download","packet_rate_upload","stress_level")]' || echo "  (colibri stats unavailable)" ;;
   *) sed -n '2,13p' "$0"; exit 2 ;;
 esac
