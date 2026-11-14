@@ -15,6 +15,7 @@ import { MAX_HISTORY_PAGES, MAX_ROSTER_PAGES, ROSTER_PAGE, attendanceCounts, att
 import { adminCall, adminRead, asCallError, groupCall, limited, newRequestId } from './api';
 import { useGroupMembers, useGroups, useLoaded, useOfferings, type Loaded } from './data';
 import { StatusPill, StudentName, useDate } from './parts';
+import { StudentMarks } from '@/frontend/features/teacher-reports/student-marks';
 
 class NotFound extends Error {}
 
@@ -57,6 +58,7 @@ function StudentBody({ studentId, offering, initial }: { studentId: string; offe
       meta={<><span data-student-course><bdi dir="auto">{courseName(offering)}</bdi></span>{row.expires_at && status === 'active' && <> · <L id="ts.student.access_until" values={{ date: date(row.expires_at) }} /></>}</>} />
     {offering.manage && (status === 'active' || status === 'suspended' || status === 'expired') && <AccessChange row={row} offering={offering} status={status} onChanged={next => setRow(r => ({ ...r, ...next }))} />}
     <Groups studentId={studentId} offering={offering} name={row.display_name} />
+    <StudentMarks studentId={studentId} offeringId={offering.id} />
   </>;
 }
 

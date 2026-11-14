@@ -559,7 +559,7 @@ test('screens: no native checkbox, no disabled attribute, only the teacher homew
 test('menu: Homework is a real page, no longer Soon, on the desktop menu and the phone More sheet', () => {
  const nav = load('shared/teacher-home.ts', { '@/shared/teacher-groups': { unsavedSessions: () => [] }, '@/shared/teacher-attendance': { canTakeAttendance: () => false } });
  assert.ok(nav.teacherNav.some(i => i.key === 'homework' && i.href === '/teacher/homework'));
- assert.deepEqual(plain(nav.teacherNavSoon), ['reports']);
+ assert.deepEqual(plain(nav.teacherNavSoon), []);
  assert.ok(nav.teacherHomeworkActive('/teacher/homework')); assert.ok(nav.teacherHomeworkActive('/teacher/homework/new')); assert.ok(!nav.teacherHomeworkActive('/teacher/homeworks'));
  assert.match(read('frontend/features/teacher-frame/teacher-frame.tsx'), /data-more-item="homework"|data-more-item=\{?['"]homework/);
 });

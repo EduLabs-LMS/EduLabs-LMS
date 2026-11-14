@@ -54,32 +54,17 @@ module.exports = async ({ step, open, box, css1, desktop, phone, shot }) => {
     }
   });
 
-  await step('Reports: visible with a Soon tag (Homework and Exams are real pages now) in both looks, not links, not focusable, and a tooltip', async () => {
-    for (const look of ['classic', 'new']) for (const [lang, soon, tip, names] of [['en', 'Soon', 'Coming soon', ['Reports']], ['ar', 'قريبًا', 'سيتوفر قريبًا', ['التقارير']]]) {
+  await step('No item is left as Soon: Reports left the menu (desktop sidebar and phone More sheet), in both looks and languages', async () => {
+    for (const look of ['classic', 'new']) for (const lang of ['en', 'ar']) {
       const { page, context } = await open(desktop, 'view=home&lang=' + lang, look);
-      const rows = await page.locator('[data-teacher-nav] [data-soon]').evaluateAll(n => n.map(e => ({ key: e.dataset.nav, tag: e.tagName, role: e.getAttribute('role'), disabled: e.getAttribute('aria-disabled'), title: e.getAttribute('title'), href: e.getAttribute('href'), tab: e.getAttribute('tabindex'), text: e.innerText.split('\n').map(s => s.trim()).filter(Boolean), width: e.getBoundingClientRect().width })));
-      assert.deepEqual(rows.map(r => r.key), ['reports'], look);
-      rows.forEach((r, i) => {
-        assert.deepEqual([r.tag, r.role, r.disabled, r.title, r.href, r.tab], ['SPAN', 'link', 'true', tip, null, null], r.key);
-        assert.deepEqual(r.text, [names[i], soon], r.key); assert.ok(r.width > 180, 'as wide as the links');
-      });
+      assert.equal(await page.locator('[data-teacher-nav] [data-soon]').count(), 0, look + ' ' + lang);
+      assert.equal(await page.locator('[data-teacher-nav] [data-nav="reports"]').count(), 0);
       assert.equal(await page.locator('[data-teacher-nav] a[href*="reports"]').count(), 0);
-      const reached = [];
-      for (let i = 0; i < 16; i++) { await page.keyboard.press('Tab'); reached.push(await page.evaluate(() => document.activeElement?.dataset?.nav || '')); }
-      for (const key of ['reports']) assert.ok(!reached.includes(key), 'the keyboard passes it: ' + key);
-      assert.ok(reached.includes('courses'), 'and still reaches the real items');
-      await page.locator('[data-nav="reports"]').click({ force: true });
-      assert.equal(await page.evaluate(() => window.__pathname), '/home', 'a click goes nowhere');
-      assert.deepEqual(await page.evaluate(() => window.__pushes), []);
       await context.close();
-
       const small = await open(phone, 'view=home&lang=' + lang, look);
       await small.page.locator('[data-bottom-tab="more"]').click(); await small.page.locator('[data-more-sheet]').waitFor(); await small.page.waitForTimeout(300);
-      const sheet = await small.page.locator('[data-more-sheet] [data-soon]').evaluateAll(n => n.map(e => [e.dataset.moreItem, e.tagName, e.getAttribute('aria-disabled'), e.getAttribute('title'), e.getAttribute('href'), e.innerText.includes(e.querySelector('.d-soon').innerText)]));
-      assert.deepEqual(sheet, ['reports'].map(key => [key, 'SPAN', 'true', tip, null, true]), look);
-      await small.page.locator('[data-more-item="reports"]').click({ force: true });
-      assert.equal(await small.page.locator('[data-more-sheet]').isVisible(), true, 'tapping it does nothing, the sheet stays');
-      assert.equal(await small.page.evaluate(() => window.__pathname), '/home');
+      assert.equal(await small.page.locator('[data-more-sheet] [data-soon]').count(), 0, look + ' ' + lang + ' sheet');
+      assert.equal(await small.page.locator('[data-more-item="reports"]').count(), 0);
       await small.context.close();
     }
   });

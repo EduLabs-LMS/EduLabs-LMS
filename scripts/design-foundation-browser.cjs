@@ -305,7 +305,7 @@ const helpers = () => {
    assert.equal(await page.locator('[data-teacher-phone-footer]').evaluate(e => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map(b => Math.round(b.top))).size; }), 1, 'one line of footer');
    await page.locator('[data-bottom-tab="more"]').click();
    await page.locator('[data-more-sheet]').waitFor();
-   assert.deepEqual(await page.locator('[data-more-item]').evaluateAll(n => n.map(e => e.dataset.moreItem)), ['courses', 'homework', 'exams', 'reports', 'settings', 'help', 'signout']);
+   assert.deepEqual(await page.locator('[data-more-item]').evaluateAll(n => n.map(e => e.dataset.moreItem)), ['courses', 'homework', 'exams', 'settings', 'help', 'signout']);
    await page.waitForTimeout(300); // the sheet has finished sliding up
    const sheet = await box(page, '[data-more-sheet]'); assert.ok(Math.abs(sheet.y + sheet.height - phone.height) < 2, 'a bottom sheet on a phone');
    for (const b of await page.locator('[data-more-item]').evaluateAll(n => n.map(e => e.getBoundingClientRect().height))) assert.ok(b >= 44);

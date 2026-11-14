@@ -192,3 +192,13 @@ Boards `Correct-Desktop` and `Correct-Phone` in `docs/design/homework-content/`;
   "Missed the deadline" on a late hand-in, "Try again" (the database's retry), kept answers locked, and "Your tries ended when the
   deadline changed". Refusals are said plainly in English and Arabic ("The deadline has passed", "No tries left", changed, already
   handed in, unavailable).
+
+## Reports, spread into existing pages (built on `claude/reports`, awaiting owner approval)
+
+No Reports menu item or page. Existing design components, both looks, light and dark, English and Arabic (RTL), phone first; each section has its own error with Retry and a skeleton that keeps the layout.
+
+- **Groups list:** each card adds "Attendance 91% · Homework 84% · Exams 72%" for this month and a "N need attention" pill when N > 0; a Group with nothing says "No numbers yet". One read for the whole list.
+- **Group page:** tabs Sessions · Students · Report · Details (tour `group-report-tab`). Report: month picker, three numbers each with a count under it, the Pace line, "Needs attention · N" (plain-word reason pills, worst first), "Everyone else · N". Rows open the Student page.
+- **Students list:** a "Needs attention · N" chip beside the course and status filters (tour `needs-attention-filter`): all Groups and No Group, this month, worst first, each row with its Group and reasons, 25 a page.
+- **Student page:** keeps status, Groups and Suspend/Reactivate; adds (tour `student-marks`) the month picker, three numbers, the month's sessions as P/A boxes with the day number under each (letters, not colour alone), a Homework list (mark / Missing / Waiting for marks) and an Exams list (score/max, online or paper, Absent).
+- **Course page:** a Content / Results switch (tour `course-results-switch`). Results: one card per chapter with a bar and % per Group, "N exams · M homework", a "Weakest" flag, and "No marks yet" for empty chapters.

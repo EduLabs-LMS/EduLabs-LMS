@@ -577,3 +577,14 @@ Draft migration `20261115120000_exams_drafts_and_demo_v7.sql`, **not applied any
     password to reset.", a button to `/sign-in`, en/ar/both) instead of nothing. No link or secret is in it. The requester's reply is unchanged (the same 202,
     sent before any lookup), so there is still no enumeration. Disabled Google accounts and other providers (Apple) still get nothing.
 11. **esbuild** is a pinned devDependency (0.28.2); the 14 harnesses that took `LMS_ESBUILD_RUNTIME` fall back to `./node_modules`.
+
+## Reports, spread into existing pages (2026-11-14, branch `claude/reports`; draft migration `20261117120000`, not applied)
+
+1. **There is no Reports page and no menu item.** Numbers sit where the teacher already looks: Groups list, Group page, Students list, Student page, Course page. `teacherNavSoon` is empty: no "Soon" item is left in the menu.
+2. **Read-only database.** Five private security-definer functions (`search_path ''`, caller from `private.current_app_user_id()`) with public invoker wrappers granted to `authenticated`. Owners, instructors and a run's assistants read Group, student and attention reports; a course editor may also read course Results. One query per screen. Details: `docs/ai/REPORTS_AUDIT.md`.
+3. **Time zone.** Every month and day is Africa/Cairo, and the month picker says so. The Groups list and the Students filter always show this month; the Group Report tab, Student page and Course Results offer this month, any earlier month, or "Whole course".
+4. **Counting rules.** Attendance = present of sessions with saved attendance. Homework = handed in of given (missing counts against; "Waiting for marks" is not counted). Exams = marks of maximum for marked exams; absent shows as Absent. The Group of a homework or exam is the student's Group at its deadline or exam time; no Group counts under "No Group".
+5. **Needs attention (fixed for V1).** Attendance under 75%, or 2+ homework missing, or exams under 50%, or absent from an exam. Reasons are plain words, worst first. Teacher-editable thresholds come after V1.
+6. **Pace.** Says how far the course content goes (furthest lesson with published homework) and how many homework were given. Sessions do not record the lesson they covered.
+7. **Plan & usage lives in Settings, after V1.**
+8. **Deferred (after V1):** the teacher marks which lesson a session covered (own decisions first); teacher-editable thresholds; per-question statistics.

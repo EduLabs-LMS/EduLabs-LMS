@@ -120,7 +120,7 @@ test('navigation: every link is a real page; what is not built yet is shown as S
  for (const key of ['groups', 'students', 'courses']) assert.ok(fs.existsSync('app/(dashboard)/(routes)' + byKey[key] + '/page.tsx'), key);
  assert.equal(home.teacherNav.some(n => n.href === null), false);
  // Owner decision (DECISIONS.md, "Owner feedback on the New look"): this replaces hiding them. V1 needs them gone, each one by becoming a real link (V1.md).
- assert.deepEqual([...home.teacherNavSoon], ['reports'], 'Exams is built (claude/exams-ui): a link now');
+ assert.deepEqual([...home.teacherNavSoon], [], 'Reports left the menu (spread into existing pages): no Soon item is left');
  assert.deepEqual(JSON.parse(JSON.stringify(home.teacherNav.filter(n => n.key === 'homework').map(n => [n.href, n.match('/teacher/homework'), n.match('/teacher/homework/new'), n.match('/teacher/homeworks')]))), [['/teacher/homework', true, true, false]], 'Homework is built: a link, no Soon');
  assert.equal(home.teacherNav.some(n => home.teacherNavSoon.includes(n.key)), false, 'never both a link and Soon');
  assert.match(read('frontend/features/teacher-home/teacher-nav.tsx'), /teacherNavSoon\.map\(key => <span key=\{key\} role="link" aria-disabled="true"/);

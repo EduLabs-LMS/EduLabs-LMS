@@ -12,6 +12,8 @@ import { useLoadingRouter } from '@/frontend/components/providers/use-loading-ro
 import type { MessageKey } from '@/frontend/locales/messages';
 import { SectionError, StatusBadge, useRetry } from '@/frontend/features/teacher-home/parts';
 import { CourseContent } from '@/frontend/features/teacher-course/content-section';
+import { CourseResults } from '@/frontend/features/teacher-reports/course-results';
+import { SegmentedControl } from '@/frontend/components/design/controls';
 import { courseFailure, nextStatus, type CourseFailureKind, type CourseLoad, type CoursePageData } from '@/shared/teacher-course-page';
 import type { Classification } from '@/shared/contracts/academics';
 
@@ -44,6 +46,8 @@ export function TeacherCourseView({ load }: { load: CourseLoad }) {
 function Course({ course }: { course: CoursePageData }) {
   const [grades, setGrades] = useState<Grades>({ state: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [view, setView] = useState<'content' | 'results'>('content');
+  const { t } = useLanguage();
   useEffect(() => {
     const controller = new AbortController();
     const query = new URLSearchParams({ kind: 'classification', organizationId: course.organizationId, courseId: course.id });
@@ -67,7 +71,8 @@ function Course({ course }: { course: CoursePageData }) {
       </dl>
     </section>
     <Status course={course} />
-    <CourseContent courseId={course.id} />
+    <SegmentedControl label={t('rp.course.switch')} value={view} onChange={setView} data-tour="course-results-switch" data-course-switch options={[{ value: 'content', label: t('rp.course.content'), 'data-view': 'content' }, { value: 'results', label: t('rp.course.results'), 'data-view': 'results' }]} />
+    {view === 'content' ? <CourseContent courseId={course.id} /> : <CourseResults courseId={course.id} />}
   </div>;
 }
 

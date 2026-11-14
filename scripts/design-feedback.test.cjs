@@ -127,9 +127,9 @@ test('Motion: all of it is inside no-preference and starts with the New look, so
   assert.match(bridge, /prefers-reduced-motion: no-preference\) \{\s*html\[data-design="new"\]:has\(\[data-teacher-shell\]\)/);
 });
 
-test('Homework, Exams and Reports: in the data as not-yet-links, in both languages', () => {
+test('No menu item is left as Soon; the Soon mechanism stays (nothing uses it)', () => {
   const { messages } = load('frontend/locales/messages.ts');
-  assert.deepEqual([...teacherNavSoon], ['reports']);
+  assert.deepEqual([...teacherNavSoon], []);
   for (const item of teacherNav) assert.equal(typeof item.href, 'string');
   assert.ok(!teacherNav.some(i => teacherNavSoon.includes(i.key)), 'an item is one or the other');
   assert.equal(messages.en['th.nav.soon'], 'Soon'); assert.equal(messages.ar['th.nav.soon'], 'قريبًا'); assert.equal(messages.en['th.nav.coming_soon'], 'Coming soon');

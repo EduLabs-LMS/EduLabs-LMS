@@ -469,7 +469,7 @@ test('screens: no native checkbox, no disabled attribute, only the exam, course 
 test('menu: Exams is a real page on the desktop menu and the phone More sheet; only Reports is Soon', () => {
  const nav = load('shared/teacher-home.ts', { '@/shared/teacher-groups': { unsavedSessions: () => [] }, '@/shared/teacher-attendance': { canTakeAttendance: () => false } });
  assert.ok(nav.teacherNav.some(i => i.key === 'exams' && i.href === '/teacher/exams'));
- assert.deepEqual(plain(nav.teacherNavSoon), ['reports']);
+ assert.deepEqual(plain(nav.teacherNavSoon), []);
  assert.ok(nav.teacherExamsActive('/teacher/exams')); assert.ok(nav.teacherExamsActive(`/teacher/exams/${EX}/marks`)); assert.ok(!nav.teacherExamsActive('/teacher/examsx'));
  assert.match(read('frontend/features/teacher-frame/teacher-frame.tsx'), /data-more-item="exams"|data-more-item=\{?['"]exams|'exams'/);
 });

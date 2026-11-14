@@ -25,14 +25,15 @@ import { GroupCallError, groupCall, isAbort } from './api';
 import { readAttendanceTotals, type Totals } from './attendance-totals';
 import { useCourseTitles } from './course-titles';
 import { EditGroup } from './group-form';
+import { GroupReportPanel } from '@/frontend/features/teacher-reports/group-report';
 import { GroupError, Loading, ModeLabel, ModePill, WeeklyTimes, asError, useCommand } from './parts';
 import { GroupBodySkeleton, PanelSkeleton } from './skeletons';
 
 type Detail = { group: StudyGroup; schedules: WeeklyTime[]; serverNow: string };
 /** The Group as read, with how far the server clock was from this browser's clock when it was read (kept with the copy, so a revisit still shows the right "now"). */
 type Viewed = Detail & { skew: number };
-type Tab = 'sessions' | 'students' | 'details';
-const tabs: Tab[] = ['sessions', 'students', 'details'];
+type Tab = 'sessions' | 'students' | 'report' | 'details';
+const tabs: Tab[] = ['sessions', 'students', 'report', 'details'];
 
 const Busy = ({ on }: { on: boolean }) => on ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : null;
 
@@ -85,10 +86,11 @@ export function TeacherGroupView({ groupId }: { groupId: string }) {
       primary={active && group.staff ? { key: 'add', onClick: () => setAdding(true), label: <L id="tg.add.button" />, data: { 'data-add-session': '' } } : undefined} />
     <Dialog open={adding} onOpenChange={setAdding} title={<L id="tg.add.button" />}><AddSession group={group} onClose={() => setAdding(false)} onDone={() => { setAdding(false); reload(); }} /></Dialog>
     <ArchiveGroup group={group} open={archiving} onOpenChange={setArchiving} onDone={() => { setArchiving(false); reload(); }} />
-    <Tabs label={t('tg.tabs.label')} active={tab} onSelect={key => select(key as Tab)} items={tabs.map(key => ({ key, 'data-tab': key, label: key === 'students' && count !== null && !more ? <L id="tg.tab.students_count" values={{ count }} /> : <L id={`tg.tab.${key}`} /> }))} />
+    <Tabs label={t('tg.tabs.label')} active={tab} onSelect={key => select(key as Tab)} items={tabs.map(key => ({ key, 'data-tab': key, ...(key === 'report' ? { 'data-tour': 'group-report-tab' } : {}), label: key === 'students' && count !== null && !more ? <L id="tg.tab.students_count" values={{ count }} /> : <L id={`tg.tab.${key}`} /> }))} />
     {tabs.map(key => opened.includes(key) && <div key={key} role="tabpanel" aria-label={t(`tg.tab.${key}`)} hidden={tab !== key} data-panel={key} className="d-stack-lg">
       {key === 'sessions' && <SessionsPanel group={group} now={now} revision={revision} onChanged={reload} />}
       {key === 'students' && <StudentsPanel group={group} members={members} revision={revision} onVersion={version => mutate({ ...detail, group: { ...detail.group, version } })} onStale={reload} />}
+      {key === 'report' && <GroupReportPanel groupId={groupId} offeringId={group.offering_id} />}
       {key === 'details' && <Details group={group} schedules={schedules} editing={editing} onEditing={setEditing} onChanged={reload} />}
     </div>)}
   </div>;

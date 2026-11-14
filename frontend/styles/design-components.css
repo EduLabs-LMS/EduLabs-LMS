@@ -759,3 +759,35 @@ html[dir="rtl"] .d-field-input--trailing[dir="ltr"] { padding-inline-end: var(--
 .d-strength[data-level="3"] .d-strength-bar[data-on="true"], .d-strength[data-level="4"] .d-strength-bar[data-on="true"] { background: var(--d-pill-success); }
 .d-strength-text { margin: 0; font-size: var(--d-meta-size); line-height: var(--d-meta-lh); font-weight: 600; color: var(--d-ink); }
 [data-met="true"] { font-weight: 600; }
+
+/* ---- Reports, spread into the Groups, Students and Course pages (claude/reports). Tokens only, so both looks, both themes and RTL follow. ---- */
+.d-rp-bar { display: block; flex: 1 1 auto; min-width: 48px; max-width: 100%; height: 8px; overflow: hidden; border-radius: 999px; background: var(--d-pill-neutral-bg); }
+.d-rp-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--d-logo-tree); }
+.d-rp-bar[data-low="true"] > span { background: var(--d-pill-warning); }
+.d-rp-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--d-space-2) var(--d-space-3); }
+.d-rp-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--d-space-2); width: 100%; }
+.d-rp-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--d-space-3); }
+.d-rp-stat-label { margin: 0; font-size: var(--d-meta-size); font-weight: 700; color: var(--d-meta); overflow-wrap: anywhere; }
+.d-rp-stat-value { margin: 0; font-size: 22px; line-height: 28px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--d-ink); }
+.d-rp-stat-sub { margin: 0; font-size: var(--d-meta-size); line-height: var(--d-meta-lh); color: var(--d-meta); overflow-wrap: anywhere; }
+.d-rp-section { display: flex; flex-direction: column; gap: var(--d-space-2); width: 100%; }
+.d-rp-h { margin: 0; font-size: var(--d-meta-size); line-height: var(--d-meta-lh); font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--d-meta); }
+.d-rp-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; width: 100%; }
+.d-rp-row { display: flex; align-items: center; gap: var(--d-space-3); min-height: 60px; padding: var(--d-space-2) 0; border-bottom: 1px solid var(--d-line); color: var(--d-ink); text-decoration: none; }
+.d-rp-rows > li:last-child > .d-rp-row { border-bottom: 0; }
+.d-rp-row-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.d-rp-reasons { display: flex; flex-wrap: wrap; gap: var(--d-space-1) var(--d-space-2); }
+.d-rp-reasons .d-pill { white-space: normal; height: auto; min-height: var(--d-pill-height); padding-block: 2px; }
+.d-rp-group-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--d-space-1) var(--d-space-2); margin: 0; }
+.d-rp-marks { display: flex; flex-wrap: wrap; gap: var(--d-space-2); padding: 0; margin: 0; list-style: none; }
+.d-rp-mark { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.d-rp-mark b { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; font-size: 14px; font-weight: 700; background: var(--d-pill-success-bg); color: var(--d-pill-success); }
+.d-rp-mark[data-state="absent"] b { background: var(--d-pill-danger-bg); color: var(--d-pill-danger); }
+.d-rp-mark span { font-size: var(--d-meta-size); font-variant-numeric: tabular-nums; color: var(--d-meta); }
+.d-rp-chapter { display: flex; flex-direction: column; gap: var(--d-space-3); padding: var(--d-space-4); }
+.d-rp-chapter-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--d-space-2); }
+.d-rp-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--d-space-2); }
+.d-rp-bars > li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(48px, 2fr) auto; align-items: center; gap: var(--d-space-3); min-height: 32px; }
+.d-rp-value { font-size: var(--d-label-size); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--d-ink); }
+@media (max-width: 767px) { .d-rp-bars > li { grid-template-columns: minmax(0, 1fr) auto; } .d-rp-bars > li > .d-rp-bar { grid-column: 1 / -1; grid-row: 2; } }
+.d-rp-attn-chip[aria-pressed="true"] { color: var(--d-pill-warning); background: var(--d-pill-warning-bg); }

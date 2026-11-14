@@ -521,7 +521,7 @@ function command(body) {
  });
  await step('Teacher menu in the real frame: four links and the Soon items, Settings at the bottom opens Settings', async () => {
   const { page, context } = await open(desktop, '/teacher/groups'); await page.locator('[data-teacher-nav]').waitFor();
-  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses', 'homework', 'exams', 'reports']);
+  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses', 'homework', 'exams']);
   assert.equal(await page.locator('[data-teacher-nav] a[href*="settings"], [data-teacher-nav] a[href*="analytics"]').count(), 0);
   await page.locator('[data-nav="settings"]').click(); await page.waitForURL('**/teacher/settings/account'); await page.locator('[data-settings-account]').waitFor(); await context.close();
  });

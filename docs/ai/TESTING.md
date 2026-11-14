@@ -403,3 +403,9 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
   `docs/design/screenshots/password-reset/` (`LMS_COPY_SHOTS=1`). Needs `LMS_BROWSER_RUNTIME` and `LMS_CHROMIUM_EXECUTABLE`; esbuild is a devDependency (`LMS_ESBUILD_RUNTIME` only overrides it).
 - SQL: `supabase/tests/demo-seed-8.sql` (fills under four server time zones).
 - Not covered: a real inbox, a real Firebase link, Brevo click tracking, session revocation on a live provider.
+
+## Reports (`claude/reports`)
+
+- `scripts/teacher-reports.test.cjs`: the contract, Cairo month choices, reason words, failure mapping, empty menu, locale parity and ruled-out words, the five routes and the middleware line.
+- SQL suites `reports`, `reports-scale` and `reports-demo` (`LMS_SQL_ONLY=reports,reports-scale,reports-demo`); `reports-scale` is the listing-performance check for the large-space fixture and runs in the final full run.
+- A browser harness for the five pages is still to be written; until then the screens are only typechecked and linted.

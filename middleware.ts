@@ -54,6 +54,8 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   // Teacher Exams: the page read, one exam, save (a new one only at new/save), lifecycle, a Group's window, pictures, and correcting (the
   // queue, one try, grade/release, Release N) and paper marks (the sheet, the marks). Exact paths only.
   if (path === '/api/teacher/exams' || /^\/api\/teacher\/exams\/(?:new\/save|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:save|lifecycle|window|upload|queue|work|release-many|sheet|marks|tries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?)$/.test(path)) return NextResponse.next();
+  // Reports (read only): the Groups list line, one Group's Report tab, Needs attention, one student, a course's Results. Exact paths only; each is a same-origin GET.
+  if (path === '/api/teacher/reports/groups' || path === '/api/teacher/reports/attention' || /^\/api\/teacher\/reports\/(?:groups|students|courses)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)) return NextResponse.next();
   // The Exams page, New exam, one exam's editor, its correcting screen and its paper marks. Titles, names and marks are on them: kept out of caches and referrers.
   if (path === '/teacher/exams' || path === '/teacher/exams/new' || /^\/teacher\/exams\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:correct|marks))?$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   // Student Exams: the list, one exam (with one of its tries), saving and handing in, and the photo answer. Exact paths only. The student's pages carry answers and

@@ -20,6 +20,7 @@ import { useGroupMembers, useGroups, useOfferings, usePendingRequests, useRoster
 import { StatusPill, StudentName, courseLabels } from './parts';
 import { StudentRowsSkeleton } from './skeletons';
 import { RequestsSection, type Notice } from './requests';
+import { AttentionList, useAttention } from '@/frontend/features/teacher-reports/attention-list';
 
 const statusLabel: Record<StatusFilter, MessageKey> = {
   all: 'ts.students.status.all', active: 'ts.students.status.active', suspended: 'ts.students.status.suspended', expired: 'ts.students.status.expired',
@@ -37,11 +38,13 @@ export function TeacherStudentsView({ canInvite }: { canInvite: boolean }) {
   const [typed, setTyped] = useState('');
   const [query, setQuery] = useState('');
   const [revision, setRevision] = useState(0);
+  const [attentionOn, setAttentionOn] = useState(false);
   const [notices, setNotices] = useState<Notice[]>([]);
   useEffect(() => { const h = setTimeout(() => setQuery(typed.trim()), 300); return () => clearTimeout(h); }, [typed]);
 
   const offeringRows = offerings.data.state === 'ready' ? offerings.data.value : null;
   const labels = useMemo(() => courseLabels(offeringRows ?? []), [offeringRows]);
+  const attn = useAttention(course === 'all' ? null : course, 1);
   const roster = useRosterList(offeringRows, course, status, query, revision);
   const requests = usePendingRequests(offeringRows, revision);
   const groupRows = groups.data.state === 'ready' ? groups.data.value : null;
@@ -77,6 +80,9 @@ export function TeacherStudentsView({ canInvite }: { canInvite: boolean }) {
       <RequestsSection rows={requests.rows} failed={requests.failed.length} more={requests.more.length} labels={labels} groups={groupRows ?? []} groupsError={groups.data.state === 'error'} notices={notices}
         onNotice={addNotice} onCloseNotice={id => setNotices(list => list.filter(n => n.id !== id))} onChanged={id => { requests.drop(id); setRevision(v => v + 1); }} onRetryFailed={() => requests.reload()} />
 
+      <div className="d-filters" role="group" aria-label={t('rp.students.chip_plain')}>
+        <button type="button" aria-pressed={attentionOn} data-needs-attention-filter data-tour="needs-attention-filter" onClick={() => setAttentionOn(v => !v)} className="d-filter d-rp-attn-chip">{attn.attention.state === 'ready' ? <L id="rp.students.chip" values={{ count: attn.attention.total }} /> : <L id="rp.students.chip_plain" />}</button>
+      </div>
       <div className="d-filters-grid" data-tour="student-filters">
         <SearchField label={t('ts.students.search')} data-students-search value={typed} onChange={e => setTyped(e.target.value)} maxLength={120} placeholder={t('ts.students.search')} />
         <label className="d-field"><span className="sr-only"><L id="ts.students.course_filter" /></span>
@@ -89,8 +95,9 @@ export function TeacherStudentsView({ canInvite }: { canInvite: boolean }) {
         <p className="d-alert-text"><L id="ts.students.groups_unavailable" /></p>
         <Button type="button" onClick={() => { if (groups.data.state === 'error') groups.retry(); members.retry(); }}><L id="tg.retry" /></Button></div>}
 
-      {roster.phase === 'loading' && <div role="status" data-state="loading"><StudentRowsSkeleton /><span className="sr-only"><L id="ts.students.loading" /></span></div>}
-      {roster.phase === 'ready' && <>
+      {attentionOn && <AttentionList attention={attn.attention} retry={attn.retry} loadMore={attn.loadMore} />}
+      {!attentionOn && roster.phase === 'loading' && <div role="status" data-state="loading"><StudentRowsSkeleton /><span className="sr-only"><L id="ts.students.loading" /></span></div>}
+      {!attentionOn && roster.phase === 'ready' && <>
         {roster.failed.length > 0 && <div role="alert" data-state="error" data-courses-failed className="d-alert">
           <p className="d-alert-text"><L id="ts.students.course_failed" values={{ courses: roster.failed.map(o => labels.get(o.id)).join(', ') }} /></p>
           <Button type="button" onClick={roster.retryFailed}><L id="tg.retry" /></Button></div>}

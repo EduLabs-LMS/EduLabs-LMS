@@ -246,8 +246,8 @@ export const teacherNav: readonly TeacherNavItem[] = [
   { key: 'exams', href: '/teacher/exams', match: teacherExamsActive },
 ];
 
-/** Visible but not usable yet: a "Soon" tag and no link (owner decision, DECISIONS.md). Each one moves to teacherNav when it is built. */
-export const teacherNavSoon = ['reports'] as const;
+/** Visible but not usable yet: a "Soon" tag and no link (owner decision, DECISIONS.md). Nothing is left: Reports was removed from the menu (its content is spread into the Groups, Students and Course pages; DECISIONS.md, "Reports"). The mechanism stays for a future item. */
+export const teacherNavSoon = [] as const;
 
 /** Teacher navigation is for active staff of the Firebase/Supabase build only; students and the Clerk fallback keep their own navigation. */
 export const showTeacherNav = (firebase: boolean, staffOrganizationIds: readonly string[] | null | undefined) => firebase && Boolean(staffOrganizationIds?.length);

@@ -167,7 +167,7 @@ createRoot(document.getElementById('root')).render(
   assert.equal(await page.locator('[data-home-courses-link]').count(), 0, 'no Courses link or block on Home');
   assert.ok(await page.locator('aside svg').first().isVisible(), 'the real tree mark is shown');
   const nav = page.locator('[data-teacher-nav] a'); assert.deepEqual(await nav.allInnerTexts(), menuItems);
-  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses', 'homework', 'exams', 'reports'], 'in the agreed order; Reports is shown as Soon until it is built');
+  assert.deepEqual(await page.locator('[data-teacher-nav] [data-nav]').evaluateAll(n => n.map(e => e.dataset.nav)), ['home', 'groups', 'students', 'courses', 'homework', 'exams'], 'in the agreed order; no item is left as Soon');
   assert.equal(await page.locator('[data-teacher-nav] a[data-nav="homework"], [data-teacher-nav] a[href="/teacher/homework"]').count(), 1, 'Homework is a link'); assert.doesNotMatch(await page.locator('[data-teacher-nav] [data-nav="homework"]').innerText(), /Soon/);
   assert.equal(await page.locator('[data-teacher-nav] a[aria-current="page"]').innerText(), 'Home');
   const footer = page.locator('[data-teacher-footer]'); assert.equal(await footer.locator('[data-profile-name]').innerText(), 'Synthetic Teacher'); assert.equal(await footer.locator('[data-profile-space]').innerText(), 'Synthetic space');
@@ -207,7 +207,7 @@ createRoot(document.getElementById('root')).render(
   const tabs = await page.locator('[data-teacher-tabs] [data-bottom-tab]').evaluateAll(n => n.map(e => e.getBoundingClientRect().height)); assert.ok(tabs.every(h => h >= 44), 'tabs are 44px+');
   assert.equal(await page.locator('[data-bottom-tab="home"]').getAttribute('aria-current'), 'page');
   await page.locator('[data-bottom-tab="more"]').click(); const sheet = page.locator('[data-more-sheet]'); await sheet.waitFor();
-  assert.deepEqual(await sheet.locator('[data-more-item]').evaluateAll(n => n.map(e => e.dataset.moreItem)), ['courses', 'homework', 'exams', 'reports', 'settings', 'help', 'signout']);
+  assert.deepEqual(await sheet.locator('[data-more-item]').evaluateAll(n => n.map(e => e.dataset.moreItem)), ['courses', 'homework', 'exams', 'settings', 'help', 'signout']);
   assert.equal(await sheet.locator('[data-more-item="courses"]').getAttribute('href'), '/teacher/courses'); assert.equal(await sheet.locator('[data-more-item="settings"]').getAttribute('href'), '/teacher/settings'); assert.equal(await sheet.locator('[data-more-item="help"]').getAttribute('href'), '/support'); assert.equal(await sheet.locator('[data-more-item="homework"]').getAttribute('href'), '/teacher/homework');
   const rows = await sheet.locator('[data-more-item]').evaluateAll(n => n.map(e => e.getBoundingClientRect().height)); assert.ok(rows.every(h => h >= 44));
   await page.screenshot({ path: path.join(shots, 'menu-en-390.png') });
