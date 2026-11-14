@@ -380,3 +380,17 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
   question, each answer saved, Arabic digits, a photo, confirm, lost connection, deadline, second try, results, review, paper; phone 390 and
   desktop 1360, Classic and New, English and Arabic (RTL). `teacher-home-browser.cjs` step `Home "Live now"` photographs the card.
   Pictures: `docs/design/screenshots/exams-student/`.
+
+## Resource limits and the migration registry (tooling fix, owner's request)
+
+- **Limits for the owner's PC.** `npm test` runs `scripts/run-tests.cjs`, which starts `node --test --test-concurrency=2` over the files listed in
+  `test:files` in package.json; raise it with `LMS_TEST_JOBS=N`. The SQL runner's default is `min(4, CPU cores - 1)` jobs; raise it with
+  `LMS_SQL_JOBS=N`. Run checks in the foreground, one at a time; never start a long run in the background (a background run can be killed when
+  memory is short, which tells you nothing about the code). Stop the local PostgreSQL between steps that don't need it (`.local/pg17.sh stop`,
+  start again with `.local/pg17.sh start`).
+- **Migration registry.** `scripts/lib/migrations.cjs` lists and hashes migrations; `scripts/migrations-registry.test.cjs` is the one test of the
+  set (names unique, sorted, each with its own timestamp; every migration pinned exactly once: the 31 baseline in
+  `scripts/baseline-migrations.json`, every later one as one line in `scripts/migrations.sha256`; every pinned file byte-identical to its pin).
+  **A new migration needs exactly one new line**: `node scripts/lib/migrations.cjs supabase/migrations/<file>.sql >> scripts/migrations.sha256`.
+  A migration's own test file checks its own shape (transaction, functions, grants, `-text`) and must not assert where it sits in the list
+  or what comes after it. A migration that was applied is never edited; a draft amended before it is applied needs its line updated.

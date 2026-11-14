@@ -11,7 +11,7 @@
 //    check results are kept in the template's comment and printed on later runs. A changed
 //    input changes the hash and rebuilds automatically; --rebuild forces it. Older templates are dropped.
 //  - Every SQL suite and every race / screen-SQL script runs in its OWN database cloned from the template (CREATE DATABASE ... TEMPLATE),
-//    in parallel: LMS_SQL_JOBS (default CPU cores - 1), within the server's connection limit (a race script counts its connections).
+//    in parallel: LMS_SQL_JOBS (default min(4, CPU cores - 1)), within the server's connection limit (a race script counts its connections).
 //    Each suite is still checked to have rolled back. Each job's time and the total are printed at the end.
 //  - LMS_SQL_ONLY=a,b selects those SQL suites AND the race and screen-SQL scripts mapped to them (RACE_SUITES below); a script name
 //    may also be given directly. LMS_SQL_RACES=0 skips races. With no filter everything runs, as before.
@@ -215,7 +215,7 @@ async function parallel() {
  } else console.log(`Built template ${tmpl.name} in ${tmpl.note.seconds}s.`);
  const limits=(await admin.query("select current_setting('max_connections')::int m,current_setting('superuser_reserved_connections')::int r")).rows[0];
  const budget=Math.max(4,limits.m-limits.r-3);
- const jobs=Math.max(1,Number(process.env.LMS_SQL_JOBS)||os.cpus().length-1);
+ const jobs=Math.max(1,Number(process.env.LMS_SQL_JOBS)||Math.min(4,os.cpus().length-1));
  const queue=[...suites.map(n=>({kind:'suite',name:n,weight:2})),...scripts.map(n=>({kind:'race',name:n,weight:Math.min(budget,(timings[`race:${n}:connections`]||RACE_CONNECTIONS[n]||14)+1)}))]
   .map(j=>({...j,est:timings[`${j.kind}:${j.name}`]??(j.name==='listing-performance'?240:30)})).sort((a,b)=>b.est-a.est);
  console.log(`Running ${suites.length} SQL suites and ${scripts.length} race/screen scripts, each in its own clone, ${jobs} at a time within ${budget} connections.`);

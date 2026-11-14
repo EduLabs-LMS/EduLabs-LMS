@@ -30,3 +30,7 @@ Do not resurrect retired components from Git as the new starting UI.
 Local SQL tests (standing rule for every run): While working, run only the affected suites (LMS_SQL_ONLY). Run the full SQL run ONCE,
 at the very end, before pushing. Never run it twice in a row for the same change. Don't include listing-performance unless listing
 reads changed. See docs/ai/TESTING.md, "The fast SQL runner".
+
+Resource limits: `npm test` runs with `--test-concurrency=2` (`LMS_TEST_JOBS` raises it); the SQL runner defaults to `min(4, cores - 1)` jobs
+(`LMS_SQL_JOBS` raises it). Run checks in the foreground, one at a time; never start a long run in the background. A new migration needs exactly one
+new line in `scripts/migrations.sha256` (see docs/ai/TESTING.md, "Resource limits and the migration registry"); no other test file pins migration order.

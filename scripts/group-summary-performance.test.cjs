@@ -7,10 +7,8 @@ const fn = sql => { const start = sql.indexOf('create or replace function privat
 const before = fn(oldSql), after = fn(newSql);
 const summary = f => { const a = f.indexOf("if p_section='summary' then"), b = f.indexOf("if p_group is null and p_section like 'offering:%' then"); return [f.slice(0, a), f.slice(a, b), f.slice(b)]; };
 
-test('migration: LF only, pinned as text, not the last migration any more, not applied by anything in the app', () => {
+test('migration: LF only, pinned as text, not applied by anything in the app', () => {
  assert.ok(!newSql.includes('\r')); assert.match(read('.gitattributes'), /20261105120000_group_summary_performance\.sql -text/);
- const names = fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
- assert.equal(names.at(-10), '20261105120000_group_summary_performance.sql', 'only the space-name, listing-performance, course-content, homework rules, lesson publish, homework move, homework correct, exams and exams drafts migrations come after it');
  assert.match(newSql, /^-- Performance of private\.group_view[\s\S]*\nbegin;\n/); assert.match(newSql, /\ncommit;\n$/);
  assert.equal((newSql.match(/create or replace function/g) ?? []).length, 1, 'one function is replaced');
  assert.doesNotMatch(newSql.replace(/--.*$/gm, ''), /\b(grant|revoke|alter|create table|create index|drop)\b/i, 'no grants, tables or indexes change');
