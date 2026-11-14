@@ -168,9 +168,30 @@ test('request: the same reply for an account, an unknown address, a Google-only 
   replies.push(plain(await service.requestPasswordReset({ email }, { address: '203.0.113.' + replies.length }, w.deps)));
  for (const r of replies) assert.deepEqual(r, { status: 202, body: { ok: true } });
  await w.drain();
- assert.deepEqual(w.calls.mails.map((m) => m.to).sort(), ['both@example.test', 'exists@example.test'], 'only password accounts get an email');
- assert.deepEqual(w.calls.links.map((l) => l.email).sort(), ['both@example.test', 'exists@example.test']);
- assert.deepEqual(w.calls.events.sort(), ['disabled_account', 'no_account', 'not_password_account', 'sent', 'sent']);
+ assert.deepEqual(w.calls.mails.map((m) => m.to).sort(), ['both@example.test', 'exists@example.test', 'google@example.test'], 'password accounts get the link, a Google-only account gets the Google email, nobody else gets anything');
+ assert.deepEqual(w.calls.links.map((l) => l.email).sort(), ['both@example.test', 'exists@example.test'], 'a link is made only for accounts that have a password');
+ assert.deepEqual(w.calls.events.sort(), ['disabled_account', 'google_account_sent', 'no_account', 'sent', 'sent']);
+});
+test('request: a Google-only account gets the designed "you sign in with Google" email, with no reset link, and the requester sees nothing different', async () => {
+ for (const language of ['en', 'ar', undefined]) {
+  const w = world(), reply = await service.requestPasswordReset({ email: 'google@example.test', ...(language ? { language } : {}) }, { address: null }, w.deps);
+  const unknown = await service.requestPasswordReset({ email: 'nobody@example.test', ...(language ? { language } : {}) }, { address: null }, w.deps);
+  assert.deepEqual(plain(reply), plain(unknown), 'the same reply as for an unknown address');
+  await w.drain();
+  assert.equal(w.calls.links.length, 0, 'no reset link is made for it'); assert.equal(w.calls.mails.length, 1);
+  const [mail] = w.calls.mails;
+  assert.equal(mail.to, 'google@example.test');
+  for (const part of [mail.html, mail.text]) { assert.doesNotMatch(part, /oobCode|reset-password/, 'no reset link'); assert.ok(part.includes(origin + '/sign-in'), 'the sign-in page'); }
+  assert.ok(mail.html.includes('href="' + origin + '/sign-in"'), 'a button to the sign-in page'); assert.ok(mail.html.includes('#7ED957'));
+  if (language !== 'ar') { assert.ok(mail.text.includes('You sign in to EduLabs with Google. Use "Continue with Google" on the sign-in page; there\'s no password to reset.')); assert.match(mail.html, /lang="en" dir="ltr"/); }
+  if (language !== 'en') { assert.ok(mail.text.includes('تسجّل الدخول إلى EduLabs عبر Google')); assert.match(mail.html, /lang="ar" dir="rtl"/); }
+  assert.ok(mail.html.includes('<html lang="' + (language ?? 'en') + '"'), 'the page language is the main language');
+ }
+ // A disabled Google account and an Apple-only account get nothing.
+ const w = world(); accounts['disabled-google@example.test'] = { disabled: true, providerData: [{ providerId: 'google.com' }] }; accounts['apple@example.test'] = { disabled: false, providerData: [{ providerId: 'apple.com' }] };
+ for (const email of ['disabled-google@example.test', 'apple@example.test']) await service.requestPasswordReset({ email }, { address: null }, w.deps);
+ await w.drain(); assert.equal(w.calls.mails.length, 0);
+ delete accounts['disabled-google@example.test']; delete accounts['apple@example.test'];
 });
 test('request: the reply does not wait for the lookup, so how long it takes cannot tell either', async () => {
  let release; const gate = new Promise((r) => { release = r; });
@@ -314,9 +335,9 @@ test('logs: no email, code, link or error text is ever written, in any outcome',
  const all = logs.join('\n') + '\n' + [w, broken, mailFails].flatMap((x) => x.calls.events).join('\n');
  assert.ok(all.length > 0, 'something is logged: the fixed event names');
  for (const secret of [...emails, '@', CODE, 'oobCode', 'reset-password', 'firebaseapp', 'secret failure', 'example.test']) assert.ok(!all.includes(secret), 'a log line contains ' + secret);
- const events = new Set(['sent', 'no_account', 'not_password_account', 'disabled_account', 'link_failed', 'mail_rejected', 'mail_unconfirmed', 'lookup_failed', 'unavailable', 'limited']);
+ const events = new Set(['sent', 'google_account_sent', 'no_account', 'not_password_account', 'disabled_account', 'link_failed', 'mail_rejected', 'mail_unconfirmed', 'lookup_failed', 'unavailable', 'limited']);
  for (const e of [...w.calls.events, ...broken.calls.events, ...mailFails.calls.events]) assert.ok(events.has(e), e);
- for (const line of logs) assert.match(line, /^password_reset (sent|no_account|not_password_account|disabled_account|link_failed|mail_rejected|mail_unconfirmed|lookup_failed|unavailable|limited)$/);
+ for (const line of logs) assert.match(line, /^password_reset (sent|google_account_sent|no_account|not_password_account|disabled_account|link_failed|mail_rejected|mail_unconfirmed|lookup_failed|unavailable|limited)$/);
 });
 test('source: the new server and client files write only fixed event names and handle no secret', () => {
  const server = ['server/http/password-reset.ts', 'server/services/password-reset.ts', 'server/services/password-reset-email.ts', 'server/services/password-reset-limiter.ts'];
@@ -388,7 +409,7 @@ for (const [name, language] of [['en', 'en'], ['ar', 'ar'], ['both', undefined]]
 test('email: what the owner asked for is in it, in each language, and nothing else varies', () => {
  for (const language of ['en', 'ar', undefined]) {
   const { html, text, subject } = emailModule.passwordResetEmailContent({ link: exampleLink, language });
-  assert.ok(html.includes('#7ED957'), 'brand green'); assert.ok(html.includes(origin + '/email/edulabs-mark.png'), 'logo'); assert.match(html, /alt="EduLabs"/);
+  assert.ok(html.includes('#7ED957'), 'brand green'); assert.ok(html.includes(origin + '/email-assets/edulabs-logo.png'), 'logo'); assert.match(html, /alt="EduLabs"/);
   assert.ok(html.includes('href="' + exampleLink + '"'), 'the button'); assert.ok(html.includes('>' + exampleLink + '</a>'), 'the link as text'); assert.ok(text.includes(exampleLink));
   assert.ok(html.indexOf('>' + exampleLink + '</a>') > html.indexOf('class="button-link"'), 'the link text sits below the button');
   assert.match(html, /<meta name="viewport"/); assert.match(html, /role="presentation"/); assert.doesNotMatch(html, /<script|javascript:|<form|<iframe|<link /i);
@@ -402,6 +423,52 @@ test('email: what the owner asked for is in it, in each language, and nothing el
  // The link is the only variable part and it is escaped where it enters HTML.
  const tricky = emailModule.passwordResetEmailContent({ link: origin + '/reset-password?oobCode=a"b<c>&d' });
  assert.doesNotMatch(tricky.html, /oobCode=a"b<c>/); assert.ok(tricky.html.includes('oobCode=a&quot;b&lt;c&gt;&amp;d'));
+});
+test('email: each language part is wrapped in its own lang and dir, and the page language is the main language (no "this message is in Arabic" banner for English readers)', () => {
+ const both = emailModule.passwordResetEmailContent({ link: exampleLink }).html;
+ assert.match(both, /<html lang="en" dir="ltr"/);
+ assert.equal((both.match(/<div lang="en" dir="ltr">/g) || []).length, 1); assert.equal((both.match(/<div lang="ar" dir="rtl">/g) || []).length, 1);
+ assert.ok(both.indexOf('<div lang="en" dir="ltr">') < both.indexOf('<div lang="ar" dir="rtl">'), 'English first');
+ const en = both.slice(both.indexOf('<div lang="en" dir="ltr">'), both.indexOf('<div lang="ar" dir="rtl">'));
+ assert.doesNotMatch(en, /[\u0600-\u06FF]/, 'no Arabic inside the English part'); assert.match(both.slice(both.indexOf('<div lang="ar" dir="rtl">')), /[\u0600-\u06FF]/);
+ assert.match(emailModule.passwordResetEmailContent({ link: exampleLink, language: 'ar' }).html, /<div lang="ar" dir="rtl">/);
+ assert.doesNotMatch(emailModule.passwordResetEmailContent({ link: exampleLink, language: 'en' }).html, /<div lang="ar"/);
+});
+for (const [name, language] of [['google-en', 'en'], ['google-ar', 'ar'], ['google-both', undefined]]) {
+ test(`email: the ${name} Google-account HTML and text parts match their snapshots`, () => {
+  const mail = emailModule.googleAccountEmailContent({ origin, language });
+  snapshot(name + '.html', mail.html); snapshot(name + '.txt', mail.text); snapshot(name + '.subject.txt', mail.subject + '\n');
+  assert.match(mail.html, /<div lang="(en|ar)" dir="(ltr|rtl)">/); assert.doesNotMatch(mail.html, /<script|javascript:|<form|<iframe/i); assert.ok(mail.html.length < 16000);
+ });
+}
+test('email: the logo is one public PNG at /email-assets/edulabs-logo.png, 2x with fixed width, height and alt, from the canonical origin', () => {
+ const path0 = '/email-assets/edulabs-logo.png';
+ assert.equal(emailModule.emailLogoPath, path0);
+ for (const html of [emailModule.passwordResetEmailContent({ link: exampleLink }).html, emailModule.googleAccountEmailContent({ origin }).html]) {
+  assert.ok(html.includes('<img src="' + origin + path0 + '" width="40" height="47" alt="EduLabs"')); assert.doesNotMatch(html, /edulabs-mark|\/email\//);
+ }
+ const png = fs.readFileSync('public' + path0);
+ assert.equal(png.subarray(1, 4).toString(), 'PNG'); assert.equal(png.readUInt32BE(16), 80, '2x of 40'); assert.equal(png.readUInt32BE(20), 94, '2x of 47');
+ assert.ok(png.length < 20000);
+ // The link's origin comes from the canonical origin, never from a request: the service builds it from deps.origin().
+ assert.match(code('server/http/password-reset.ts'), /origin: \(\) => canonicalAppOrigin\(\)/);
+});
+test('email-assets: the logo needs no sign-in, is cacheable, and it is the only file served there', () => {
+ // The middleware does not run for a path with a file extension (its matcher excludes them), so no sign-in or Firebase check can apply to the PNG.
+ const source = read('middleware.ts'), start = source.indexOf("'/((?!"), literal = source.slice(start + 1, source.indexOf("'", start + 1)).split('\\\\').join('\\');
+ const hits = (p) => new RegExp('^' + literal + '$').test(p);
+ assert.equal(hits('/email-assets/edulabs-logo.png'), false, 'the logo path is outside the middleware');
+ assert.equal(hits('/email-assets/other'), true, 'anything under it without an extension still goes through the middleware');
+ assert.notEqual(run(true, '/email-assets/other').kind, 'next', 'and is refused there, not served');
+ assert.notEqual(run(true, '/email-assets').kind, 'next'); assert.notEqual(run(true, '/email-assets/').kind, 'next');
+ // Only that file exists under /email-assets, and nothing else in public/ is added for email.
+ assert.deepEqual(fs.readdirSync('public/email-assets'), ['edulabs-logo.png']); assert.equal(fs.existsSync('public/email'), false);
+ // Cacheable for the mail clients' image proxies, and only that path.
+ const config = require(path.resolve('next.config.js'));
+ return config.headers().then((rules) => {
+  assert.equal(rules.length, 1); assert.equal(rules[0].source, '/email-assets/:path*');
+  assert.match(rules[0].headers.find((h) => h.key === 'Cache-Control').value, /^public, max-age=\d{5,}/); assert.doesNotMatch(JSON.stringify(rules), /set-cookie|authorization/i);
+ });
 });
 test('email: Outlook and phone support is built in (tables, an Outlook button, a phone width rule, dark mode as an extra)', () => {
  const { html } = emailModule.passwordResetEmailContent({ link: exampleLink, language: 'en' });

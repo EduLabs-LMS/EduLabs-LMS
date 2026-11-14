@@ -1,0 +1,21 @@
+You sign in with Google
+
+You sign in to EduLabs with Google. Use "Continue with Google" on the sign-in page; there's no password to reset.
+
+https://app.example.test/sign-in
+
+If you didn't ask, ignore this email. Nothing has changed.
+
+— The EduLabs team
+
+----------------------------------------
+
+تسجّل الدخول عبر Google
+
+تسجّل الدخول إلى EduLabs عبر Google. استخدم «Continue with Google» في صفحة تسجيل الدخول؛ لا توجد كلمة مرور لإعادة تعيينها.
+
+https://app.example.test/sign-in
+
+إذا لم تطلب ذلك، تجاهل هذه الرسالة. لم يتغير شيء.
+
+— فريق EduLabs

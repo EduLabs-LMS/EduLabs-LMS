@@ -6,7 +6,7 @@
 // LMS_ONLY_STEPS is a regex on step names.
 const fs = require('fs'), path = require('path'), http = require('http'), assert = require('node:assert/strict');
 const { shootMatrix } = require('./screen-matrix.cjs');
-const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
+const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME || path.resolve('node_modules');
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
 const { chromium } = require(path.join(browserRuntime, 'playwright')), esbuild = require(path.join(esbuildRuntime, 'esbuild'));
 const out = path.resolve('.local/sign-in-browser'); fs.mkdirSync(out, { recursive: true });

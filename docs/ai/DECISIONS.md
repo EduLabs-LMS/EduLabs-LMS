@@ -565,3 +565,15 @@ Draft migration `20261115120000_exams_drafts_and_demo_v7.sql`, **not applied any
    devices are asked to sign in again. No server-side revocation call was added; not verified against a live provider.
 7. **Demo seed 8** (same migration): Group 2 sessions no longer land at 12:00 AM Cairo (a `timestamptz` variable held a Cairo wall time), and a
    `homework_released` notice for a lesson with no published part links to the student lesson page by lesson id.
+
+### Amendment after the owner's real reset test (2026-11-14, same branch, no migration)
+
+8. **Logo at one public path.** The email logo is `/email-assets/edulabs-logo.png` (2x PNG, 80x94 shown at 40x47, alt "EduLabs"), absolute URL from
+   `canonicalAppOrigin()`. The path has an extension, so `middleware.ts` (matcher) never runs for it: no sign-in. Cache-Control is public, one day.
+   Nothing else lives under `/email-assets` (a test pins the directory). Staging sits behind Cloudflare Access, so the owner must add a bypass for exactly
+   that path; otherwise Gmail's image proxy cannot fetch it.
+9. **Language markup.** Each language part is wrapped in `lang`/`dir`; `<html lang>` is the main language (English when both are sent).
+10. **Google-only accounts** now get a short designed email ("You sign in to EduLabs with Google. Use Continue with Google on the sign-in page; there's no
+    password to reset.", a button to `/sign-in`, en/ar/both) instead of nothing. No link or secret is in it. The requester's reply is unchanged (the same 202,
+    sent before any lookup), so there is still no enumeration. Disabled Google accounts and other providers (Apple) still get nothing.
+11. **esbuild** is a pinned devDependency (0.28.2); the 14 harnesses that took `LMS_ESBUILD_RUNTIME` fall back to `./node_modules`.

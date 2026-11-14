@@ -9,6 +9,8 @@ import type { ResetLanguage } from '@/shared/password-reset';
  */
 
 export const brandGreen = '#7ED957';
+/** The one public, cacheable path the logo is served from (a 2x PNG: 80x94 shown at 40x47). Nothing else lives under /email-assets. */
+export const emailLogoPath = '/email-assets/edulabs-logo.png';
 const ink = '#14301A';
 
 type Copy = {
@@ -54,6 +56,7 @@ function block(c: Copy, link: string, first: boolean) {
  const font = c.lang === 'ar' ? arabicFont : latinFont, align = c.dir === 'rtl' ? 'right' : 'left';
  const href = escapeHtml(link);
  return `<tr><td class="body" dir="${c.dir}" lang="${c.lang}" align="${align}" style="padding:${first ? '32px' : '8px'} 32px 8px 32px;font-family:${font};text-align:${align};">
+<div lang="${c.lang}" dir="${c.dir}">
 <h1 class="ink" style="margin:0 0 12px 0;font-family:${font};font-size:24px;line-height:32px;font-weight:700;color:${ink};">${escapeHtml(c.heading)}</h1>
 <p class="text" style="margin:0 0 24px 0;font-family:${font};font-size:16px;line-height:26px;color:#2B4630;">${escapeHtml(c.intro)}</p>
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px 0;"><tr><td align="center" bgcolor="${brandGreen}" class="button" style="border-radius:12px;background-color:${brandGreen};">
@@ -64,19 +67,19 @@ function block(c: Copy, link: string, first: boolean) {
 <p style="margin:0 0 24px 0;font-family:${latinFont};font-size:13px;line-height:20px;word-break:break-all;overflow-wrap:anywhere;direction:ltr;text-align:left;"><a href="${href}" target="_blank" class="link" style="color:#1F6B2E;text-decoration:underline;">${href}</a></p>
 <p class="ink" style="margin:0 0 8px 0;font-family:${font};font-size:15px;line-height:24px;font-weight:700;color:${ink};">${escapeHtml(c.expires)}</p>
 <p class="text" style="margin:0 0 8px 0;font-family:${font};font-size:15px;line-height:24px;color:#2B4630;">${escapeHtml(c.ignore)}</p>
+</div>
 </td></tr>`;
 }
 
-/** The email for `link` (an EduLabs address). `language` undefined means both languages, English first. */
-export function passwordResetEmailContent({ link, language }: { link: string; language?: ResetLanguage }) {
- const origin = new URL(link).origin;
- const langs: Copy[] = language ? [copy[language]] : [copy.en, copy.ar];
- const subject = language ? copy[language].subject : `${copy.en.subject} · ${copy.ar.subject}`;
+const textRule = '----------------------------------------';
+
+/** The page: logo band, one block per language, the reason line and the signature. Shared by every email here. */
+function frame({ origin, langs, subject, rows, reasons }: { origin: string; langs: Copy[]; subject: string; rows: string[]; reasons: string[] }) {
  const head = langs[0];
- const logo = `${origin}/email/edulabs-mark.png`;
+ const logo = origin + emailLogoPath;
  const divider = `<tr><td style="padding:16px 32px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td class="rule" height="1" style="height:1px;line-height:1px;font-size:1px;background-color:#DDE8D8;">&nbsp;</td></tr></table></td></tr>`;
- const blocks = langs.map((c, i) => block(c, link, i === 0)).join('\n' + divider + '\n');
- const footer = langs.map((c) => `<p dir="${c.dir}" lang="${c.lang}" style="margin:0 0 4px 0;font-family:${c.lang === 'ar' ? arabicFont : latinFont};font-size:12px;line-height:18px;color:#5C7160;text-align:${c.dir === 'rtl' ? 'right' : 'left'};" class="muted">${escapeHtml(c.reason)}</p>`).join('\n');
+ const blocks = rows.join('\n' + divider + '\n');
+ const footer = langs.map((c, i) => `<p dir="${c.dir}" lang="${c.lang}" style="margin:0 0 4px 0;font-family:${c.lang === 'ar' ? arabicFont : latinFont};font-size:12px;line-height:18px;color:#5C7160;text-align:${c.dir === 'rtl' ? 'right' : 'left'};" class="muted">${escapeHtml(reasons[i])}</p>`).join('\n');
  const html = `<!DOCTYPE html>
 <html lang="${head.lang}" dir="${head.dir}" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
@@ -114,8 +117,62 @@ ${footer}
 </td></tr></table>
 </body>
 </html>`;
+ return html;
+}
+
+/** The email for `link` (an EduLabs address). `language` undefined means both languages, English first. */
+export function passwordResetEmailContent({ link, language }: { link: string; language?: ResetLanguage }) {
+ const origin = new URL(link).origin;
+ const langs: Copy[] = language ? [copy[language]] : [copy.en, copy.ar];
+ const subject = language ? copy[language].subject : `${copy.en.subject} · ${copy.ar.subject}`;
+ const html = frame({ origin, langs, subject, rows: langs.map((c, k) => block(c, link, k === 0)), reasons: langs.map((c) => c.reason) });
  const text = langs.map((c) => [
   c.heading, '', c.introText, '', link, '', c.expires, c.ignore, '', '— ' + c.signature,
- ].join('\n')).join('\n\n----------------------------------------\n\n') + '\n';
+ ].join('\n')).join('\n\n' + textRule + '\n\n') + '\n';
+ return { subject, html, text };
+}
+
+type GoogleCopy = { lang: ResetLanguage; dir: 'ltr' | 'rtl'; subject: string; preheader: string; heading: string; intro: string; button: string; ignore: string; reason: string; signature: string; logoAlt: string };
+const googleCopy: Record<ResetLanguage, GoogleCopy> = {
+ en: {
+  lang: 'en', dir: 'ltr', subject: 'Sign in to EduLabs with Google', preheader: 'There is no password to reset. Use Continue with Google.',
+  heading: 'You sign in with Google',
+  intro: "You sign in to EduLabs with Google. Use \"Continue with Google\" on the sign-in page; there's no password to reset.",
+  button: 'Go to sign in', ignore: "If you didn't ask, ignore this email. Nothing has changed.",
+  reason: 'You are getting this because a password reset was requested for your email address.', signature: 'The EduLabs team', logoAlt: 'EduLabs',
+ },
+ ar: {
+  lang: 'ar', dir: 'rtl', subject: 'سجّل الدخول إلى EduLabs عبر Google', preheader: 'لا توجد كلمة مرور لإعادة تعيينها. استخدم المتابعة عبر Google.',
+  heading: 'تسجّل الدخول عبر Google',
+  intro: 'تسجّل الدخول إلى EduLabs عبر Google. استخدم «Continue with Google» في صفحة تسجيل الدخول؛ لا توجد كلمة مرور لإعادة تعيينها.',
+  button: 'الانتقال إلى تسجيل الدخول', ignore: 'إذا لم تطلب ذلك، تجاهل هذه الرسالة. لم يتغير شيء.',
+  reason: 'وصلتك هذه الرسالة لأنه طُلب إعادة تعيين كلمة المرور لبريدك الإلكتروني.', signature: 'فريق EduLabs', logoAlt: 'EduLabs',
+ },
+};
+
+/** One language's block of the Google-account email: a heading, the explanation and a button to the sign-in page. No link carries a secret. */
+function googleBlock(c: GoogleCopy, signInUrl: string, first: boolean) {
+ const font = c.lang === 'ar' ? arabicFont : latinFont, align = c.dir === 'rtl' ? 'right' : 'left', href = escapeHtml(signInUrl);
+ return `<tr><td class="body" dir="${c.dir}" lang="${c.lang}" align="${align}" style="padding:${first ? '32px' : '8px'} 32px 8px 32px;font-family:${font};text-align:${align};">
+<div lang="${c.lang}" dir="${c.dir}">
+<h1 class="ink" style="margin:0 0 12px 0;font-family:${font};font-size:24px;line-height:32px;font-weight:700;color:${ink};">${escapeHtml(c.heading)}</h1>
+<p class="text" style="margin:0 0 24px 0;font-family:${font};font-size:16px;line-height:26px;color:#2B4630;">${escapeHtml(c.intro)}</p>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px 0;"><tr><td align="center" bgcolor="${brandGreen}" class="button" style="border-radius:12px;background-color:${brandGreen};">
+<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="23%" stroke="f" fillcolor="${brandGreen}"><w:anchorlock/><center style="color:${ink};font-family:${font};font-size:16px;font-weight:bold;">${escapeHtml(c.button)}</center></v:roundrect><![endif]-->
+<!--[if !mso]><!--><a href="${href}" target="_blank" class="button-link" style="display:inline-block;padding:15px 28px;font-family:${font};font-size:16px;line-height:22px;font-weight:700;color:${ink};text-decoration:none;border-radius:12px;">${escapeHtml(c.button)}</a><!--<![endif]-->
+</td></tr></table>
+<p class="text" style="margin:0 0 8px 0;font-family:${font};font-size:15px;line-height:24px;color:#2B4630;">${escapeHtml(c.ignore)}</p>
+</div>
+</td></tr>`;
+}
+
+/** For an account that signs in with Google only: no reset link exists, so the email says so and points at the sign-in page. */
+export function googleAccountEmailContent({ origin, language }: { origin: string; language?: ResetLanguage }) {
+ const signInUrl = origin + '/sign-in';
+ const langs = language ? [googleCopy[language]] : [googleCopy.en, googleCopy.ar];
+ const subject = language ? googleCopy[language].subject : `${googleCopy.en.subject} · ${googleCopy.ar.subject}`;
+ // frame() reads only lang, dir, preheader, logoAlt and signature, which both copies have.
+ const html = frame({ origin, langs: langs as unknown as Copy[], subject, rows: langs.map((c, k) => googleBlock(c, signInUrl, k === 0)), reasons: langs.map((c) => c.reason) });
+ const text = langs.map((c) => [c.heading, '', c.intro, '', signInUrl, '', c.ignore, '', '— ' + c.signature].join('\n')).join('\n\n' + textRule + '\n\n') + '\n';
  return { subject, html, text };
 }

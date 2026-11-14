@@ -1,11 +1,11 @@
 // The two password-reset pages and the reset email in Chromium: the REAL containers (ForgotPassword, ResetPassword), views, language provider and design CSS
 // on a loopback server with a SYNTHETIC Firebase SDK (verifyPasswordResetCode, confirmPasswordReset) and a fictional request endpoint. No provider, no network,
 // no real account, address or code.
-// Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME / LMS_CHROMIUM_EXECUTABLE and a Firebase-mode build for the font faces (.next/static), like sign-in-browser.cjs.
+// Needs LMS_BROWSER_RUNTIME / LMS_CHROMIUM_EXECUTABLE (esbuild comes from the repository; LMS_ESBUILD_RUNTIME overrides it) and a Firebase-mode build for the font faces (.next/static), like sign-in-browser.cjs.
 // LMS_COPY_SHOTS=1 writes the pictures to docs/design/screenshots/password-reset/ (otherwise to .local/password-reset-browser/shots).
 // LMS_ONLY_STEPS is a regex on step names.
 const fs = require('fs'), path = require('path'), http = require('http'), assert = require('node:assert/strict'), ts = require('typescript');
-const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
+const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME || path.resolve('node_modules');
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
 const { chromium } = require(path.join(browserRuntime, 'playwright')), esbuild = require(path.join(esbuildRuntime, 'esbuild'));
 const out = path.resolve('.local/password-reset-browser'); fs.mkdirSync(out, { recursive: true });
@@ -14,7 +14,7 @@ const cssDir = path.resolve('.next/static/css'), mediaDir = path.resolve('.next/
 if (!fs.existsSync(cssDir)) throw Error('Run the Firebase-mode `npm run build` first: the real font faces are needed');
 const css = fs.readdirSync(cssDir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(path.join(cssDir, f), 'utf8')).concat([require('./harness-css.cjs')()]).join('\n');
 const fontVars = (css.match(/\.__variable_[a-z0-9]+\{[^}]*\}/g) || []).map(v => v.match(/^\.([^{]+)\{/)[1]).join(' ');
-const logoPng = fs.readFileSync('public/email/edulabs-mark.png');
+const logoPng = fs.readFileSync('public/email-assets/edulabs-logo.png');
 
 const EMAIL = 'student@example.invalid', CODE = 'VALID_code-0123456789';
 // Synthetic Firebase: the code's first letters choose what happens, like a real code would by its state.
@@ -283,21 +283,23 @@ function loadEmail() {
       assert.deepEqual(findings, []); assert.equal(listed.length, 40);
     });
     await step('pictures: the email itself, rendered, English, Arabic and both, 390 and 1360, light and dark', async () => {
-      const { passwordResetEmailContent } = loadEmail();
+      const { passwordResetEmailContent, googleAccountEmailContent } = loadEmail();
       const link = 'https://app.example.test/reset-password?oobCode=EXAMPLE_CODE_0123456789';
       const shots = [];
       for (const [name, language] of [['en', 'en'], ['ar', 'ar'], ['both', undefined]]) for (const scheme of ['light', 'dark']) for (const width of [390, 1360]) {
         if (name === 'both' && scheme === 'dark') continue;
+        for (const kind of ['reset', 'google']) {
         const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
-        await context.route('**/*', r => r.request().url() === 'https://app.example.test/email/edulabs-mark.png' ? r.fulfill({ contentType: 'image/png', body: logoPng }) : r.request().url().startsWith('data:') ? r.continue() : r.abort());
-        const page = await context.newPage(); const { html } = passwordResetEmailContent({ link, language });
+        await context.route('**/*', r => r.request().url() === 'https://app.example.test/email-assets/edulabs-logo.png' ? r.fulfill({ contentType: 'image/png', body: logoPng }) : r.request().url().startsWith('data:') ? r.continue() : r.abort());
+        const page = await context.newPage(); const { html } = kind === 'reset' ? passwordResetEmailContent({ link, language }) : googleAccountEmailContent({ origin: 'https://app.example.test', language });
         await page.setContent(html, { waitUntil: 'load' });
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
         assert.equal(overflow, false, `email ${name} ${scheme} ${width}: sideways scroll`);
         assert.equal(await page.evaluate(() => [...document.images].every(i => i.complete && i.naturalWidth > 0)), true, 'the logo loads');
-        const file = `email-${name}-${scheme}-${width}.png`; await page.screenshot({ path: path.join(shotsDir, file), fullPage: true }); shots.push(file); await context.close();
+        const file = kind === 'reset' ? `email-${name}-${scheme}-${width}.png` : `email-google-${name}-${scheme}-${width}.png`; await page.screenshot({ path: path.join(shotsDir, file), fullPage: true }); shots.push(file); await context.close();
+        }
       }
-      assert.equal(shots.length, 10);
+      assert.equal(shots.length, 20);
     });
     assert.deepEqual(errors, []);
   } finally { await browser.close(); await new Promise(r => server.close(r)); }

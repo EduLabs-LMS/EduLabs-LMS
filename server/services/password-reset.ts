@@ -1,6 +1,6 @@
 import 'server-only';
 import { passwordResetRequestBody, buildResetLink, resetCodeFromFirebaseLink, type ResetLanguage } from '@/shared/password-reset';
-import { passwordResetEmailContent } from '@/server/services/password-reset-email';
+import { googleAccountEmailContent, passwordResetEmailContent } from '@/server/services/password-reset-email';
 import { brevoTransport, mailSender, type MailTransport } from '@/server/services/invitation-delivery';
 import type { Limiter } from '@/server/services/password-reset-limiter';
 
@@ -18,7 +18,7 @@ export type ResetAdmin = {
  generatePasswordResetLink(email: string, settings: { url: string; handleCodeInApp: boolean }): Promise<string>;
 };
 export type ResetMailer = { configured(): boolean; send(message: { to: string; subject: string; html: string; text: string }): Promise<'sent' | 'rejected' | 'unconfirmed'> };
-export type ResetLogEvent = 'sent' | 'no_account' | 'not_password_account' | 'disabled_account' | 'link_failed' | 'mail_rejected' | 'mail_unconfirmed' | 'lookup_failed' | 'unavailable' | 'limited';
+export type ResetLogEvent = 'sent' | 'no_account' | 'google_account_sent' | 'not_password_account' | 'disabled_account' | 'link_failed' | 'mail_rejected' | 'mail_unconfirmed' | 'lookup_failed' | 'unavailable' | 'limited';
 export type ResetDeps = {
  origin(): string | null;
  admin(): ResetAdmin;
@@ -54,9 +54,15 @@ export async function deliverResetEmail(email: string, language: ResetLanguage |
   let account;
   try { account = await admin.getUserByEmail(email); }
   catch (failure) { deps.log((failure as { code?: string })?.code === noAccountCode ? 'no_account' : 'lookup_failed'); return; }
-  // A Google-only account has no password. The link would add one, which links by email: sign-in methods are never linked that way here.
-  if (!account.providerData.some((p) => p.providerId === 'password')) { deps.log('not_password_account'); return; }
   if (account.disabled) { deps.log('disabled_account'); return; }
+  // A Google-only account has no password, and a reset link would add one (which links by email: sign-in methods are never linked that way here).
+  // It gets a short email saying so instead, in the same style. The requester's reply was already sent and is the same for every address.
+  if (!account.providerData.some((p) => p.providerId === 'password')) {
+   if (!account.providerData.some((p) => p.providerId === 'google.com')) { deps.log('not_password_account'); return; }
+   const outcome = await deps.mailer.send({ to: email, ...googleAccountEmailContent({ origin, language }) });
+   deps.log(outcome === 'sent' ? 'google_account_sent' : outcome === 'rejected' ? 'mail_rejected' : 'mail_unconfirmed');
+   return;
+  }
   let link: string;
   try {
    const code = resetCodeFromFirebaseLink(await admin.generatePasswordResetLink(email, { url: origin + '/sign-in', handleCodeInApp: false }));

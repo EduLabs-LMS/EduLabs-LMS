@@ -399,7 +399,7 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
 
 - `scripts/password-reset.test.cjs`: request route (same reply for known and unknown address, limits, bad bodies, no email/code/link in logs), limiter,
   page states, strength/rules, email render snapshots (`scripts/snapshots/password-reset-email/`, `UPDATE_SNAPSHOTS=1` regenerates; `-text` in .gitattributes).
-- `scripts/password-reset-browser.cjs`: both real containers in Chromium with a synthetic Firebase SDK and a loopback endpoint; takes the 50 pictures in
-  `docs/design/screenshots/password-reset/` (`LMS_COPY_SHOTS=1`). Needs the same `LMS_BROWSER_RUNTIME`, `LMS_ESBUILD_RUNTIME`, `LMS_CHROMIUM_EXECUTABLE` as the sign-in harness.
+- `scripts/password-reset-browser.cjs`: both real containers in Chromium with a synthetic Firebase SDK and a loopback endpoint; takes the 60 pictures in
+  `docs/design/screenshots/password-reset/` (`LMS_COPY_SHOTS=1`). Needs `LMS_BROWSER_RUNTIME` and `LMS_CHROMIUM_EXECUTABLE`; esbuild is a devDependency (`LMS_ESBUILD_RUNTIME` only overrides it).
 - SQL: `supabase/tests/demo-seed-8.sql` (fills under four server time zones).
 - Not covered: a real inbox, a real Firebase link, Brevo click tracking, session revocation on a live provider.

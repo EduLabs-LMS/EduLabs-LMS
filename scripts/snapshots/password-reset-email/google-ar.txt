@@ -1,0 +1,9 @@
+تسجّل الدخول عبر Google
+
+تسجّل الدخول إلى EduLabs عبر Google. استخدم «Continue with Google» في صفحة تسجيل الدخول؛ لا توجد كلمة مرور لإعادة تعيينها.
+
+https://app.example.test/sign-in
+
+إذا لم تطلب ذلك، تجاهل هذه الرسالة. لم يتغير شيء.
+
+— فريق EduLabs

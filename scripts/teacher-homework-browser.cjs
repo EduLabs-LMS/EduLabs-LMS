@@ -6,7 +6,7 @@
 // (the move-* ones to docs/design/screenshots/homework-move; LMS_COPY_SHOTS=move copies only those).
 const { shootMatrix } = require('./screen-matrix.cjs');
 const fs = require('fs'), path = require('path'), http = require('http'), vm = require('vm'), assert = require('node:assert/strict'), ts = require('typescript');
-const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME;
+const browserRuntime = process.env.LMS_BROWSER_RUNTIME, esbuildRuntime = process.env.LMS_ESBUILD_RUNTIME || path.resolve('node_modules');
 if (!browserRuntime || !esbuildRuntime) throw Error('Set LMS_BROWSER_RUNTIME and LMS_ESBUILD_RUNTIME to existing Playwright/esbuild tooling');
 const { chromium } = require(path.join(browserRuntime, 'playwright')), esbuild = require(path.join(esbuildRuntime, 'esbuild'));
 const out = path.resolve('.local/teacher-homework-browser'), shots = path.join(out, 'screenshots'), docs = path.resolve('docs/design/screenshots/homework-ui'), moveDocs = path.resolve('docs/design/screenshots/homework-move');
