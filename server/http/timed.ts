@@ -9,6 +9,7 @@ import { createCoursePOST } from './teacher-course';
 import { updateCoursePATCH } from './teacher-course';
 import { courseContentGET, courseContentPOST } from './course-content';
 import { homeworkDeleteImagesPOST, homeworkGET, homeworkLifecyclePOST, homeworkPortalGET, homeworkQueueGET, homeworkReleaseManyPOST, homeworkSavePOST, homeworkTryGET, homeworkTryPOST } from './teacher-homework';
+import { studentExamGET, studentExamUploadPOST, studentExamWorkPOST, studentExamsGET } from './exams-student';
 import { examGET, examLifecyclePOST, examMarksPOST, examPortalGET, examQueueGET, examReleaseManyPOST, examSavePOST, examSheetGET, examTryGET, examUploadPOST, examWindowPOST, examWorkPOST } from './teacher-exams';
 
 /** Every API route's handler with the optional Server-Timing header (LMS_SERVER_TIMING=1, staging only). The route files stay one-line adapters. */
@@ -42,3 +43,7 @@ export const timedExamWorkPOST = withServerTiming(examWorkPOST);
 export const timedExamReleaseManyPOST = withServerTiming(examReleaseManyPOST);
 export const timedExamSheetGET = withServerTiming(examSheetGET);
 export const timedExamMarksPOST = withServerTiming(examMarksPOST);
+export const timedStudentExamsGET = withServerTiming(studentExamsGET);
+export const timedStudentExamGET = withServerTiming(studentExamGET);
+export const timedStudentExamWorkPOST = withServerTiming(studentExamWorkPOST);
+export const timedStudentExamUploadPOST = withServerTiming(studentExamUploadPOST);

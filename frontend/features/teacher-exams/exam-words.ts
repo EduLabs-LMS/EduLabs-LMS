@@ -16,6 +16,7 @@ const known = new Set<string>(EXAM_REASONS);
 /** A failure in plain words: the reason the database named (every one has words: ex.fail.<reason>), otherwise what kind of failure it was. */
 export function examFailureWords(t: T, failure: ExamFailure) {
   const reason = 'reason' in failure && failure.reason && known.has(failure.reason) ? `ex.fail.${failure.reason}` as MessageKey : null;
+  if (reason === 'ex.fail.unfinished_questions' && 'questions' in failure && failure.questions) return t(reason, { list: failure.questions.join(', ') });
   return t(reason ?? kinds[failure.kind]);
 }
 /** "3 students", "1 essay": the four count forms Arabic needs. */

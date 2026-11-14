@@ -523,3 +523,25 @@ pictures are shared by the versions of one exam family.
 2. The teacher list (`exam_portal`) carries live counts per Group for open exams: started / total and the time left in the window on
    the server clock, plus the students in no Group. Same scope rule, no per-row authorization.
 3. Archived exams stay visible to their students for released results (confirmed).
+
+## Exams part 2: drafts, the student side, the Home card (2026-11-14, branch `claude/exams-student`)
+
+Draft migration `20261115120000_exams_drafts_and_demo_v7.sql`, **not applied anywhere**.
+
+1. **A draft never loses a question.** `exam_save` on a draft keeps unfinished questions (a choice with 0 to 8 options or no right answer,
+   a number with no value). Invalid indexes, a repeated right answer and options on a number are still refused. A published exam keeps the
+   strict rules. `exam_check` (Publish) lists the unfinished questions (1-based positions) and raises 23514 with
+   `{"reason":"unfinished_questions","questions":[...]}`. The browser always sends every question; nothing is left out on autosave.
+2. **The student screens decide nothing.** `/api/exams*` call `exam_student_list`, `exam_get`, `exam_work`, `exam_upload` as the signed-in
+   student (no user id sent, no service role). A staff view of `exam_get` is refused on the student route (404). The order of a try's
+   questions and choices is the stored one and is never reordered on the client. The clock is the server's: the countdown is read from the
+   try's deadline with an offset from the server time, and at zero the server's auto-submit wins (the screen reads it back, it never
+   submits for the student). A lost connection keeps the answer on screen, retries the save every few seconds and holds a hand-in back
+   until everything is saved.
+3. **Second try** is offered only inside the student's own window, by the exam's rule (`fix_mistakes` keeps right choices, `from_zero`),
+   once. **Answer review** (right answers, model answers, the marker's note) appears only when the database says review is open.
+4. **Release notices** for `exam_released` now link to `/exams/<exam id>` for new exam results (`notification_link`).
+5. **Home "Live now"** reads `exam_portal` (open tab) as the Exams page does: one row per Group whose window is open with that Group's
+   started / total and the time left; hidden when nothing is open; no new per-row authorization.
+6. **Demo seed v7** adds five Physics exams (open now, closed with essays waiting, corrected-not-released, upcoming per Group, paper with
+   marks and one Absent) tracked in `demo_seed_rows`; Clear still removes teacher-added work only through the existing refusal rules.

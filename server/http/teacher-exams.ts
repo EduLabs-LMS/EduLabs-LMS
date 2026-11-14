@@ -11,24 +11,24 @@ import { examLifecycle as lifecycleBody, examPaperMarks, examReleaseMany, examSa
 
 type Context = { params: Promise<{ examId: string }> };
 type TryContext = { params: Promise<{ examId: string; attemptId: string }> };
-const reply = (body: unknown, status: number) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
+export const reply = (body: unknown, status: number) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
 const id = z.string().uuid();
 /** 100 questions with long texts stay inside this; the others are small. A grade: 100 marks with a note each. Marks and releases: 500 items. */
 export const EXAM_LIMITS = { save: 600000, small: 4096, work: 400000, many: 64000, marks: 2200000 } as const;
 
 /** A read is same-origin: a browser says so in Sec-Fetch-Site, and an Origin, when one is sent, must be ours. */
-function sameOriginRead(request: NextRequest) {
+export function sameOriginRead(request: NextRequest) {
   const site = request.headers.get('sec-fetch-site');
   if (site && site !== 'same-origin' && site !== 'none') return false;
   const origin = request.headers.get('origin');
   return !origin || validFirebaseOrigin(request);
 }
-async function signedIn() {
+export async function signedIn() {
   const viewer = await getApplicationViewer();
   return viewer && viewer.backend === 'firebase' ? viewer : null;
 }
 /** The body, read up to `limit` bytes and parsed with a strict schema. A reply when it fails. */
-async function readBody<S extends ZodTypeAny>(request: NextRequest, schema: S, limit: number): Promise<{ data: z.infer<S> } | { failure: NextResponse }> {
+export async function readBody<S extends ZodTypeAny>(request: NextRequest, schema: S, limit: number): Promise<{ data: z.infer<S> } | { failure: NextResponse }> {
   if (!request.headers.get('content-type')?.startsWith('application/json')) return { failure: reply({ kind: 'invalid' }, 415) };
   const reader = request.body?.getReader();
   if (!reader) return { failure: reply({ kind: 'invalid' }, 400) };
@@ -47,7 +47,7 @@ async function readBody<S extends ZodTypeAny>(request: NextRequest, schema: S, l
 }
 const send = (result: ExamResult) => reply(result.body, result.status);
 /** Query parameters, each once: a repeated one is refused, never silently reduced to its last value. */
-function query<S extends ZodTypeAny>(request: NextRequest, schema: S): z.infer<S> | null {
+export function query<S extends ZodTypeAny>(request: NextRequest, schema: S): z.infer<S> | null {
   const keys = Array.from(request.nextUrl.searchParams.keys());
   const parsed = schema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
   return parsed.success && keys.length === new Set(keys).size ? parsed.data : null;

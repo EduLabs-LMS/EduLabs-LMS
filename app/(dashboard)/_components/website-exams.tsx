@@ -1,37 +1,45 @@
 import { notFound, redirect } from 'next/navigation';
-import { ExamDetailView, ExamNotFoundView, ExamsErrorView } from '@/frontend/features/exams/exams-list';
-import { loadExam, loadExamList } from '@/server/services/exams';
-import { ExamRunner } from '@/frontend/features/exams/exam-runner';
-import { TeacherFoundationNotice } from '@/frontend/components/teacher-foundation-notice';
-import { ExamsListView } from '@/frontend/features/exams/exams-list';
+import { StudentExamsList, type StudentListLoad } from '@/frontend/features/student-exams/exam-list';
+import { StudentExamScreen } from '@/frontend/features/student-exams/exam-screen';
+import { loadExamList } from '@/server/services/exams';
+import { readStudentExams } from '@/server/services/exams-student';
+import type { StudentList } from '@/shared/exams-student';
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Firebase/Supabase-mode Exams (Delivery 1, read-only). No Clerk, no Prisma:
- * identity and data access live in server/services/exams.ts.
+ * Firebase/Supabase-mode Exams for students. Staff are sent to the teacher screens; everything a student sees comes from the exam
+ * functions (exam_student_list, exam_get), which decide again for the signed-in person. No Clerk, no Prisma.
  */
 export async function WebsiteExams() {
-  let data: Awaited<ReturnType<typeof loadExamList>>;
+  let staff: boolean | null = null, load: StudentListLoad;
   try {
-    data = await loadExamList();
+    const who = await loadExamList();
+    staff = who ? who.isStaff : null;
   } catch {
-    return <ExamsErrorView />;
+    staff = false;
   }
-  if (!data) redirect('/sign-in'); // outside try/catch so the redirect signal is not swallowed
-  return data.isStaff?<TeacherFoundationNotice title="Exam management"/>:<ExamsListView items={data.items} isStaff={false} truncated={data.truncated}/>;
+  if (staff === null) redirect('/sign-in'); // outside try/catch so the redirect signal is not swallowed
+  if (staff) redirect('/teacher/exams');
+  try {
+    const read = await readStudentExams();
+    load = read.status === 200 ? { state: 'ready', data: read.body as StudentList } : { state: 'error' };
+  } catch {
+    load = { state: 'error' };
+  }
+  return <StudentExamsList load={load} />;
 }
 
 export async function WebsiteExam({ examId }: { examId: string }) {
   if (!uuid.test(examId)) notFound();
-  let data: Awaited<ReturnType<typeof loadExam>>;
+  let staff: boolean | null = null;
   try {
-    data = await loadExam(examId);
+    const who = await loadExamList();
+    staff = who ? who.isStaff : null;
   } catch {
-    return <ExamsErrorView />;
+    staff = false;
   }
-  if (!data) redirect('/sign-in');
-  if (!data.exam) return <ExamNotFoundView />;
-  if (!data.isStaff) return <ExamRunner examId={examId} secure />;
-  return <TeacherFoundationNotice title="Exam management"/>;
+  if (staff === null) redirect('/sign-in');
+  if (staff) redirect('/teacher/exams');
+  return <StudentExamScreen examId={examId} />;
 }

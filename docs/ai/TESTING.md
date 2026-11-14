@@ -366,3 +366,17 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
   `teacher-homework.test.cjs`: the photos-switch pattern accepts CRLF (a Windows checkout failed it before this change).
 - Shared with Homework, re-run: `teacher-homework-browser.cjs` and `homework-correct-browser.cjs` (the Questions step, the essay marker
   and the release dialog are now shared components).
+
+## Student Exams, the Home card and demo v7 (`claude/exams-student`, migration `20261115120000_...` not applied)
+
+- `supabase/tests/exams-student.sql` (`LMS_SQL_ONLY=exams-student`): seed v7 rows, the notice link, draft saves and the Publish refusal list,
+  strict rules for a published exam, Clear counts and refill. Updated for seed 7 and its counts: `exams-demo`, `demo-clear-robust`,
+  `demo-students`, `demo-students-screen`, `demo-homework`, `demo-notifications`, `course-content-tree`, `homework-correct`, `exams`.
+- `scripts/exams-student.test.cjs` (in `npm test`): every student route (signed out, foreign origin, staging off, bad and oversized bodies,
+  strict bodies, exactly one answer shape, the database's no for another course or a teacher, a staff view refused, every code and reason
+  mapped), the arguments sent to the database, the clock, answered and unanswered, list sections, start and second try rules, the Home
+  "Live now" mapping, the screens' static rules, locales in both languages, exact middleware paths.
+- `scripts/exams-student-browser.cjs` (`LMS_COPY_SHOTS=1`, needs `source .local/pa-env.sh` and `LMS_ESBUILD_RUNTIME`): list, taking every kind of
+  question, each answer saved, Arabic digits, a photo, confirm, lost connection, deadline, second try, results, review, paper; phone 390 and
+  desktop 1360, Classic and New, English and Arabic (RTL). `teacher-home-browser.cjs` step `Home "Live now"` photographs the card.
+  Pictures: `docs/design/screenshots/exams-student/`.

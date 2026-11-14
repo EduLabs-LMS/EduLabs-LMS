@@ -95,6 +95,14 @@ function view(id) {
   questionCount: paper ? 0 : 3, totalPoints: paper ? 0 : 7, hasEssays: !paper,
   serverNow: iso(Date.now()), lastClose: null, closed: false, reviewOpen: false, revision: S.revision[id] ?? 3, staff: true, can: { author: true, correct: true, release: true }, started: live,
   questions: paper ? [] : staffQuestions, windows: paper ? [] : windows(), holds: [] };
+ // A draft saved through this server comes back as it was stored: every question, finished or not (the database keeps them).
+ const stored = S.saved[id];
+ if (stored) {
+  Object.assign(base, { title: stored.title ?? base.title, status: 'draft', publishedAt: null, started: false, questionCount: stored.questions.length, windows: [] });
+  base.questions = stored.questions.map((q, i) => ({ id: uuid(5000 + i), position: i, type: q.type === 'choice' ? (q.correct.length > 1 ? 'multiple_choice' : 'single_choice') : q.type, text: q.text, imageId: null, points: q.points,
+   responseMode: q.responseMode ?? 'text', options: (q.options ?? []).map((t, k) => ({ id: uuid(6000 + i * 10 + k), text: t })), correctOptionIds: (q.correct ?? []).map(k => uuid(6000 + i * 10 + k)),
+   numberValue: q.numberValue ?? null, tolerance: q.tolerance ?? 0, modelText: q.modelText, modelImageId: null }));
+ }
  return base;
 }
 const students = [['Synthetic Student 1', 'waiting'], ['طالبة تجريبية ٢', 'waiting'], ['Synthetic Student 3', 'corrected'], ['Synthetic Student 4', 'released']]
@@ -113,7 +121,7 @@ function attempt(s) {
 const sheetStudents = [['Synthetic Student 1', [G.alpha], 34], ['طالبة تجريبية ٢', [G.alpha], 28.5], ['Synthetic Student 3', [G.tenth], null], ['Synthetic Student 4', [G.tenth], 'absent'], ['Synthetic Student 5', [], null], ['طالب تجريبي ٦', [G.alpha], 39]]
  .map(([name, groupIds, mark], i) => ({ name, groupIds, mark, userId: uuid(1000 + i) }));
 function fresh() {
- return { revision: {}, invalid: [], posts: [],
+ return { revision: {}, saved: {}, invalid: [], posts: [],
   results: Object.fromEntries(students.map(s => [s.resultId, { revision: 2, status: s.kind === 'waiting' ? 'waiting' : 'corrected', released: s.kind === 'released', score: s.kind === 'waiting' ? null : 6 }])),
   marks: Object.fromEntries(sheetStudents.map((s, i) => [s.userId, { mark: typeof s.mark === 'number' ? s.mark : null, absent: s.mark === 'absent', released: i === 5, resultId: s.mark === null ? null : uuid(1100 + i), revision: s.mark === null ? null : 1 }])) };
 }
@@ -201,7 +209,7 @@ const photo = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" 
    if (tryId) { const s = students.find(x => x.attemptId === tryId); return s ? send({ ...view(E.live), attempt: attempt(s) }) : send({ kind: 'denied' }, 404); }
    if (req.method !== 'POST') return send({ kind: 'invalid' }, 405);
    return body(b => {
-    if (action === 'save') return checked(contract.examSave, b, d => { const at = id === 'new' ? uuid(399) : id; S.revision[at] = (d.revision ?? 0) + 1; return send({ id: at, revision: S.revision[at] }); });
+    if (action === 'save') return checked(contract.examSave, b, d => { const at = id === 'new' ? uuid(399) : id; S.revision[at] = (d.revision ?? 0) + 1; if (d.definition.questions) S.saved[at] = { title: d.definition.title, questions: d.definition.questions }; return send({ id: at, revision: S.revision[at] }); });
     if (action === 'lifecycle') return checked(contract.examLifecycle, b, () => send({ id, revision: 9 }));
     if (action === 'window') return checked(contract.examWindow, b, () => send({ revision: 9 }));
     if (action === 'upload') return checked(contract.examUpload, b, d => d.action === 'get' ? send({ id: d.id, name: 'answer.svg', mime: 'image/svg+xml', url: '/__photo.svg' }) : send({ kind: 'denied' }, 403));
@@ -325,6 +333,30 @@ const photo = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" 
    assert.equal(await page.locator('[data-field="max-marks"]').count(), 1);
   });
   await every('18-wizard-paper-edit', `/teacher/exams/${E.paper}`, '[data-exam-wizard][data-step="details"]');
+ });
+ await step('Wizard (draft): three questions with nothing ticked are all saved (none left out) and all there after a reload', async () => {
+  const { page, context } = await open(phone, `/teacher/exams/new?course=${C.physics}`, '[data-exam-wizard][data-step="details"]');
+  try {
+   await page.locator('[data-field="title"]').fill('Gaps');
+   await next(page);
+   await page.locator('[data-field="question-text"] textarea').fill('First, no right answer ticked');
+   for (const text of ['Second', 'Third']) { await page.locator('[data-add-question]').click(); await page.locator('[data-field="question-text"] textarea').fill(text); }
+   assert.equal(await page.locator('[data-question-tab]').count(), 3);
+   await page.waitForFunction(() => document.querySelector('[data-save-state]')?.dataset.saveState === 'hw.w.saved', null, { timeout: 15000 });
+   const saves = (await state()).posts.filter(p => p.path.endsWith('/save'));
+   const last = saves[saves.length - 1].body.definition;
+   assert.equal(last.questions.length, 3, 'all three questions are sent, none left out');
+   assert.deepEqual(last.questions.map(q => q.correct), [[], [], []], 'nothing ticked');
+   assert.deepEqual(last.questions.map(q => q.text), ['First, no right answer ticked', 'Second', 'Third']);
+   await clean(page, 'draft with gaps'); await shot(page, '20-draft-three-unfinished-phone-en-classic');
+  } finally { await context.close(); }
+  const reopened = await open(phone, `/teacher/exams/${uuid(399)}`, '[data-exam-wizard][data-step="details"]');
+  try {
+   await next(reopened.page);
+   assert.equal(await reopened.page.locator('[data-question-tab]').count(), 3, 'after a reload all three are there');
+   assert.equal(await reopened.page.locator('[data-field="question-text"] textarea').inputValue(), 'First, no right answer ticked');
+  } finally { await reopened.context.close(); }
+  assert.deepEqual((await state()).invalid, []);
  });
  await step('Wizard: the issues list when Next finds something missing', async () => {
   const { page, context } = await open(phone, `/teacher/exams/new?course=${C.physics}`, '[data-exam-wizard][data-step="details"]');

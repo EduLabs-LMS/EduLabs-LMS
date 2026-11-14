@@ -24,7 +24,7 @@ import Sidebar from '@/frontend/components/sidebar';
 import MobileSidebar from '@/frontend/features/dashboard/mobile-sidebar';
 import { TeacherHomeView } from '@/frontend/features/teacher-home/home-view';
 import { TeacherCoursesView, TeacherCoursesLoading } from '@/frontend/features/teacher-home/courses-view';
-import { buildTeacherHome, mapCourses, createTargets } from '@/shared/teacher-home';
+import { buildTeacherHome, mapCourses, mapExams, createTargets } from '@/shared/teacher-home';
 const q = new URLSearchParams(location.search), view = q.get('view') || 'home', scenario = q.get('s') || 'full', staff = q.get('staff') !== '0';
 window.__pathname = q.get('path') || (view === 'courses' ? '/teacher/courses' : '/home');
 const NOW = Date.now(), at = m => new Date(NOW + m * 60000).toISOString();
@@ -59,7 +59,11 @@ const scenarios = {
 };
 const raw = { ...scenarios[scenario], now: NOW, metrics: q.get('metrics') === 'fail' ? bad(503) : q.get('metrics') === '1' ? ok({ totalStudents: 41, pendingWaitlistCount: 3 }) : undefined, nextFacts: q.get('facts') === 'marked' ? { kind: 'marked', marked: 9, total: 14 } : q.get('facts') === 'members' ? { kind: 'members', students: 14, more: false } : null };
 const targets = createTargets([{ id: uuid(50), name: 'Synthetic space', status: 'active' }, ...(q.get('spaces') === '2' ? [{ id: uuid(51), name: 'Second synthetic space', status: 'active' }] : [])], [{ organization_id: uuid(50), role: 'teacher', status: 'active' }, { organization_id: uuid(51), role: 'owner', status: 'active' }]);
-const home = { ...buildTeacherHome(raw), createTargets: targets, demo: q.get('demo') === '1', homework: { state: 'unavailable' } }; // the Homework to correct card has its own harness (homework-correct-browser.cjs)
+// "Live now": synthetic exam_portal rows (open tab). exams=1 has two open Groups, exams=none has nothing open; otherwise the section is not there.
+const livegroup = (n, name, started, total, closesIn, window = 'open') => ({ groupId: uuid(900 + n), name, state: 'ok', opensAt: at(-60), closesAt: at(closesIn), window, secondsLeft: closesIn * 60, total, started });
+const liveRows = [{ id: uuid(950), title: 'Motion quiz', kind: 'online', status: 'published', courseTitle: 'Synthetic Physics 9', groups: [livegroup(1, 'Synthetic Group Alpha', 9, 14, 25), livegroup(2, 'مجموعة الصف العاشر', 0, 10, 130), livegroup(3, 'Synthetic Group Gamma', 4, 4, -5, 'closed')] }];
+const exams = q.get('exams') === '1' ? mapExams(ok({ rows: liveRows })) : q.get('exams') === 'none' ? mapExams(ok({ rows: [] })) : q.get('exams') === 'error' ? mapExams(bad(503)) : undefined;
+const home = { ...buildTeacherHome(raw), createTargets: targets, demo: q.get('demo') === '1', homework: { state: 'unavailable' }, ...(exams ? { exams } : {}) }; // the Homework to correct card has its own harness (homework-correct-browser.cjs)
 function Body() {
  if (view === 'loading') return <TeacherCoursesLoading />;
  if (view === 'courses') return <TeacherCoursesView courses={mapCourses(raw.courses)} targets={targets} />;
@@ -446,6 +450,33 @@ createRoot(document.getElementById('root')).render(
   }
   const d = await open(desktop, 'view=home&s=draft'); await d.page.locator('[data-teacher-home]').waitFor();
   assert.equal(await d.page.locator('[data-section="th-next"] [data-take-attendance]').count(), 1, 'a draft still says Take attendance'); assert.equal(await d.page.locator('[data-attendance-taken]').count(), 0); await d.context.close();
+ });
+ await step('Home "Live now": one row per open Group with the Group started / total and the time left, one tap to the Exams page, hidden when nothing is open', async () => {
+  const docs = path.resolve('docs/design/screenshots/exams-student');
+  if (process.env.LMS_COPY_SHOTS) fs.mkdirSync(docs, { recursive: true });
+  for (const [viewport, lang, look, tag] of [[phone, 'en', 'classic', 'phone-en-classic'], [phone, 'ar', 'new', 'phone-ar-new'], [desktop, 'en', 'new', 'desktop-en-new'], [desktop, 'ar', 'classic', 'desktop-ar-classic']]) {
+   const { page, context } = await open(viewport, `view=home&s=full&exams=1&lang=${lang}&design=${look}`);
+   try {
+    await page.locator('[data-section="th-live-exams"]').waitFor();
+    const rows = page.locator('[data-live-exam]');
+    assert.equal(await rows.count(), 2, 'one row per Group whose window is open (the closed Group is not listed)');
+    assert.deepEqual(await rows.evaluateAll(n => n.map(x => x.getAttribute('data-live-group'))), ['Synthetic Group Alpha', 'مجموعة الصف العاشر'], 'soonest close first');
+    const first = await rows.first().innerText();
+    assert.match(first, /(9|٩) \/ (14|١٤)/, 'started / total of that Group');
+    assert.match(first, lang === 'ar' ? /متبقي/ : /min left/);
+    assert.equal(await page.locator('[data-live-all]').getAttribute('href'), '/teacher/exams');
+    assert.equal(await page.locator('[data-live-exam] a, a[data-live-exam]').first().getAttribute('href'), '/teacher/exams', 'one tap to the Exams page');
+    assert.ok(await overflow(page), 'no sideways scroll ' + tag);
+    assert.equal(await page.evaluate(() => document.documentElement.dir), lang === 'ar' ? 'rtl' : 'ltr');
+    assert.ok((await rows.first().boundingBox()).height >= 44, 'a row is a 44px target');
+    if (process.env.LMS_COPY_SHOTS) { await page.evaluate(() => document.querySelector('[data-section="th-live-exams"]')?.scrollIntoView()); await page.screenshot({ path: path.join(docs, 'home-live-now-' + tag + '.png'), fullPage: true }); }
+   } finally { await context.close(); }
+  }
+  for (const s of ['none', 'error']) {
+   const { page, context } = await open(desktop, 'view=home&s=full&exams=' + s);
+   try { await page.locator('[data-teacher-home]').waitFor(); assert.equal(await page.locator('[data-section="th-live-exams"]').count(), s === 'none' ? 0 : 1, 'hidden when nothing is open; a failed read says so'); } finally { await context.close(); }
+  }
+  const absent = await open(desktop, 'view=home&s=full'); try { await absent.page.locator('[data-teacher-home]').waitFor(); assert.equal(await absent.page.locator('[data-section="th-live-exams"]').count(), 0, 'not there outside staging'); } finally { await absent.context.close(); }
  });
  if (process.env.LMS_MATRIX) await step('Screen matrix: every look, theme, language and width, measured', async () => {
   const withLook = (p, look) => p + (p.includes('?') ? '&' : '?') + 'design=' + look;

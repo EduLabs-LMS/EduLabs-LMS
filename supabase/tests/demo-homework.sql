@@ -46,11 +46,11 @@ insert into public.organizations(id,name,slug) values(pg_temp.key('org'),'Synthe
 insert into public.organization_memberships(organization_id,user_id,role,status,joined_at) values(pg_temp.key('org'),pg_temp.uid('teacher'),'owner','active',now());
 insert into private.demo_spaces(organization_id,marked_by) values(pg_temp.key('org'),pg_temp.uid('admin'));
 
--- 1. Fill: seed version 6 (the version 5 homework, plus the version 6 one).
-select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))=jsonb_build_object('seedVersion',6,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5),'fill reports seed version 6 and five homework');
-select pg_temp.ok((select seed_version=6 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 6');
+-- 1. Fill: seed version 7 (the version 5 homework, plus the version 6 one).
+select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))=jsonb_build_object('seedVersion',7,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5,'exams',5),'fill reports seed version 7 and five homework');
+select pg_temp.ok((select seed_version=7 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 7');
 set local role authenticated; select pg_temp.claim('admin');
-select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=6,'the status reports seed version 6 as the latest');
+select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=7,'the status reports seed version 7 as the latest');
 reset role;
 insert into dh_ids select 'course',id from public.courses where organization_id=pg_temp.key('org') and status='published';
 insert into dh_ids select 'off',o.id from public.course_offerings o where o.course_id=pg_temp.key('course');
@@ -176,7 +176,7 @@ select pg_temp.ok(exists(select 1 from public.profiles where id=pg_temp.uid('rea
 
 -- 6. Fill again, then a plain Clear removes exactly the recorded rows.
 select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'homework')::int=5,'the space fills again with five homework');
-select pg_temp.ok((private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'removedRows')::int=800,'a plain Clear removes exactly the 800 recorded rows');
+select pg_temp.ok((private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'removedRows')::int=1567,'a plain Clear removes exactly the 1567 rows (800 recorded before seed version 7, plus the 767 exam rows)');
 
 -- 7. The seed helpers are not callable by anyone else.
 select pg_temp.ok((select bool_and(not has_function_privilege(r,f,'execute')) from unnest(array['anon','authenticated','service_role']) r,

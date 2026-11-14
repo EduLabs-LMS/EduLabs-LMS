@@ -65,7 +65,7 @@ export type TeacherHomeData = {
   firstVisit: boolean;
 };
 
-export type TeacherHomeLoad = TeacherHomeData & { createTargets: CreateTarget[]; demo: boolean; homework: Section<HomeHomework> };
+export type TeacherHomeLoad = TeacherHomeData & { createTargets: CreateTarget[]; demo: boolean; homework: Section<HomeHomework>; exams?: Section<HomeExams> };
 
 /** Homework to correct on Home: the homework with essays waiting (homework_portal's To correct list), at most HOMEWORK_HOME_LIMIT of them. */
 export type HomeHomeworkRow = { id: string; title: string; courseTitle: string; waiting: number };
@@ -78,6 +78,25 @@ export function mapHomework(raw: Settled<{ toCorrect?: unknown }>): Section<Home
     .filter(r => typeof r?.id === 'string' && typeof r.title === 'string' && typeof r.waiting === 'number' && r.waiting > 0)
     .map(r => ({ id: r.id as string, title: r.title as string, courseTitle: typeof r.courseTitle === 'string' ? r.courseTitle : '', waiting: r.waiting as number }));
   return { state: 'ready', data: { items: rows.slice(0, HOMEWORK_HOME_LIMIT), more: Math.max(0, rows.length - HOMEWORK_HOME_LIMIT) } };
+}
+
+/** Exams open now ("Live now"): one row per Group whose window is open, with that Group's started / total and the close time (from exam_portal's open tab). */
+export type HomeLiveExam = { key: string; examId: string; title: string; courseTitle: string; groupName: string; started: number; total: number; closesAt: string };
+export type HomeExams = { items: HomeLiveExam[]; more: number };
+export const LIVE_EXAMS_LIMIT = 5;
+export function mapExams(raw: Settled<{ rows?: unknown }>): Section<HomeExams> {
+  if (!raw.ok) return { state: 'error', status: raw.status };
+  const list = Array.isArray(raw.value?.rows) ? raw.value.rows as Record<string, unknown>[] : [];
+  const live: HomeLiveExam[] = [];
+  for (const r of list) {
+    if (typeof r?.id !== 'string' || typeof r.title !== 'string' || r.status !== 'published' || r.kind !== 'online' || !Array.isArray(r.groups)) continue;
+    for (const g of r.groups as Record<string, unknown>[]) {
+      if (g?.window !== 'open' || typeof g.groupId !== 'string' || typeof g.closesAt !== 'string' || typeof g.started !== 'number' || typeof g.total !== 'number') continue;
+      live.push({ key: `${r.id}:${g.groupId}`, examId: r.id, title: r.title, courseTitle: typeof r.courseTitle === 'string' ? r.courseTitle : '', groupName: typeof g.name === 'string' ? g.name : '', started: g.started, total: g.total, closesAt: g.closesAt });
+    }
+  }
+  live.sort((a, b) => Date.parse(a.closesAt) - Date.parse(b.closesAt));
+  return { state: 'ready', data: { items: live.slice(0, LIVE_EXAMS_LIMIT), more: Math.max(0, live.length - LIVE_EXAMS_LIMIT) } };
 }
 
 const fail = <T>(r: Settled<unknown>): Section<T> => ({ state: 'error', status: r.ok ? null : r.status });

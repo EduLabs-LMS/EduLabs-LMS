@@ -157,6 +157,21 @@ function HomeworkToCorrect({ data, retry }: { data: HomeData['homework']; retry:
   </Card>;
 }
 
+/** Live now: an exam open for a Group, with that Group's started / total and the time left, one tap to the Exams page. Hidden when none is open. */
+function LiveNow({ data, retry, now }: { data: NonNullable<HomeData['exams']>; retry: Retry; now: number }) {
+  const { number } = useLanguage();
+  if (data.state === 'unavailable' || (data.state === 'ready' && !data.data.items.length)) return null;
+  const left = (closesAt: string) => { const m = Math.max(0, Math.ceil((Date.parse(closesAt) - now) / 60000)); return m >= 60 ? <L id="th.live.left_hm" values={{ h: number(Math.floor(m / 60)), m: number(m % 60) }} /> : <L id="th.live.left_m" values={{ m: number(m) }} />; };
+  return <Card list aria-labelledby="th-live" data-section="th-live-exams">
+    <CardHead id="th-live" title={<L id="th.live.title" />} action={<Link href="/teacher/exams" data-live-all className={buttonClass('tertiary')}><L id="th.live.all" /></Link>} />
+    {data.state === 'error' ? <div className="pb-3"><SectionError status={data.status} onRetry={retry.retry} pending={retry.pending} /></div>
+      : <ul className="d-list">{data.data.items.map(x => <ListRow key={x.key} data-live-exam={x.examId} data-live-group={x.groupName} href="/teacher/exams" leading={<IconBadge name="exams" tone="info" />}
+        title={<bdi dir="auto">{x.title}</bdi>} meta={<><bdi dir="auto">{x.groupName}</bdi> · {left(x.closesAt)}</>}
+        trailing={<StatusPill tone="info"><L id="th.live.started" values={{ started: number(x.started), total: number(x.total) }} /></StatusPill>} />)}</ul>}
+    {data.state === 'ready' && data.data.more > 0 && <p className="d-meta pb-3" data-live-more><L id="th.live.more" values={{ count: number(data.data.more) }} /></p>}
+  </Card>;
+}
+
 function ComingUp({ data, retry, now }: { data: HomeData['sessions']; retry: Retry; now: number }) {
   if (data.state === 'unavailable') return null;
   return <Card list aria-labelledby="th-coming" data-section="th-coming">
@@ -231,6 +246,7 @@ function ReturningHome({ data }: { data: HomeData }) {
     <NextSession data={data.sessions} facts={data.nextFacts} retry={retry} now={now} />
     <div className="d-home-grid">
       <div className="d-home-col">
+        {data.exams && <LiveNow data={data.exams} retry={retry} now={now} />}
         <NeedsAttention unsaved={data.unsaved} waiting={data.waiting} retry={retry} />
         <HomeworkToCorrect data={data.homework} retry={retry} />
         <ComingUp data={data.sessions} retry={retry} now={now} />

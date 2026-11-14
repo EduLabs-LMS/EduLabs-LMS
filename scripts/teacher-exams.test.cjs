@@ -230,13 +230,15 @@ test('examReply: every database code and reason becomes one plain status and rea
   [{ code: '23503', message: 'x' }, 409, { kind: 'refused', reason: 'in_use' }],
   [{ code: '42501' }, 403, { kind: 'denied' }], [{ code: 'PGRST116' }, 403, { kind: 'denied' }],
   [{ code: '23514', message: 'Add a question first', details: '{"reason":"reason_required"}' }, 400, { kind: 'invalid', reason: 'reason_required' }],
+  [{ code: '23514', message: 'Some questions are unfinished', details: '{"reason":"unfinished_questions","questions":[1,2,3]}' }, 400, { kind: 'invalid', reason: 'unfinished_questions', questions: [1, 2, 3] }],
+  [{ code: '23514', message: 'Some questions are unfinished', details: '{"reason":"unfinished_questions","questions":["x",0]}' }, 400, { kind: 'invalid', reason: 'unfinished_questions' }],
   [{ code: '23514', message: 'Auto-release needs an exam without essays' }, 400, { kind: 'invalid', reason: 'auto_release' }], [{ code: '23514', message: 'Something else' }, 400, { kind: 'invalid' }],
   [{ code: '22P02', message: 'Invalid exam' }, 400, { kind: 'invalid', reason: 'shape' }], [{ code: '23505', message: 'A student is listed twice' }, 400, { kind: 'invalid', reason: 'duplicate' }],
   [{ code: '22007', message: 'Times need an explicit offset' }, 400, { kind: 'invalid', reason: 'times' }], [{ code: '22008', message: 'Invalid time' }, 400, { kind: 'invalid', reason: 'times' }],
   [{ code: 'PT413' }, 413, { kind: 'too_large' }], [{ code: 'XX000', message: 'internal' }, 503, { kind: 'failed' }], [{}, 503, { kind: 'failed' }],
  ];
  for (const [error, status, body] of cases) assert.deepEqual(plain(ex.examReply(error)), { status, body }, JSON.stringify(error));
- for (const reason of ['started', 'reason_required', 'still_open', 'already_released', 'unfinished', 'in_use', 'picture', 'model_picture', 'auto_release', 'no_questions', 'times', 'mark_range', 'cannot_clear', 'session'])
+ for (const reason of ['started', 'reason_required', 'still_open', 'already_released', 'unfinished', 'in_use', 'picture', 'model_picture', 'auto_release', 'no_questions', 'unfinished_questions', 'times', 'mark_range', 'cannot_clear', 'session'])
   assert.ok(ex.EXAM_REASONS.includes(reason), reason);
 });
 
@@ -327,10 +329,17 @@ test('wizard: a new exam, chapters, kinds of question, what is saved for paper a
  // paper: details and the maximum only
  const paper = { ...ex.newExam(ids, 'paper', { courseId: uuid(80), offeringId: RUN }), title: ' Midterm ', heldOn: '2026-11-20', maxMarks: 40.4 };
  assert.deepEqual(plain(ex.toExamDefinition(paper, { create: true })), { title: 'Midterm', description: '', chapterIds: [], coversAllChapters: true, kind: 'paper', heldOn: '2026-11-20', maxMarks: 40 });
- // online, same time: Cairo's offset; questions left out until every one has its right answer
+ // online, same time: Cairo's offset; every question is always sent, even one still without its right answer (a draft keeps it)
  const s = { ...online, title: 'Quiz', timing: 'same_time', opensDate: '2026-11-20', opensTime: '10:00', closesDate: '2026-11-20', closesTime: '11:00', limitOn: true, timeLimitMinutes: 45 };
  let d = ex.toExamDefinition(s);
- assert.equal(d.opensAt, '2026-11-20T10:00:00+02:00'); assert.equal(d.closesAt, '2026-11-20T11:00:00+02:00'); assert.equal(d.timeLimitMinutes, 45); assert.equal(d.questions, undefined, 'no right answer yet');
+ assert.equal(d.opensAt, '2026-11-20T10:00:00+02:00'); assert.equal(d.closesAt, '2026-11-20T11:00:00+02:00'); assert.equal(d.timeLimitMinutes, 45);
+ assert.equal(d.questions.length, 1, 'the unfinished question is sent, never left out'); assert.deepEqual(plain(d.questions[0].correct), [], 'no right answer yet');
+ assert.equal(contract.examDefinition.safeParse(d).success, true, 'a draft with an unfinished choice is a valid save');
+ const gaps = { ...s, questions: [s.questions[0], { ...ex.newExamQuestion('number', ids), text: 'No value' }, { ...ex.newExamQuestion('choice', ids), text: 'Second' }] };
+ d = ex.toExamDefinition(gaps);
+ assert.equal(d.questions.length, 3, 'three questions typed, nothing ticked: all three are sent'); assert.equal(d.questions[1].numberValue, null, 'a number without a value is sent as null');
+ assert.equal(contract.examDefinition.safeParse(d).success, true); assert.equal(ex.questionsComplete(gaps), false);
+ assert.equal(ex.questionsSavable, undefined, 'the leave-them-out rule is gone');
  assert.equal('kind' in d, false, 'kind only when creating');
  const ready = { ...s, questions: [{ ...s.questions[0], text: 'Pick', options: s.questions[0].options.map((o, i) => ({ ...o, text: 'abcd'[i] })), correctIds: [s.questions[0].options[2].id] },
   { ...ex.newExamQuestion('number', ids), text: 'How many?', numberValue: '٣٫٥', tolerance: '0,5' }, { ...ex.newExamQuestion('essay', ids), text: 'Explain' }], autoRelease: true, photos: false };
@@ -448,7 +457,7 @@ const screens = featureFiles.map(read).join('\n');
 test('screens: no native checkbox, no disabled attribute, only the exam, course and Group routes, nothing decided by a role', () => {
  assert.doesNotMatch(screens, /type=["']checkbox["']/);
  assert.doesNotMatch(screens, /<(button|input|textarea|select)\b[^>]*\sdisabled[\s=>]/, 'aria-disabled with a reason instead');
- const routes = [...new Set([...(screens + read('frontend/lib/exam-upload.ts')).matchAll(/['"`](\/api\/[^'"`?$]*)/g)].map(m => m[1]))].sort();
+ const routes = [...new Set([...(screens + read('frontend/lib/exam-upload.ts').replace("'/api/exams'", "'/api/teacher/exams'")).matchAll(/['"`](\/api\/[^'"`?$]*)/g)].map(m => m[1]))].sort();
  assert.ok(routes.length > 0);
  for (const r of routes) assert.match(r, /^\/api\/(teacher\/exams|teacher\/courses\/|teacher\/study-groups)/, r);
  assert.doesNotMatch(screens, /isTeacher|role ===|viewer\.role|service[_-]?role/);

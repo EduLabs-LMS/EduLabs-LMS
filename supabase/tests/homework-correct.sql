@@ -1,6 +1,6 @@
 -- Disposable local PostgreSQL only. Synthetic verified-gateway claims (Firebase identities); every change rolls back; no real account exists.
--- Covers migration 20261113120000_homework_correct_demo.sql (demo seed version 6) and what the correcting screen relies on:
---   1. Fill at seed version 6: "Magnetism review", a published lesson with no parts, and its homework with tries in every state;
+-- Covers migration 20261113120000_homework_correct_demo.sql (demo seed version 7) and what the correcting screen relies on:
+--   1. Fill at seed version 7: "Magnetism review", a published lesson with no parts, and its homework with tries in every state;
 --   2. the correcting reads on it (homework_queue, get_homework for one try: answers, the deleted photo, kept answers, the rights);
 --   3. a single release and a bulk release notify the student the same way (the existing row trigger), once per released try;
 --   4. Clear still refuses, removing nothing, while a real person's try is there, and otherwise removes the new lesson with everything else.
@@ -46,13 +46,13 @@ insert into public.organization_memberships(organization_id,user_id,role,status,
  (pg_temp.key('org_other'),pg_temp.uid('outsider'),'owner','active',now());
 insert into private.demo_spaces(organization_id,marked_by) values(pg_temp.key('org'),pg_temp.uid('admin'));
 
--- 1. Fill: seed version 6.
-select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))=jsonb_build_object('seedVersion',6,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5),
- 'fill reports seed version 6: six lessons and five homework');
-select pg_temp.ok((select seed_version=6 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 6');
-select pg_temp.ok((select (detail->>'seedVersion')::int=6 and (detail->>'homework')::int=5 from private.platform_audit where organization_id=pg_temp.key('org') and action='demo.fill' order by id desc limit 1),'the audit row says seed version 6');
+-- 1. Fill: seed version 7.
+select pg_temp.ok(private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))=jsonb_build_object('seedVersion',7,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5,'exams',5),
+ 'fill reports seed version 7: six lessons and five homework');
+select pg_temp.ok((select seed_version=7 from private.demo_spaces where organization_id=pg_temp.key('org')),'the space stores seed version 7');
+select pg_temp.ok((select (detail->>'seedVersion')::int=7 and (detail->>'homework')::int=5 from private.platform_audit where organization_id=pg_temp.key('org') and action='demo.fill' order by id desc limit 1),'the audit row says seed version 7');
 set local role authenticated; select pg_temp.claim('admin');
-select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=6 and (public.platform_demo_status(pg_temp.key('org'))->>'seedVersion')::int=6,'the status reports seed version 6 as the latest and as filled');
+select pg_temp.ok((public.platform_demo_status(pg_temp.key('org'))->>'latestSeedVersion')::int=7 and (public.platform_demo_status(pg_temp.key('org'))->>'seedVersion')::int=7,'the status reports seed version 7 as the latest and as filled');
 reset role;
 insert into hc_ids select 'course',id from public.courses where organization_id=pg_temp.key('org') and status='published';
 insert into hc_ids select 'off',o.id from public.course_offerings o where o.course_id=pg_temp.key('course');
@@ -210,7 +210,7 @@ select pg_temp.ok(not exists(select 1 from public.lessons where id=pg_temp.key('
  and not exists(select 1 from private.homework_uploads where assignment_id=pg_temp.key('hw')) and not exists(select 1 from public.courses where organization_id=pg_temp.key('org')),'Clear removes the lesson, its homework, the photo rows and the courses');
 select pg_temp.ok(not exists(select 1 from private.demo_seed_rows where organization_id=pg_temp.key('org')),'nothing recorded is left');
 select pg_temp.ok(not exists(select 1 from public.notifications n where n.recipient_id in (select id from public.profiles where display_name like 'Demo Student %')),'no notification of a released demo try remains');
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=6,'the space fills again at seed version 6');
-select pg_temp.ok((private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'removedRows')::int=800,'a plain Clear removes exactly the 800 recorded rows');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=7,'the space fills again at seed version 7');
+select pg_temp.ok((private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'removedRows')::int=1567,'a plain Clear removes exactly the 1567 rows (800 recorded before seed version 7, plus the 767 exam rows)');
 select count(*)::integer homework_correct_tests from hc_results;
 rollback;

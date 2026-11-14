@@ -44,6 +44,7 @@ highest version in this table is the **latest seed version**.
 | Course content tree | `courses` | 4 | The same 3 Chapters and 5 Lessons, now the tree on the board: in the published course 3, 2 and 0 lessons, named as on the board. The draft course has no chapters. |
 | Homework | `homework` | 5 | 4 questions-only homework in the published Physics course, for its whole offering: a draft, an open one, and two closed ones, with 58 tries by the demo students (waiting, corrected, released, late, a second try with a kept answer) and 20 photo rows with no stored file (see "Demo homework") |
 | Correcting, lesson page | `courses`, `homework` | 6 | A third Magnetism lesson, "Magnetism review", published with no part, and its homework (closed yesterday, late allowed): 14 tries for correcting (7 waiting, 2 of them late, 4 corrected and not released, 3 released), 3 photos, one deleted to free space (see "Correcting and a lesson with no parts") |
+| Exams | `exams` | 7 | Five exams in the Physics course (migration `20261115120000_exams_drafts_and_demo_v7.sql`): an online one OPEN NOW for Demo Group 1 (window an hour before to three hours after the fill; students 1-3 handed in, 4-5 working, the rest not started; Group 2 follows its next session); a closed one with essays waiting and some corrected-not-released; a released one with answer review open; an upcoming one in each Group's next session; a paper one out of 50 (marks entered, one Absent, some missing) |
 
 Tables the seed may write (the `table_name` check of `private.demo_seed_rows`): `courses`, `course_modules`, `lessons`,
 `course_offerings`, `study_groups`, `group_staff`, `group_sessions`, and from seed version 2 (migration
@@ -105,6 +106,20 @@ question, and an essay (6 points, text and one photo). Deadlines are 20:00 Cairo
 
 - The fill now answers `{seedVersion: 6, courses: 2, lessons: 6, groups: 2, sessions: 9, students: 28, homework: 5}`.
 - A space filled at an earlier seed version is not upgraded in place. To get it: Clear, then Fill again.
+
+## Demo exams (seed version 7, migration `20261115120000_exams_drafts_and_demo_v7.sql`)
+
+Every row is recorded in `private.demo_seed_rows` where it has a row id (exams, questions, options, keys, tries, results); windows, stored paper, answers and marks have composite keys and go with their exam. No photo or stored file is seeded, so Clear never meets "exam files". `demo_clear_core` (20261114120000) already removes the exams of the space and still refuses a try or result of a real person and any stored exam file.
+
+Students 1-14 are in Demo Group 1, 15-28 in Demo Group 2. Online exams have four questions (choice, several choices, a number, an essay with text and a photo allowed), 12 points, 30 minutes.
+
+1. Electric current: quiz (open now): Group 1's window runs from an hour before the fill to three hours after it; students 1-3 handed in, 4 and 5 are working, 6-14 not started. Group 2 follows its next session. Fix mistakes.
+2. Electric current: mid-term (closed): windows closed 3 and 2 days ago. Students 1-12 and 15-26 handed in; essays wait, except every third student whose result is corrected and not released.
+3. Magnetism: unit test (released): windows closed 9 days ago; students 1-20 handed in, corrected and released, so answer review is open.
+4. Electromagnetic induction: quiz (upcoming): each Group's window is its next session.
+5. Electricity: paper exam: out of 50; students 1-9 and 15-22 have a mark (1-4 released), student 10 is Absent, the others are missing.
+
+The same migration also lets a DRAFT exam keep unfinished questions (see DECISIONS.md); this is not seed data.
 
 ## Demo notifications (seed version 3)
 

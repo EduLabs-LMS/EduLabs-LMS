@@ -36,7 +36,7 @@ test('contract: provisioning requires the name', () => {
 test('migration: LF only, pinned as text, the last one, replaces only the provisioning and the two read models, never uses auth.uid()', () => {
  assert.ok(!mig.includes('\r')); assert.match(read('.gitattributes'), /20261105130000_teaching_space_name\.sql -text/);
  const names = fs.readdirSync('supabase/migrations').filter(n => n.endsWith('.sql')).sort();
- assert.equal(names.at(-8), '20261105130000_teaching_space_name.sql', 'only the listing-performance, course-content, homework rules, lesson publish, homework move, homework correct and exams migrations come after it');
+ assert.equal(names.at(-9), '20261105130000_teaching_space_name.sql', 'only the listing-performance, course-content, homework rules, lesson publish, homework move, homework correct, exams and exams drafts migrations come after it');
  assert.doesNotMatch(strip(mig), /auth\.uid\(\)/);
  assert.deepEqual([...mig.matchAll(/create or replace function ([\w.]+)\(/g)].map(m => m[1]), ['private.platform_provision_teacher', 'private.platform_portal_overview', 'private.platform_portal_detail']);
  assert.equal((mig.match(/^create function /gm) ?? []).length, 4, 'two private functions and their two invoker wrappers');

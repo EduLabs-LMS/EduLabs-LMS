@@ -73,3 +73,13 @@ Open/Closed/Drafts/Archived, row menu), the wizard (`/teacher/exams/new`, `/teac
 Choice/Number/Essay, When with each Group's window, Rules, Review; paper Details and Review), correcting (`/teacher/exams/<id>/correct`)
 and the paper mark sheet (`/teacher/exams/<id>/marks`). Exams is a real menu item; only Reports is Soon. **Part 2** (not started): the
 student side, the Home "Live now" card and demo seed v7. Next: owner review of the screens and `docs/design/screenshots/exams-ui/`.
+
+## Update 2026-11-14: exams part 2 (student side, Home card, demo v7) on `claude/exams-student`
+
+Built on `claude/exams-student` (from `claude/exams-ui` at efc4af9). One new migration, `20261115120000_exams_drafts_and_demo_v7.sql`
+(**not applied anywhere**; `20261114120000_exams.sql` is untouched). It (1) lets a draft keep unfinished questions (a choice with no right
+answer, a number with no value) and makes Publish refuse them, naming the question numbers; (2) adds the exam's `rule` and `courseTitle`
+to the student view; (3) links release notices to `/exams/<id>`; (4) fills demo seed v7 (five Physics exams). The client now always sends
+every question on autosave (the leave-them-out logic is gone). Student screens: `/exams` (list) and `/exams/<id>` (overview, taking,
+hand-in, second try, answer review) with routes under `/api/exams`; the teacher Home has a "Live now" card from `exam_portal`.
+Next: owner review of the screens (`docs/design/screenshots/exams-student/`), then the owner decides on applying the migration.

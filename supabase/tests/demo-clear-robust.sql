@@ -109,7 +109,7 @@ select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_c'))=current_setting('dcr.c_
 -- 5. Clear space A. Recorded: 3+1 chapters, 5+1 lessons, 2 courses = 12. Added or recorded under the Groups and offerings: 7 sessions, 1 weekly time,
 --    3 staff rows, 3 Groups, 2 offerings = 16. Total 28, and nothing is left.
 select set_config('dcr.a_result',private.demo_clear_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))::text,true);
-select pg_temp.ok((current_setting('dcr.a_result')::jsonb->>'removedRows')::int=808,'removedRows counts every removed row, added ones included (117 with the version 6 lesson, plus the 691 homework rows of seed versions 5 and 6)');
+select pg_temp.ok((current_setting('dcr.a_result')::jsonb->>'removedRows')::int=1575,'removedRows counts every removed row, added ones included (8 added, plus the 1567 rows of seed version 7)');
 select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_a'))='0/0/0/0/0/0/0/0/0','clear leaves nothing for the space (courses, chapters, lessons, offerings, Groups, Sessions, weekly times, staff, registry)');
 select pg_temp.ok(not exists(select 1 from public.group_sessions where group_id in (pg_temp.key('a_group'),pg_temp.key('a_group2')))
  and not exists(select 1 from public.study_groups where id in (pg_temp.key('a_group'),pg_temp.key('a_group2')))
@@ -120,7 +120,7 @@ select pg_temp.ok(not exists(select 1 from public.group_sessions where group_id 
 select pg_temp.ok(pg_temp.events(pg_temp.key('org_a'))=0,'no notification event of the space remains');
 select pg_temp.ok(not exists(select 1 from private.group_audit where group_id in (pg_temp.key('a_group'),pg_temp.key('a_group2'))),'no Group audit row remains');
 select pg_temp.ok(exists(select 1 from private.demo_spaces where organization_id=pg_temp.key('org_a') and seed_version is null and filled_at is null),'the space is still demo, now empty');
-select pg_temp.ok((select (detail->>'removedRows')::int=808 and detail ? 'removedByTable' and detail ? 'removedSupportRows' from private.platform_audit where organization_id=pg_temp.key('org_a') and action='demo.clear'),'the audit row carries the honest counts');
+select pg_temp.ok((select (detail->>'removedRows')::int=1575 and detail ? 'removedByTable' and detail ? 'removedSupportRows' from private.platform_audit where organization_id=pg_temp.key('org_a') and action='demo.clear'),'the audit row carries the honest counts');
 
 -- 6. Spaces that are not A are untouched; clear is not available for a space that is not demo.
 select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_b'))=current_setting('dcr.b_before') and exists(select 1 from public.group_sessions where group_id=pg_temp.key('b_group'))
@@ -131,7 +131,7 @@ select pg_temp.ok(pg_temp.leftover(pg_temp.key('org_b'))=current_setting('dcr.b_
 
 -- 7. After a clear the space can be filled again (the same course slugs are free) and cleared again with the original count.
 select pg_temp.ok((private.demo_fill_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))->>'sessions')::int=9,'a cleared space can be filled again');
-select pg_temp.ok((private.demo_clear_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))->>'removedRows')::int=800,'a plain clear still removes exactly the 800 recorded rows (109 with the version 6 lesson, plus 691 homework rows of seed versions 5 and 6)');
+select pg_temp.ok((private.demo_clear_core(pg_temp.key('org_a'),(select id from dcr_users where label='admin'))->>'removedRows')::int=1567,'a plain clear still removes exactly the 1567 rows (800 recorded before seed version 7, plus the 767 exam rows) (109 with the version 6 lesson, plus 691 homework rows of seed versions 5 and 6)');
 
 -- 8. The function is not callable by API roles.
 select pg_temp.ok((select bool_and(not has_function_privilege(r,'private.demo_clear_core(uuid,uuid)','execute')) from unnest(array['anon','authenticated']) r),'API roles cannot call demo_clear_core');

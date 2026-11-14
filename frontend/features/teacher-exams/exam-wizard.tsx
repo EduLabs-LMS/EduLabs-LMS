@@ -22,7 +22,7 @@ import type { GroupPage, GroupSession } from '@/shared/contracts/groups';
 import { cairoDay, cairoFields, cairoIso, cairoTime } from '@/shared/teacher-homework';
 import {
   cairoDate, clampLimit, closesIso, coreOf, dayLabel, detailsOnly, examIssues, examSavable, examStepIssues, examTotal, fromExamView, hasEssays, limitCap, newExam, newExamQuestion,
-  opensIso, PAPER_MAX, questionsSavable, setExamKind, stepsOf, toExamDefinition, toggleChapter,
+  opensIso, PAPER_MAX, questionsComplete, setExamKind, stepsOf, toExamDefinition, toggleChapter,
   type ExamFailure, type ExamIssue, type ExamKind, type ExamPageLoad, type ExamQuestion, type ExamStep, type ExamView, type ExamWindow, type ExamWizard as Wizard,
 } from '@/shared/teacher-exams';
 import { durationWords, EXAMS_API, examCall, examCount, examFailureWords, triesWords } from './exam-words';
@@ -147,7 +147,7 @@ export function ExamWizard({ load, examId, initialCourse, initialKind }: { load:
         current = { ...s, id: clone.body.id, revision: clone.body.revision, status: 'draft', started: false, version: s.version + 1 };
         latest.current = current; setState(current);
       }
-      if (current.id && current.status !== 'draft' && !current.started && !questionsSavable(current)) { setIssues(examIssues(current, Date.now(), cap)); return; }
+      if (current.id && current.status !== 'draft' && !current.started && !questionsComplete(current)) { setIssues(examIssues(current, Date.now(), cap)); return; }
       const stored = await store(current);
       if (!stored.ok) { setFailure(stored.failure); if (stored.failure.kind === 'changed') setSave('stale'); return; }
       current = { ...current, id: stored.body.id, revision: stored.body.revision };
@@ -196,7 +196,6 @@ export function ExamWizard({ load, examId, initialCourse, initialKind }: { load:
   const now = Date.now();
   const saveText: Record<Save, MessageKey | null> = { idle: state.id ? 'hw.w.saved' : null, saving: 'hw.w.saving', saved: 'hw.w.saved', waiting: 'hw.w.unsaved', failed: 'hw.w.save_failed', stale: 'hw.w.save_failed' };
   const status = !author || state.started || state.status !== 'draft' ? null : saveText[save];
-  const questionsPending = state.kind === 'online' && state.status === 'draft' && !questionsSavable(state) && (save === 'saved' || save === 'idle') && Boolean(state.id);
   const issueList = issues.length > 0 && <div role="alert" data-issues className="d-alert"><ul className="d-stack-xs">{issues.map((issue, i) => <li key={i} data-issue={issue.key} className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" />{t(`ex.w.issue.${issue.key}` as MessageKey, { n: (issue.question ?? 0) + 1, cap: cap === null ? '' : durationWords(t, cap, number) })}</li>)}</ul></div>;
   const fixed = Boolean(state.id);
   // Before the steps: the When step's window rows use it too.
@@ -328,7 +327,6 @@ export function ExamWizard({ load, examId, initialCourse, initialKind }: { load:
       {save === 'stale' ? <Button data-reload onClick={() => void reload()}><L id="tc.reload" /></Button> : <Button data-retry-save onClick={() => void send()}><L id="th.state.retry" /></Button>}
     </div>}
     {failure && save !== 'stale' && save !== 'failed' && <div role="alert" data-finish-failure={failure.kind} className="d-alert"><p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span>{examFailureWords(t, failure)}</span></p></div>}
-    {questionsPending && shown === 'questions' && <p className="d-content-line" data-questions-pending><Icon name="info" /><span><L id="ex.w.questions_pending" /></span></p>}
     {body[shown]}
     {issueList}
     <div className="d-hw-bar" data-wizard-bar>

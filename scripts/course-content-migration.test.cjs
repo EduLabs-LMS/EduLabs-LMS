@@ -9,7 +9,7 @@ const names = () => fs.readdirSync('supabase/migrations').filter(n => n.endsWith
 test('the file: LF only, pinned as text, and only the homework rules and lesson publish migrations come after it', () => {
  assert.ok(!sql.includes('\r'), 'the staging manager hashes the Git blob');
  assert.match(read('.gitattributes'), /20261106130000_course_content_tree\.sql -text/);
- assert.deepEqual(names().slice(names().indexOf(NAME) + 1), ['20261109120000_homework_teacher_rules.sql', '20261110120000_lesson_publish.sql', '20261112120000_homework_move.sql', '20261113120000_homework_correct_demo.sql', '20261114120000_exams.sql']);
+ assert.deepEqual(names().slice(names().indexOf(NAME) + 1), ['20261109120000_homework_teacher_rules.sql', '20261110120000_lesson_publish.sql', '20261112120000_homework_move.sql', '20261113120000_homework_correct_demo.sql', '20261114120000_exams.sql', '20261115120000_exams_drafts_and_demo_v7.sql']);
  assert.match(code, /^\s*begin;/); assert.match(code, /commit;\s*$/);
 });
 

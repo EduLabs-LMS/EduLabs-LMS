@@ -61,3 +61,6 @@ remain available here. Real provider/email/push acceptance has not run for this 
   Storage, then the server's byte check proved to the database with an upload-scoped token.
 - Not built yet (part 2): the student exam screens, the Home "Live now" card, demo seed v7.
 - Verified with synthetic loopback data and the real middleware only; not real Firebase/Supabase acceptance. Not deployed.
+- Exams part 2 (branch `claude/exams-student`): student Exams screens (`/exams`, `/exams/<id>`) and routes (`/api/exams*`), the teacher Home
+  "Live now" card, drafts that keep unfinished questions, demo seed v7. One new migration `20261115120000_exams_drafts_and_demo_v7.sql`, **not
+  applied**. Verified with synthetic loopback data only; not real Firebase/Supabase acceptance. Not deployed.

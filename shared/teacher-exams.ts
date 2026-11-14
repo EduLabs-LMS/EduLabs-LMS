@@ -38,7 +38,7 @@ const reasonPattern = /^[a-z_]{1,40}$/;
  * {"reason":"stale"} is a change made elsewhere. A 23514 carries its detail reason when it has one (reason_required, already_released,
  * unfinished), otherwise the one its message names. 23503 is a picture that is not there (or not ready). 42501 is no.
  */
-export function examReply(error: DatabaseError): { status: number; body: { kind: string; reason?: string } } {
+export function examReply(error: DatabaseError): { status: number; body: { kind: string; reason?: string; questions?: number[] } } {
   const code = error.code ?? '', message = error.message ?? '';
   let detail: Record<string, unknown> | null = null;
   try { const parsed = JSON.parse(error.details ?? ''); detail = parsed && typeof parsed === 'object' ? parsed : null; } catch { detail = null; }
@@ -51,14 +51,18 @@ export function examReply(error: DatabaseError): { status: number; body: { kind:
   }
   if (code === '23503') return { status: 409, body: { kind: 'refused', reason: named ?? 'in_use' } };
   if (code === '42501' || code === 'PGRST116') return { status: 403, body: { kind: 'denied' } };
-  if (code === '23514' && said) return { status: 400, body: { kind: 'invalid', reason: said } };
+  if (code === '23514' && said) {
+    // Publish refusing unfinished questions lists their numbers (1 to 100) so the teacher can find them.
+    const qs = detail?.questions, list = Array.isArray(qs) && qs.length > 0 && qs.length <= 100 && qs.every(n => Number.isInteger(n) && n >= 1 && n <= 100) ? qs as number[] : null;
+    return { status: 400, body: said === 'unfinished_questions' && list ? { kind: 'invalid', reason: said, questions: list } : { kind: 'invalid', reason: said } };
+  }
   if (code === '23514' || code === '22P02' || code === '23505' || code === '22007' || code === '22008') return { status: 400, body: named ? { kind: 'invalid', reason: named } : { kind: 'invalid' } };
   if (code === 'PT413') return { status: 413, body: { kind: 'too_large' } };
   return { status: 503, body: { kind: 'failed' } };
 }
 /** Every reason the routes can answer with, for the words table and its test (each one has words on screen). */
 export const EXAM_REASONS = [
-  'started', 'needs_time', 'reason_required', 'window_open', 'still_open', 'already_released', 'unfinished', 'no_window', 'not_open', 'deadline_passed', 'no_tries_left',
+  'started', 'needs_time', 'reason_required', 'window_open', 'still_open', 'already_released', 'unfinished', 'unfinished_questions', 'no_window', 'not_open', 'deadline_passed', 'no_tries_left',
   ...Array.from(new Set(reasonByMessage.map(([, r]) => r))), 'in_use', 'other_space',
 ] as const;
 
@@ -203,26 +207,26 @@ export function limitCap(s: Pick<ExamWizard, 'timing' | 'opensDate' | 'opensTime
 }
 export const clampLimit = (n: number, cap: number | null) => Math.max(1, Math.min(cap ?? TIME_LIMIT_MAX, Math.round(n)));
 
-/** A question the database takes: a choice has 2 to 8 answers and a right one, a number has its value (and a tolerance of 0 or more). */
+/** A question ready to publish: a choice has 2 to 8 answers and a right one, a number has its value (and a tolerance of 0 or more). A draft stores it either way. */
 export function questionReady(q: ExamQuestion) {
   if (q.kind === 'choice') return q.options.length >= 2 && q.options.length <= 8 && q.correctIds.length > 0;
   if (q.kind === 'number') return parseNumber(q.numberValue) !== null && (q.tolerance.trim() === '' || (parseNumber(q.tolerance) ?? -1) >= 0);
   return true;
 }
-/** Every question can be stored: exam_save needs every right answer even in a draft, so until then a draft saves without its questions. */
-export const questionsSavable = (s: Pick<ExamWizard, 'questions'>) => s.questions.every(questionReady);
+/** Every question is ready to publish (a draft saves unfinished ones as they are; only a published exam needs this to save). */
+export const questionsComplete = (s: Pick<ExamWizard, 'questions'>) => s.questions.every(questionReady);
 
 export function toQuestion(q: ExamQuestion, photos: boolean): ExamQuestionInput {
   const base = { text: q.text, imageId: q.imageId, points: Math.min(EXAM_MAX_POINTS, Math.max(0, Math.round(q.points))), modelText: q.modelAnswer, modelImageId: q.modelImageId };
   if (q.kind === 'choice') return { type: 'choice', ...base, options: q.options.map(o => o.text), correct: q.options.map((o, i) => q.correctIds.includes(o.id) ? i : -1).filter(i => i >= 0) };
-  if (q.kind === 'number') return { type: 'number', ...base, numberValue: parseNumber(q.numberValue) ?? 0, tolerance: Math.abs(parseNumber(q.tolerance) ?? 0) };
+  if (q.kind === 'number') return { type: 'number', ...base, numberValue: parseNumber(q.numberValue), tolerance: Math.abs(parseNumber(q.tolerance) ?? 0) };
   return { type: 'essay', ...base, responseMode: photos ? 'both' : 'text' };
 }
 /** The keys a started exam still saves (owner's rule: only the details change once a student started or a paper mark exists). */
 export const DETAIL_KEYS = ['title', 'description', 'chapterIds', 'coversAllChapters', 'heldOn'] as const;
 /**
  * What exam_save receives. `kind` only when creating. Paper: details and the maximum mark. Online: details, times, rules and the questions
- * when every one of them is ready (otherwise they are left out and the stored ones stay). Auto-release is off while there are essays.
+ * always (a draft keeps unfinished ones). Auto-release is off while there are essays.
  */
 export function toExamDefinition(s: ExamWizard, opts: { create?: boolean; questions?: boolean } = {}): ExamDefinitionInput {
   const d: ExamDefinitionInput = { title: s.title.trim() || undefined, description: s.description, chapterIds: s.coversAllChapters ? [] : s.chapterIds, coversAllChapters: s.coversAllChapters };
@@ -234,7 +238,8 @@ export function toExamDefinition(s: ExamWizard, opts: { create?: boolean; questi
   else { d.opensAt = opensIso(s); d.closesAt = closesIso(s); }
   d.timeLimitMinutes = s.limitOn ? Math.max(1, Math.min(TIME_LIMIT_MAX, Math.round(s.timeLimitMinutes))) : null;
   d.tries = s.tries; d.shuffle = s.shuffle; d.photosAllowed = s.photos; d.autoRelease = s.autoRelease && !hasEssays(s);
-  if (opts.questions !== false && questionsSavable(s)) d.questions = s.questions.map(q => toQuestion(q, s.photos));
+  // Every question is always sent: a draft keeps unfinished ones (nothing is left out), a published exam is checked by the database.
+  if (opts.questions !== false) d.questions = s.questions.map(q => toQuestion(q, s.photos));
   return d;
 }
 /** Only the detail keys of a definition (a started exam's save). */

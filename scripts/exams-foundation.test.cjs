@@ -146,13 +146,23 @@ test('read-only views show released marks only and expose no attempt-start actio
   assert.match(released,/987/);
 });
 
-test('missing identity redirects while load failures render a safe error, not an empty list', async () => {
+test('missing identity redirects, staff go to the teacher screens, load failures render a safe error (not an empty list), a student gets the exam screen', async () => {
   const React=require('react'),{renderToStaticMarkup}=require('react-dom/server');
-  const components={ExamsErrorView:()=>React.createElement('p',null,'Safe error'),ExamsListView:()=>React.createElement('p',null,'Listing')};
-  const page=service=>load('app/(dashboard)/_components/website-exams.tsx',{
-    'react/jsx-runtime':require('react/jsx-runtime'),'next/navigation':{redirect:()=>{throw Error('sign-in redirect')},notFound:()=>{throw Error('not found')}},
-    '@/frontend/components/teacher-foundation-notice':{TeacherFoundationNotice:()=>null},'@/frontend/features/exams/exams-list':components,'@/frontend/features/exams/exam-runner':{ExamRunner:()=>React.createElement('p',null,'Runner')},'@/frontend/features/exams/exam-teacher-portal':{ExamTeacherPortal:components.ExamsListView},'@/frontend/features/exams/exam-staff':{ExamStaffActions:()=>null},'@/server/services/exam-authoring':{examAuthoringAvailable:async()=>false},'@/server/services/exams':service});
-  await assert.rejects(page({loadExamList:async()=>null}).WebsiteExams(),/sign-in redirect/);
-  const html=renderToStaticMarkup(await page({loadExamList:async()=>{throw Error('private error')}}).WebsiteExams());
-  assert.match(html,/Safe error/);assert.doesNotMatch(html,/private error|Listing/);
+  const page=(service,student={})=>load('app/(dashboard)/_components/website-exams.tsx',{
+    'react/jsx-runtime':require('react/jsx-runtime'),'next/navigation':{redirect:p=>{throw Error('redirect '+p)},notFound:()=>{throw Error('not found')}},
+    '@/frontend/features/student-exams/exam-list':{StudentExamsList:({load})=>React.createElement('p',null,load.state==='error'?'Safe error':'Listing '+load.data.rows.length)},
+    '@/frontend/features/student-exams/exam-screen':{StudentExamScreen:({examId})=>React.createElement('p',null,'Screen '+examId)},
+    '@/server/services/exams':service,'@/server/services/exams-student':student});
+  const id='00000000-0000-4000-8000-000000000001', student={isStaff:false};
+  await assert.rejects(page({loadExamList:async()=>null}).WebsiteExams(),/redirect \/sign-in/);
+  await assert.rejects(page({loadExamList:async()=>({isStaff:true})}).WebsiteExams(),/redirect \/teacher\/exams/);
+  await assert.rejects(page({loadExamList:async()=>null}).WebsiteExam({examId:id}),/redirect \/sign-in/);
+  await assert.rejects(page({loadExamList:async()=>({isStaff:true})}).WebsiteExam({examId:id}),/redirect \/teacher\/exams/);
+  await assert.rejects(page({loadExamList:async()=>student}).WebsiteExam({examId:'x'}),/not found/);
+  assert.match(renderToStaticMarkup(await page({loadExamList:async()=>student}).WebsiteExam({examId:id})),/Screen 0000/);
+  assert.match(renderToStaticMarkup(await page({loadExamList:async()=>student},{readStudentExams:async()=>({status:200,body:{rows:[{}]}})}).WebsiteExams()),/Listing 1/);
+  for (const readStudentExams of [async()=>{throw Error('private error')},async()=>({status:503,body:{kind:'failed'}}),async()=>({status:403,body:{kind:'denied'}})]) {
+    const html=renderToStaticMarkup(await page({loadExamList:async()=>student},{readStudentExams}).WebsiteExams());
+    assert.match(html,/Safe error/);assert.doesNotMatch(html,/private error|Listing/);
+  }
 });

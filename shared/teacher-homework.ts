@@ -123,8 +123,13 @@ export function homeworkReply(error: DatabaseError): { status: number; body: { k
   if (code === 'PT413') return { status: 413, body: { kind: 'too_large' } };
   return { status: 503, body: { kind: 'failed' } };
 }
-export type HomeworkFailure = { kind: 'signin' | 'denied' | 'changed' | 'too_large' | 'failed' | 'unknown' } | { kind: 'refused' | 'invalid'; reason: string | null };
+export type HomeworkFailure = { kind: 'signin' | 'denied' | 'changed' | 'too_large' | 'failed' | 'unknown' } | { kind: 'refused' | 'invalid'; reason: string | null; questions?: number[] };
 /** The screen's reading of a reply. No reply (`status` null) is an unknown outcome: it may have been saved. */
+/** The numbers of the questions a refusal names (Publish listing the unfinished ones), when the reply carries them. */
+function questionList(body: unknown): { questions?: number[] } {
+  const list = (body as { questions?: unknown } | null)?.questions;
+  return Array.isArray(list) && list.length > 0 && list.length <= 100 && list.every(n => Number.isInteger(n) && n >= 1 && n <= 100) ? { questions: list as number[] } : {};
+}
 export function homeworkFailure(status: number | null, body: unknown): HomeworkFailure {
   const reason = body && typeof body === 'object' && typeof (body as { reason?: unknown }).reason === 'string' ? (body as { reason: string }).reason : null;
   if (status === null) return { kind: 'unknown' };
@@ -132,7 +137,7 @@ export function homeworkFailure(status: number | null, body: unknown): HomeworkF
   if (status === 403 || status === 404) return { kind: 'denied' };
   if (status === 409) return (body as { kind?: unknown } | null)?.kind === 'refused' ? { kind: 'refused', reason } : { kind: 'changed' };
   if (status === 413) return { kind: 'too_large' };
-  if (status === 400 || status === 415) return { kind: 'invalid', reason };
+  if (status === 400 || status === 415) return { kind: 'invalid', reason, ...questionList(body) };
   return { kind: 'failed' };
 }
 

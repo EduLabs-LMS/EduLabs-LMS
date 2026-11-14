@@ -56,6 +56,10 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (path === '/api/teacher/exams' || /^\/api\/teacher\/exams\/(?:new\/save|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:save|lifecycle|window|upload|queue|work|release-many|sheet|marks|tries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?)$/.test(path)) return NextResponse.next();
   // The Exams page, New exam, one exam's editor, its correcting screen and its paper marks. Titles, names and marks are on them: kept out of caches and referrers.
   if (path === '/teacher/exams' || path === '/teacher/exams/new' || /^\/teacher\/exams\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:correct|marks))?$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
+  // Student Exams: the list, one exam (with one of its tries), saving and handing in, and the photo answer. Exact paths only. The student's pages carry answers and
+  // scores, so they are kept out of caches and referrers.
+  if (path === '/api/exams' || /^\/api\/exams\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:work|upload))?$/.test(path)) return NextResponse.next();
+  if (path === '/exams' || /^\/exams\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   if (/^\/api\/homework\/(new|[0-9a-f-]{36})\/(list|offerings|save|get|lifecycle|copy-media|assignments|revisions|inbox|history|work|upload-intent|finish-upload|cleanup|media)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(edit|progress|upload|media|cleanup|upload-intent|finish-upload)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(resources|blocks)\/[0-9a-f-]{36}$/.test(path)) return NextResponse.next();

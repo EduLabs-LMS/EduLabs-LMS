@@ -24,8 +24,8 @@ export const sheetQuery = z.object({ group: z.union([id, z.literal('none')]).opt
 /** One question as exam_save takes it: choice (options and right positions), number (value and tolerance) or essay. */
 export const examQuestion = z.object({
   type: z.enum(['choice', 'number', 'essay']), text: z.string().max(10000), imageId: id.nullable(), points: z.number().int().min(0).max(1000),
-  options: z.array(z.string().max(2000)).min(2).max(8).optional(), correct: z.array(z.number().int().min(0).max(7)).min(1).max(8).optional(),
-  numberValue: z.number().finite().optional(), tolerance: z.number().finite().min(0).optional(),
+  options: z.array(z.string().max(2000)).max(8).optional(), correct: z.array(z.number().int().min(0).max(7)).max(8).optional(),
+  numberValue: z.number().finite().nullable().optional(), tolerance: z.number().finite().min(0).optional(),
   responseMode: z.enum(['text', 'photo', 'both']).optional(), modelText: z.string().max(10000), modelImageId: id.nullable(),
 }).strict().superRefine((q, c) => {
   const choice = q.type === 'choice', number = q.type === 'number', essay = q.type === 'essay';
