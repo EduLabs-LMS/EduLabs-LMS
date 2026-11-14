@@ -74,14 +74,15 @@ const audit = () => {
 
 /**
  * @param open ({ viewport, lang, theme, look, target }) => Promise<{ page, context }>: the harness's own way to open a page.
- * @param screens [{ name, target, ready, act?, sizes? }]: `target` is what `open` needs; `ready` a selector; `act(page)` runs before the picture (open a tab, a dialog).
+ * @param screens [{ name, target, ready, act?, sizes?, looks? }]: `target` is what `open` needs; `ready` a selector; `act(page)` runs before the picture (open a tab, a dialog).
  * @returns every finding, one line each, so the harness can fail on them.
  */
 async function shootMatrix({ open, screens, label }) {
   const findings = [], listed = [], notMeasured = new Set();
   for (const screen of screens) {
     const dir = path.join(ROOT, screen.name); fs.mkdirSync(dir, { recursive: true });
-    for (const look of LOOKS) for (const theme of THEMES) for (const lang of LANGS) for (const size of screen.sizes ?? Object.keys(SIZES)) {
+    // `looks`: a screen only one look applies to (a student's page is always Classic: New is the teacher frame's) lists it; the default is both.
+    for (const look of screen.looks ?? LOOKS) for (const theme of THEMES) for (const lang of LANGS) for (const size of screen.sizes ?? Object.keys(SIZES)) {
       const tag = `${look}-${theme}-${lang}-${size}`, file = path.join(dir, tag + '.png');
       const { page, context } = await open({ viewport: SIZES[size], lang, theme, look, target: screen.target });
       try {

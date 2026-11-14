@@ -41,26 +41,38 @@ export function classToken(c: Config, p: { room: string; name: string; moderator
   return `${head}.${body}.${createHmac('sha256', c.secret).update(`${head}.${body}`).digest('base64url')}`;
 }
 
-/** The meeting for one person: the IFrame API script, the host, and the options of `new JitsiMeetExternalAPI(host, options)` (the page adds parentNode and lang). */
+/**
+ * The meeting for one person: the IFrame API script, the host, the options of `new JitsiMeetExternalAPI(host, options)` (the page adds parentNode
+ * and lang), and the same meeting as a plain address for "Open in a new tab" (the fallback when the meeting does not work inside the page). That
+ * address carries the same short-lived token as `?jwt=` (Jitsi's way of taking a token in a link) and the same settings in the `#config.` part.
+ */
 export function classJoin(c: Config, p: { room: string; name: string; moderator: boolean; title: string; closesAt: number; now: number }): LiveClassJoin {
+  const jwt = classToken(c, p);
+  const configOverwrite = {
+    subject: p.title,
+    prejoinConfig: { enabled: false },
+    disableDeepLinking: true,
+    // Students arrive muted with the camera off; the teacher arrives ready to talk.
+    startWithAudioMuted: !p.moderator, startWithVideoMuted: !p.moderator,
+    toolbarButtons: p.moderator ? [...STAFF_BUTTONS] : [...STUDENT_BUTTONS],
+    disableInviteFunctions: true, hideConferenceSubject: false, readOnlyName: true,
+  };
+  const interfaceConfigOverwrite = { SHOW_JITSI_WATERMARK: false, SHOW_BRAND_WATERMARK: false, MOBILE_APP_PROMO: false };
   return {
     scriptUrl: `${c.origin}/external_api.js`,
     domain: c.host,
-    options: {
-      roomName: p.room,
-      jwt: classToken(c, p),
-      width: '100%', height: '100%',
-      userInfo: { displayName: p.name },
-      configOverwrite: {
-        subject: p.title,
-        prejoinConfig: { enabled: false },
-        disableDeepLinking: true,
-        // Students arrive muted with the camera off; the teacher arrives ready to talk.
-        startWithAudioMuted: !p.moderator, startWithVideoMuted: !p.moderator,
-        toolbarButtons: p.moderator ? [...STAFF_BUTTONS] : [...STUDENT_BUTTONS],
-        disableInviteFunctions: true, hideConferenceSubject: false, readOnlyName: true,
-      },
-      interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false, SHOW_BRAND_WATERMARK: false, MOBILE_APP_PROMO: false },
-    },
+    options: { roomName: p.room, jwt, width: '100%', height: '100%', userInfo: { displayName: p.name }, configOverwrite, interfaceConfigOverwrite },
+    openUrl: classAddress(c, p.room, jwt, configOverwrite, interfaceConfigOverwrite),
   };
+}
+
+/** `https://<host>/<room>?jwt=<token>#config.<key>=<JSON>&interfaceConfig.<key>=<JSON>`: each value JSON, then URI-encoded, as Jitsi reads it. */
+function classAddress(c: Config, room: string, jwt: string, config: Record<string, unknown>, ui: Record<string, unknown>) {
+  const flat: string[] = [];
+  const add = (prefix: string, value: unknown) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) for (const [k, v] of Object.entries(value)) add(`${prefix}.${k}`, v);
+    else flat.push(`${prefix}=${encodeURIComponent(JSON.stringify(value))}`);
+  };
+  add('config', config); add('interfaceConfig', ui);
+  return `${c.origin}/${room}?jwt=${encodeURIComponent(jwt)}#${flat.join('&')}`;
 }

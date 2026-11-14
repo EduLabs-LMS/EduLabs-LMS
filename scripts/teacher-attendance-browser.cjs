@@ -217,6 +217,8 @@ function command(body) {
     if (body.action !== 'view' && S.delay) setTimeout(run, S.delay); else run();
    }); return;
   }
+  // The Groups list's report line (claude/reports) reads GET /api/teacher/reports/groups: the same synthetic fixture as the other harnesses.
+  { const report = require('./reports-fixture.cjs')(url); if (report) return send(report.body, report.status); }
   if (url.pathname.startsWith('/api/')) { if (url.pathname === '/api/communications') return send({ rows: [], page: 0, unread: 0 }); if (url.pathname === '/api/user/status') return send({ user: { role: 'teacher' } }); return send({ error: 'harness: not served' }, 404); }
   res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Cache-Control', 'no-store');
   res.end(`<!doctype html><html lang="en" data-lms-appearance><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Harness</title><link rel="stylesheet" href="/__style.css"></head><body class="${fontVars} font-sans"><div id="root"></div><script src="/__app.js"></script></body></html>`);
@@ -587,6 +589,6 @@ function command(body) {
  assert.deepEqual(errors, [], 'no uncaught or console errors');
  assert.deepEqual(external, [], 'no external requests');
  const apis = [...new Set(requests.slice(probes).filter(r => /\/api\//.test(r)))].sort();
- assert.deepEqual(apis.filter(r => !/\/api\/(study-groups|student-administration|communications|user\/status)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
+ assert.deepEqual(apis.filter(r => !/\/api\/(study-groups|student-administration|communications|user\/status|teacher\/reports\/groups)$/.test(r)), [], 'the screens call no other API: ' + apis.join(', '));
  console.log(`Teacher attendance browser checks passed: ${results.length} groups (real middleware, synthetic loopback data, not provider E2E). Screenshots: ${shots}`);
 })().catch(e => { console.error(e); process.exit(1); });

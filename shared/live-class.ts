@@ -36,7 +36,7 @@ export const liveClassStates = ['early', 'waiting', 'ready', 'open', 'ended', 'c
 export type LiveClassState = typeof liveClassStates[number];
 
 /** What the page needs to put the meeting on screen. Built by the provider on the server; the browser never sees the secret. */
-export type LiveClassJoin = { scriptUrl: string; domain: string; options: Record<string, unknown> };
+export type LiveClassJoin = { scriptUrl: string; domain: string; options: Record<string, unknown>; openUrl: string };
 export type LiveClassReply = {
   state: LiveClassState; sessionId: string; groupId: string; title: string; groupName: string;
   startsAt: string; endsAt: string; opensAt: string; closesAt: string; serverNow: string; staff: boolean;

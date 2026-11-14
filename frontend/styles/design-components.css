@@ -796,7 +796,12 @@ html[dir="rtl"] .d-field-input--trailing[dir="ltr"] { padding-inline-end: var(--
 .d-live-class-stage { width: 100%; height: calc(100dvh - 13rem); min-height: 420px; border-radius: var(--d-radius-card); overflow: hidden; background: #111; }
 .d-live-class-stage[hidden] { display: none; }
 .d-live-class-stage iframe { display: block; border: 0; }
-@media (max-width: 767px) { .d-live-class-stage { height: calc(100dvh - 10rem); min-height: 360px; border-radius: 0; margin-inline: calc(-1 * var(--d-space-4)); width: calc(100% + 2 * var(--d-space-4)); } }
+/* Phone: the meeting fills the screen between the sticky header (the teacher frame's, or the student shell's 72 px one) and the teacher
+   frame's bottom tabs, so its own controls (microphone, Leave) are never under the tabs; the page scrolls it into place when it appears. */
+@media (max-width: 767px) {
+  .d-live-class-stage { --lc-top: 72px; height: calc(100dvh - var(--lc-top) - var(--d-tabs-offset, 0px)); min-height: 320px; scroll-margin-top: var(--lc-top); border-radius: 0; margin-inline: calc(-1 * var(--d-space-4)); width: calc(100% + 2 * var(--d-space-4)); }
+  .d-shell .d-live-class-stage { --lc-top: var(--d-header-height); }
+}
 .d-live-class-note { display: inline-flex; align-items: center; gap: var(--d-space-2); }
 .d-live-class-actions { display: flex; flex-wrap: wrap; gap: var(--d-space-3); }
 .d-joined-tag { display: inline-flex; align-items: center; gap: var(--d-space-1); margin-inline-start: var(--d-space-2); font-size: var(--d-meta-size, 0.8125rem); font-weight: 600; color: var(--d-pill-success, var(--d-link)); white-space: nowrap; }

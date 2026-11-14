@@ -69,8 +69,6 @@ export DOMAIN=edulabs-eg.com              # the Cloudflare zone
 export MEET_HOST=meet.edulabs-eg.com      # proxied (orange cloud), through the tunnel
 export TURN_HOST=turn.edulabs-eg.com      # DNS only (grey cloud)
 export PUBLIC_IP=51.195.252.97            # the VPS's public IPv4
-export APP_ORIGIN=https://CHANGE_ME       # the exact address students open EduLabs on (scheme + host, no path), e.g.
-                                          # https://edulabs-eg.com; the meeting page may be framed only by this origin
 export LE_EMAIL=you@example.com           # Let's Encrypt expiry notices for the TURN certificate
 export EDULABS_SRC=/opt/edulabs/current   # an EduLabs checkout that contains infra/jitsi (this branch or later)
 ```
@@ -126,9 +124,8 @@ chmod 0755 /opt/jitsi/edulabs/*.sh
 ```bash
 install -d -m 0750 /etc/edulabs
 install -m 0600 -o root -g root /opt/jitsi/edulabs/jitsi.env.example /etc/edulabs/jitsi.env
-case "$APP_ORIGIN" in *CHANGE_ME*) echo "set APP_ORIGIN in step 0 first"; false;; esac && \
-sed -i -e "s|CHANGE_ME_APP_ORIGIN|$APP_ORIGIN|" /etc/edulabs/jitsi.env
 grep -E '^(PUBLIC_URL|TURN_HOST|PUBLIC_IP|JVB_ADVERTISE_IPS|CSP_HEADER)=' /etc/edulabs/jitsi.env   # meet/turn.edulabs-eg.com, 51.195.252.97
+# CSP_HEADER=frame-ancestors https://staging.edulabs-eg.com : the EduLabs origins that may show the meeting (a list; step 16 adds one)
 
 # Fill every empty secret with 96 random hex characters. The values are generated inside python and written straight to the
 # file: they never appear on a command line, in the shell history or on the screen.
@@ -271,7 +268,7 @@ app win under contention. Every container: restart `unless-stopped`, logs 3 x 10
 cd /opt/jitsi/edulabs
 ./jitsi.sh health                 # web 200, bridge 200, focus 200, turn udp listening, turns certificate subject/expiry
 curl -sI "https://$MEET_HOST/" | head -1                       # HTTP/2 200 through Cloudflare
-curl -sI "https://$MEET_HOST/" | grep -i content-security       # frame-ancestors <your APP_ORIGIN>
+curl -sI "https://$MEET_HOST/" | grep -i content-security       # frame-ancestors https://staging.edulabs-eg.com
 curl -s  "https://$MEET_HOST/config.js" | grep -E 'disableDeepLinking|enableClosePage' | head    # true / false
 
 ./test-token.sh moderator         # open the printed address on the teacher's laptop (Chrome or Edge)
@@ -425,6 +422,37 @@ EduLabs side: remove the four `LIVE_CLASS_*` lines from `/etc/edulabs/web.env` a
 Own link Groups keep working. To remove everything: delete the `meet` public hostname from the tunnel and the `turn` DNS
 record in Cloudflare, revoke the Cloudflare API token, `certbot delete --cert-name $TURN_HOST`, then
 `rm -rf /opt/jitsi /srv/jitsi /etc/edulabs/jitsi /etc/edulabs/jitsi.env /etc/letsencrypt/cloudflare-turn.ini`.
+
+## 16. Allow another EduLabs origin (production, later)
+
+The meeting page may be framed only by the origins in `CSP_HEADER` (a space-separated list). To add production, append its
+exact origin (https, host only, no path, no trailing slash) to that one line, check, and restart the web container. Nothing
+else changes: the class tokens are not tied to an origin, and the new EduLabs deployment gets the same four `LIVE_CLASS_*`
+settings as step 10.
+
+```bash
+NEW_ORIGIN=https://edulabs-eg.com                 # the production origin, exactly as students open it
+python3 -I - "$NEW_ORIGIN" <<'PY'
+import os, re, sys
+new = sys.argv[1]
+assert re.fullmatch(r"https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+", new), "not an exact https origin"
+p = "/etc/edulabs/jitsi.env"
+lines = open(p, encoding="utf-8").read().splitlines()
+csp = [i for i, l in enumerate(lines) if l.startswith("CSP_HEADER=")]
+assert len(csp) == 1, "expected exactly one CSP_HEADER line"
+origins = lines[csp[0]].split("=", 1)[1].split()[1:]
+if new not in origins: origins.append(new)
+lines[csp[0]] = "CSP_HEADER=frame-ancestors " + " ".join(origins)
+fd = os.open(p + ".new", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as f: f.write("\n".join(lines) + "\n")
+os.replace(p + ".new", p)
+print(lines[csp[0]])
+PY
+cd /opt/jitsi/edulabs && ./jitsi.sh check && ./jitsi.sh up         # up re-creates the web container with the new header
+curl -sI "https://$MEET_HOST/" | grep -i content-security            # both origins listed
+```
+
+To remove an origin, edit the same line by hand (keep `frame-ancestors` and at least one origin), then `./jitsi.sh check && ./jitsi.sh up`.
 
 ## What was not verified
 

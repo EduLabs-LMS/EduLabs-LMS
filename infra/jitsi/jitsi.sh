@@ -47,6 +47,10 @@ preflight() {
   [ "$(envget HTTP_PORT)" = "127.0.0.1:8000" ] || die "HTTP_PORT must stay 127.0.0.1:8000 (loopback only)"
   [ "$(envget HTTPS_PORT)" = "127.0.0.1:8443" ] || die "HTTPS_PORT must stay 127.0.0.1:8443 (loopback only)"
   [ "$(envget ENABLE_GUESTS)" = "0" ] && [ "$(envget AUTH_TYPE)" = "jwt" ] || die "token auth must be on and guests off"
+  # The meeting page may be framed only by the listed EduLabs origins: exact https origins, host only, separated by single spaces.
+  local csp csp_re='^frame-ancestors( https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)+$'
+  csp=$(envget CSP_HEADER)
+  [[ $csp =~ $csp_re ]] || die "CSP_HEADER must be 'frame-ancestors' and then one or more EduLabs origins like https://staging.edulabs-eg.com, separated by single spaces"
   local cfg; cfg=$(envget CONFIG)
   for d in "$cfg/web" "$cfg/storage/prosody" "$cfg/storage/web" "$cfg/storage/transcripts" "$cfg/tmp/web-crontabs" "$cfg/tmp/web-load-test"; do
     [ -d "$d" ] || die "$d is missing (runbook step 5)"

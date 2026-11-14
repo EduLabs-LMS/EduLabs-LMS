@@ -145,7 +145,8 @@ for the next class.
 5. **Server:** `meet.edulabs-eg.com`, `turn.edulabs-eg.com`, public IP `51.195.252.97`. The Cloudflare API token (Zone > DNS > Edit
    on `edulabs-eg.com` only) is approved; the owner creates it and stores it in `/etc/letsencrypt/cloudflare-turn.ini` (root, 0600;
    runbook step 7 reads it without echo and nothing prints it). **`/api/livekit` is removed** in its own commit on this branch.
-   Still needed from the owner: the exact EduLabs origin for the meeting page's `frame-ancestors` (`APP_ORIGIN`, runbook step 0).
+   The EduLabs origin for the meeting page's `frame-ancestors` (owner, later the same day): `https://staging.edulabs-eg.com` for
+   now, as a list so production can be added (`CSP_HEADER` in `jitsi.env.example`, runbook step 16).
 
 ## 7. Known limits (Jitsi stable-11248-3, read from the sources on 2026-11-14)
 
@@ -205,5 +206,10 @@ blocks a screen at the bridge was not verified. It is an owner decision for late
   - "Starts soon" and "class started" are sent even when the web server is not configured; the link then shows "not available".
   - Jitsi's `MAX_PARTICIPANTS` (40 in `jitsi.env.example`) is not tied to the Group's capacity; a larger Group's later joiners would be refused by Jitsi.
   - Room and join rows go with their Session (ON DELETE CASCADE), so the demo Clear's removed-row count does not include them.
-  - The class page frames the meeting host; the meeting page's `frame-ancestors` needs the EduLabs origin (`APP_ORIGIN`, still to be given by the owner).
-  - No browser harness for the class page (TESTING.md).
+  - The class page frames the meeting host; the meeting page allows only the origins in `CSP_HEADER` (staging now; production
+    is added with runbook step 16). Until then a production EduLabs page cannot show the meeting in the page; "Open in a new tab" still works.
+  - "Open in a new tab" puts the visit's token in an address (`?jwt=`, Jitsi's own way): it is visible in that tab's address bar and
+    history, and may be written to the meeting server's web access log (not checked). It is the same short-lived token (one room, at most 3 hours,
+    the person's display name and the moderator flag only). Accepted for the fallback; the meeting inside the page never uses an address.
+  - The class page browser harness uses a stub of `external_api.js`; the real Jitsi IFrame API, camera and microphone permissions in a
+    frame, and Android browsers were not exercised (TESTING.md).

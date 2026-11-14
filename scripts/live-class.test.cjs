@@ -92,6 +92,25 @@ test('provider: staff get screen sharing, the whiteboard and recording buttons a
  assert.equal(staff.options.configOverwrite.startWithAudioMuted, false);
  assert.equal(student.options.configOverwrite.disableDeepLinking, true, 'phones stay in the browser');
  assert.equal(student.options.roomName, 'a'.repeat(64));
+ // "Open in a new tab": the same meeting, the same token, the same settings, as Jitsi reads them from an address.
+ for (const [join, moderator] of [[staff, true], [student, false]]) {
+  const u = new URL(join.openUrl);
+  assert.equal(u.origin + u.pathname, 'https://meet.edulabs-eg.com/' + 'a'.repeat(64));
+  assert.equal(u.searchParams.get('jwt'), join.options.jwt, 'the token of this visit');
+  assert.deepEqual([...u.searchParams.keys()], ['jwt']);
+  const hash = Object.fromEntries(u.hash.slice(1).split('&').map(p => { const i = p.indexOf('='); return [p.slice(0, i), JSON.parse(decodeURIComponent(p.slice(i + 1)))]; }));
+  assert.equal(hash['config.disableDeepLinking'], true); assert.equal(hash['config.prejoinConfig.enabled'], false);
+  assert.equal(hash['config.startWithAudioMuted'], !moderator); assert.equal(hash['config.readOnlyName'], true);
+  assert.equal(JSON.stringify(hash['config.toolbarButtons']), JSON.stringify(join.options.configOverwrite.toolbarButtons));
+  assert.equal(hash['config.subject'], 'Physics'); assert.equal(hash['interfaceConfig.MOBILE_APP_PROMO'], false);
+  assert.doesNotMatch(join.openUrl, /x{64}/, 'never the secret');
+ }
+ // Only EduLabs may frame the meeting page: a LIST of exact origins, staging for now (owner, 2026-11-14); jitsi.sh refuses any other shape.
+ const env = read('infra/jitsi/jitsi.env.example');
+ assert.match(env, /^CSP_HEADER=frame-ancestors https:\/\/staging\.edulabs-eg\.com$/m);
+ assert.doesNotMatch(env, /CHANGE_ME/);
+ assert.ok(read('infra/jitsi/jitsi.sh').includes(`csp_re='^frame-ancestors( https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)+$'`));
+ assert.match(read('docs/ai/ONLINE_CLASS_RUNBOOK.md'), /## 16\. Allow another EduLabs origin/);
  // The students' buttons are the server's TOOLBAR_BUTTONS (infra/jitsi/jitsi.env.example).
  assert.match(read('infra/jitsi/jitsi.env.example'), new RegExp('^TOOLBAR_BUTTONS=' + [...provider.STUDENT_BUTTONS].join(',') + '$', 'm'));
 });
