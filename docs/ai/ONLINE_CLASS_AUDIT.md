@@ -74,10 +74,12 @@ for the next class.
    `started_at`). Jitsi then sees only people EduLabs let in.
 6. **Moderator from the token** works through prosody's `token_affiliation` (`context.user.moderator: true` -> room owner, any
    other token -> member), with `ENABLE_AUTO_OWNER=0` and `DISABLE_GRANT_MODERATOR` so a student never becomes moderator.
-7. **Unrelated security finding, not changed:** `app/api/livekit/route.ts` (`server/http/livekit/route.ts`) mints a LiveKit
-   publish token for **any room and any name** from query parameters, with no sign-in or authorization check. It only works if
-   `LIVEKIT_*` variables are set (they are not part of the documented deployment). It should be removed or gated in its own
-   change; owner decision.
+7. **Unrelated security finding:** `app/api/livekit/route.ts` (`server/http/livekit/route.ts`) minted a LiveKit publish token
+   for **any room and any name** taken from query parameters, with no authorization check beyond being signed in: in the Clerk
+   fallback build the middleware's `auth.protect()` requires a Clerk session; in Firebase mode the middleware answers 503. It
+   worked only if `LIVEKIT_*` variables were set (not part of the documented deployment). **Removed** on the owner's instruction
+   in its own commit, together with its only consumers, `frontend/components/media-room.tsx` and the legacy `/channel` page. The
+   `livekit-*` npm packages stay in package.json (removing them changes the lockfile; a separate cleanup).
 8. Rate limits: the only limiter is `server/services/password-reset-limiter.ts` (in-memory fixed windows, hashed keys, bounded).
    The start and join routes will reuse `createLimiter` with their own rules (per person; see the plan).
 
