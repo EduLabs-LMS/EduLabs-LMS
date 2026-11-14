@@ -815,8 +815,9 @@ html[dir="rtl"] .d-field-input--trailing[dir="ltr"] { padding-inline-end: var(--
 .d-board-dot { display: block; border-radius: 999px; background: currentColor; }
 .d-board-page { min-width: 7.5em; text-align: center; font-size: var(--d-meta-size); color: var(--d-text-2); font-variant-numeric: tabular-nums; }
 .d-board-note { margin: 0; padding: var(--d-space-2) var(--d-space-3); background: var(--d-pill-warning-bg); color: var(--d-pill-warning); font-size: var(--d-meta-size); }
-.d-board-area { position: relative; flex: 1 1 auto; min-height: 0; background: #ffffff; touch-action: none; overscroll-behavior: contain; }
-.d-board-canvas { position: absolute; inset: 0; display: block; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: crosshair; }
+/* The bands around the fixed 16:9 page follow the theme; the page itself is always white. */
+.d-board-area { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--d-canvas); touch-action: none; overscroll-behavior: contain; }
+.d-board-canvas { flex: none; display: block; background: #ffffff; box-shadow: 0 0 0 1px var(--d-line); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: crosshair; }
 .d-board[data-tool="eraser"] .d-board-canvas { cursor: cell; }
 .d-board-hint { margin: 0; padding: var(--d-space-1) var(--d-space-3); font-size: var(--d-meta-size); color: var(--d-text-2); background: var(--d-surface); border-top: 1px solid var(--d-line); }
 [dir="rtl"] .d-board-flip { transform: scaleX(-1); }

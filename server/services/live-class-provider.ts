@@ -45,7 +45,8 @@ export function classToken(c: Config, p: { room: string; name: string; moderator
 /**
  * The meeting for one person: the IFrame API script, the host, the options of `new JitsiMeetExternalAPI(host, options)` (the page adds parentNode
  * and lang), and the same meeting as a plain address for "Open in a new tab" (the fallback when the meeting does not work inside the page). That
- * address carries the same short-lived token as `?jwt=` (Jitsi's way of taking a token in a link) and the same settings in the `#config.` part.
+ * address carries the same short-lived token in its #fragment (`#jwt=`, which jitsi-meet 11248 reads first; a browser never sends a fragment to a
+ * server, a log or a referrer) and the same settings in the `#config.` part. It has no query string.
  */
 export function classJoin(c: Config, p: { room: string; name: string; moderator: boolean; title: string; closesAt: number; now: number }): LiveClassJoin {
   const jwt = classToken(c, p);
@@ -67,13 +68,13 @@ export function classJoin(c: Config, p: { room: string; name: string; moderator:
   };
 }
 
-/** `https://<host>/<room>?jwt=<token>#config.<key>=<JSON>&interfaceConfig.<key>=<JSON>`: each value JSON, then URI-encoded, as Jitsi reads it. */
+/** `https://<host>/<room>#jwt=<JSON>&config.<key>=<JSON>&interfaceConfig.<key>=<JSON>`: each value JSON, then URI-encoded, as Jitsi reads it. */
 function classAddress(c: Config, room: string, jwt: string, config: Record<string, unknown>, ui: Record<string, unknown>) {
   const flat: string[] = [];
   const add = (prefix: string, value: unknown) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) for (const [k, v] of Object.entries(value)) add(`${prefix}.${k}`, v);
     else flat.push(`${prefix}=${encodeURIComponent(JSON.stringify(value))}`);
   };
-  add('config', config); add('interfaceConfig', ui);
-  return `${c.origin}/${room}?jwt=${encodeURIComponent(jwt)}#${flat.join('&')}`;
+  add('jwt', jwt); add('config', config); add('interfaceConfig', ui);
+  return `${c.origin}/${room}#${flat.join('&')}`;
 }

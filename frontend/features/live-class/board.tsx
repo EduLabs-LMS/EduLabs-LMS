@@ -7,10 +7,16 @@ import { Dialog } from '@/frontend/components/design/dialog';
 import { Icon } from '@/frontend/components/design/icon';
 import { cn } from '@/shared/utils';
 
-/** One stroke: pen or eraser, its colour and width, and its points as x, y, pressure (CSS pixels of the drawing area). */
+/** One stroke: pen or eraser, its colour and width, and its points as x, y, pressure, all in PAGE units (see PAGE_W). */
 export type Stroke = { tool: 'pen' | 'eraser'; color: string; width: number; points: number[] };
 type Page = { strokes: Stroke[]; redo: Stroke[] };
-type Saved = { v: 1; page: number; pages: Stroke[][] };
+type Saved = { v: 2; page: number; pages: Stroke[][] };
+
+/**
+ * Every page is the same fixed 16:9 page (the shape of the shared screen students receive), shown as large as the window allows with bands
+ * around it. A resize or a rotation scales the drawing; it never cuts it off. A saved picture is always PAGE_W x PAGE_H.
+ */
+export const PAGE_W = 1600, PAGE_H = 900;
 
 export const BOARD_COLORS = [
   { value: '#111111', key: 'board.color.black' },
@@ -21,9 +27,9 @@ export const BOARD_COLORS = [
   { value: '#7c3aed', key: 'board.color.purple' },
 ] as const;
 export const BOARD_WIDTHS = [
-  { value: 2, key: 'board.width.thin' },
-  { value: 4, key: 'board.width.medium' },
-  { value: 8, key: 'board.width.thick' },
+  { value: 3, key: 'board.width.thin' },
+  { value: 6, key: 'board.width.medium' },
+  { value: 12, key: 'board.width.thick' },
 ] as const;
 /** The eraser is wider than the pen it follows. */
 const ERASER_SCALE = 4;
@@ -36,13 +42,13 @@ export function parseSavedBoard(raw: string | null): Saved | null {
   let v: unknown;
   try { v = JSON.parse(raw); } catch { return null; }
   const s = v as Partial<Saved> | null;
-  if (!s || s.v !== 1 || !Array.isArray(s.pages) || !s.pages.length || s.pages.length > MAX_PAGES) return null;
+  if (!s || s.v !== 2 || !Array.isArray(s.pages) || !s.pages.length || s.pages.length > MAX_PAGES) return null;
   const colors: readonly string[] = BOARD_COLORS.map(c => c.value);
   const ok = s.pages.every(p => Array.isArray(p) && p.every(st => st && (st.tool === 'pen' || st.tool === 'eraser') && colors.includes(st.color)
     && typeof st.width === 'number' && st.width > 0 && st.width <= 64 && Array.isArray(st.points) && st.points.length % 3 === 0 && st.points.every(n => typeof n === 'number' && Number.isFinite(n))));
   if (!ok) return null;
   const page = Number.isInteger(s.page) && (s.page as number) >= 0 && (s.page as number) < s.pages.length ? s.page as number : 0;
-  return { v: 1, page, pages: s.pages };
+  return { v: 2, page, pages: s.pages };
 }
 
 /** The drawn width at one point: pressure 0.5 (a mouse, or a finger) draws the chosen width; a pen draws thinner or thicker. */
@@ -113,7 +119,7 @@ export function Board({ sessionId }: { sessionId: string }) {
 
   /** Kept in this browser: localStorage, else sessionStorage (this tab only), else nowhere, and the page says so. */
   const persist = useCallback(() => {
-    const value = JSON.stringify({ v: 1, page: current.current, pages: pages.current.map(p => p.strokes) } satisfies Saved);
+    const value = JSON.stringify({ v: 2, page: current.current, pages: pages.current.map(p => p.strokes) } satisfies Saved);
     try { localStorage.setItem(key, value); setStorage('local'); return; } catch { /* full or blocked */ }
     try { sessionStorage.setItem(key, value); setStorage('session'); return; } catch { /* full or blocked */ }
     setStorage('none');
@@ -129,15 +135,17 @@ export function Board({ sessionId }: { sessionId: string }) {
     sync();
   }, [key, sync]);
 
-  // The canvas follows the drawing area's size (device pixels for sharp lines); a resize redraws the page.
+  // The page is fitted into the drawing area (largest 16:9 that fits, centred); device pixels for sharp lines; drawing is in page units.
   useEffect(() => {
     const a = area.current, c = canvas.current;
     if (!a || !c) return;
     const fit = () => {
       const r = a.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-      c.width = Math.max(1, Math.round(r.width * dpr)); c.height = Math.max(1, Math.round(r.height * dpr));
-      c.style.width = `${r.width}px`; c.style.height = `${r.height}px`;
-      c.getContext('2d')?.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const scale = Math.max(0.01, Math.min(r.width / PAGE_W, r.height / PAGE_H));
+      const w = Math.floor(PAGE_W * scale), h = Math.floor(PAGE_H * scale);
+      c.width = Math.max(1, Math.round(w * dpr)); c.height = Math.max(1, Math.round(h * dpr));
+      c.style.width = `${w}px`; c.style.height = `${h}px`;
+      c.getContext('2d')?.setTransform(c.width / PAGE_W, 0, 0, c.height / PAGE_H, 0, 0);
       redraw();
     };
     fit();
@@ -164,7 +172,8 @@ export function Board({ sessionId }: { sessionId: string }) {
       const r = c.getBoundingClientRect();
       // A mouse or a finger reports 0.5 while pressed (or 0 on some browsers); a pen reports its real pressure.
       const pressure = e.pointerType === 'pen' ? (e.pressure > 0 ? e.pressure : 0.5) : 0.5;
-      return [Math.round((e.clientX - r.left) * 10) / 10, Math.round((e.clientY - r.top) * 10) / 10, Math.round(pressure * 100) / 100];
+      const x = (e.clientX - r.left) * PAGE_W / r.width, y = (e.clientY - r.top) * PAGE_H / r.height;
+      return [Math.round(x * 10) / 10, Math.round(y * 10) / 10, Math.round(pressure * 100) / 100];
     };
     const cancel = () => {
       if (!active) return;
@@ -231,15 +240,14 @@ export function Board({ sessionId }: { sessionId: string }) {
     try { sessionStorage.removeItem(key); } catch { /* blocked */ }
     redraw(); setStorage('local'); sync();
   };
-  /** The page as a picture: the drawing on white (the eraser leaves holes, which become white). */
+  /** The page as a picture, PAGE_W x PAGE_H whatever the window: the drawing on white (the eraser leaves holes, which become white). */
   const savePicture = () => {
-    const c = canvas.current;
-    if (!c) return;
-    const out = document.createElement('canvas');
-    out.width = c.width; out.height = c.height;
-    const ctx = out.getContext('2d');
-    if (!ctx) return;
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, out.width, out.height); ctx.drawImage(c, 0, 0);
+    const layer = document.createElement('canvas'), out = document.createElement('canvas');
+    layer.width = out.width = PAGE_W; layer.height = out.height = PAGE_H;
+    const lc = layer.getContext('2d'), ctx = out.getContext('2d');
+    if (!lc || !ctx) return;
+    for (const s of pages.current[current.current].strokes) paint(lc, s);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, PAGE_W, PAGE_H); ctx.drawImage(layer, 0, 0);
     out.toBlob(blob => {
       if (!blob) return;
       const url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -276,7 +284,7 @@ export function Board({ sessionId }: { sessionId: string }) {
       </div>
       <div className="d-board-group" role="group" aria-label={t('board.widths')}>
         {BOARD_WIDTHS.map(w => <button key={w.value} type="button" data-width={w.value} className={toggle(view.width === w.value)} aria-pressed={view.width === w.value} aria-label={t(w.key)} title={t(w.key)} onClick={() => choose({ width: w.value })}>
-          <span aria-hidden className="d-board-dot" style={{ width: w.value * 2 + 2, height: w.value * 2 + 2 }} />
+          <span aria-hidden className="d-board-dot" style={{ width: w.value + 4, height: w.value + 4 }} />
         </button>)}
       </div>
       <div className="d-board-group">

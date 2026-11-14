@@ -100,9 +100,12 @@ test('provider: staff get screen sharing and recording buttons and start talking
  for (const [join, moderator] of [[staff, true], [student, false]]) {
   const u = new URL(join.openUrl);
   assert.equal(u.origin + u.pathname, 'https://meet.edulabs-eg.com/' + 'a'.repeat(64));
-  assert.equal(u.searchParams.get('jwt'), join.options.jwt, 'the token of this visit');
-  assert.deepEqual([...u.searchParams.keys()], ['jwt']);
+  // The token is in the #fragment (never sent to a server, a log or a referrer), the way jitsi-meet 11248 reads it first; no query string.
+  assert.equal(u.search, '', 'no query string');
+  assert.doesNotMatch(join.openUrl.split('#')[0], /jwt|token|eyJ/);
   const hash = Object.fromEntries(u.hash.slice(1).split('&').map(p => { const i = p.indexOf('='); return [p.slice(0, i), JSON.parse(decodeURIComponent(p.slice(i + 1)))]; }));
+  assert.equal(hash.jwt, join.options.jwt, 'the token of this visit');
+  assert.match(u.hash, /^#jwt=%22eyJ/, 'first, as a JSON string (jitsi-meet parses hash values as JSON)');
   assert.equal(hash['config.disableDeepLinking'], true); assert.equal(hash['config.prejoinConfig.enabled'], false);
   assert.equal(hash['config.startWithAudioMuted'], !moderator); assert.equal(hash['config.readOnlyName'], true);
   assert.equal(JSON.stringify(hash['config.toolbarButtons']), JSON.stringify(join.options.configOverwrite.toolbarButtons));
@@ -134,6 +137,31 @@ test('no Jitsi whiteboard: not started, switched off in the web config, refused 
  assert.doesNotMatch(read('infra/jitsi/test-token.sh'), /"whiteboard"/);
 });
 
+test('the meet host: no access log, Referrer-Policy on every response, through the mounted nginx-custom file that jitsi.sh check requires', () => {
+ const conf = read('infra/jitsi/web/nginx-custom/edulabs.conf');
+ const lines = conf.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+ assert.deepEqual(lines, ['access_log off;', 'error_log /dev/stderr crit;', 'more_set_headers "Referrer-Policy: no-referrer";']);
+ const sh = read('infra/jitsi/jitsi.sh');
+ assert.ok(sh.includes('cmp -s "$HERE/web/nginx-custom/edulabs.conf" "$cfg/web/nginx-custom/edulabs.conf" || die'), 'the installed file is exactly the Git copy');
+ assert.ok(sh.includes(`[ "$(find "$cfg/web/nginx-custom" -maxdepth 1 -name '*.conf' | wc -l)" = 1 ] || die`));
+ assert.ok(sh.includes('[ ! -e "$cfg/web/nginx/custom-meet.conf" ] || die'));
+ assert.ok(sh.includes(`grep -qx 'include /run/web/config/nginx-custom/\\*.conf;' "$UPSTREAM/web/rootfs/defaults/meet.conf" || die`), 'the pinned release still includes it');
+ assert.ok(sh.includes(`! grep -q 'access_log' "$UPSTREAM/web/rootfs/defaults/meet.conf" "$UPSTREAM/web/rootfs/defaults/default" || die`));
+ // health: the header on a page and on a 404 inside a location with its own add_header; a token-like query never reaches the log.
+ assert.ok(sh.includes("for p in / /libs/edulabs-missing.js; do"));
+ assert.ok(sh.includes("| tr -d '\\r' | grep -qix 'referrer-policy: no-referrer'"));
+ assert.ok(sh.includes('curl -s -o /dev/null "http://127.0.0.1:8000/healthroom?jwt=$probe&token=$probe"'));
+ assert.ok(sh.includes('if compose logs --since 2m web 2>&1 | grep -q "$probe"; then echo "web      a query string WAS logged"; ok=1;'));
+ const book = read('docs/ai/ONLINE_CLASS_RUNBOOK.md');
+ assert.ok(book.includes('install -m 0644 /opt/jitsi/edulabs/web/nginx-custom/edulabs.conf    $CFG/web/nginx-custom/edulabs.conf'));
+ assert.ok(book.includes('curl -s -o /dev/null "https://$MEET_HOST/smoketest?jwt=TEST&token=TEST"; sleep 3\n./jitsi.sh logs web --since 5m | grep -c TEST'));
+ assert.match(book, /curl -sI "https:\/\/\$MEET_HOST\/" \| grep -i referrer-policy/);
+ // The smoke-test address carries the token in the fragment as well.
+ const token = read('infra/jitsi/test-token.sh');
+ assert.ok(token.includes('/{room}#jwt=" + urllib.parse.quote(json.dumps(f"{head}.{body}.{sig}")) + extra)'));
+ assert.doesNotMatch(token, /\?jwt=/);
+});
+
 test('the Board: staff only (the database decides), its own frame-less page, kept in this browser; the class page links it for staff only', () => {
  const page = read('app/(board)/class/[sessionId]/board/page.tsx');
  assert.match(page, /if \(!uuid\.test\(sessionId\) \|\| !isFirebaseStaging\(\) \|\| !liveClassConfigured\(\)\) notFound\(\);/);
@@ -147,21 +175,26 @@ test('the Board: staff only (the database decides), its own frame-less page, kep
  assert.doesNotMatch(code, /fetch\(|XMLHttpRequest|WebSocket|sendBeacon|EventSource/, 'nothing is sent anywhere');
  assert.match(code, /if \(e\.pointerType === 'touch' && \(penSeen \|\| penDown\)\) return;/, 'palm rejection');
  assert.match(code, /getCoalescedEvents/);
+ // Resizing scales the page, never cuts it: the canvas is the largest 16:9 that fits, drawing and input are in page units.
+ assert.match(code, /const scale = Math\.max\(0\.01, Math\.min\(r\.width \/ PAGE_W, r\.height \/ PAGE_H\)\);/);
+ assert.match(code, /setTransform\(c\.width \/ PAGE_W, 0, 0, c\.height \/ PAGE_H, 0, 0\)/);
+ assert.match(code, /const x = \(e\.clientX - r\.left\) \* PAGE_W \/ r\.width, y = \(e\.clientY - r\.top\) \* PAGE_H \/ r\.height;/);
  const view = read('frontend/features/live-class/class-view.tsx');
  assert.match(view, /\{reply\?\.staff && !left && \(reply\.state === 'ready' \|\| reply\.state === 'open'\) && <p [^>]*data-board-hint>/);
  assert.match(view, /<a href=\{`\/class\/\$\{sessionId\}\/board`\} target="_blank" rel="noopener noreferrer" data-open-board/);
  const B = load('frontend/features/live-class/board.tsx', { react: {}, 'lucide-react': {}, '@/frontend/components/language-provider': {}, '@/frontend/components/design/button': {}, '@/frontend/components/design/dialog': {}, '@/frontend/components/design/icon': {}, '@/shared/utils': {}, 'react/jsx-runtime': {} });
  assert.equal(B.boardStorageKey('s1'), 'edulabs-board:s1');
  assert.equal(JSON.stringify(B.BOARD_COLORS.map(c => c.value)), JSON.stringify(['#111111', '#1d4ed8', '#dc2626', '#15803d', '#ea580c', '#7c3aed']));
- assert.equal(JSON.stringify(B.BOARD_WIDTHS.map(w => w.value)), '[2,4,8]');
+ assert.equal(JSON.stringify(B.BOARD_WIDTHS.map(w => w.value)), '[3,6,12]');
+ assert.equal(B.PAGE_W / B.PAGE_H, 16 / 9, 'a fixed 16:9 page');
  const stroke = { tool: 'pen', color: '#1d4ed8', width: 4, points: [1, 2, 0.5, 3, 4, 0.7] };
- const good = JSON.stringify({ v: 1, page: 1, pages: [[stroke], [{ ...stroke, tool: 'eraser' }]] });
+ const good = JSON.stringify({ v: 2, page: 1, pages: [[stroke], [{ ...stroke, tool: 'eraser' }]] });
  assert.equal(JSON.stringify(B.parseSavedBoard(good)), good);
- assert.equal(B.parseSavedBoard(JSON.stringify({ v: 1, page: 9, pages: [[]] })).page, 0, 'a page out of range opens the first');
- for (const bad of [null, '', '{', '[]', JSON.stringify({ v: 2, page: 0, pages: [[]] }), JSON.stringify({ v: 1, page: 0, pages: [] }),
-  JSON.stringify({ v: 1, page: 0, pages: [[{ ...stroke, color: 'url(x)' }]] }), JSON.stringify({ v: 1, page: 0, pages: [[{ ...stroke, tool: 'laser' }]] }),
-  JSON.stringify({ v: 1, page: 0, pages: [[{ ...stroke, points: [1, 2] }]] }), JSON.stringify({ v: 1, page: 0, pages: [[{ ...stroke, width: 1e9 }]] }),
-  JSON.stringify({ v: 1, page: 0, pages: Array.from({ length: B.MAX_PAGES + 1 }, () => []) })]) assert.equal(B.parseSavedBoard(bad), null, String(bad).slice(0, 60));
+ assert.equal(B.parseSavedBoard(JSON.stringify({ v: 2, page: 9, pages: [[]] })).page, 0, 'a page out of range opens the first');
+ for (const bad of [null, '', '{', '[]', JSON.stringify({ v: 1, page: 0, pages: [[stroke]] }), JSON.stringify({ v: 2, page: 0, pages: [] }),
+  JSON.stringify({ v: 2, page: 0, pages: [[{ ...stroke, color: 'url(x)' }]] }), JSON.stringify({ v: 2, page: 0, pages: [[{ ...stroke, tool: 'laser' }]] }),
+  JSON.stringify({ v: 2, page: 0, pages: [[{ ...stroke, points: [1, 2] }]] }), JSON.stringify({ v: 2, page: 0, pages: [[{ ...stroke, width: 1e9 }]] }),
+  JSON.stringify({ v: 2, page: 0, pages: Array.from({ length: B.MAX_PAGES + 1 }, () => []) })]) assert.equal(B.parseSavedBoard(bad), null, String(bad).slice(0, 60));
 });
 
 test('Take attendance: joined students still not marked become Present; a mark (or a tap made meanwhile) is never changed', () => {

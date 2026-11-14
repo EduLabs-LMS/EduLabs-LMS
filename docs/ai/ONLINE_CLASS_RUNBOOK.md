@@ -161,7 +161,13 @@ install -d -m 0750 -o 1000 -g 1000 $CFG/storage $CFG/storage/prosody $CFG/storag
   $CFG/tmp $CFG/tmp/web-crontabs $CFG/tmp/web-load-test
 install -m 0644 /opt/jitsi/edulabs/web/custom-config.js           $CFG/web/custom-config.js
 install -m 0644 /opt/jitsi/edulabs/web/custom-interface_config.js $CFG/web/custom-interface_config.js
+# The meet host's nginx: no access log, Referrer-Policy: no-referrer on every response (jitsi.sh check compares it with Git's copy).
+install -d -m 0755 $CFG/web/nginx-custom
+install -m 0644 /opt/jitsi/edulabs/web/nginx-custom/edulabs.conf    $CFG/web/nginx-custom/edulabs.conf
 ```
+
+The web image rebuilds its own nginx files on every start; it includes `nginx-custom/*.conf` from this directory in both of
+its server blocks, so these settings survive restarts and image updates. Never edit the generated files.
 
 ## 6. Cloudflare: DNS records, tunnel route, cache
 
@@ -266,11 +272,15 @@ app win under contention. Every container: restart `unless-stopped`, logs 3 x 10
 
 ```bash
 cd /opt/jitsi/edulabs
-./jitsi.sh health                 # web 200, bridge 200, focus 200, turn udp listening, turns certificate subject/expiry
+./jitsi.sh health                 # web 200, Referrer-Policy on a page and a 404, query strings not logged, bridge 200, focus 200, turn, turns
 curl -sI "https://$MEET_HOST/" | head -1                       # HTTP/2 200 through Cloudflare
 curl -sI "https://$MEET_HOST/" | grep -i content-security       # frame-ancestors https://staging.edulabs-eg.com
 curl -s  "https://$MEET_HOST/config.js" | grep -E 'disableDeepLinking|enableClosePage' | head    # true / false
 curl -s  "https://$MEET_HOST/config.js" | grep -A1 'config.whiteboard'                # enabled: false (last match wins)
+curl -sI "https://$MEET_HOST/" | grep -i referrer-policy                       # referrer-policy: no-referrer
+curl -sI "https://$MEET_HOST/libs/edulabs-missing.js" | grep -iE '^HTTP|referrer-policy'   # 404, and still no-referrer
+curl -s -o /dev/null "https://$MEET_HOST/smoketest?jwt=TEST&token=TEST"; sleep 3
+./jitsi.sh logs web --since 5m | grep -c TEST                                   # 0: no address with a token is logged
 
 ./test-token.sh moderator         # open the printed address on the teacher's laptop (Chrome or Edge)
 ./test-token.sh member <room>     # same room name as the line above; open on an Android phone ON MOBILE DATA (Wi-Fi off)
@@ -358,8 +368,10 @@ cd /opt/jitsi/edulabs
 ./jitsi.sh logs -f jvb                    # follow live (Ctrl+C to stop)
 ```
 
-The web access log records meeting addresses, which carry the short-lived token as `?jwt=`. Tokens expire at the end of the
-class window; logs rotate at 3 x 10 MB per container. Do not copy those lines into tickets or chats.
+The web container keeps no access log (`web/nginx-custom/edulabs.conf`), because meeting addresses carry the short-lived
+token (`?jwt=` in the frame's address, `token=` on `/xmpp-websocket`), and its error log keeps only critical lines (a failed
+proxied request is logged with its full address). Who joined which room is in the jicofo and bridge logs. Logs rotate at
+3 x 10 MB per container; do not copy log lines into tickets or chats.
 
 ## 12. Load check during a class
 

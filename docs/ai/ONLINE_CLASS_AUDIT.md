@@ -199,9 +199,11 @@ handshake (runbook step 9 checks it).
   - Room and join rows go with their Session (ON DELETE CASCADE), so the demo Clear's removed-row count does not include them.
   - The class page frames the meeting host; the meeting page allows only the origins in `CSP_HEADER` (staging now; production
     is added with runbook step 16). Until then a production EduLabs page cannot show the meeting in the page; "Open in a new tab" still works.
-  - "Open in a new tab" puts the visit's token in an address (`?jwt=`, Jitsi's own way): it is visible in that tab's address bar and
-    history, and may be written to the meeting server's web access log (not checked). It is the same short-lived token (one room, at most 3 hours,
-    the person's display name and the moderator flag only). Accepted for the fallback; the meeting inside the page never uses an address.
+  - Tokens in addresses (owner, 2026-11-14; see section 11): "Open in a new tab" carries the visit's token in the `#fragment` (`#jwt=`),
+    which browsers never send to a server, a log or a referrer; it is still visible in that tab's address bar and history. The meeting
+    inside the page is opened by Jitsi's IFrame API, which (in this release) puts the token in the frame's address both as `?jwt=` and
+    `#jwt=`; jitsi-meet's connection sends it as `token=` on `/xmpp-websocket`. The meet host keeps no access log and sends
+    `Referrer-Policy: no-referrer` on every response, so those addresses are neither logged nor passed on.
   - The class page browser harness uses a stub of `external_api.js`; the real Jitsi IFrame API, camera and microphone permissions in a
     frame, and Android browsers were not exercised (TESTING.md).
 
@@ -226,3 +228,27 @@ The owner: students must never open or draw on any board. Jitsi cannot make its 
 - **Drawing:** Pointer Events (pen, mouse, touch) with pressure; a pen in use or hovering turns touch off, so a resting hand does
   not draw (touch draws on devices that never used a pen). Pen, eraser, six colours, three widths, undo and redo per page, clear
   page, several pages, save a page as a PNG. Not verified on a real pen tablet (harness uses synthetic pointer events).
+
+## 11. Tokens never in the meet host's logs or referrers (owner, 2026-11-14)
+
+Read from the pinned sources (docker-jitsi-meet `stable-11248-3`, jitsi-meet `stable/jitsi-meet_11248`):
+
+- The web image regenerates `nginx.conf` and `meet.conf` on every start. Its access log (`jitsi_log`) already replaces the query
+  string with `[params_redacted]` when it contains `jwt=` or `token=`, but logs every other query string. `meet.conf` includes
+  `/run/web/config/nginx-custom/*.conf` (a copy of `${CONFIG}/web`) at server level in both server blocks (8000 and 8443), and no
+  location sets its own `access_log`.
+- `web/nginx-custom/edulabs.conf` (installed in runbook step 5): `access_log off;`, `error_log /dev/stderr crit;` (nginx writes a
+  failed proxied request at `error` with its full address), and `more_set_headers "Referrer-Policy: no-referrer";`. A plain
+  `add_header` would not reach the locations that have their own `add_header` (static files, CORS); `more_set_headers` (headers-more,
+  part of Debian trixie's `nginx-extras` 1.26.3, which the image installs) is inherited by every location and applies to every status.
+- `./jitsi.sh check` refuses to start unless the installed file is byte-for-byte the Git copy, it is the only file there, there is no
+  `custom-meet.conf`, the pinned `meet.conf` still includes `nginx-custom/*.conf`, and no server block sets its own `access_log`.
+  `./jitsi.sh health` checks the header on a page and on a 404 in a location with its own `add_header`, and that a request with
+  `?jwt=<random>&token=<random>` leaves no trace in `./jitsi.sh logs web`. Runbook step 9 repeats both through Cloudflare.
+- **Token in the fragment:** jitsi-meet 11248 reads `#jwt=` first and `?jwt=` only as a fallback (`parseJWTFromURLParams`); its own
+  IFrame API already writes `#jwt=<JSON string>`. EduLabs' "Open in a new tab" address and `test-token.sh` now use
+  `#jwt=<JSON string, URI-encoded>` with no query string at all. The in-page meeting cannot be changed this way: the IFrame API adds
+  `?jwt=` to the frame address itself (an upstream TODO keeps it for older servers).
+- Not verified on the VPS: that the module loads in the running image, and the header and log behaviour live (runbook step 9 and
+  `./jitsi.sh health` check them). nginx refuses to start on an unknown directive, so a missing module shows up as a web container that
+  does not start, not as a silent gap.

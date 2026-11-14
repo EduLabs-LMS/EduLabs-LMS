@@ -394,7 +394,9 @@ function openClass(body) {
   await tab.waitForLoadState();
   const u = new URL(tab.url());
   assert.equal(u.origin + u.pathname, MEET + '/' + m.roomName);
-  assert.equal(u.searchParams.get('jwt'), m.jwt, 'the same short-lived token');
+  assert.equal(u.search, '', 'no query string: the token never reaches the meeting server\'s address line');
+  assert.equal(JSON.parse(decodeURIComponent(u.hash.match(/^#jwt=([^&]+)/)[1])), m.jwt, 'the same short-lived token, in the fragment');
+  assert.ok(!meetRequests.some(r => r.includes(m.jwt) && r.startsWith(MEET + '/' + m.roomName)), 'the new tab\'s request carries no token');
   assert.match(u.hash, /config\.disableDeepLinking=true/); assert.match(u.hash, /config\.startWithAudioMuted=true/);
   assert.equal(await tab.locator('body').innerText(), 'Synthetic meeting');
   await waitState(p, 'elsewhere');
@@ -416,7 +418,7 @@ function openClass(body) {
   await p.locator('[data-stage-failed]').waitFor();
   assert.ok((await text(p)).includes("The class couldn't be opened."));
   assert.equal(await p.locator('[data-stage-failed] [data-retry]').count(), 1);
-  assert.match(await p.locator('[data-stage-failed] [data-new-tab]').getAttribute('href'), /^https:\/\/meet\.example\.test\/[0-9a-f]{64}\?jwt=/);
+  assert.match(await p.locator('[data-stage-failed] [data-new-tab]').getAttribute('href'), /^https:\/\/meet\.example\.test\/[0-9a-f]{64}#jwt=%22eyJ/);
   assert.deepEqual(await tinyTargets(p), []);
   await shot(p, 'student-script-failed-1440');
   await ctl({ scriptFail: false });

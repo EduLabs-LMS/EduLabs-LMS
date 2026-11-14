@@ -14,7 +14,8 @@ copy-paste procedure (install, firewall, DNS, tunnel, start, health, logs, load,
 | `certbot-deploy-hook.sh` | Puts the renewed TURN certificate where coturn reads it and restarts coturn |
 | `jitsi.sh` | The only way to run the project: `check`, `up`, `down`, `logs`, `health`, `stats`, ... |
 | `test-token.sh` | A 10-minute test address (moderator or member) for a smoke test before EduLabs is wired up |
-| `web/custom-config.js`, `web/custom-interface_config.js` | No deep linking, name from the token, branding off |
+| `web/custom-config.js`, `web/custom-interface_config.js` | No deep linking, name from the token, branding off, no whiteboard |
+| `web/nginx-custom/edulabs.conf` | The meet host's nginx: no access log (addresses carry tokens), `Referrer-Policy: no-referrer` on every response |
 
 Secrets never live in Git. EduLabs talks to this server through one module (`server/services/live-class-provider.ts`) and
 generic `LIVE_CLASS_*` settings, so a later move to BigBlueButton on its own server replaces that module only.

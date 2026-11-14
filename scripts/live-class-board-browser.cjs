@@ -4,7 +4,7 @@
 // scripts/live-class.test.cjs and the SQL suite. Pointer input: real mouse events, and synthetic Pointer Events for pen (with pressure) and touch,
 // which is what a pen tablet sends but not the tablet itself. Synthetic loopback data only; nothing leaves the machine.
 // Covers: students refused, mouse/pen/touch drawing, palm rejection, eraser, colours and widths, undo/redo (buttons and keys), pages, clear page,
-// save as picture (PNG on white), kept after a reload, New board, storage blocked, Arabic and dark (the drawing area stays white), phone, tablet
+// save as picture (PNG on white, always 1600 x 900), resizing and rotating (the drawing scales, never cut off), kept after a reload, New board, storage blocked, Arabic and dark (the drawing area stays white), phone, tablet
 // and desktop with 44 px targets and no sideways scroll; LMS_MATRIX=1 adds the screen matrix (both looks, themes, languages, widths).
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME and a Firebase-mode `npm run build` first (CSS, fonts). LMS_ONLY_STEPS runs matching steps.
 const { shootMatrix } = require('./screen-matrix.cjs');
@@ -159,7 +159,7 @@ const staffClasses = new Set([CLASS, OTHER]);
   assert.equal(await label(p), 'Page 1 of 1');
   assert.equal(await p.locator('[data-undo]').isDisabled(), true);
   const box = await p.locator('[data-board-canvas]').boundingBox();
-  assert.equal(await p.locator('.d-board-area').evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(255, 255, 255)', 'white');
+  assert.equal(await p.locator('[data-board-canvas]').evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(255, 255, 255)', 'white');
   await p.mouse.move(box.x + 100, box.y + 100); await p.mouse.down();
   for (let i = 1; i <= 20; i++) await p.mouse.move(box.x + 100 + i * 10, box.y + 100);
   await p.mouse.up(); await frames(p);
@@ -186,22 +186,23 @@ const staffClasses = new Set([CLASS, OTHER]);
  await step('Pen: pressure changes the width; palm rejection: a hand on the screen while the pen writes (or after a pen was used) draws nothing', async () => {
   const { page: p, context } = await open(tablet, board(CLASS));
   await ready(p);
-  await p.locator('[data-width="8"]').click();
-  await draw(p, 'pen', line(100, 100, 400, 100), { pressure: 0.1 });
-  await draw(p, 'pen', line(100, 200, 400, 200), { pressure: 1 });
+  await p.locator('[data-width="12"]').click();
+  await draw(p, 'pen', line(100, 60, 400, 60), { pressure: 0.1 });
+  await draw(p, 'pen', line(100, 140, 400, 140), { pressure: 1 });
   const s = (await saved(p)).pages[0];
   assert.equal(s.length, 2); assert.equal(s[0].points[2], 0.1); assert.equal(s[1].points[2], 1);
   const thick = async y => { let n = 0; for (let d = -12; d <= 12; d++) if ((await px(p, 250, y + d))[3] > 100) n++; return n; };
-  const light = await thick(100), heavy = await thick(200);
-  assert.ok(heavy > light + 4, `pressure: ${light}px vs ${heavy}px`);
+  const light = await thick(60), heavy = await thick(140);
+  assert.ok(heavy > light + 3, `pressure: ${light}px vs ${heavy}px`);
   // The pen is down and a palm lands: the palm draws nothing, the pen stroke goes on.
-  await draw(p, 'pen', [[100, 300], [150, 300]], { up: false });
-  await draw(p, 'touch', line(100, 500, 400, 500));
-  await draw(p, 'pen', [[150, 300], [400, 300]], { up: true });
-  assert.equal((await px(p, 250, 500))[3], 0, 'no palm stroke');
+  await draw(p, 'pen', [[100, 220], [150, 220]], { up: false });
+  await draw(p, 'touch', line(100, 300, 400, 300));
+  await draw(p, 'pen', [[150, 220], [400, 220]], { up: true });
+  assert.ok((await px(p, 250, 220))[3] > 200, 'the pen stroke went on');
+  assert.equal((await px(p, 250, 300))[3], 0, 'no palm stroke');
   // Later, with the pen lifted: a finger still draws nothing on a device whose pen was used.
-  await draw(p, 'touch', line(100, 600, 400, 600));
-  assert.equal((await px(p, 250, 600))[3], 0, 'touch is off once a pen was used');
+  await draw(p, 'touch', line(100, 380, 400, 380));
+  assert.equal((await px(p, 250, 380))[3], 0, 'touch is off once a pen was used');
   assert.equal((await saved(p)).pages[0].length, 3, 'two pen strokes and the third; no touch stroke');
   assert.ok(await overflow(p)); assert.deepEqual(await tinyTargets(p), []);
   await shot(p, 'board-pen-820');
@@ -214,15 +215,15 @@ const staffClasses = new Set([CLASS, OTHER]);
   await draw(p, 'touch', line(100, 100, 400, 100));
   assert.ok((await px(p, 250, 100))[3] > 200, 'a finger draws when no pen was seen');
   // A second finger while the first is drawing does not draw.
-  await draw(p, 'touch', [[100, 300], [200, 300]], { id: 21, up: false });
-  await draw(p, 'touch', line(100, 400, 400, 400), { id: 22 });
-  await draw(p, 'touch', [[200, 300], [400, 300]], { id: 21 });
-  assert.equal((await px(p, 250, 400))[3], 0, 'second finger');
-  assert.ok((await px(p, 350, 300))[3] > 200, 'first finger');
+  await draw(p, 'touch', [[100, 200], [200, 200]], { id: 21, up: false });
+  await draw(p, 'touch', line(100, 300, 400, 300), { id: 22 });
+  await draw(p, 'touch', [[200, 200], [400, 200]], { id: 21 });
+  assert.equal((await px(p, 250, 300))[3], 0, 'second finger');
+  assert.ok((await px(p, 350, 200))[3] > 200, 'first finger');
   // A hovering pen (a move with no button) is enough to stop the hand.
   await p.evaluate(() => { const c = document.querySelector('[data-board-canvas]'), r = c.getBoundingClientRect(); c.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 7, pointerType: 'pen', clientX: r.left + 50, clientY: r.top + 50, buttons: 0 })); });
-  await draw(p, 'touch', line(100, 600, 400, 600));
-  assert.equal((await px(p, 250, 600))[3], 0, 'hover');
+  await draw(p, 'touch', line(100, 400, 400, 400));
+  assert.equal((await px(p, 250, 400))[3], 0, 'hover');
   await context.close();
  });
 
@@ -230,10 +231,10 @@ const staffClasses = new Set([CLASS, OTHER]);
   const { page: p, context } = await open(desktop, board(CLASS));
   await ready(p);
   await p.locator('[data-color="#dc2626"]').click();
-  await p.locator('[data-width="8"]').click();
+  await p.locator('[data-width="12"]').click();
   assert.equal(await p.locator('[data-color="#dc2626"]').getAttribute('aria-pressed'), 'true');
   assert.equal(await p.locator('[data-color="#111111"]').getAttribute('aria-pressed'), 'false');
-  assert.equal(await p.locator('[data-width="8"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await p.locator('[data-width="12"]').getAttribute('aria-pressed'), 'true');
   await draw(p, 'mouse', line(100, 400, 500, 400));
   const red = await px(p, 300, 400);
   assert.ok(red[0] > 180 && red[1] < 80 && red[2] < 80 && red[3] > 200, 'red: ' + red);
@@ -302,13 +303,13 @@ const staffClasses = new Set([CLASS, OTHER]);
    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d'); x.drawImage(img, 0, 0);
    const at = (a, b) => [...x.getImageData(a, b, 1, 1).data];
-   return { size: [img.width, img.height], corner: at(2, 2), ink: at(150, 100), hole: at(250, 100) };
+   const k = 1600 / document.querySelector('[data-board-canvas]').getBoundingClientRect().width;
+   return { size: [img.width, img.height], corner: at(2, 2), ink: at(Math.round(150 * k), Math.round(100 * k)), hole: at(Math.round(250 * k), Math.round(100 * k)) };
   }, bytes.toString('base64'));
   assert.deepEqual(picture.corner, [255, 255, 255, 255], 'white, not transparent');
   assert.deepEqual(picture.hole, [255, 255, 255, 255], 'erased is white');
   assert.ok(picture.ink[0] < 60 && picture.ink[3] === 255, 'the drawing: ' + picture.ink);
-  const box = await p.locator('[data-board-canvas]').boundingBox();
-  assert.deepEqual(picture.size, [Math.round(box.width), Math.round(box.height)]);
+  assert.deepEqual(picture.size, [1600, 900], 'the page, not the window');
   await p.locator('[data-add-page]').click();
   await p.locator('[data-new-board]').click();
   const dialog = p.locator('[role="dialog"]'); await dialog.waitFor();
@@ -322,12 +323,44 @@ const staffClasses = new Set([CLASS, OTHER]);
   await context.close();
  });
 
+ await step('Resizing and rotating: the whole page stays on screen at 16:9 and the drawing scales with it; nothing is cut off', async () => {
+  const { page: p, context } = await open(desktop, board(OTHER));
+  await ready(p);
+  await p.locator('[data-new-board]').click(); await p.locator('[data-confirm]').click();
+  const geometry = () => p.evaluate(() => {
+   const c = document.querySelector('[data-board-canvas]').getBoundingClientRect(), a = document.querySelector('.d-board-area').getBoundingClientRect();
+   return { c: [c.left, c.top, c.right, c.bottom, c.width, c.height], a: [a.left, a.top, a.right, a.bottom] };
+  });
+  const whole = g => g.c[0] >= g.a[0] - 0.5 && g.c[1] >= g.a[1] - 0.5 && g.c[2] <= g.a[2] + 0.5 && g.c[3] <= g.a[3] + 0.5 && Math.abs(g.c[4] / g.c[5] - 16 / 9) < 0.02;
+  let g = await geometry();
+  assert.ok(whole(g), 'desktop: ' + JSON.stringify(g));
+  // Lines near the four edges of the page, in page units (1600 x 900), drawn through the real input.
+  const k0 = g.c[4] / 1600;
+  const marks = [[80, 80, 1520, 80], [80, 820, 1520, 820], [80, 80, 80, 820], [1520, 80, 1520, 820]];
+  for (const [x0, y0, x1, y1] of marks) await draw(p, 'mouse', line(x0 * k0, y0 * k0, x1 * k0, y1 * k0, 30));
+  // Ink near a page point (within 2 CSS pixels: a thin line scaled down lands between pixel rows).
+  const inked = (x, y) => p.evaluate(([x, y]) => { const c = document.querySelector('[data-board-canvas]'), sx = c.width / 1600, sy = c.height / 900; const d = c.getContext('2d').getImageData(Math.round(x * sx) - 2, Math.round(y * sy) - 2, 5, 5).data; let m = 0; for (let i = 3; i < d.length; i += 4) m = Math.max(m, d[i]); return m > 100; }, [x, y]);
+  for (const [vw, vh, name] of [[700, 900, 'narrow'], [1440, 500, 'short'], [390, 844, 'phone portrait'], [844, 390, 'phone landscape'], [1440, 900, 'back to desktop']]) {
+   await p.setViewportSize({ width: vw, height: vh }); await frames(p); await frames(p);
+   g = await geometry();
+   assert.ok(whole(g), name + ': the whole page fits: ' + JSON.stringify(g));
+   for (const [x, y] of [[800, 80], [800, 820], [80, 450], [1520, 450], [1520, 820]]) assert.ok(await inked(x, y), `${name}: the drawing at ${x},${y} is still there, scaled`);
+   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, name + ': no sideways scroll');
+   if (name === 'short') await shot(p, 'board-resized-short-1440x500');
+   if (name === 'phone portrait') await shot(p, 'board-resized-390');
+  }
+  assert.equal((await saved(p, OTHER)).pages[0].length, 4, 'resizing never changes what is stored');
+  await context.close();
+ });
+
  await step('Storage blocked: the board still works and says it cannot be kept', async () => {
   const { page: p, context } = await open(desktop, board(OTHER), { init: () => { Storage.prototype.setItem = function () { throw new DOMException('blocked', 'QuotaExceededError'); }; } });
   await ready(p);
+  const k = (await p.locator('[data-board-canvas]').boundingBox()).width / 1600;
   await draw(p, 'mouse', line(100, 100, 300, 100));
-  assert.ok((await px(p, 200, 100))[3] > 200);
-  await p.locator('[data-storage="none"]').waitFor();
+  await p.locator('[data-storage="none"]').waitFor(); await frames(p);
+  // The notice takes room, so the page is redrawn smaller: look for the line by its page position.
+  assert.ok(await p.evaluate(([x, y]) => { const c = document.querySelector('[data-board-canvas]'), sx = c.width / 1600, sy = c.height / 900; const d = c.getContext('2d').getImageData(Math.round(x * sx) - 2, Math.round(y * sy) - 2, 5, 5).data; let m = 0; for (let i = 3; i < d.length; i += 4) m = Math.max(m, d[i]); return m > 100; }, [200 / k, 100 / k]), 'the drawing stays, redrawn');
   assert.match(await p.locator('[data-storage]').innerText(), /cannot be kept in this browser/);
   await shot(p, 'board-not-saved-1440');
   await context.close();
@@ -340,12 +373,13 @@ const staffClasses = new Set([CLASS, OTHER]);
   assert.equal(await p.evaluate(() => document.documentElement.classList.contains('dark')), true);
   assert.equal(await label(p), 'صفحة 1 من 1');
   assert.equal(await p.locator('[data-undo]').getAttribute('aria-label'), 'تراجع');
-  assert.equal(await p.locator('.d-board-area').evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(255, 255, 255)', 'white in dark');
+  assert.equal(await p.locator('[data-board-canvas]').evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(255, 255, 255)', 'white in dark');
   assert.notEqual(await p.locator('.d-board-bar').evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(255, 255, 255)', 'the toolbar follows the theme');
   await draw(p, 'touch', line(40, 60, 120, 60));
-  assert.ok((await px(p, 80, 60))[3] > 200, 'drawn where the finger was');
+  // A thin line on a phone-sized page is under 2 px wide: the strongest pixel within 2 px of the finger.
+  assert.ok(await p.evaluate(([x, y]) => { const d = document.querySelector('[data-board-canvas]').getContext('2d').getImageData(x - 2, y - 2, 5, 5).data; let m = 0; for (let i = 3; i < d.length; i += 4) m = Math.max(m, d[i]); return m > 100; }, [80, 60]), 'drawn where the finger was');
   const box = await p.locator('[data-board-canvas]').boundingBox();
-  assert.ok(box.height >= 300, 'room to draw on a phone: ' + box.height);
+  assert.ok(Math.abs(box.width / box.height - 16 / 9) < 0.02 && box.width >= 380, 'the whole 16:9 page across the phone: ' + JSON.stringify(box));
   assert.ok(await overflow(p)); assert.deepEqual(await tinyTargets(p), []);
   await shot(p, 'board-ar-dark-390');
   await context.close();

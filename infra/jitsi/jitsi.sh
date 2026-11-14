@@ -61,6 +61,13 @@ preflight() {
   done
   [ -f "$cfg/web/custom-config.js" ] && [ -f "$cfg/web/custom-interface_config.js" ] || die "custom web config not installed (runbook step 5)"
   grep -q '^config.whiteboard = { enabled: false };' "$cfg/web/custom-config.js" || die "$cfg/web/custom-config.js must switch the whiteboard off (copy it again, runbook step 5)"
+  # The meet host: no access log (tokens are in its addresses) and Referrer-Policy: no-referrer on every response. The pinned image includes
+  # nginx-custom/*.conf in both server blocks; the installed file must be exactly ours, and the release must still include it.
+  cmp -s "$HERE/web/nginx-custom/edulabs.conf" "$cfg/web/nginx-custom/edulabs.conf" || die "$cfg/web/nginx-custom/edulabs.conf is missing or differs from $HERE/web/nginx-custom/edulabs.conf (runbook step 5)"
+  [ "$(find "$cfg/web/nginx-custom" -maxdepth 1 -name '*.conf' | wc -l)" = 1 ] || die "$cfg/web/nginx-custom must hold only edulabs.conf"
+  [ ! -e "$cfg/web/nginx/custom-meet.conf" ] || die "$cfg/web/nginx/custom-meet.conf exists; the meet host's nginx settings live only in nginx-custom/edulabs.conf"
+  grep -qx 'include /run/web/config/nginx-custom/\*.conf;' "$UPSTREAM/web/rootfs/defaults/meet.conf" || die "the pinned meet.conf no longer includes nginx-custom/*.conf"
+  ! grep -q 'access_log' "$UPSTREAM/web/rootfs/defaults/meet.conf" "$UPSTREAM/web/rootfs/defaults/default" || die "the pinned web config sets its own access_log inside a server; edulabs.conf would not cover it"
   [ -f "$TURN_DIR/turnserver.conf" ] || die "$TURN_DIR/turnserver.conf is missing (run render-turn.sh)"
   [ -f "$TURN_DIR/turn-certs/fullchain.pem" ] && [ -f "$TURN_DIR/turn-certs/privkey.pem" ] || die "TURN certificate missing (runbook step 7)"
   # Public TCP 443 must be free for coturn (or already be coturn). Caddy must be on loopback only.
@@ -103,6 +110,13 @@ case "${1:-}" in
   health)
     ok=0
     code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/) ; echo "web      http://127.0.0.1:8000/            -> $code"; [ "$code" = 200 ] || ok=1
+    # The meet host's privacy settings, live: the header on a page and on an error, and a token-like query never reaches the log.
+    for p in / /libs/edulabs-missing.js; do   # a page, and a 404 in a location with its own add_header
+      if curl -s -o /dev/null -D - "http://127.0.0.1:8000$p" | tr -d '\r' | grep -qix 'referrer-policy: no-referrer'; then echo "web      Referrer-Policy on $p: no-referrer"; else echo "web      Referrer-Policy MISSING on $p"; ok=1; fi
+    done
+    probe="edulabs-health-$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n')"
+    curl -s -o /dev/null "http://127.0.0.1:8000/healthroom?jwt=$probe&token=$probe"; sleep 2
+    if compose logs --since 2m web 2>&1 | grep -q "$probe"; then echo "web      a query string WAS logged"; ok=1; else echo "web      query strings are not logged"; fi
     code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/about/health) ; echo "bridge   http://127.0.0.1:8080/about/health -> $code"; [ "$code" = 200 ] || ok=1
     code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8888/about/health) ; echo "focus    http://127.0.0.1:8888/about/health -> $code"; [ "$code" = 200 ] || ok=1
     ip=$(envget PUBLIC_IP); host=$(envget TURN_HOST)
