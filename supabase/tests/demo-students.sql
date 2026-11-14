@@ -83,15 +83,15 @@ select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_a'),true)->>'d
 select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_e'),true)->>'demo')::boolean,'space E is marked');
 select pg_temp.ok((public.platform_set_demo_space(pg_temp.id('org_f'),true)->>'demo')::boolean,'space F is marked');
 select pg_temp.denied(format('select public.platform_set_demo_space(%L,true)',pg_temp.id('org_d')),'PT409','a space with a real student cannot become a demo space');
-select pg_temp.ok((public.platform_demo_status(pg_temp.id('org_a'))->>'latestSeedVersion')::int=7,'the status reports the latest seed version (7)');
+select pg_temp.ok((public.platform_demo_status(pg_temp.id('org_a'))->>'latestSeedVersion')::int=8,'the status reports the latest seed version (8)');
 reset role;
 select pg_temp.ok(not exists(select 1 from private.demo_spaces where organization_id=pg_temp.id('org_d')),'the refused space is not marked');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_d'))=current_setting('dst.d_before'),'the refused space is unchanged');
 
 -- 2. Fill space A: seed version 2.
 select set_config('dst.a_fill',private.demo_fill_core(pg_temp.id('org_a'),(select id from dst_users where label='admin'))::text,true);
-select pg_temp.ok(current_setting('dst.a_fill')::jsonb=jsonb_build_object('seedVersion',7,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5,'exams',5),'fill reports seed version 7 (the version 2 data plus notifications, homework and the lesson with no part): 2 courses, 6 lessons, 2 Groups, 9 sessions, 28 students, 5 homework');
-select pg_temp.ok((select seed_version=7 from private.demo_spaces where organization_id=pg_temp.id('org_a')),'the space stores the current seed version (7)');
+select pg_temp.ok(current_setting('dst.a_fill')::jsonb=jsonb_build_object('seedVersion',8,'courses',2,'lessons',6,'groups',2,'sessions',9,'students',28,'homework',5,'exams',5),'fill reports seed version 8 (the version 2 data plus notifications, homework and the lesson with no part): 2 courses, 6 lessons, 2 Groups, 9 sessions, 28 students, 5 homework');
+select pg_temp.ok((select seed_version=8 from private.demo_spaces where organization_id=pg_temp.id('org_a')),'the space stores the current seed version (8)');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_a'))='2/3/6/1/2/9/0/2/28/28/56/983','fill state: 28 enrollments, 28 memberships, 56 attendance rows, 983 recorded rows (800 before seed version 7, plus 183 exam rows)');
 select pg_temp.ok((select count(*) from private.demo_seed_rows where organization_id=pg_temp.id('org_a') and table_name='profiles')=28
  and (select count(*) from private.demo_seed_rows where organization_id=pg_temp.id('org_a') and table_name='enrollments')=28
@@ -218,7 +218,7 @@ delete from private.demo_seed_rows where organization_id=pg_temp.id('org_f') and
 update private.demo_spaces set seed_version=1 where organization_id=pg_temp.id('org_f');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_f'))='2/3/5/1/2/5/0/2/0/0/0/20','space F now looks like a seed version 1 space: 20 recorded rows, no students, 5 upcoming Sessions');
 select pg_temp.ok((private.demo_clear_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'))->>'removedRows')::int=20,'Clear works for a space filled at seed version 1');
-select pg_temp.ok((private.demo_fill_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'))->>'seedVersion')::int=7,'Fill then gives it the current seed version (7)');
+select pg_temp.ok((private.demo_fill_core(pg_temp.id('org_f'),(select id from dst_users where label='admin'))->>'seedVersion')::int=8,'Fill then gives it the current seed version (8)');
 select pg_temp.ok(pg_temp.leftover(pg_temp.id('org_f'))='2/3/6/1/2/9/0/2/28/28/56/983','and the full current data');
 
 -- 10. Nothing here is callable by API roles.

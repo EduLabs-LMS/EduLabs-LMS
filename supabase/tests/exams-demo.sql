@@ -44,7 +44,7 @@ select pg_temp.put('org',gen_random_uuid());
 insert into public.organizations(id,name,slug) values(pg_temp.key('org'),'Synthetic demo exams','xd-'||current_setting('xd.run'));
 insert into public.organization_memberships(organization_id,user_id,role,status,joined_at) values(pg_temp.key('org'),pg_temp.uid('teacher'),'owner','active',now());
 insert into private.demo_spaces(organization_id,marked_by) values(pg_temp.key('org'),pg_temp.uid('admin'));
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=7,'the demo space fills (seed version 7: five exams)');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=8,'the demo space fills (seed version 8: five exams)');
 select pg_temp.ok((select count(*)=5 from private.exams e join public.courses c on c.id=e.course_id where c.organization_id=pg_temp.key('org')),'the seed adds five exams');
 select pg_temp.put('course',(select id from public.courses where organization_id=pg_temp.key('org') and status='published' order by title limit 1));
 select pg_temp.put('off',(select o.id from public.course_offerings o where o.course_id=pg_temp.key('course') order by o.id limit 1));
@@ -98,7 +98,7 @@ select pg_temp.ok(not exists(select 1 from private.exams where id in (pg_temp.ke
  and not exists(select 1 from private.exam_uploads u where u.exam_id=pg_temp.key('oe')) and not exists(select 1 from public.courses where organization_id=pg_temp.key('org')),'Clear removes the exams, the tries, the photo rows and the courses');
 select pg_temp.ok(not exists(select 1 from private.notification_events e where e.event_type='exam_released' and e.resource_id in (select id from pg_temp.xd_ids where label like 'res%')),'no release notice of a demo result remains');
 select pg_temp.ok((select (detail->'removedByTable'->>'exams')::int>20 from private.platform_audit where organization_id=pg_temp.key('org') and action='demo.clear' order by id desc limit 1),'the audit row counts the removed exam rows');
-select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=7,'the space fills again');
+select pg_temp.ok((private.demo_fill_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'seedVersion')::int=8,'the space fills again');
 select pg_temp.ok((private.demo_clear_core(pg_temp.key('org'),pg_temp.uid('admin'))->>'removedRows')::int=1567,'a plain Clear still removes exactly the 1567 rows (800 recorded before seed version 7, plus the 767 exam rows)');
 select count(*)::integer exams_demo_tests from xd_results;
 rollback;

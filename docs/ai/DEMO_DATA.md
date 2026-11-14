@@ -45,6 +45,7 @@ highest version in this table is the **latest seed version**.
 | Homework | `homework` | 5 | 4 questions-only homework in the published Physics course, for its whole offering: a draft, an open one, and two closed ones, with 58 tries by the demo students (waiting, corrected, released, late, a second try with a kept answer) and 20 photo rows with no stored file (see "Demo homework") |
 | Correcting, lesson page | `courses`, `homework` | 6 | A third Magnetism lesson, "Magnetism review", published with no part, and its homework (closed yesterday, late allowed): 14 tries for correcting (7 waiting, 2 of them late, 4 corrected and not released, 3 released), 3 photos, one deleted to free space (see "Correcting and a lesson with no parts") |
 | Exams | `exams` | 7 | Five exams in the Physics course (migration `20261115120000_exams_drafts_and_demo_v7.sql`): an online one OPEN NOW for Demo Group 1 (window an hour before to three hours after the fill; students 1-3 handed in, 4-5 working, the rest not started; Group 2 follows its next session); a closed one with essays waiting and some corrected-not-released; a released one with answer review open; an upcoming one in each Group's next session; a paper one out of 50 (marks entered, one Absent, some missing) |
+| Times in Cairo | `groups`, `homework` | 8 | Nothing new is created. The seed's Cairo wall times are right whatever time zone the database session is on (migration `20261116120000_demo_seed_8_and_notice_links.sql`): Group 1's Sessions at 18:00, Group 2's at 20:00 and every homework deadline at 20:00. On the hosted database (UTC) Group 2's Sessions had landed at midnight, Group 1's at 22:00. |
 
 Tables the seed may write (the `table_name` check of `private.demo_seed_rows`): `courses`, `course_modules`, `lessons`,
 `course_offerings`, `study_groups`, `group_staff`, `group_sessions`, and from seed version 2 (migration
@@ -120,6 +121,14 @@ Students 1-14 are in Demo Group 1, 15-28 in Demo Group 2. Online exams have four
 5. Electricity: paper exam: out of 50; students 1-9 and 15-22 have a mark (1-4 released), student 10 is Absent, the others are missing.
 
 The same migration also lets a DRAFT exam keep unfinished questions (see DECISIONS.md); this is not seed data.
+
+
+## Cairo times (seed version 8, migration `20261116120000_demo_seed_8_and_notice_links.sql`)
+
+- **The mistake:** `demo_fill_core` kept its day (`v_day`) in a `timestamptz` that held a Cairo WALL time. Every `... at time zone 'Africa/Cairo'` after it then converted an instant instead of reading a wall time, so the result depended on the session time zone. A local server on Cairo time hid it; the hosted database (UTC) moved every time by two hours: Group 1's 18:00 became 22:00, Group 2's 20:00 became 00:00 the next day, and the homework deadlines moved with them.
+- **The fix:** `v_day` is a plain `timestamp`. Nothing else in the fill changed, so the counts are the same as version 7 (1567 recorded rows).
+- A space filled at an earlier seed version is not upgraded in place. To get the right times: Clear, then Fill again.
+- The same migration changes one notice link (not seed data): see DECISIONS.md.
 
 ## Demo notifications (seed version 3)
 
