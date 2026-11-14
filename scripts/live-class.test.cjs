@@ -78,16 +78,20 @@ test('provider: the token is HS256 with the app id, the meeting host, the room, 
  assert.doesNotMatch(provider.classToken(c, { room, name: 'T', moderator: false, closesAt: now, now }), /x{64}/, 'the secret is never in the token');
 });
 
-test('provider: staff get screen sharing, the whiteboard and recording buttons and start talking; students start muted with the camera off', () => {
+test('provider: staff get screen sharing and recording buttons and start talking; students start muted with the camera off; nobody gets the whiteboard', () => {
  const c = provider.liveClassConfig(ENV), now = Date.now();
  const staff = provider.classJoin(c, { room: 'a'.repeat(64), name: 'T', moderator: true, title: 'Physics', closesAt: now + 3600000, now });
  const student = provider.classJoin(c, { room: 'a'.repeat(64), name: 'S', moderator: false, title: 'Physics', closesAt: now + 3600000, now });
  assert.equal(student.scriptUrl, 'https://meet.edulabs-eg.com/external_api.js');
  assert.equal(student.domain, 'meet.edulabs-eg.com');
- for (const b of ['desktop', 'whiteboard', 'recording']) {
+ for (const b of ['desktop', 'recording']) {
   assert.ok(staff.options.configOverwrite.toolbarButtons.includes(b), 'staff: ' + b);
   assert.ok(!student.options.configOverwrite.toolbarButtons.includes(b), 'student: ' + b);
  }
+ // Owner, 2026-11-14: students must never open or draw on any board, and Jitsi's whiteboard cannot be view-only, so nobody has it.
+ for (const j of [staff, student]) assert.ok(!j.options.configOverwrite.toolbarButtons.includes('whiteboard'), 'no whiteboard');
+ assert.ok(![...provider.STAFF_BUTTONS, ...provider.STUDENT_BUTTONS].includes('whiteboard'));
+ assert.doesNotMatch(staff.openUrl, /whiteboard/);
  assert.equal(student.options.configOverwrite.startWithAudioMuted, true); assert.equal(student.options.configOverwrite.startWithVideoMuted, true);
  assert.equal(staff.options.configOverwrite.startWithAudioMuted, false);
  assert.equal(student.options.configOverwrite.disableDeepLinking, true, 'phones stay in the browser');
@@ -115,6 +119,51 @@ test('provider: staff get screen sharing, the whiteboard and recording buttons a
  assert.match(read('infra/jitsi/jitsi.env.example'), new RegExp('^TOOLBAR_BUTTONS=' + [...provider.STUDENT_BUTTONS].join(',') + '$', 'm'));
 });
 
+test('no Jitsi whiteboard: not started, switched off in the web config, refused by jitsi.sh check (owner, 2026-11-14)', () => {
+ const sh = read('infra/jitsi/jitsi.sh'), compose = read('infra/jitsi/compose.override.yml'), env = read('infra/jitsi/jitsi.env.example');
+ const code = t => t.split('\n').filter(l => !/^\s*#/.test(l)).join('\n');
+ assert.doesNotMatch(code(sh), /whiteboard\.yml/, 'the upstream whiteboard Compose file is never loaded');
+ assert.match(sh, /-f "\$UPSTREAM\/docker-compose\.yml" -f "\$HERE\/compose\.override\.yml" "\$@"/);
+ assert.doesNotMatch(code(compose), /whiteboard|excalidraw/i, 'no whiteboard service');
+ assert.doesNotMatch(code(env), /^WHITEBOARD_|whiteboard/im, 'no whiteboard setting or button');
+ assert.match(read('infra/jitsi/web/custom-config.js'), /^config\.whiteboard = \{ enabled: false \};$/m);
+ assert.match(sh, /! grep -qE '\^WHITEBOARD_' "\$ENV_FILE" \|\| die/);
+ assert.match(sh, /! grep -E '\^TOOLBAR_BUTTONS=' "\$ENV_FILE" \| grep -q whiteboard \|\| die/);
+ assert.match(sh, /! compose config --services \| grep -qx whiteboard \|\| die/);
+ assert.match(sh, /grep -q '\^config\.whiteboard = \{ enabled: false \};' "\$cfg\/web\/custom-config\.js" \|\| die/);
+ assert.doesNotMatch(read('infra/jitsi/test-token.sh'), /"whiteboard"/);
+});
+
+test('the Board: staff only (the database decides), its own frame-less page, kept in this browser; the class page links it for staff only', () => {
+ const page = read('app/(board)/class/[sessionId]/board/page.tsx');
+ assert.match(page, /if \(!uuid\.test\(sessionId\) \|\| !isFirebaseStaging\(\) \|\| !liveClassConfigured\(\)\) notFound\(\);/);
+ assert.match(page, /if \(!viewer \|\| viewer\.backend !== 'firebase'\) redirect\('\/sign-in'\);/);
+ assert.match(page, /const r = await readLiveClassJoined\(sessionId\);\s*allowed = r\.status === 200 && \(r\.body as \{ liveClass\?: unknown \}\)\.liveClass === true;/, 'the Group\'s staff only (private.live_class_joined)');
+ assert.match(page, /if \(!allowed\) notFound\(\);\s*return <Board sessionId=\{sessionId\} \/>;/);
+ assert.ok(!fs.existsSync('app/(board)/layout.tsx'), 'no frame or navigation');
+ assert.ok(!fs.existsSync('app/(dashboard)/(routes)/class/[sessionId]/board'), 'not inside the dashboard frame');
+ const board = read('frontend/features/live-class/board.tsx');
+ const code = board.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+ assert.doesNotMatch(code, /fetch\(|XMLHttpRequest|WebSocket|sendBeacon|EventSource/, 'nothing is sent anywhere');
+ assert.match(code, /if \(e\.pointerType === 'touch' && \(penSeen \|\| penDown\)\) return;/, 'palm rejection');
+ assert.match(code, /getCoalescedEvents/);
+ const view = read('frontend/features/live-class/class-view.tsx');
+ assert.match(view, /\{reply\?\.staff && !left && \(reply\.state === 'ready' \|\| reply\.state === 'open'\) && <p [^>]*data-board-hint>/);
+ assert.match(view, /<a href=\{`\/class\/\$\{sessionId\}\/board`\} target="_blank" rel="noopener noreferrer" data-open-board/);
+ const B = load('frontend/features/live-class/board.tsx', { react: {}, 'lucide-react': {}, '@/frontend/components/language-provider': {}, '@/frontend/components/design/button': {}, '@/frontend/components/design/dialog': {}, '@/frontend/components/design/icon': {}, '@/shared/utils': {}, 'react/jsx-runtime': {} });
+ assert.equal(B.boardStorageKey('s1'), 'edulabs-board:s1');
+ assert.equal(JSON.stringify(B.BOARD_COLORS.map(c => c.value)), JSON.stringify(['#111111', '#1d4ed8', '#dc2626', '#15803d', '#ea580c', '#7c3aed']));
+ assert.equal(JSON.stringify(B.BOARD_WIDTHS.map(w => w.value)), '[2,4,8]');
+ const stroke = { tool: 'pen', color: '#1d4ed8', width: 4, points: [1, 2, 0.5, 3, 4, 0.7] };
+ const good = JSON.stringify({ v: 1, page: 1, pages: [[stroke], [{ ...stroke, tool: 'eraser' }]] });
+ assert.equal(JSON.stringify(B.parseSavedBoard(good)), good);
+ assert.equal(B.parseSavedBoard(JSON.stringify({ v: 1, page: 9, pages: [[]] })).page, 0, 'a page out of range opens the first');
+ for (const bad of [null, '', '{', '[]', JSON.stringify({ v: 2, page: 0, pages: [[]] }), JSON.stringify({ v: 1, page: 0, pages: [] }),
+  JSON.stringify({ v: 1, page: 0, pages: [[{ ...stroke, color: 'url(x)' }]] }), JSON.stringify({ v: 1, page: 0, pages: [[{ ...stroke, tool: 'laser' }]] }),
+  JSON.stringify({ v: 1, page: 0, pages: [[{ ...stroke, points: [1, 2] }]] }), JSON.stringify({ v: 1, page: 0, pages: [[{ ...stroke, width: 1e9 }]] }),
+  JSON.stringify({ v: 1, page: 0, pages: Array.from({ length: B.MAX_PAGES + 1 }, () => []) })]) assert.equal(B.parseSavedBoard(bad), null, String(bad).slice(0, 60));
+});
+
 test('Take attendance: joined students still not marked become Present; a mark (or a tap made meanwhile) is never changed', () => {
  const joined = new Set(['a', 'b', 'c', 'gone']);
  const saved = { a: 'not_marked', b: 'absent', c: 'not_marked', d: 'not_marked' };
@@ -128,7 +177,7 @@ test('Take attendance: joined students still not marked become Present; a mark (
  assert.doesNotMatch(view, /groupCall\('finalize'[^)]*joined/, 'never finishes the sheet');
 });
 
-test('middleware: the two API paths and /class/<uuid> pass, the page with no-referrer and no-store; lookalikes do not', () => {
+test('middleware: the two API paths, /class/<uuid> and its /board pass, the pages with no-referrer and no-store; lookalikes do not', () => {
  class NextResponse { constructor(kind, status) { this.kind = kind; this.status = status; this.headers = new Map(); } static next() { return new NextResponse('next', 200); } static json(_, o) { return new NextResponse('json', o.status); } static redirect(u) { return new NextResponse('redirect:' + u.pathname, 307); } }
  const middleware = load('middleware.ts', {
   '@/shared/public-website': load('shared/public-website.ts', { zod: require('zod') }), '@/shared/website-routes': load('shared/website-routes.ts'),
@@ -139,9 +188,11 @@ test('middleware: the two API paths and /class/<uuid> pass, the page with no-ref
  const id = 'a0000000-0000-4000-8000-00000000000b';
  assert.equal(run('/api/live-class/open').kind, 'next');
  assert.equal(run('/api/live-class/joined').kind, 'next');
- const page = run('/class/' + id);
- assert.equal(page.kind, 'next'); assert.equal(page.headers.get('Referrer-Policy'), 'no-referrer'); assert.equal(page.headers.get('Cache-Control'), 'private, no-store');
- for (const p of ['/class', '/class/', '/class/not-a-uuid', `/class/${id}/`, `/class/${id}/x`, `/class/${id.toUpperCase()}`]) assert.equal(run(p).kind, 'redirect:/unavailable', p);
+ for (const path of ['/class/' + id, `/class/${id}/board`]) {
+  const page = run(path);
+  assert.equal(page.kind, 'next', path); assert.equal(page.headers.get('Referrer-Policy'), 'no-referrer'); assert.equal(page.headers.get('Cache-Control'), 'private, no-store');
+ }
+ for (const p of ['/class', '/class/', '/class/not-a-uuid', `/class/${id}/`, `/class/${id}/x`, `/class/${id.toUpperCase()}`, `/class/${id}/board/`, `/class/${id}/boards`, `/class/${id}/board/x`, '/class/board', `/class/${id.toUpperCase()}/board`]) assert.equal(run(p).kind, 'redirect:/unavailable', p);
  for (const p of ['/api/live-class', '/api/live-class/start', '/api/live-class/open/x', '/api/livekit']) assert.equal(run(p).status, 503, p);
 });
 
@@ -200,8 +251,9 @@ test('migration: registered, private tables with RLS, definer functions behind i
 
 test('locales: every new key is in English and Arabic, and the notification type has its label', () => {
  const en = read('frontend/locales/en.ts'), ar = read('frontend/locales/ar.ts');
- const keys = [...en.matchAll(/^ {2}"(lc\.[a-z_.]+|notifications\.eventClassStarted)":/gm)].map(m => m[1]);
- assert.ok(keys.length >= 25);
+ const keys = [...en.matchAll(/^ {2}"((?:lc|board)\.[a-z_.]+|notifications\.eventClassStarted)":/gm)].map(m => m[1]);
+ assert.ok(keys.length >= 60);
+ for (const k of read('frontend/features/live-class/board.tsx').matchAll(/'(board\.[a-z_.]+)'/g)) assert.ok(keys.includes(k[1]), k[1]);
  for (const k of keys) assert.match(ar, new RegExp(`^  "${k.replace(/\./g, '\\.')}": "[^"]*[\\u0600-\\u06FF][^"]*",$`, 'm'), k);
  const c = load('shared/contracts/communications.ts');
  assert.ok(c.notificationEvents.includes('class_started'));

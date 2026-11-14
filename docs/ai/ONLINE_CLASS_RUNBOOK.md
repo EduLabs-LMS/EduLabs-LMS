@@ -7,7 +7,9 @@ run by Claude: the files were written and checked on a development PC only (see 
   that has been out since 2026-09-14, so it carries two months of fixes, and its only change over `-2` is the revert of a
   prosody module that had just been switched on (`mod_filter_direct_messages`). It is the first line after the move to
   rootless containers (uid 1000, read-only root filesystems) and to images on `ghcr.io/jitsi`, which this runbook assumes.
-  Whiteboard backend `jitsi/excalidraw-backend:2026.3.0` (the one that release pins). TURN: `coturn/coturn:4.19.0-debian`.
+  TURN: `coturn/coturn:4.19.0-debian`. **No Jitsi whiteboard** (owner, 2026-11-14): its backend (`whiteboard.yml`,
+  excalidraw-backend) checks no token, so it is not started and switched off in the web config; teachers draw on the EduLabs
+  Board page and share that tab like a PDF.
 - **Its own Compose project** (`edulabs-jitsi`), never inside the EduLabs one. Hard limits so the website wins: see
   `infra/jitsi/compose.override.yml` (table in step 8).
 - **Where things live on the VPS:**
@@ -20,10 +22,10 @@ run by Claude: the files were written and checked on a development PC only (see 
 | Port | Where | Why |
 | --- | --- | --- |
 | 22/tcp | public | SSH (already open; unchanged) |
-| **10000/udp** | public | The video bridge: every participant's audio, screen and whiteboard media. Published by Docker. |
+| **10000/udp** | public | The video bridge: every participant's audio and the teacher's shared screen. Published by Docker. |
 | **443/tcp** | public | coturn **TURN over TLS** for phones on networks that block UDP (it looks like HTTPS). Caddy is on 127.0.0.1 only, so the public 443 is free (step 1 checks it). |
 | **3478/udp** | public | coturn TURN/STUN over UDP for networks that block port 10000 but allow 3478. |
-| 127.0.0.1:8000/tcp | loopback | Jitsi web, reached only by the Cloudflare Tunnel (meet hostname). The whiteboard is reached through it too (`/socket.io/`). |
+| 127.0.0.1:8000/tcp | loopback | Jitsi web, reached only by the Cloudflare Tunnel (meet hostname). |
 | 127.0.0.1:8443, :8080, :8888/tcp | loopback | Jitsi's own (unused HTTPS; bridge and focus health/stats). Upstream binds them to loopback. |
 
 Port 80 is **not** opened: the TURN certificate is issued through DNS (step 7).
@@ -39,7 +41,7 @@ runbook opened the range to `172.16.0.0/12`; that rule was unnecessary and is go
 kernel log shows `[UFW BLOCK] IN=br-jitsi ... DPT=4916x`, step 9 gives the one interface-bound rule to add.)
 
 **Published by Docker** (they bypass ufw, so this list is the whole public surface of the containers). From the
-stable-11248-3 `docker-compose.yml` and `whiteboard.yml` with this override, `./jitsi.sh ports` prints:
+stable-11248-3 `docker-compose.yml` with this override (never `whiteboard.yml`), `./jitsi.sh ports` prints:
 
 ```
 coturn host-network (listeners set by its own config; see ss -tulpn)
@@ -50,8 +52,7 @@ web 127.0.0.1:8000->8000/tcp
 web 127.0.0.1:8443->8443/tcp
 ```
 
-Prosody only `expose`s 5222, 5269, 5347 and 5280 inside the Docker network (not published). The whiteboard publishes nothing
-(it listens on 80, metrics on 9090, inside the network only). There is no 4443/tcp in this release. `./jitsi.sh check` and
+Prosody only `expose`s 5222, 5269, 5347 and 5280 inside the Docker network (not published). There is no whiteboard container. There is no 4443/tcp in this release. `./jitsi.sh check` and
 `./jitsi.sh up` refuse to start if any port other than `jvb 0.0.0.0:10000/udp` would be published on a non-loopback address.
 
 > Docker publishes 10000/udp straight through iptables, around ufw. The ufw rule in step 2 is still added so `ufw status`
@@ -221,7 +222,7 @@ docker run --rm --entrypoint id coturn/coturn:4.19.0-debian    # expect uid=6553
                                   # and the published-port list above (refuses any public port but 10000/udp)
 ./jitsi.sh pull
 ./jitsi.sh up
-./jitsi.sh ps                     # web, prosody, jicofo, jvb, whiteboard, coturn: all "running"/"Up"
+./jitsi.sh ps                     # web, prosody, jicofo, jvb, coturn: all "running"/"Up"; no whiteboard
 ip -br link show br-jitsi         # the Jitsi network's interface has its fixed name
 ```
 
@@ -255,11 +256,10 @@ The limits now in force (`compose.override.yml`):
 | jicofo | 0.5 | 512 MB (heap 320 MB) | 512 | before the app |
 | prosody | 0.5 | 256 MB | 512 | before the app |
 | web (nginx) | 0.5 | 128 MB | 512 | before the app |
-| whiteboard | 0.25 | 192 MB | 256 | first |
 | coturn | 0.5 | 128 MB | 512 | before the app |
-| **Jitsi total** | | **2.44 GB** | | |
+| **Jitsi total** | | **2.25 GB** | | |
 
-With EduLabs at its own caps (app 3 GB, Caddy 256 MB, worker 384 MB) the worst case is 6.0 GB of 8 GB. CPU weights make the
+With EduLabs at its own caps (app 3 GB, Caddy 256 MB, worker 384 MB) the worst case is 5.9 GB of 8 GB. CPU weights make the
 app win under contention. Every container: restart `unless-stopped`, logs 3 x 10 MB.
 
 ## 9. Health check and smoke test (before EduLabs is connected)
@@ -270,6 +270,7 @@ cd /opt/jitsi/edulabs
 curl -sI "https://$MEET_HOST/" | head -1                       # HTTP/2 200 through Cloudflare
 curl -sI "https://$MEET_HOST/" | grep -i content-security       # frame-ancestors https://staging.edulabs-eg.com
 curl -s  "https://$MEET_HOST/config.js" | grep -E 'disableDeepLinking|enableClosePage' | head    # true / false
+curl -s  "https://$MEET_HOST/config.js" | grep -A1 'config.whiteboard'                # enabled: false (last match wins)
 
 ./test-token.sh moderator         # open the printed address on the teacher's laptop (Chrome or Edge)
 ./test-token.sh member <room>     # same room name as the line above; open on an Android phone ON MOBILE DATA (Wi-Fi off)
@@ -281,17 +282,16 @@ Expected, and what each line proves:
 | --- | --- | --- |
 | Open `https://$MEET_HOST/anything` with no token | refused (authentication required) | server (prosody, token auth, no guests) |
 | Phone joins | stays in the browser (no "get the app" page), muted, camera off, name from the token and not editable | config |
-| Phone's toolbar | no Share screen, no Whiteboard, no Record button | display only (see the limits below) |
-| Laptop (moderator) | Share screen, Whiteboard and Record are there; sharing a PDF works | token = moderator |
-| Teacher opens the whiteboard | the phone sees it and **can draw on it** | Jitsi has no view-only whiteboard |
-| A member creates the whiteboard: on a laptop, open the member address with `#config.toolbarButtons=["whiteboard"]` added, before the teacher opens one | nothing opens (the student is not allowed to start a whiteboard) | server: only moderators may write the room data that creates it |
+| Phone's toolbar | no Share screen, no Record button, no Whiteboard | display only (see the limits below) |
+| Laptop (moderator) | Share screen and Record are there, **no Whiteboard**; sharing a PDF, or the EduLabs Board tab, works | token = moderator |
+| A member turns the whiteboard on by hand: on a laptop, open the member address with `#config.whiteboard.enabled=true&config.toolbarButtons=["whiteboard"]` added | no board anyone else sees: there is no whiteboard server to share it, and only moderators may create one | no whiteboard backend runs; server rule for creating it |
 | Teacher presses Record > local recording | every participant, the phone included, sees a "recording started" notice; the file is saved on the teacher's laptop | config (notify all) |
 | Phone tries to record | not possible (phone browsers lack the recording API) | the browser |
 | Teacher mutes the phone, or lowers its hand, from the participants list | works; the phone cannot make itself moderator | server (token affiliation, no auto-owner, no grant) |
-| Whiteboard backend | `curl -s "https://$MEET_HOST/socket.io/?EIO=4&transport=polling" \| head -c 40` prints a socket.io handshake (`0{"sid":...`); `ss -Htlnp \| grep -E ':(80\|9090) '` shows nothing public | reached only through the meet host |
+| No whiteboard backend | `curl -s "https://$MEET_HOST/socket.io/?EIO=4&transport=polling" \| head -c 40` prints NO socket.io handshake (no `0{"sid":`; an HTML page or 404 instead); `./jitsi.sh ps` lists no whiteboard | not started at all |
 
 **Known limits, accepted by design** (details in `ONLINE_CLASS_AUDIT.md`, "Known limits"): a student on a **desktop or
-laptop** browser who adds buttons to the page address (as in the whiteboard row) can share a screen or start Jitsi's local
+laptop** browser who adds buttons to the page address (as in the row above) can share a screen or start Jitsi's local
 recording; Jitsi stable-11248-3 has no server rule against either. Everyone is notified when local recording starts, the
 teacher can stop a share (mute the student's video, or remove them), and nobody can prevent anyone from recording their own
 screen with their device's own tools. Phones, which most students use, can do neither.
@@ -341,6 +341,11 @@ Then redeploy EduLabs the usual way (`infra/deploy.sh`). EduLabs sends no Conten
 its pages today, so its class page can frame `$MEET_HOST` (the frame asks for camera, microphone, screen sharing and
 fullscreen); if either header is added later, it must allow that.
 
+**The Board** (no server part): staff see "Open board" on the class page. It opens `/class/<session>/board`, an EduLabs page
+with a white drawing area (pen, eraser, colours, pages, undo, save as picture), kept only in that browser. The teacher shares
+that tab with Share screen, like a PDF; students only ever see it as video. The page answers 404 to anyone who cannot manage
+the Group (the same check as the attendance list), and it never talks to Jitsi.
+
 ## 11. Logs
 
 ```bash
@@ -367,7 +372,7 @@ uptime                                   # load average; above 4 means the CPUs 
 docker inspect -f '{{.Name}} restarts={{.RestartCount}} oom={{.State.OOMKilled}}' $(docker ps -aq)
 ```
 
-What to expect for ~15 phones with cameras off and the teacher sharing a PDF and the whiteboard (estimates, to be confirmed by
+What to expect for ~15 phones with cameras off and the teacher sharing a PDF or the EduLabs Board tab (estimates, to be confirmed by
 the first real class): bridge download ~1-3 Mbit/s (the teacher), upload ~15-40 Mbit/s (one screen stream per student), bridge
 CPU well under one core. Write down the first class's numbers in this file. If the bridge's stress level stays above 0.8, or
 EduLabs pages slow down while a class runs, that is the signal to move classes to their own server.
@@ -382,8 +387,8 @@ cp -a /etc/edulabs/jitsi.env /root/jitsi.env.$OLD                        # back 
 ```
 
 Then, for a new upstream tag `NEW` that has been out at least two weeks: read its release notes and the diff of
-`env.example`, `docker-compose.yml` and `whiteboard.yml` against `OLD`; an update is a reviewed EduLabs change (new `PINNED`
-in `jitsi.sh`, `JITSI_IMAGE_VERSION` in `jitsi.env.example`, whiteboard image in `compose.override.yml`, this runbook).
+`env.example` and `docker-compose.yml` against `OLD` (and check the new release still lets the whiteboard be off); an update is a reviewed EduLabs change (new `PINNED`
+in `jitsi.sh`, `JITSI_IMAGE_VERSION` in `jitsi.env.example`, this runbook).
 Then:
 
 ```bash
@@ -457,9 +462,9 @@ To remove an origin, edit the same line by hand (keep `frame-ancestors` and at l
 ## What was not verified
 
 Written on a development PC; nothing was run on the VPS or against Cloudflare. Read from the sources of the pinned release
-and of jitsi-meet / jicofo / excalidraw-backend master (2026-11-14): the published ports, the whiteboard backend's port (80) and
-its lack of token checks, who may create the whiteboard, what the local-recording settings do, and that jicofo does not refuse
+and of jitsi-meet / jicofo / excalidraw-backend master (2026-11-14): the published ports, the whiteboard backend's lack of token
+checks (why it is not run), who may create a whiteboard, what the local-recording settings do, and that jicofo does not refuse
 a screen share at source-add. Not verified: that the coturn image runs as uid 65534 (step 8 checks it), that
 `token_affiliation` loads in this prosody image and makes only `moderator: true` tokens moderators (step 9 checks it), the relay
 path's conntrack behaviour on this kernel and Docker (step 9 proves it), Cloudflare WebSocket behaviour for `/xmpp-websocket`,
-`/colibri-ws` and `/socket.io/`, real bandwidth and CPU of a class, and phone behaviour on Egyptian mobile networks.
+and `/colibri-ws`, real bandwidth and CPU of a class, and phone behaviour on Egyptian mobile networks.

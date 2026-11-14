@@ -29,7 +29,8 @@ export const liveClassConfigured = (env: Record<string, string | undefined> = pr
 
 /** The buttons everyone has (TOOLBAR_BUTTONS in jitsi.env), and what staff add. Display only: the limits are in ONLINE_CLASS_AUDIT.md, "Known limits". */
 export const STUDENT_BUTTONS = ['microphone', 'camera', 'chat', 'raisehand', 'participants-pane', 'tileview', 'fullscreen', 'settings', 'hangup'] as const;
-export const STAFF_BUTTONS = [...STUDENT_BUTTONS, 'desktop', 'whiteboard', 'recording'] as const;
+// Never 'whiteboard' (owner, 2026-11-14): Jitsi's whiteboard backend checks no token, so it is not run; teachers share the EduLabs Board tab.
+export const STAFF_BUTTONS = [...STUDENT_BUTTONS, 'desktop', 'recording'] as const;
 export const TOKEN_MAX_SECONDS = 3 * 3600;
 
 const b64 = (v: string | Buffer) => Buffer.from(v).toString('base64url');

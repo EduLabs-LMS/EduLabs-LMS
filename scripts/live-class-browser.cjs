@@ -4,7 +4,7 @@
 // synthetic meeting in an iframe; no Jitsi, no network). Synthetic loopback data only; not provider acceptance.
 // Covers: Start (the button and ?start=1), Join (open, and waiting until the teacher starts), early, ended, cancelled, not allowed, not
 // available, too many tries, a failed read with Retry, Leave and Join again, the meeting script failing (Retry, Open in a new tab), Open in a new
-// tab (the meeting here closes, "Open it here instead"), phone and desktop, English and Arabic, dark; LMS_MATRIX=1 adds the screen matrix
+// tab (the meeting here closes, "Open it here instead"), "Open board" for staff only and no whiteboard for anyone, phone and desktop, English and Arabic, dark; LMS_MATRIX=1 adds the screen matrix
 // (staff screens in both looks; students' screens in Classic, the only look of the student shell).
 // Needs LMS_BROWSER_RUNTIME / LMS_ESBUILD_RUNTIME and a Firebase-mode `npm run build` first (CSS, fonts). LMS_ONLY_STEPS runs matching steps.
 const { shootMatrix } = require('./screen-matrix.cjs');
@@ -236,11 +236,13 @@ function openClass(body) {
 
  // ------------------------------------------------------------------ the real middleware in front of the harness
  let probes = 0;
- await step('Middleware: /class/<uuid> is reachable with no-referrer and no-store; lookalikes are not; the API takes only its two exact paths', async () => {
+ await step('Middleware: /class/<uuid> and its /board are reachable with no-referrer and no-store; lookalikes are not; the API takes only its two exact paths', async () => {
   const get = (p, init) => fetch(origin + p, { redirect: 'manual', ...init });
-  const r = await get(page(C.open)); assert.equal(r.status, 200);
-  assert.equal(r.headers.get('referrer-policy'), 'no-referrer'); assert.equal(r.headers.get('cache-control'), 'private, no-store');
-  for (const bad of ['/class', '/class/', '/class/not-a-uuid', page(C.open) + '/', page(C.open) + '/x', '/classes/' + C.open]) {
+  for (const ok of [page(C.open), page(C.open) + '/board']) {
+   const r = await get(ok); assert.equal(r.status, 200, ok);
+   assert.equal(r.headers.get('referrer-policy'), 'no-referrer'); assert.equal(r.headers.get('cache-control'), 'private, no-store');
+  }
+  for (const bad of ['/class', '/class/', '/class/not-a-uuid', page(C.open) + '/', page(C.open) + '/x', '/classes/' + C.open, page(C.open) + '/board/', page(C.open) + '/boards']) {
    const x = await get(bad); assert.equal(x.status, 307, bad); assert.equal(x.headers.get('location'), '/unavailable', bad);
   }
   for (const bad of ['/api/live-class', '/api/live-class/start', '/api/live-class/open/x', '/api/livekit']) assert.equal((await get(bad)).status, 503, bad);
@@ -257,13 +259,20 @@ function openClass(body) {
   assert.equal(await p.locator('[data-back]').getAttribute('href'), '/teacher/groups/' + GROUP, 'back to the Group');
   assert.deepEqual(await posts(), [{ sessionId: C.ready, start: false }], 'opening the page starts nothing');
   assert.equal(await p.locator('[data-live-class-stage]').count(), 0);
+  // The Board, for staff: a new tab on /class/<id>/board (shared into the class with Share screen; Jitsi's whiteboard is off).
+  const board = p.locator('[data-open-board]');
+  assert.equal(await board.getAttribute('href'), '/class/' + C.ready + '/board');
+  assert.equal(await board.getAttribute('target'), '_blank'); assert.equal(await board.getAttribute('rel'), 'noopener noreferrer');
+  assert.ok(t.includes('Open board') && t.includes('share that tab with Share screen'), 'the Board and how to show it');
   await shot(p, 'staff-ready-1440');
   await p.locator('[data-live-class-start]').click();
   await shown(p);
   assert.deepEqual(await posts(), [{ sessionId: C.ready, start: false }, { sessionId: C.ready, start: true }]);
   const [m] = await meetings(p);
   assert.equal(m.domain, 'meet.example.test'); assert.match(m.roomName, /^[0-9a-f]{64}$/); assert.equal(m.inPage, true); assert.equal(m.lang, 'en');
-  for (const b of ['desktop', 'whiteboard', 'recording', 'microphone', 'hangup']) assert.ok(m.toolbarButtons.includes(b), b);
+  for (const b of ['desktop', 'recording', 'microphone', 'hangup']) assert.ok(m.toolbarButtons.includes(b), b);
+  assert.ok(!m.toolbarButtons.includes('whiteboard'), 'no Jitsi whiteboard, for staff either');
+  assert.equal(await p.locator('[data-open-board]').count(), 1, 'Open board stays under the meeting');
   assert.equal(m.startWithAudioMuted, false); assert.equal(m.disableDeepLinking, true);
   const claims = JSON.parse(Buffer.from(m.jwt.split('.')[1], 'base64url'));
   assert.equal(claims.context.user.moderator, true); assert.equal(claims.room, m.roomName); assert.equal(claims.sub, 'meet.example.test');
@@ -293,6 +302,8 @@ function openClass(body) {
   await shown(p);
   const [m] = await meetings(p);
   for (const b of ['desktop', 'whiteboard', 'recording']) assert.ok(!m.toolbarButtons.includes(b), b);
+  assert.equal(await p.locator('[data-open-board]').count(), 0, 'no Board for students');
+  assert.doesNotMatch(await text(p), /Open board/);
   assert.equal(m.startWithAudioMuted, true); assert.equal(m.startWithVideoMuted, true); assert.equal(m.name, 'Synthetic Student');
   assert.equal(JSON.parse(Buffer.from(m.jwt.split('.')[1], 'base64url')).context.user.moderator, false);
   assert.equal(await p.locator('[data-back]').getAttribute('href'), '/groups');
@@ -310,6 +321,7 @@ function openClass(body) {
   assert.ok((await text(p)).includes('Waiting for your teacher to start the class'));
   assert.equal(await p.locator('[data-live-class-stage]').count(), 0);
   assert.equal(meetRequests.length, before, 'nothing is loaded from the meeting server while waiting');
+  assert.equal(await p.locator('[data-open-board]').count(), 0, 'no Board for students');
   assert.ok(await overflow(p)); assert.deepEqual(await tinyTargets(p), []);
   await shot(p, 'student-waiting-390');
   await ctl({ start: C.waiting });

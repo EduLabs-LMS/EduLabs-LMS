@@ -178,5 +178,9 @@ export function LiveClassView({ sessionId, start }: { sessionId: string; start: 
       <div ref={host} data-live-class-stage className="d-live-class-stage" hidden={stage === 'failed'} />
       {stage !== 'failed' && <p className="d-meta d-live-class-note" data-new-tab-hint><L id="lc.new_tab_hint" /> {newTab(false)}</p>}
     </>}
+    {/* Staff only (display; the Board page itself refuses anyone but the Group's staff). Jitsi's own whiteboard is off for everyone. */}
+    {reply?.staff && !left && (reply.state === 'ready' || reply.state === 'open') && <p className="d-meta d-live-class-note" data-board-hint>
+      <L id="lc.board_hint" /> <a href={`/class/${sessionId}/board`} target="_blank" rel="noopener noreferrer" data-open-board className="d-inline-link"><Icon name="plus" size={16} /><L id="lc.board_open" /></a>
+    </p>}
   </div>;
 }

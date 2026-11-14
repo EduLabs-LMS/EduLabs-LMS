@@ -20,3 +20,6 @@ config.remoteVideoMenu = { disableGrantModerator: true };
 
 // Cameras are off in these classes: receive at most four videos, so a phone never downloads fifteen.
 config.channelLastN = 4;
+
+// No Jitsi whiteboard for anyone (owner, 2026-11-14): its backend checks no token. Teachers share the EduLabs Board tab instead.
+config.whiteboard = { enabled: false };

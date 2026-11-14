@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Smoke test BEFORE EduLabs is wired up: prints a meeting address with a 10-minute token for a throwaway room.
-#   ./test-token.sh moderator   -> open it on a laptop: you are the moderator (whiteboard, recording, mute others)
+#   ./test-token.sh moderator   -> open it on a laptop: you are the moderator (screen sharing, recording, mute others)
 #   ./test-token.sh member      -> open it on a phone: you join muted, camera off, not a moderator
 # The address contains a signed token: do not paste it into chats or tickets; it stops working after 10 minutes.
 # The secret is read by python3 from the env file; it never appears in a command line or in the output.
@@ -31,7 +31,7 @@ sig = b64(hmac.new(env["JWT_APP_SECRET"].encode(), (head + "." + body).encode(),
 extra = ""
 if role == "moderator":
     import urllib.parse
-    buttons = env["TOOLBAR_BUTTONS"].split(",") + ["desktop", "whiteboard", "recording"]
+    buttons = env["TOOLBAR_BUTTONS"].split(",") + ["desktop", "recording"]
     extra = "#config.toolbarButtons=" + urllib.parse.quote(json.dumps(buttons, separators=(",", ":")))
 print(f"{env['PUBLIC_URL'].rstrip('/')}/{room}?jwt={head}.{body}.{sig}{extra}")
 PY

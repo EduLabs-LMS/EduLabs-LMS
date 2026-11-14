@@ -7,7 +7,7 @@ copy-paste procedure (install, firewall, DNS, tunnel, start, health, logs, load,
 
 | File | What it is |
 | --- | --- |
-| `compose.override.yml` | CPU/memory caps, CPU weight, OOM order, log limits for every Jitsi container; the pinned whiteboard backend; coturn |
+| `compose.override.yml` | CPU/memory caps, CPU weight, OOM order, log limits for every Jitsi container; coturn (no Jitsi whiteboard: it is not started) |
 | `jitsi.env.example` | Every setting, copied to `/etc/edulabs/jitsi.env` (root, 0600); secrets are generated on the server |
 | `turnserver.conf.template` | coturn: TURN over TLS on 443/tcp, TURN on 3478/udp, relays only to this host's bridge |
 | `render-turn.sh` | Writes `/etc/edulabs/jitsi/turnserver.conf` from the template and the env file |

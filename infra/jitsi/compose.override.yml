@@ -3,7 +3,6 @@
 # Used ONLY together with the upstream files of the pinned tag, through infra/jitsi/jitsi.sh:
 #   docker compose -p edulabs-jitsi --env-file /etc/edulabs/jitsi.env \
 #     -f /opt/jitsi/docker-jitsi-meet/docker-compose.yml \
-#     -f /opt/jitsi/docker-jitsi-meet/whiteboard.yml \
 #     -f /opt/jitsi/edulabs/compose.override.yml ...
 #
 # "The website always wins" on this shared VPS (4 vCPU, 8 GB; EduLabs app 3 GB / 2.5 CPU, Caddy 256 MB, worker 384 MB):
@@ -11,13 +10,14 @@
 #   - half the CPU weight of an EduLabs container (cpu_shares 512 vs the default 1024), so under contention the app is scheduled first;
 #   - a raised OOM score, so if the host ever runs out of memory the kernel kills a Jitsi process before the app;
 #   - bounded logs (3 x 10 MB per container) and bounded process counts.
-# Totals: memory 2.44 GB worst case (every container at its cap; with EduLabs at its caps, 6.0 GB of 8 GB, leaving ~2 GB for
-# Debian, Docker, cloudflared and the page cache). CPU caps add up to 4.25, but the JVB alone is capped at 2 of 4 vCPUs and
+# Totals: memory 2.25 GB worst case (every container at its cap; with EduLabs at its caps, 5.9 GB of 8 GB, leaving ~2.1 GB for
+# Debian, Docker, cloudflared and the page cache). CPU caps add up to 4.0, but the JVB alone is capped at 2 of 4 vCPUs and
 # the weights above give the app the CPU first.
 #
-# Ports (stable-11248-3, read from its docker-compose.yml and whiteboard.yml): web ${HTTP_PORT}:8000 and ${HTTPS_PORT}:8443,
+# Ports (stable-11248-3, read from its docker-compose.yml): web ${HTTP_PORT}:8000 and ${HTTPS_PORT}:8443,
 # jicofo 127.0.0.1:8888, jvb ${JVB_PORT}:10000/udp and 127.0.0.1:8080; prosody only "expose"s 5222/5269/5347/5280 inside the
-# Docker network; whiteboard publishes nothing (it listens on 80 inside the network, metrics on 9090, neither published).
+# Docker network. Jitsi's whiteboard (whiteboard.yml, the excalidraw-backend) is NOT used (owner, 2026-11-14): its server checks no
+# token, so it is not started at all; teachers draw on the EduLabs Board page and share that tab.
 # There is no 4443/tcp in this release. `./jitsi.sh ports` prints the list and `./jitsi.sh check` refuses any public one but 10000/udp.
 # The upstream file publishes web on ${HTTP_PORT}/${HTTPS_PORT}; jitsi.env sets them to 127.0.0.1:8000 and
 # 127.0.0.1:8443 (loopback only, for the Cloudflare Tunnel). JVB publishes ${JVB_PORT}/udp (10000) on every interface:
@@ -79,24 +79,6 @@ services:
     pids_limit: 1024
     cpu_shares: 512
     oom_score_adj: 500
-    security_opt:
-      - no-new-privileges:true
-
-  whiteboard:
-    # Image pinned by the upstream whiteboard.yml of stable-11248-3 (jitsi/excalidraw-backend:2026.3.0). Restated so a
-    # different whiteboard.yml can never silently change it.
-    image: jitsi/excalidraw-backend:2026.3.0
-    restart: unless-stopped
-    logging: *edulabs-logging
-    cpus: 0.25
-    mem_limit: 192m
-    memswap_limit: 192m
-    pids_limit: 128
-    cpu_shares: 256
-    oom_score_adj: 600
-    environment:
-      # Only the meeting page may open a whiteboard connection from a browser (upstream default is any origin).
-      - CORS_ORIGIN=${PUBLIC_URL}
     security_opt:
       - no-new-privileges:true
 

@@ -25,7 +25,7 @@ die() { echo "jitsi.sh: $*" >&2; exit 1; }
 envget() { grep -E "^$1=" "$ENV_FILE" | tail -n 1 | cut -d= -f2-; }
 compose() {
   docker compose -p "$PROJECT" --env-file "$ENV_FILE" \
-    -f "$UPSTREAM/docker-compose.yml" -f "$UPSTREAM/whiteboard.yml" -f "$HERE/compose.override.yml" "$@"
+    -f "$UPSTREAM/docker-compose.yml" -f "$HERE/compose.override.yml" "$@"
 }
 
 preflight() {
@@ -51,11 +51,16 @@ preflight() {
   local csp csp_re='^frame-ancestors( https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+)+$'
   csp=$(envget CSP_HEADER)
   [[ $csp =~ $csp_re ]] || die "CSP_HEADER must be 'frame-ancestors' and then one or more EduLabs origins like https://staging.edulabs-eg.com, separated by single spaces"
+  # No Jitsi whiteboard (owner, 2026-11-14): its backend checks no token. Nothing may turn it back on.
+  ! grep -qE '^WHITEBOARD_' "$ENV_FILE" || die "$ENV_FILE has a WHITEBOARD_* setting; Jitsi's whiteboard is not used"
+  ! grep -E '^TOOLBAR_BUTTONS=' "$ENV_FILE" | grep -q whiteboard || die "TOOLBAR_BUTTONS must not list whiteboard"
+  ! compose config --services | grep -qx whiteboard || die "a whiteboard service is in the Compose project; Jitsi's whiteboard is not used"
   local cfg; cfg=$(envget CONFIG)
   for d in "$cfg/web" "$cfg/storage/prosody" "$cfg/storage/web" "$cfg/storage/transcripts" "$cfg/tmp/web-crontabs" "$cfg/tmp/web-load-test"; do
     [ -d "$d" ] || die "$d is missing (runbook step 5)"
   done
   [ -f "$cfg/web/custom-config.js" ] && [ -f "$cfg/web/custom-interface_config.js" ] || die "custom web config not installed (runbook step 5)"
+  grep -q '^config.whiteboard = { enabled: false };' "$cfg/web/custom-config.js" || die "$cfg/web/custom-config.js must switch the whiteboard off (copy it again, runbook step 5)"
   [ -f "$TURN_DIR/turnserver.conf" ] || die "$TURN_DIR/turnserver.conf is missing (run render-turn.sh)"
   [ -f "$TURN_DIR/turn-certs/fullchain.pem" ] && [ -f "$TURN_DIR/turn-certs/privkey.pem" ] || die "TURN certificate missing (runbook step 7)"
   # Public TCP 443 must be free for coturn (or already be coturn). Caddy must be on loopback only.

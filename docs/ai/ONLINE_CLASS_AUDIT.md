@@ -151,14 +151,13 @@ for the next class.
 ## 7. Known limits (Jitsi stable-11248-3, read from the sources on 2026-11-14)
 
 The owner asked that students cannot record, share a screen or open the whiteboard, with server enforcement where Jitsi has
-it. What Jitsi actually enforces, and what it does not:
+it. **Since 2026-11-14 Jitsi's whiteboard is not run at all** (owner: "students must NEVER open or draw on any board"; section 10). What Jitsi actually enforces, and what it does not:
 
 | Action by a student | Server-side rule in Jitsi? | What we do |
 | --- | --- | --- |
 | Become moderator | **Yes.** Moderator only from a token with `moderator: true` (prosody `token_affiliation`); no auto-owner; moderators cannot grant it (`DISABLE_GRANT_MODERATOR`). | EduLabs signs `moderator: true` only for the Group's staff. |
 | Join before the teacher | **Yes, in EduLabs.** No token is issued to a student until staff pressed Start (Jitsi's own wait-for-host treats every token holder as a host and needs the lobby, so it is not used). | Join route + database. |
-| **Open (create) the whiteboard** | **Yes.** Creating it writes the room's metadata, which prosody accepts from moderators only (`mod_room_metadata_component`: `if occupant.role ~= 'moderator'`). | Whiteboard button hidden for students too. |
-| **Draw on the whiteboard once the teacher opened it** | **No.** Jitsi has no view-only whiteboard and no moderators-only drawing setting (`config.whiteboard` has only `enabled`, `collabServerBaseUrl`, `userLimit`, `limitUrl`, `storageBackendUrl`; `userLimit` caps people, not drawing). | Accepted: students can draw. The teacher can close it. |
+| **Open or draw on a whiteboard** | **Not possible: there is none.** The whiteboard backend is not started (no `whiteboard.yml`), the web config sets `config.whiteboard = { enabled: false }`, no one's toolbar lists it, and `./jitsi.sh check` refuses any of these coming back. (Even with it on, Jitsi has no view-only whiteboard: anyone in the class could draw.) | Teachers draw on the EduLabs Board page and share that tab; students only receive it as video (section 10). |
 | **Share a screen** | **No.** jicofo accepts a screen source at source-add (it only caps the number of video senders). Desktop moderation exists, but a moderator must switch it on in each meeting from the participants list; there is no room default for it, and the IFrame API cannot do it (`toggle-moderation` turns anything but `'video'` into **audio** moderation). | Share-screen button off by default and added only for staff (display only). Phone browsers (Android Chrome) cannot share a screen at all. On a laptop a student who edits the page address could share; the teacher can stop it (mute the student's video, or remove them). |
 | **Local recording** | **No.** Local recording runs entirely in the recorder's own browser; any participant with desktop Chromium can start it when it is enabled. `ENABLE_LOCAL_RECORDING_SELF_START` only hides the "record only myself" choice (it maps to `disableSelfRecording`); no setting limits recording to moderators, and the record path checks no token feature. The only server-wide switch, `DISABLE_LOCAL_RECORDING`, would take it from the teacher too. | Kept on for the teacher. Record button off by default and added only for staff (display only). **Everyone is notified** when local recording starts. Phone browsers cannot use local recording. Nobody can stop a person recording their own screen with their device's tools. |
 
@@ -167,24 +166,16 @@ moderation when the first moderator joins. Using it needs a small custom prosody
 release), it would also stop students from unmuting their microphones until the teacher allows each one, and whether jicofo then
 blocks a screen at the bridge was not verified. It is an owner decision for later, not part of V1.
 
-**Whiteboard backend** (`jitsi/excalidraw-backend:2026.3.0`):
-
-- Browsers reach it only through `https://meet.edulabs-eg.com/socket.io/` (the web container proxies `/socket.io/` to
-  `http://whiteboard.meet.jitsi`, because `WHITEBOARD_COLLAB_SERVER_URL_BASE` is set and no separate public URL is). It listens
-  on 80 inside the Docker network (metrics on 9090) and publishes no port. `CORS_ORIGIN` is set to the meet origin.
-- It checks **no token**: its `join-room` handler joins whatever room id the client sends. The room id Jitsi uses is the
-  conference name, which EduLabs makes a random, per-Session key. The drawing itself is encrypted in the browser (AES-GCM with a
-  random 128-bit `roomKey`); the backend only relays ciphertext. The `roomKey` sits in the conference's metadata, so every
-  participant of that class and the Jitsi server (prosody, jicofo) can read it; someone outside the class who guessed the room id
-  could connect to the backend but would see only ciphertext. Accepted as a known limit.
+**Whiteboard backend: removed** (owner, 2026-11-14). It checked no token (its `join-room` handler joins whatever room id the
+client sends) and Jitsi lets every participant draw, so it is not part of the Compose project and `/socket.io/` serves no
+handshake (runbook step 9 checks it).
 
 ## 8. Part A review fixes (2026-11-14)
 
 - **A (recording):** the env file no longer claims self-start limits recording; recording is off the default toolbar; the
   runbook check now tests what is enforced and states the limit. See section 7.
-- **B (screen share, whiteboard):** as section 7; desktop and whiteboard are off the default toolbar.
-- **C (whiteboard backend):** as section 7; `CORS_ORIGIN` added; runbook checks the handshake through the meet host and that
-  80/9090 are not public.
+- **B (screen share, whiteboard):** as section 7; desktop is off the default toolbar. The whiteboard was later removed (section 10).
+- **C (whiteboard backend):** superseded: the backend is no longer run (section 10).
 - **D (relay ports):** the `172.16.0.0/12` rule was unnecessary and is removed. The bridge reaches coturn's relay on this host by
   replying to coturn's own packets (coturn to 51.195.252.97:10000 is handed to the container by Docker's NAT or proxy; the replies
   are tracked connections the firewall accepts as `ESTABLISHED`). A packet the bridge sent first would carry the container's
@@ -192,7 +183,7 @@ blocks a screen at the bridge was not verified. It is an owner decision for late
   with an outside probe logged as `[UFW BLOCK]`, plus a relayed call. If that call fails with blocked `IN=br-jitsi` lines, the
   runbook gives one rule bound to the Jitsi network's fixed interface name `br-jitsi` (set in the override).
 - **E (published ports):** read from the stable-11248-3 Compose files: web 8000/8443 (loopback through `jitsi.env`), jicofo
-  127.0.0.1:8888, jvb 10000/udp and 127.0.0.1:8080; prosody only `expose`s; the whiteboard publishes nothing; no 4443. `./jitsi.sh
+  127.0.0.1:8888, jvb 10000/udp and 127.0.0.1:8080; prosody only `expose`s; no whiteboard container; no 4443. `./jitsi.sh
   ports` lists them from `docker compose config`, `check`/`up` refuse any non-loopback port except 10000/udp, and the runbook
   lists the expected `ss -tulpn` lines after start.
 
@@ -213,3 +204,25 @@ blocks a screen at the bridge was not verified. It is an owner decision for late
     the person's display name and the moderator flag only). Accepted for the fallback; the meeting inside the page never uses an address.
   - The class page browser harness uses a stub of `external_api.js`; the real Jitsi IFrame API, camera and microphone permissions in a
     frame, and Android browsers were not exercised (TESTING.md).
+
+## 10. No Jitsi whiteboard; the EduLabs Board (owner decision, 2026-11-14)
+
+The owner: students must never open or draw on any board. Jitsi cannot make its whiteboard view-only (section 7), so:
+
+- **Removed from Jitsi:** `compose.override.yml` has no whiteboard service and `jitsi.sh` never loads `whiteboard.yml`;
+  `WHITEBOARD_COLLAB_SERVER_URL_BASE` is gone from `jitsi.env.example`; `custom-config.js` sets
+  `config.whiteboard = { enabled: false }`; `STAFF_BUTTONS` no longer lists `whiteboard`. `./jitsi.sh check` refuses a
+  `WHITEBOARD_*` setting, `whiteboard` in `TOOLBAR_BUTTONS`, a whiteboard service in the project, and an installed
+  `custom-config.js` without the switch-off line. Load: 2.25 GB of reservations instead of 2.44.
+- **What a student could still try:** adding `#config.whiteboard.enabled=true` to the address on a laptop shows at most an empty,
+  unshared board in that student's own browser: there is no backend to share it, and creating one for the room needs a moderator
+  (prosody `mod_room_metadata_component`).
+- **The Board** (`/class/<session>/board`, `frontend/features/live-class/board.tsx`): an EduLabs page for staff only. The server
+  renders it only when live classes are configured, on this deployment, and `private.live_class_joined` allows the person (the
+  Group's staff: `can_manage_group`); anyone else gets 404, the same as an unknown page. It holds no data from the server and sends
+  nothing: drawings stay in that browser's storage under the Session id, and "New board" deletes them. The teacher shares the tab
+  with Share screen; students receive pixels only. The class page shows "Open board" to staff only (display; the page's own check
+  is what refuses students).
+- **Drawing:** Pointer Events (pen, mouse, touch) with pressure; a pen in use or hovering turns touch off, so a resting hand does
+  not draw (touch draws on devices that never used a pen). Pen, eraser, six colours, three widths, undo and redo per page, clear
+  page, several pages, save a page as a PNG. Not verified on a real pen tablet (harness uses synthetic pointer events).

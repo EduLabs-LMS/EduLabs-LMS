@@ -58,7 +58,8 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   // Live classes (the EduLabs class): open/start one class, and who opened it (Take attendance). Exact paths only; the handlers answer 404 when
   // the meeting server is not configured. The class page carries a meeting address with a token: kept out of caches and referrers.
   if (path === '/api/live-class/open' || path === '/api/live-class/joined') return NextResponse.next();
-  if (/^\/class\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
+  // The class page and its Board (staff only; the Board page asks the database who may see it). Exact paths only.
+  if (/^\/class\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/board)?$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   if (path === '/api/teacher/reports/groups' || path === '/api/teacher/reports/attention' || /^\/api\/teacher\/reports\/(?:groups|students|courses)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)) return NextResponse.next();
   // The Exams page, New exam, one exam's editor, its correcting screen and its paper marks. Titles, names and marks are on them: kept out of caches and referrers.
   if (path === '/teacher/exams' || path === '/teacher/exams/new' || /^\/teacher\/exams\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:correct|marks))?$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
