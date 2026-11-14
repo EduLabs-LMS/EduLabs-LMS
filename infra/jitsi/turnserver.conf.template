@@ -1,0 +1,58 @@
+# coturn for EduLabs live classes. Rendered by render-turn.sh into /etc/edulabs/jitsi/turnserver.conf (root:65534, 0640).
+# __PUBLIC_IP__, __TURN_HOST__ and __TURN_SECRET__ are replaced from /etc/edulabs/jitsi.env; nothing else changes.
+#
+# Its only job: carry a phone's media to the EduLabs video bridge on the same VPS when the phone's network blocks UDP
+# (TURN over TLS on TCP 443 looks like ordinary HTTPS). It relays to that one address and nothing else.
+
+# ---- listeners: public address only
+listening-ip=__PUBLIC_IP__
+relay-ip=__PUBLIC_IP__
+external-ip=__PUBLIC_IP__
+# Plain TURN/STUN on UDP 3478 (ufw opens 3478/udp only; the TCP listener on 3478 is turned off below).
+listening-port=3478
+# TURN over TLS on TCP 443 (Caddy listens on 127.0.0.1 only, so the public 443 is free; the runbook checks it).
+tls-listening-port=443
+alt-listening-port=0
+alt-tls-listening-port=0
+no-tcp
+no-dtls
+no-tlsv1
+no-tlsv1_1
+cert=/etc/coturn/certs/fullchain.pem
+pkey=/etc/coturn/certs/privkey.pem
+
+# ---- relay ports: only the bridge on this host talks to them (ufw allows them from Docker networks only, not the internet)
+min-port=49160
+max-port=49200
+
+# ---- who may use it: time-limited credentials minted by prosody with the shared secret, never static users
+use-auth-secret
+static-auth-secret=__TURN_SECRET__
+realm=__TURN_HOST__
+server-name=__TURN_HOST__
+fingerprint
+stale-nonce=600
+
+# ---- where it may relay: the bridge's public address only. Everything else is refused (no open relay, no reaching
+#      private networks, loopback, the cloud metadata address or other hosts).
+no-multicast-peers
+no-loopback-peers
+denied-peer-ip=0.0.0.0-255.255.255.255
+denied-peer-ip=::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+allowed-peer-ip=__PUBLIC_IP__
+
+# ---- limits: one class of ~15 phones uses ~15-30 allocations
+total-quota=100
+user-quota=6
+max-bps=3000000
+bps-capacity=0
+
+# ---- housekeeping
+no-cli
+no-rfc5780
+no-stun-backward-compatibility
+response-origin-only-with-rfc5780
+log-file=stdout
+simple-log
+pidfile=/tmp/turnserver.pid
+userdb=/var/lib/coturn/turndb
