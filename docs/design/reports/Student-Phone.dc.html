@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Student page with marks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button{font-family:inherit;color:inherit}
+.pt{font-family:'Caprasimo',serif;font-weight:400;font-size:22px;line-height:28px;margin:0}
+.h3{font-weight:700;font-size:13px;line-height:18px;margin:0;color:#56684B;letter-spacing:.02em}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:15px;line-height:20px}
+.d{font-weight:700;font-variant-numeric:tabular-nums}
+.ph{height:56px;flex:none;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid #D3DEC9;background:#F6F9F2}
+.pick{height:40px;border:1px solid #B7C6AA;border-radius:12px;background:#FFFFFF;padding:0 10px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.st{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.k{display:flex;flex-direction:column}
+.pill{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;color:#2B6416;background:#E3F3DA}
+.ses{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+.s{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:#56684B}
+.s b{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.p{background:#E3F3DA;color:#2B6416}.ab{background:#FDE2DF;color:#8A1F11}
+.row{display:flex;align-items:center;gap:10px;min-height:48px;border-bottom:1px solid #DCE5D3}
+.pl{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.wa{color:#7A4F00;background:#FEF3C7}.ne{color:#44523D;background:#E3E9DC}
+.lk{height:44px;display:inline-flex;align-items:center;color:#2B6416;font-weight:600;font-size:14px;text-decoration:none}
+</style>
+</helmet>
+<div class="r" style="width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden">
+<header class="ph"><a href="Group-Phone.dc.html" style="height:44px;display:inline-flex;align-items:center;gap:2px;color:#2B6416;font-weight:600;text-decoration:none;flex:1"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>Back</a><button type="button" class="pick" aria-label="Month: November 2026">Nov 2026<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button></header>
+<div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px">
+<div><div style="display:flex;align-items:center;gap:8px"><h1 class="pt">Youssef Adel</h1><span class="pill">Active</span></div><span class="m">Physics, Third Secondary · Saturday group</span></div>
+<div class="st">
+<div class="k"><span class="m">Attendance</span><span class="d" style="font-size:20px">63%</span><span class="m">5 of 8</span></div>
+<div class="k"><span class="m">Homework</span><span class="d" style="font-size:20px">4/6</span><span class="m">avg 70%</span></div>
+<div class="k"><span class="m">Exams</span><span class="d" style="font-size:20px">68%</span><span class="m">2 exams</span></div>
+</div>
+<h3 class="h3">SESSIONS</h3>
+<div class="ses" role="list" aria-label="Sessions in November">
+<span class="s" role="listitem"><b class="p" aria-label="Present">P</b>1</span>
+<span class="s" role="listitem"><b class="p" aria-label="Present">P</b>4</span>
+<span class="s" role="listitem"><b class="ab" aria-label="Absent">A</b>8</span>
+<span class="s" role="listitem"><b class="p" aria-label="Present">P</b>11</span>
+<span class="s" role="listitem"><b class="p" aria-label="Present">P</b>15</span>
+<span class="s" role="listitem"><b class="ab" aria-label="Absent">A</b>18</span>
+<span class="s" role="listitem"><b class="ab" aria-label="Absent">A</b>22</span>
+<span class="s" role="listitem"><b class="p" aria-label="Present">P</b>25</span>
+</div>
+<h3 class="h3">HOMEWORK</h3>
+<div>
+<div class="row"><span style="flex:1" class="l">Ohm's law practice</span><span class="d">9/10</span></div>
+<div class="row"><span style="flex:1" class="l">Series and parallel</span><span class="pl wa">Missing</span></div>
+<div class="row"><span style="flex:1" class="l">Magnetic field basics</span><span class="pl wa">Missing</span></div>
+<div class="row"><span style="flex:1" class="l">Right-hand rule</span><span class="pl ne">Waiting for marks</span></div>
+</div>
+<h3 class="h3">EXAMS</h3>
+<div>
+<div class="row"><span style="flex:1"><span class="l">Chapter 1 exam</span> <span class="m">· online</span></span><span class="d">29/40</span></div>
+<div class="row" style="border-bottom:0"><span style="flex:1"><span class="l">Quiz in class: Ohm's law</span> <span class="m">· paper</span></span><span class="d">12/20</span></div>
+</div>
+<a class="lk" href="#">Suspend student…</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

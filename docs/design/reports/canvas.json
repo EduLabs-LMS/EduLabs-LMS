@@ -1,0 +1,17 @@
+{"v":3,"createdOnFiles":{"v":1,"at":"2026-11-14T12:00:00Z"},"title":"Reports","launch":{"view":"canvas"},"pages":[],
+"boards":{
+"Main.dc.html":{"x":0,"y":0,"w":390,"h":844,"title":"Groups list · now with numbers"},
+"Group-Phone.dc.html":{"x":470,"y":0,"w":390,"h":844,"title":"Group page · new Report tab"},
+"Students-List-Phone.dc.html":{"x":940,"y":0,"w":390,"h":844,"title":"Students list · Needs attention filter"},
+"Student-Phone.dc.html":{"x":1410,"y":0,"w":390,"h":844,"title":"Student page · now with marks"},
+"Chapters-Phone.dc.html":{"x":1880,"y":0,"w":390,"h":844,"title":"Course page · Results (by chapter)"}
+},
+"order":["Main.dc.html","Group-Phone.dc.html","Students-List-Phone.dc.html","Student-Phone.dc.html","Chapters-Phone.dc.html"],
+"notes":{
+"t1":{"x":0,"y":-260,"text":"Reports, spread into the pages teachers already use","kind":"title1","maxW":2270},
+"n0":{"x":0,"y":-150,"w":2270,"text":"The Reports menu item is REMOVED (the last \"Soon\" goes away). Nothing new in the menu. Groups list, Group page, Students list, Student page and Course page each gain their part. Plan & usage stays planned for Settings, after V1.","size":"s","fill":"yellow"},
+"n1":{"x":0,"y":964,"w":420,"text":"How the numbers are counted (V1)\n\nAttendance: sessions the student was marked Present out of the Group's finished sessions while they were in it. Cancelled sessions and unsaved attendance don't count.\n\nHomework done: submitted out of given (released to them, deadline in the month).\n\nExam average: marks out of the maximum, released results only. Absent is shown on its own, never as 0.\n\nAll counted in the Group the student was in at the time. Moving Groups never rewrites the past.","size":"s","fill":"green"},
+"n2":{"x":500,"y":964,"w":420,"text":"Needs attention (default rule)\n\nAny of: attendance under 75%, 2 or more homework missing, exam average under 50%, or absent from an exam.\n\nEach student shows WHY in plain words (\"Missed 2 sessions\"), worst first.","size":"s","fill":"orange"},
+"n3":{"x":1000,"y":964,"w":420,"text":"Time range\n\nThis month by default. Tap the month to pick another, or Whole course. Groups list and Students filter use this month.","size":"s","fill":"blue"},
+"n4":{"x":1500,"y":964,"w":420,"text":"Pace (V1 = simple)\n\nLessons published and homework given to that Group.\n\nLATER (not V1): the teacher marks \"today we did Lesson 5\" while taking attendance, so pace is real. Needs its own decisions first.","size":"s","fill":"purple"}
+}}

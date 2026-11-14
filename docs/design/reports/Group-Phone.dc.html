@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Group page, Report tab</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button{font-family:inherit;color:inherit}
+.pt{font-family:'Caprasimo',serif;font-weight:400;font-size:22px;line-height:28px;margin:0}
+.h3{font-weight:700;font-size:13px;line-height:18px;margin:0;color:#56684B;letter-spacing:.02em}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:15px;line-height:20px}
+.d{font-weight:700;font-variant-numeric:tabular-nums}
+.ph{height:56px;flex:none;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid #D3DEC9;background:#F6F9F2}
+.pick{height:40px;border:1px solid #B7C6AA;border-radius:12px;background:#FFFFFF;padding:0 10px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.tabs{display:flex;gap:22px;border-bottom:1px solid #C9D6BD}
+.tab{padding:10px 0;font-weight:600;font-size:14px;color:#56684B;background:none;border:0;cursor:pointer}
+.tab.on{color:#1D2518;box-shadow:inset 0 -2px 0 #2B6416}
+.st{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.k{display:flex;flex-direction:column;gap:0}
+.pill{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;color:#2B6416;background:#E3F3DA}
+.pl{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.wa{color:#7A4F00;background:#FEF3C7}
+.sr{display:flex;align-items:center;gap:10px;min-height:60px;padding:8px 0;border-bottom:1px solid #DCE5D3;text-decoration:none;color:inherit}
+.nums{display:flex;gap:10px;font-size:13px;color:#44523D;font-variant-numeric:tabular-nums}
+.btabs{height:64px;flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid #D3DEC9;background:#F6F9F2}
+.bt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:600;color:#56684B;text-decoration:none}
+.bt.on{color:#14301A}
+.bt.on svg{background:#7FD959;border-radius:999px;padding:2px 12px;box-sizing:content-box}
+</style>
+</helmet>
+<div class="r" style="width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden">
+<header class="ph"><a href="#" style="height:44px;display:inline-flex;align-items:center;gap:2px;color:#2B6416;font-weight:600;text-decoration:none;flex:1"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>Groups</a><button type="button" class="pick" aria-label="Month: November 2026">Nov 2026<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button></header>
+<div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px">
+<div><div style="display:flex;align-items:center;gap:8px"><h1 class="pt">Saturday group</h1><span class="pill">Active</span></div><span class="m">Physics, Third Secondary · Sat 6:00 PM · 14 students</span></div>
+<div class="tabs" role="tablist"><button type="button" role="tab" aria-selected="false" class="tab">Sessions</button><button type="button" role="tab" aria-selected="false" class="tab">Students</button><button type="button" role="tab" aria-selected="true" class="tab on">Report</button><button type="button" role="tab" aria-selected="false" class="tab">Details</button></div>
+<div class="st">
+<div class="k"><span class="m">Attendance</span><span class="d" style="font-size:20px">91%</span><span class="m">8 sessions</span></div>
+<div class="k"><span class="m">Homework</span><span class="d" style="font-size:20px">84%</span><span class="m">6 given</span></div>
+<div class="k"><span class="m">Exams</span><span class="d" style="font-size:20px">72%</span><span class="m">2 exams</span></div>
+</div>
+<h3 class="h3">NEEDS ATTENTION · 3</h3>
+<div>
+<a class="sr" href="Student-Phone.dc.html"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span class="l">Youssef Adel</span><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pl wa">Missed 3 sessions</span><span class="pl wa">2 homework missing</span></span></span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#56684B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></a>
+<a class="sr" href="Student-Phone.dc.html"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span class="l">Mariam Hassan</span><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pl wa">Exams 41%</span></span></span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#56684B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></a>
+<a class="sr" href="Student-Phone.dc.html"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span class="l">Omar Khaled</span><span style="display:flex;gap:6px;flex-wrap:wrap"><span class="pl wa">Absent from Chapter 1 exam</span></span></span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#56684B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></a>
+</div>
+<h3 class="h3">EVERYONE ELSE · 11</h3>
+<div>
+<a class="sr" href="Student-Phone.dc.html"><span style="flex:1;min-width:0"><span class="l">Salma Nabil</span><br><span class="nums"><span>Attendance 100%</span><span>HW 6/6</span><span>Exams 94%</span></span></span></a>
+<a class="sr" href="Student-Phone.dc.html" style="border-bottom:0"><span style="flex:1;min-width:0"><span class="l">Ahmed Mostafa</span><br><span class="nums"><span>Attendance 88%</span><span>HW 5/6</span><span>Exams 80%</span></span></span></a>
+</div>
+</div>
+<nav class="btabs" aria-label="Main">
+<a class="bt" href="#"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9H3z"></path></svg>Home</a>
+<a class="bt on" href="#" aria-current="page"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a7 7 0 0 1 14 0v1M17 3a4 4 0 0 1 0 8M22 21v-1a7 7 0 0 0-4-6"></path></svg>Groups</a>
+<a class="bt" href="#"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM3 22a9 9 0 0 1 18 0"></path></svg>Students</a>
+<a class="bt" href="#"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>More</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

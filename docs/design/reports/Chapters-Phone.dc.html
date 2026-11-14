@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Course page, Results</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caprasimo&amp;family=Figtree:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.r{box-sizing:border-box;background:#EDF1E8;color:#1D2518;font-family:'Figtree',system-ui,sans-serif;font-size:15px;line-height:22px}
+.r *{box-sizing:border-box}
+.r button{font-family:inherit;color:inherit}
+.pt{font-family:'Caprasimo',serif;font-weight:400;font-size:22px;line-height:28px;margin:0}
+.m{font-size:13px;line-height:18px;color:#56684B}
+.l{font-weight:600;font-size:15px;line-height:20px}
+.d{font-weight:700;font-variant-numeric:tabular-nums}
+.c{background:#FBFDF8;border:1px solid #D3DEC9;border-radius:18px;box-shadow:0 3px 0 #D3DEC9}
+.ph{height:56px;flex:none;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid #D3DEC9;background:#F6F9F2}
+.pick{height:40px;border:1px solid #B7C6AA;border-radius:12px;background:#FFFFFF;padding:0 10px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.seg{display:flex;background:#E3E9DC;border-radius:12px;padding:3px}
+.seg button{flex:1;min-height:40px;border:0;border-radius:10px;background:none;font-weight:600;font-size:14px;color:#44523D;cursor:pointer}
+.seg button.on{background:#FFFFFF;color:#1D2518;box-shadow:0 1px 2px rgba(29,37,24,.2)}
+.ch{display:flex;flex-direction:column;gap:10px;padding:14px 16px}
+.gl{display:grid;grid-template-columns:120px minmax(0,1fr) 44px;align-items:center;gap:8px;font-size:13px}
+.bar{height:8px;border-radius:999px;background:#DCE5D3;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:#2B6416}
+.bar i.lo{background:#B7791F}
+.pl{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.ok{color:#2B6416;background:#E3F3DA}.wa{color:#7A4F00;background:#FEF3C7}
+.weak{border-color:#E8C77A;box-shadow:0 3px 0 #E8C77A}
+</style>
+</helmet>
+<div class="r" style="width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden">
+<header class="ph"><a href="#" style="height:44px;display:inline-flex;align-items:center;gap:2px;color:#2B6416;font-weight:600;text-decoration:none;flex:1"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>Courses</a><button type="button" class="pick" aria-label="Range: whole course">Whole course<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></button></header>
+<div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:12px">
+<div><div style="display:flex;align-items:center;gap:10px"><h1 class="pt">Physics</h1><span class="pl ok">Published</span></div><span class="m">Third Secondary · 3 chapters · 5 lessons</span></div>
+<div class="seg" role="tablist" aria-label="Course view"><button type="button" role="tab" aria-selected="false">Content</button><button type="button" role="tab" aria-selected="true" class="on">Results</button></div>
+<span class="m">Average of homework and exam marks in each chapter, per Group.</span>
+
+<section class="c ch">
+<div style="display:flex;align-items:center;gap:8px"><span class="l" style="flex:1">1 · Electric current</span><span class="m">3 exams · 4 homework</span></div>
+<div class="gl"><span>Saturday group</span><span class="bar"><i style="width:81%"></i></span><span class="d" style="text-align:right">81%</span></div>
+<div class="gl"><span>Online group</span><span class="bar"><i style="width:70%"></i></span><span class="d" style="text-align:right">70%</span></div>
+</section>
+
+<section class="c ch weak">
+<div style="display:flex;align-items:center;gap:8px"><span class="l" style="flex:1">2 · Magnetism</span><span class="pl wa">Weakest</span></div>
+<div class="gl"><span>Saturday group</span><span class="bar"><i class="lo" style="width:62%"></i></span><span class="d" style="text-align:right">62%</span></div>
+<div class="gl"><span>Online group</span><span class="bar"><i class="lo" style="width:44%"></i></span><span class="d" style="text-align:right">44%</span></div>
+</section>
+
+<section class="c ch">
+<div style="display:flex;align-items:center;gap:8px"><span class="l" style="flex:1">3 · Induction</span></div>
+<span class="m">No marks yet</span>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>
