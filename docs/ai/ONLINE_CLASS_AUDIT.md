@@ -109,7 +109,7 @@ for the next class.
 - **Tests:** SQL (who, window, cancelled, moved, suspended, other space, join log), unit (token, room binding, moderator, no PII,
   secret never sent, rate limit, routes), browser harness with a stub IFrame API (both looks, light/dark, en/ar, phone/desktop).
 
-## 5. Questions for the owner (answer before the migration is written)
+## 5. Questions asked before the migration (answered in section 6)
 
 1. **Existing online Groups.** New online Groups default to "EduLabs class". For online Groups that exist already: (a) a Group
    that has a link stays "Own link" and a Group with no link becomes "EduLabs class" (recommended: nobody's Zoom/Meet link stops
@@ -129,3 +129,66 @@ for the next class.
 5. **Not blocking, needed for the server:** the domain (`meet.` and `turn.` hostnames), the VPS public IP, and approval to create
    a Cloudflare API token limited to DNS edits on that zone (for the TURN certificate without port 80). And what to do with the
    unauthenticated `/api/livekit` route (finding 7): remove it in its own change?
+
+## 6. The owner's answers (2026-11-14)
+
+1. **Existing online Groups keep their links.** An online Group with a link stays "Own link"; an online Group with no link
+   becomes "EduLabs class". New online Groups default to "EduLabs class".
+2. **"Class started" is a new notification type** ("Your class has started") with its own In-app and Push switches, English and
+   Arabic labels. EduLabs class Sessions **also get the existing "starts soon" reminder**, pointing to Join instead of a link.
+   "Joining details changed" is not sent for them (there is no link to change); time changes keep the existing session notices.
+3. **Pre-mark (a):** the teacher's own Take attendance screen saves joined, not-marked students as Present, recorded as the
+   teacher, never overwriting a mark and never finishing the sheet. **A student's Join never writes attendance.**
+4. **Recording notice: notify everyone** (`ENABLE_LOCAL_RECORDING_NOTIFY_ALL_PARTICIPANT=true`).
+5. **Server:** `meet.edulabs-eg.com`, `turn.edulabs-eg.com`, public IP `51.195.252.97`. The Cloudflare API token (Zone > DNS > Edit
+   on `edulabs-eg.com` only) is approved; the owner creates it and stores it in `/etc/letsencrypt/cloudflare-turn.ini` (root, 0600;
+   runbook step 7 reads it without echo and nothing prints it). **`/api/livekit` is removed** in its own commit on this branch.
+   Still needed from the owner: the exact EduLabs origin for the meeting page's `frame-ancestors` (`APP_ORIGIN`, runbook step 0).
+
+## 7. Known limits (Jitsi stable-11248-3, read from the sources on 2026-11-14)
+
+The owner asked that students cannot record, share a screen or open the whiteboard, with server enforcement where Jitsi has
+it. What Jitsi actually enforces, and what it does not:
+
+| Action by a student | Server-side rule in Jitsi? | What we do |
+| --- | --- | --- |
+| Become moderator | **Yes.** Moderator only from a token with `moderator: true` (prosody `token_affiliation`); no auto-owner; moderators cannot grant it (`DISABLE_GRANT_MODERATOR`). | EduLabs signs `moderator: true` only for the Group's staff. |
+| Join before the teacher | **Yes, in EduLabs.** No token is issued to a student until staff pressed Start (Jitsi's own wait-for-host treats every token holder as a host and needs the lobby, so it is not used). | Join route + database. |
+| **Open (create) the whiteboard** | **Yes.** Creating it writes the room's metadata, which prosody accepts from moderators only (`mod_room_metadata_component`: `if occupant.role ~= 'moderator'`). | Whiteboard button hidden for students too. |
+| **Draw on the whiteboard once the teacher opened it** | **No.** Jitsi has no view-only whiteboard and no moderators-only drawing setting (`config.whiteboard` has only `enabled`, `collabServerBaseUrl`, `userLimit`, `limitUrl`, `storageBackendUrl`; `userLimit` caps people, not drawing). | Accepted: students can draw. The teacher can close it. |
+| **Share a screen** | **No.** jicofo accepts a screen source at source-add (it only caps the number of video senders). Desktop moderation exists, but a moderator must switch it on in each meeting from the participants list; there is no room default for it, and the IFrame API cannot do it (`toggle-moderation` turns anything but `'video'` into **audio** moderation). | Share-screen button off by default and added only for staff (display only). Phone browsers (Android Chrome) cannot share a screen at all. On a laptop a student who edits the page address could share; the teacher can stop it (mute the student's video, or remove them). |
+| **Local recording** | **No.** Local recording runs entirely in the recorder's own browser; any participant with desktop Chromium can start it when it is enabled. `ENABLE_LOCAL_RECORDING_SELF_START` only hides the "record only myself" choice (it maps to `disableSelfRecording`); no setting limits recording to moderators, and the record path checks no token feature. The only server-wide switch, `DISABLE_LOCAL_RECORDING`, would take it from the teacher too. | Kept on for the teacher. Record button off by default and added only for staff (display only). **Everyone is notified** when local recording starts. Phone browsers cannot use local recording. Nobody can stop a person recording their own screen with their device's tools. |
+
+Option recorded, not taken: prosody documents a room flag `av_can_unmute = false` that turns on audio, video **and** desktop
+moderation when the first moderator joins. Using it needs a small custom prosody module (the flag has no setting in this
+release), it would also stop students from unmuting their microphones until the teacher allows each one, and whether jicofo then
+blocks a screen at the bridge was not verified. It is an owner decision for later, not part of V1.
+
+**Whiteboard backend** (`jitsi/excalidraw-backend:2026.3.0`):
+
+- Browsers reach it only through `https://meet.edulabs-eg.com/socket.io/` (the web container proxies `/socket.io/` to
+  `http://whiteboard.meet.jitsi`, because `WHITEBOARD_COLLAB_SERVER_URL_BASE` is set and no separate public URL is). It listens
+  on 80 inside the Docker network (metrics on 9090) and publishes no port. `CORS_ORIGIN` is set to the meet origin.
+- It checks **no token**: its `join-room` handler joins whatever room id the client sends. The room id Jitsi uses is the
+  conference name, which EduLabs makes a random, per-Session key. The drawing itself is encrypted in the browser (AES-GCM with a
+  random 128-bit `roomKey`); the backend only relays ciphertext. The `roomKey` sits in the conference's metadata, so every
+  participant of that class and the Jitsi server (prosody, jicofo) can read it; someone outside the class who guessed the room id
+  could connect to the backend but would see only ciphertext. Accepted as a known limit.
+
+## 8. Part A review fixes (2026-11-14)
+
+- **A (recording):** the env file no longer claims self-start limits recording; recording is off the default toolbar; the
+  runbook check now tests what is enforced and states the limit. See section 7.
+- **B (screen share, whiteboard):** as section 7; desktop and whiteboard are off the default toolbar.
+- **C (whiteboard backend):** as section 7; `CORS_ORIGIN` added; runbook checks the handshake through the meet host and that
+  80/9090 are not public.
+- **D (relay ports):** the `172.16.0.0/12` rule was unnecessary and is removed. The bridge reaches coturn's relay on this host by
+  replying to coturn's own packets (coturn to 51.195.252.97:10000 is handed to the container by Docker's NAT or proxy; the replies
+  are tracked connections the firewall accepts as `ESTABLISHED`). A packet the bridge sent first would carry the container's
+  private address, and coturn would drop it. Nothing outside can reach 49160-49200: no rule allows it, and runbook step 9 proves it
+  with an outside probe logged as `[UFW BLOCK]`, plus a relayed call. If that call fails with blocked `IN=br-jitsi` lines, the
+  runbook gives one rule bound to the Jitsi network's fixed interface name `br-jitsi` (set in the override).
+- **E (published ports):** read from the stable-11248-3 Compose files: web 8000/8443 (loopback through `jitsi.env`), jicofo
+  127.0.0.1:8888, jvb 10000/udp and 127.0.0.1:8080; prosody only `expose`s; the whiteboard publishes nothing; no 4443. `./jitsi.sh
+  ports` lists them from `docker compose config`, `check`/`up` refuse any non-loopback port except 10000/udp, and the runbook
+  lists the expected `ss -tulpn` lines after start.

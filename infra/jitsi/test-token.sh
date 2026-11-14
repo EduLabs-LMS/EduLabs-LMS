@@ -27,5 +27,11 @@ claims = {"aud": env["JWT_ACCEPTED_AUDIENCES"].split(",")[0], "iss": env["JWT_AP
 head = b64(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
 body = b64(json.dumps(claims, separators=(",", ":")).encode())
 sig = b64(hmac.new(env["JWT_APP_SECRET"].encode(), (head + "." + body).encode(), hashlib.sha256).digest())
-print(f"{env['PUBLIC_URL'].rstrip('/')}/{room}?jwt={head}.{body}.{sig}")
+# A moderator gets the teacher's buttons the way EduLabs adds them (URL hash config). Display only: anyone can edit a hash.
+extra = ""
+if role == "moderator":
+    import urllib.parse
+    buttons = env["TOOLBAR_BUTTONS"].split(",") + ["desktop", "whiteboard", "recording"]
+    extra = "#config.toolbarButtons=" + urllib.parse.quote(json.dumps(buttons, separators=(",", ":")))
+print(f"{env['PUBLIC_URL'].rstrip('/')}/{room}?jwt={head}.{body}.{sig}{extra}")
 PY

@@ -6,6 +6,7 @@
 #   ./jitsi.sh down       stop and remove the containers (configuration and certificates stay)
 #   ./jitsi.sh restart [service]
 #   ./jitsi.sh ps | pull | config
+#   ./jitsi.sh ports      every port the Compose files publish (from `docker compose config`), plus coturn's host listeners
 #   ./jitsi.sh logs [service] [--since 30m]
 #   ./jitsi.sh health     loopback checks of web, bridge, focus, TURN
 #   ./jitsi.sh stats      one snapshot of CPU / memory / network per container, plus the bridge's own numbers
@@ -58,9 +59,32 @@ preflight() {
   if [ -n "$holder" ] && ! grep -q turnserver <<<"$holder"; then die "something else listens on public TCP 443: $holder"; fi
 }
 
+# Every published port as "service host_ip:published->target/protocol". Docker publishes around ufw, so this list IS the
+# public surface of the containers (coturn uses the host network and is covered by ufw instead).
+published_ports() {
+  compose config --format json | python3 -c '
+import json, sys
+cfg = json.load(sys.stdin)
+for name, svc in sorted(cfg.get("services", {}).items()):
+    if svc.get("network_mode") == "host":
+        print(f"{name} host-network (listeners set by its own config; see ss -tulpn)")
+        continue
+    for p in svc.get("ports", []) or []:
+        host = p.get("host_ip") or "0.0.0.0"
+        proto = p.get("protocol") or "tcp"
+        print("%s %s:%s->%s/%s" % (name, host, p.get("published"), p.get("target"), proto))
+'
+}
+check_ports() {
+  local bad
+  bad=$(published_ports | grep -v 'host-network' | grep -v ' 127\.0\.0\.1:' | grep -v '^jvb 0\.0\.0\.0:10000->10000/udp$' || true)
+  [ -z "$bad" ] || die "a port would be published publicly besides jvb 10000/udp: $bad"
+}
+
 case "${1:-}" in
-  check) preflight; compose config --quiet; echo "OK: preflight passed for $PINNED" ;;
-  up) preflight; compose config --quiet; compose up -d --remove-orphans; compose ps ;;
+  check) preflight; compose config --quiet; check_ports; published_ports; echo "OK: preflight passed for $PINNED" ;;
+  up) preflight; compose config --quiet; check_ports; compose up -d --remove-orphans; compose ps ;;
+  ports) published_ports ;;
   down) compose down ;;
   restart) shift; compose restart "$@" ;;
   ps) compose ps ;;

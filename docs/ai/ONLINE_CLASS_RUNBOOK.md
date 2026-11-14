@@ -23,11 +23,36 @@ run by Claude: the files were written and checked on a development PC only (see 
 | **10000/udp** | public | The video bridge: every participant's audio, screen and whiteboard media. Published by Docker. |
 | **443/tcp** | public | coturn **TURN over TLS** for phones on networks that block UDP (it looks like HTTPS). Caddy is on 127.0.0.1 only, so the public 443 is free (step 1 checks it). |
 | **3478/udp** | public | coturn TURN/STUN over UDP for networks that block port 10000 but allow 3478. |
-| 49160-49200/udp | **Docker networks only** (172.16.0.0/12), not the internet | coturn's relay ports. Only the bridge on this same host sends to them. |
-| 127.0.0.1:8000/tcp | loopback | Jitsi web, reached only by the Cloudflare Tunnel (meet hostname) |
+| 127.0.0.1:8000/tcp | loopback | Jitsi web, reached only by the Cloudflare Tunnel (meet hostname). The whiteboard is reached through it too (`/socket.io/`). |
 | 127.0.0.1:8443, :8080, :8888/tcp | loopback | Jitsi's own (unused HTTPS; bridge and focus health/stats). Upstream binds them to loopback. |
 
 Port 80 is **not** opened: the TURN certificate is issued through DNS (step 7).
+
+**Not opened: coturn's relay ports 49160-49200/udp.** coturn sends a phone's media from a relay port on 51.195.252.97 to
+51.195.252.97:10000. That packet never leaves the machine: Docker's NAT hands it to the bridge container (or Docker's proxy
+for the published port does). The bridge's answers travel back over the same connection, which the kernel tracks, so the
+firewall accepts them as replies (`ESTABLISHED`) without any rule. A packet the bridge sends first, before coturn has sent
+anything, would come from the container's private address, and coturn drops it anyway (it relays only for 51.195.252.97).
+So no rule is needed, and with none, nothing from outside can reach those ports. Step 9 proves both: an outside probe is
+logged as `[UFW BLOCK]`, and a phone on a network that blocks UDP still gets a relayed call. (The first version of this
+runbook opened the range to `172.16.0.0/12`; that rule was unnecessary and is gone. If the relayed call fails and the
+kernel log shows `[UFW BLOCK] IN=br-jitsi ... DPT=4916x`, step 9 gives the one interface-bound rule to add.)
+
+**Published by Docker** (they bypass ufw, so this list is the whole public surface of the containers). From the
+stable-11248-3 `docker-compose.yml` and `whiteboard.yml` with this override, `./jitsi.sh ports` prints:
+
+```
+coturn host-network (listeners set by its own config; see ss -tulpn)
+jicofo 127.0.0.1:8888->8888/tcp
+jvb 0.0.0.0:10000->10000/udp
+jvb 127.0.0.1:8080->8080/tcp
+web 127.0.0.1:8000->8000/tcp
+web 127.0.0.1:8443->8443/tcp
+```
+
+Prosody only `expose`s 5222, 5269, 5347 and 5280 inside the Docker network (not published). The whiteboard publishes nothing
+(it listens on 80, metrics on 9090, inside the network only). There is no 4443/tcp in this release. `./jitsi.sh check` and
+`./jitsi.sh up` refuse to start if any port other than `jvb 0.0.0.0:10000/udp` would be published on a non-loopback address.
 
 > Docker publishes 10000/udp straight through iptables, around ufw. The ufw rule in step 2 is still added so `ufw status`
 > tells the truth, but closing the port means stopping Jitsi (step 15), not deleting the rule.
@@ -40,11 +65,12 @@ Port 80 is **not** opened: the TURN certificate is issued through DNS (step 7).
 ## 0. Fill these in once (in the same shell for all steps)
 
 ```bash
-export DOMAIN=example.com                 # your Cloudflare zone
-export MEET_HOST=meet.$DOMAIN             # proxied (orange cloud), through the tunnel
-export TURN_HOST=turn.$DOMAIN             # DNS only (grey cloud)
-export PUBLIC_IP=203.0.113.10             # the VPS's public IPv4 (curl -4 https://ifconfig.co gives it)
-export APP_ORIGIN=https://app.$DOMAIN     # where EduLabs is served (the frame-ancestors of the meeting page)
+export DOMAIN=edulabs-eg.com              # the Cloudflare zone
+export MEET_HOST=meet.edulabs-eg.com      # proxied (orange cloud), through the tunnel
+export TURN_HOST=turn.edulabs-eg.com      # DNS only (grey cloud)
+export PUBLIC_IP=51.195.252.97            # the VPS's public IPv4
+export APP_ORIGIN=https://CHANGE_ME       # the exact address students open EduLabs on (scheme + host, no path), e.g.
+                                          # https://edulabs-eg.com; the meeting page may be framed only by this origin
 export LE_EMAIL=you@example.com           # Let's Encrypt expiry notices for the TURN certificate
 export EDULABS_SRC=/opt/edulabs/current   # an EduLabs checkout that contains infra/jitsi (this branch or later)
 ```
@@ -80,8 +106,8 @@ ufw status verbose                       # expect: default deny incoming; only O
 ufw allow 10000/udp comment 'EduLabs class: video bridge media'
 ufw allow 443/tcp   comment 'EduLabs class: TURN over TLS (coturn)'
 ufw allow 3478/udp  comment 'EduLabs class: TURN/STUN (coturn)'
-ufw allow from 172.16.0.0/12 to any port 49160:49200 proto udp comment 'EduLabs class: coturn relay, Docker networks only'
-ufw status numbered
+ufw logging low                          # blocked packets go to the kernel log (step 9 uses it as proof)
+ufw status numbered                      # exactly OpenSSH + these three; nothing for 49160-49200
 ```
 
 ## 3. Get the pinned upstream and the EduLabs files
@@ -100,8 +126,9 @@ chmod 0755 /opt/jitsi/edulabs/*.sh
 ```bash
 install -d -m 0750 /etc/edulabs
 install -m 0600 -o root -g root /opt/jitsi/edulabs/jitsi.env.example /etc/edulabs/jitsi.env
-sed -i -e "s|CHANGE_ME_MEET_HOST|$MEET_HOST|" -e "s|CHANGE_ME_TURN_HOST|$TURN_HOST|g" \
-       -e "s|CHANGE_ME_PUBLIC_IP|$PUBLIC_IP|g" -e "s|CHANGE_ME_APP_ORIGIN|$APP_ORIGIN|" /etc/edulabs/jitsi.env
+case "$APP_ORIGIN" in *CHANGE_ME*) echo "set APP_ORIGIN in step 0 first"; false;; esac && \
+sed -i -e "s|CHANGE_ME_APP_ORIGIN|$APP_ORIGIN|" /etc/edulabs/jitsi.env
+grep -E '^(PUBLIC_URL|TURN_HOST|PUBLIC_IP|JVB_ADVERTISE_IPS|CSP_HEADER)=' /etc/edulabs/jitsi.env   # meet/turn.edulabs-eg.com, 51.195.252.97
 
 # Fill every empty secret with 96 random hex characters. The values are generated inside python and written straight to the
 # file: they never appear on a command line, in the shell history or on the screen.
@@ -193,11 +220,35 @@ deploy hook copies the new files to `/etc/edulabs/jitsi/turn-certs/` and restart
 cd /opt/jitsi/edulabs
 ./render-turn.sh                  # writes /etc/edulabs/jitsi/turnserver.conf (root:65534 0640)
 docker run --rm --entrypoint id coturn/coturn:4.19.0-debian    # expect uid=65534(nobody) gid=65534(nogroup); else tell Claude
-./jitsi.sh check                  # preflight: settings, secrets, pinned checkout, directories, certificate, port 443
+./jitsi.sh check                  # preflight: settings, secrets, pinned checkout, directories, certificate, port 443,
+                                  # and the published-port list above (refuses any public port but 10000/udp)
 ./jitsi.sh pull
 ./jitsi.sh up
 ./jitsi.sh ps                     # web, prosody, jicofo, jvb, whiteboard, coturn: all "running"/"Up"
+ip -br link show br-jitsi         # the Jitsi network's interface has its fixed name
 ```
+
+Verify what actually listens, after the start:
+
+```bash
+ss -Htulpn | awk '{print $1, $5, $7}' | sort
+```
+
+The Jitsi lines must be exactly these (plus whatever EduLabs, SSH and cloudflared had in step 1; ignore ephemeral
+`127.0.0.1` ports of cloudflared):
+
+```
+tcp 127.0.0.1:8000  docker-proxy       (web)
+tcp 127.0.0.1:8443  docker-proxy       (web, unused)
+tcp 127.0.0.1:8080  docker-proxy       (bridge REST)
+tcp 127.0.0.1:8888  docker-proxy       (focus REST)
+udp 0.0.0.0:10000   docker-proxy       (bridge media; may also show [::]:10000)
+tcp 51.195.252.97:443   turnserver     (TURN over TLS)
+udp 51.195.252.97:3478  turnserver     (TURN/STUN)
+```
+
+Anything else bound to `0.0.0.0`, `[::]` or `51.195.252.97` that was not there in step 1 is a fault: run `./jitsi.sh down`
+and ask. (Whether `docker-proxy` appears depends on Docker's userland proxy setting; the addresses are what matter.)
 
 The limits now in force (`compose.override.yml`):
 
@@ -227,13 +278,45 @@ curl -s  "https://$MEET_HOST/config.js" | grep -E 'disableDeepLinking|enableClos
 ./test-token.sh member <room>     # same room name as the line above; open on an Android phone ON MOBILE DATA (Wi-Fi off)
 ```
 
-Expected: the laptop joins as moderator and can share the screen, open the whiteboard and start "Record" (local recording);
-the phone stays in the browser (no "get the app" page), joins muted with the camera off, sees the screen and whiteboard, and
-cannot open the whiteboard, record or mute others. Opening `https://$MEET_HOST/anything` without a token must refuse.
+Expected, and what each line proves:
+
+| Check | Expected | Enforced by |
+| --- | --- | --- |
+| Open `https://$MEET_HOST/anything` with no token | refused (authentication required) | server (prosody, token auth, no guests) |
+| Phone joins | stays in the browser (no "get the app" page), muted, camera off, name from the token and not editable | config |
+| Phone's toolbar | no Share screen, no Whiteboard, no Record button | display only (see the limits below) |
+| Laptop (moderator) | Share screen, Whiteboard and Record are there; sharing a PDF works | token = moderator |
+| Teacher opens the whiteboard | the phone sees it and **can draw on it** | Jitsi has no view-only whiteboard |
+| A member creates the whiteboard: on a laptop, open the member address with `#config.toolbarButtons=["whiteboard"]` added, before the teacher opens one | nothing opens (the student is not allowed to start a whiteboard) | server: only moderators may write the room data that creates it |
+| Teacher presses Record > local recording | every participant, the phone included, sees a "recording started" notice; the file is saved on the teacher's laptop | config (notify all) |
+| Phone tries to record | not possible (phone browsers lack the recording API) | the browser |
+| Teacher mutes the phone, or lowers its hand, from the participants list | works; the phone cannot make itself moderator | server (token affiliation, no auto-owner, no grant) |
+| Whiteboard backend | `curl -s "https://$MEET_HOST/socket.io/?EIO=4&transport=polling" \| head -c 40` prints a socket.io handshake (`0{"sid":...`); `ss -Htlnp \| grep -E ':(80\|9090) '` shows nothing public | reached only through the meet host |
+
+**Known limits, accepted by design** (details in `ONLINE_CLASS_AUDIT.md`, "Known limits"): a student on a **desktop or
+laptop** browser who adds buttons to the page address (as in the whiteboard row) can share a screen or start Jitsi's local
+recording; Jitsi stable-11248-3 has no server rule against either. Everyone is notified when local recording starts, the
+teacher can stop a share (mute the student's video, or remove them), and nobody can prevent anyone from recording their own
+screen with their device's own tools. Phones, which most students use, can do neither.
+
 Both addresses expire after 10 minutes; do not paste them anywhere.
 
-TURN check (optional, from the laptop): in Chrome open `chrome://webrtc-internals` during the call; with the phone on a
-network that blocks UDP, its candidate pair shows `relay` via `$TURN_HOST`.
+**TURN and the relay ports (proof for the "Not opened" note above):**
+
+```bash
+# 1. Nothing outside reaches the relay ports. From ANOTHER machine (your laptop, not the VPS):
+#      echo probe | nc -u -w1 51.195.252.97 49170
+#    then on the VPS:
+journalctl -k --since -5min | grep 'DPT=49170'      # a "[UFW BLOCK] IN=<public interface> ... DPT=49170" line
+iptables -S ufw-user-input | grep -c 4916            # 0: no rule mentions the relay range
+```
+
+2. A relayed call works: put the phone on a network that blocks UDP (or a laptop with outgoing UDP blocked), join the test
+room, and in Chrome on the laptop open `chrome://webrtc-internals`: the phone's selected candidate pair is `relay`
+(`$TURN_HOST`, TLS). `./jitsi.sh logs coturn --since 5m` shows the allocation.
+3. Only if step 2 fails **and** `journalctl -k --since -5min | grep 'IN=br-jitsi.*DPT=491[6-9]'` shows blocked lines, add
+this one rule (it matches only packets arriving on the Jitsi Docker interface, which no outside host can send on) and
+retry: `ufw allow in on br-jitsi to 51.195.252.97 port 49160:49200 proto udp comment 'EduLabs class: relay, Jitsi network only'`.
 
 ## 10. Connect EduLabs (only after the EduLabs part is approved and deployed)
 
@@ -335,8 +418,7 @@ Jitsi keeps no class data (no recordings on the server, no accounts), so a rollb
 ```bash
 cd /opt/jitsi/edulabs && ./jitsi.sh down                 # all Jitsi containers gone; EduLabs untouched
 ufw delete allow 10000/udp; ufw delete allow 443/tcp; ufw delete allow 3478/udp
-ufw delete allow from 172.16.0.0/12 to any port 49160:49200 proto udp
-ufw status numbered
+ufw status numbered        # if step 9.3's br-jitsi rule was added, delete it too (ufw delete <number>)
 ```
 
 EduLabs side: remove the four `LIVE_CLASS_*` lines from `/etc/edulabs/web.env` and redeploy; Start class and Join disappear,
@@ -346,8 +428,10 @@ record in Cloudflare, revoke the Cloudflare API token, `certbot delete --cert-na
 
 ## What was not verified
 
-Written on a development PC; nothing was run on the VPS or against Cloudflare. In particular not verified: that the coturn
-image runs as uid 65534 (step 8 checks it), that `token_affiliation` loads in this prosody image and makes only
-`moderator: true` tokens moderators (step 9 checks it), the excalidraw backend's internal port (the upstream example URL has
-none), Cloudflare WebSocket behaviour for `/xmpp-websocket`, `/colibri-ws` and `/socket.io/`, real bandwidth and CPU of a class,
-and phone behaviour on Egyptian mobile networks.
+Written on a development PC; nothing was run on the VPS or against Cloudflare. Read from the sources of the pinned release
+and of jitsi-meet / jicofo / excalidraw-backend master (2026-11-14): the published ports, the whiteboard backend's port (80) and
+its lack of token checks, who may create the whiteboard, what the local-recording settings do, and that jicofo does not refuse
+a screen share at source-add. Not verified: that the coturn image runs as uid 65534 (step 8 checks it), that
+`token_affiliation` loads in this prosody image and makes only `moderator: true` tokens moderators (step 9 checks it), the relay
+path's conntrack behaviour on this kernel and Docker (step 9 proves it), Cloudflare WebSocket behaviour for `/xmpp-websocket`,
+`/colibri-ws` and `/socket.io/`, real bandwidth and CPU of a class, and phone behaviour on Egyptian mobile networks.

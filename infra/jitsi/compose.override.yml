@@ -15,7 +15,11 @@
 # Debian, Docker, cloudflared and the page cache). CPU caps add up to 4.25, but the JVB alone is capped at 2 of 4 vCPUs and
 # the weights above give the app the CPU first.
 #
-# Ports: the upstream file publishes web on ${HTTP_PORT}/${HTTPS_PORT}; jitsi.env sets them to 127.0.0.1:8000 and
+# Ports (stable-11248-3, read from its docker-compose.yml and whiteboard.yml): web ${HTTP_PORT}:8000 and ${HTTPS_PORT}:8443,
+# jicofo 127.0.0.1:8888, jvb ${JVB_PORT}:10000/udp and 127.0.0.1:8080; prosody only "expose"s 5222/5269/5347/5280 inside the
+# Docker network; whiteboard publishes nothing (it listens on 80 inside the network, metrics on 9090, neither published).
+# There is no 4443/tcp in this release. `./jitsi.sh ports` prints the list and `./jitsi.sh check` refuses any public one but 10000/udp.
+# The upstream file publishes web on ${HTTP_PORT}/${HTTPS_PORT}; jitsi.env sets them to 127.0.0.1:8000 and
 # 127.0.0.1:8443 (loopback only, for the Cloudflare Tunnel). JVB publishes ${JVB_PORT}/udp (10000) on every interface:
 # that is the media port and must be public. Jicofo REST (8888) and JVB colibri REST (8080) are already bound to 127.0.0.1
 # upstream. coturn uses the host network (TURN needs the real public address) and listens only where turnserver.conf says.
@@ -90,6 +94,9 @@ services:
     pids_limit: 128
     cpu_shares: 256
     oom_score_adj: 600
+    environment:
+      # Only the meeting page may open a whiteboard connection from a browser (upstream default is any origin).
+      - CORS_ORIGIN=${PUBLIC_URL}
     security_opt:
       - no-new-privileges:true
 
@@ -119,3 +126,10 @@ services:
     pids_limit: 128
     cpu_shares: 512
     oom_score_adj: 500
+
+networks:
+  # A fixed name for the Jitsi bridge network's host interface (Linux allows 15 characters), so a firewall rule or a log
+  # line can name it. Upstream leaves it random (br-<id>).
+  meet.jitsi:
+    driver_opts:
+      com.docker.network.bridge.name: br-jitsi
