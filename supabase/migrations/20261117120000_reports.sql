@@ -308,7 +308,7 @@ begin
  if p_course is null or not exists(select 1 from public.courses c where c.id=p_course) then raise exception 'Course unavailable' using errcode='42501'; end if;
  editor:=private.can_edit_course(p_course);
  offs:=array(select o.id from public.course_offerings o where o.course_id=p_course and (editor or private.can_support_offering(o.id)));
- if cardinality(offs)=0 then raise exception 'Course unavailable' using errcode='42501'; end if;
+ if not editor and cardinality(offs)=0 then raise exception 'Course unavailable' using errcode='42501'; end if;
  select * into b from private.report_bounds(p_month);
  with f as materialized (select * from private.report_facts(offs,b.lo,b.hi) where kind='homework' or (kind='exam' and state<>'pending')),
   mods as materialized (select m.id,m.chapter_number,m.title,m.position from public.course_modules m where m.course_id=p_course),
