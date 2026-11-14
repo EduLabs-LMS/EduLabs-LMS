@@ -29,6 +29,16 @@
 # loopback ports is held by something other than this project, naming the process. The REST ports are bound to 127.0.0.1
 # upstream. coturn uses the host network (TURN needs the real public address) and listens only where turnserver.conf says.
 
+# /run for the rootless images (owner, 2026-11-15). web, prosody, jicofo and jvb run as user s6, uid 1000 gid 1000 (read from
+# each stable-11248-3 image's own /etc/passwd and /etc/group; `./jitsi.sh check` re-checks it with `docker run --entrypoint id`).
+# Upstream gives them `read_only: true` and a /run tmpfs "mode=1750" with no owner, so /run is root-owned and s6-overlay's
+# preinit, running as uid 1000 (no-new-privileges stops its setuid helper from becoming root), cannot write it:
+#   preinit: 57: cannot create /run/test of writability: Permission denied
+# Each of them gets its /run owned by uid/gid 1000 instead, with upstream's sizes and `exec`; /tmp is upstream's, unchanged.
+# `!override` replaces upstream's tmpfs list instead of merging it; `docker compose config` (v5.6.0) then shows ONE /run per
+# service, and `./jitsi.sh check` refuses anything else. /config is only read by these images (each copies it into /run at
+# start), so the config folders stay root:root 0755; only storage and tmp are written (runbook step 5).
+
 x-edulabs-logging: &edulabs-logging
   driver: json-file
   options:
@@ -38,6 +48,9 @@ x-edulabs-logging: &edulabs-logging
 services:
   web:
     restart: unless-stopped
+    tmpfs: !override
+      - /run:size=16M,mode=1770,uid=1000,gid=1000,exec
+      - /tmp:size=16M,mode=1777,noexec
     logging: *edulabs-logging
     cpus: 0.5
     mem_limit: 128m
@@ -50,6 +63,9 @@ services:
 
   prosody:
     restart: unless-stopped
+    tmpfs: !override
+      - /run:size=16M,mode=1770,uid=1000,gid=1000,exec
+      - /tmp:size=16M,mode=1777,noexec
     logging: *edulabs-logging
     cpus: 0.5
     mem_limit: 256m
@@ -62,6 +78,9 @@ services:
 
   jicofo:
     restart: unless-stopped
+    tmpfs: !override
+      - /run:size=32M,mode=1770,uid=1000,gid=1000,exec
+      - /tmp:size=16M,mode=1777,noexec
     logging: *edulabs-logging
     cpus: 0.5
     # Java heap is JICOFO_MAX_MEMORY=320m in jitsi.env; the rest is JVM overhead.
@@ -75,6 +94,9 @@ services:
 
   jvb:
     restart: unless-stopped
+    tmpfs: !override
+      - /run:size=32M,mode=1770,uid=1000,gid=1000,exec
+      - /tmp:size=16M,mode=1777,noexec
     logging: *edulabs-logging
     # Two of the four vCPUs at most. ~15 students with cameras off plus the teacher's screen and voice is far below this.
     cpus: 2.0

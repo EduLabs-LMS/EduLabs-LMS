@@ -2,7 +2,8 @@
 # The ONE way to run the EduLabs live-class (Jitsi) Compose project. Run as root on the VPS from /opt/jitsi/edulabs.
 #
 #   ./jitsi.sh check      preflight only: settings, secrets, pinned checkout, files, ports (free and allowed). Changes nothing.
-#   ./jitsi.sh up         preflight, then start (or update) every container in the background
+#   ./jitsi.sh up         preflight, start (or update) every container, then wait 20 s and check each is Up, not Restarting
+#   ./jitsi.sh running    check now that every container is Up (prints the last log lines of any that is not)
 #   ./jitsi.sh down       stop and remove the containers (configuration and certificates stay)
 #   ./jitsi.sh restart [service]
 #   ./jitsi.sh ps | pull | config
@@ -20,6 +21,10 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 PROJECT=edulabs-jitsi
 PINNED=stable-11248-3
 TURN_DIR=/etc/edulabs/jitsi
+# The user of the rootless Jitsi images (s6, uid/gid 1000 in stable-11248-3); compose.override.yml gives their /run to it.
+JITSI_UID=1000
+S6_SERVICES="web prosody jicofo jvb"
+ALL_SERVICES="web prosody jicofo jvb coturn"
 
 die() { echo "jitsi.sh: $*" >&2; exit 1; }
 envget() { grep -E "^$1=" "$ENV_FILE" | tail -n 1 | cut -d= -f2-; }
@@ -56,10 +61,9 @@ preflight() {
   ! grep -qE '^WHITEBOARD_' "$ENV_FILE" || die "$ENV_FILE has a WHITEBOARD_* setting; Jitsi's whiteboard is not used"
   ! grep -E '^TOOLBAR_BUTTONS=' "$ENV_FILE" | grep -q whiteboard || die "TOOLBAR_BUTTONS must not list whiteboard"
   ! compose config --services | grep -qx whiteboard || die "a whiteboard service is in the Compose project; Jitsi's whiteboard is not used"
+  run_tmpfs_ok
   local cfg; cfg=$(envget CONFIG)
-  for d in "$cfg/web" "$cfg/storage/prosody" "$cfg/storage/web" "$cfg/storage/transcripts" "$cfg/tmp/web-crontabs" "$cfg/tmp/web-load-test"; do
-    [ -d "$d" ] || die "$d is missing (runbook step 5)"
-  done
+  config_dirs_ok "$cfg"
   [ -f "$cfg/web/custom-config.js" ] && [ -f "$cfg/web/custom-interface_config.js" ] || die "custom web config not installed (runbook step 5)"
   grep -q '^config.whiteboard = { enabled: false };' "$cfg/web/custom-config.js" || die "$cfg/web/custom-config.js must switch the whiteboard off (copy it again, runbook step 5)"
   # The meet host: no access log (tokens are in its addresses) and Referrer-Policy: no-referrer on every response. The pinned image includes
@@ -93,6 +97,79 @@ loopback_ports_free() {
   done
 }
 
+# /run of every rootless service: exactly one tmpfs, owned by the images' user, executable (compose.override.yml).
+run_tmpfs_ok() {
+  local bad
+  bad=$(compose config --format json | python3 -c '
+import json, sys
+uid, services = sys.argv[1], sys.argv[2:]
+d = json.load(sys.stdin)["services"]
+for s in services:
+    runs = [t for t in (d.get(s, {}).get("tmpfs") or []) if t.split(":", 1)[0] == "/run"]
+    opts = runs[0].split(":", 1)[1].split(",") if len(runs) == 1 and ":" in runs[0] else []
+    if not (len(runs) == 1 and "uid=" + uid in opts and "gid=" + uid in opts and "exec" in opts):
+        print(s, runs)
+' "$JITSI_UID" $S6_SERVICES) || die "cannot read the Compose configuration"
+  [ -z "$bad" ] || die "each of $S6_SERVICES needs exactly one /run tmpfs with uid=$JITSI_UID,gid=$JITSI_UID,exec (compose.override.yml): $bad"
+}
+
+# The folders under CONFIG. The images only READ their config folders (each copies /config into /run at start; custom-ca is
+# mounted read-only), so those are root:root 0755 with nothing in them writable by anyone else. They WRITE only to storage and
+# tmp, which belong to the images' user. Runbook step 5 creates both kinds; it never needs anything broader.
+config_dirs_ok() {
+  local cfg=$1 d have bad
+  for d in web web/nginx-custom web/custom-ca prosody prosody/config prosody/prosody-plugins-custom prosody/custom-ca \
+           jicofo jicofo/custom-ca jvb jvb/custom-ca; do
+    [ -d "$cfg/$d" ] || die "$cfg/$d is missing (runbook step 5)"
+    have=$(stat -c '%U:%G %a' "$cfg/$d")
+    [ "$have" = "root:root 755" ] || die "$cfg/$d is $have; it must be root:root 755 (read-only input for the containers; runbook step 5)"
+  done
+  bad=$(find "$cfg/web" "$cfg/prosody" "$cfg/jicofo" "$cfg/jvb" \( ! -user root -o -perm /022 -o ! -perm -o=r \) -print | head -n 5)
+  [ -z "$bad" ] || die "under $cfg/{web,prosody,jicofo,jvb} everything must be root-owned, readable by uid $JITSI_UID and writable by root only: $bad"
+  for d in storage storage/prosody storage/web storage/transcripts storage/jibri tmp tmp/web-crontabs tmp/web-load-test; do
+    [ -d "$cfg/$d" ] || die "$cfg/$d is missing (runbook step 5)"
+    have=$(stat -c '%u:%g' "$cfg/$d")
+    [ "$have" = "$JITSI_UID:$JITSI_UID" ] && [ -n "$(find "$cfg/$d" -maxdepth 0 -perm -u=rwx)" ] ||
+      die "$cfg/$d is owned by $have; the containers write it as uid $JITSI_UID (runbook step 5: chown $JITSI_UID:$JITSI_UID, owner rwx)"
+  done
+}
+
+# The images really run as JITSI_UID (what /run's owner above assumes). "strict" (./jitsi.sh up): every image must be pulled.
+image_users_ok() {
+  local repo svc img who
+  repo=$(envget JITSI_IMAGE_REPO); repo=${repo:-ghcr.io/jitsi}
+  for svc in $S6_SERVICES; do
+    img="$repo/$svc:$PINNED"
+    if ! docker image inspect "$img" >/dev/null 2>&1; then
+      [ "${1:-}" != strict ] || die "$img is not pulled yet (./jitsi.sh pull)"
+      echo "note: $img is not pulled yet; ./jitsi.sh up checks its user"; continue
+    fi
+    who=$(docker run --rm --network none --entrypoint id "$img")
+    case "$who" in "uid=$JITSI_UID(s6) gid=$JITSI_UID(s6)"*) ;; *) die "$img runs as '$who', not uid/gid $JITSI_UID (s6); update JITSI_UID and compose.override.yml after review" ;; esac
+  done
+}
+
+# After a start: every container must be running, not restarting, and up for at least 10 seconds. Prints the last log lines of
+# any that is not. $1 = seconds to wait first.
+all_running() {
+  local svc cid state restarting started restarts age bad=0
+  if [ "${1:-0}" -gt 0 ]; then echo "waiting $1 s, then checking every container"; sleep "$1"; fi
+  for svc in $ALL_SERVICES; do
+    cid=$(compose ps -a -q "$svc")
+    if [ -z "$cid" ]; then echo "$svc: NO CONTAINER"; bad=1; continue; fi
+    read -r state restarting started restarts <<<"$(docker inspect -f '{{.State.Status}} {{.State.Restarting}} {{.State.StartedAt}} {{.RestartCount}}' "$cid")"
+    age=$(( $(date +%s) - $(date -d "$started" +%s 2>/dev/null || date +%s) ))
+    if [ "$state" = running ] && [ "$restarting" = false ] && [ "$age" -ge 10 ]; then
+      echo "$svc: Up ${age}s (restarts: $restarts)"
+    else
+      echo "$svc: NOT UP (state $state, restarting $restarting, up ${age}s, restarts $restarts); last log lines:"
+      compose logs --no-color --tail 30 "$svc" 2>&1 | sed 's/^/    /'
+      bad=1
+    fi
+  done
+  [ "$bad" = 0 ] || die "a container is not Up; read its log lines above, then ./jitsi.sh down and ask"
+}
+
 # Every published port as "service host_ip:published->target/protocol". Docker publishes around ufw, so this list IS the
 # public surface of the containers (coturn uses the host network and is covered by ufw instead).
 published_ports() {
@@ -116,14 +193,15 @@ check_ports() {
 }
 
 case "${1:-}" in
-  check) preflight; compose config --quiet; check_ports; published_ports; echo "OK: preflight passed for $PINNED" ;;
-  up) preflight; compose config --quiet; check_ports; compose up -d --remove-orphans; compose ps ;;
+  check) preflight; compose config --quiet; check_ports; image_users_ok; published_ports; echo "OK: preflight passed for $PINNED" ;;
+  up) preflight; compose config --quiet; check_ports; image_users_ok strict; compose up -d --remove-orphans; compose ps; all_running 20 ;;
+  running) all_running 0 ;;
   ports) published_ports ;;
   down) compose down ;;
   restart) shift; compose restart "$@" ;;
-  ps) compose ps ;;
+  ps) shift; compose ps "$@" ;;
   pull) preflight; compose pull ;;
-  config) compose config ;;
+  config) shift; compose config "$@" ;;
   logs) shift; compose logs --tail 200 "$@" ;;
   health)
     ok=0
@@ -144,5 +222,5 @@ case "${1:-}" in
   stats)
     docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}' $(compose ps -q) $(docker ps -q --filter name=edulabs) 2>/dev/null || true
     echo; echo "bridge:"; curl -s http://127.0.0.1:8090/colibri/stats | python3 -c 'import json,sys; s=json.load(sys.stdin); [print(f"  {k}: {s.get(k)}") for k in ("conferences","participants","endpoints_sending_audio","endpoints_sending_video","bit_rate_download","bit_rate_upload","packet_rate_download","packet_rate_upload","stress_level")]' || echo "  (colibri stats unavailable)" ;;
-  *) sed -n '2,13p' "$0"; exit 2 ;;
+  *) sed -n '2,14p' "$0"; exit 2 ;;
 esac

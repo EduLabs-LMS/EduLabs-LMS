@@ -159,11 +159,24 @@ means generating new secrets and redeploying EduLabs with the new `LIVE_CLASS_SE
 
 ## 5. Jitsi's own directories and the EduLabs web settings
 
-Rootless containers run as uid 1000 and refuse to start if their writable directories are missing or not theirs.
+The web, prosody, jicofo and jvb images run as user `s6`, uid/gid 1000 (read from each stable-11248-3 image's
+`/etc/passwd`), with read-only root filesystems. What they do with these folders (read from the pinned sources):
+
+| Folder | Mounted as | The container | Owner, mode |
+| --- | --- | --- | --- |
+| `web`, `prosody/config`, `prosody/prosody-plugins-custom`, `jicofo`, `jvb` | `/config` (and plugins) | only **reads** it: copies `/config` into `/run/<service>/config` and writes its generated config there | root:root 0755 |
+| `web/custom-ca`, `prosody/custom-ca`, `jicofo/custom-ca`, `jvb/custom-ca` | read-only | reads extra CA certificates into `/run/ca` (none here) | root:root 0755 |
+| `storage/*`, `tmp/*` | `/storage`, `/var/lib/prosody`, ... | **writes** (prosody data, web keys) | 1000:1000 0750 |
+| `/run` (tmpfs, not a folder here) | | writes everything generated | uid/gid 1000 through `compose.override.yml` |
+
+So the config folders stay root-owned (a container cannot change its own settings), and only storage and tmp belong to uid
+1000. `./jitsi.sh check` refuses to start if any of them differs. The custom-ca folders are created here so Docker does not
+create them itself.
 
 ```bash
 CFG=/srv/jitsi/cfg
-install -d -m 0755 $CFG $CFG/web $CFG/prosody $CFG/prosody/config $CFG/prosody/prosody-plugins-custom $CFG/jicofo $CFG/jvb
+install -d -m 0755 $CFG $CFG/web $CFG/prosody $CFG/prosody/config $CFG/prosody/prosody-plugins-custom $CFG/jicofo $CFG/jvb \
+  $CFG/web/custom-ca $CFG/prosody/custom-ca $CFG/jicofo/custom-ca $CFG/jvb/custom-ca
 install -d -m 0750 -o 1000 -g 1000 $CFG/storage $CFG/storage/prosody $CFG/storage/web $CFG/storage/transcripts $CFG/storage/jibri \
   $CFG/tmp $CFG/tmp/web-crontabs $CFG/tmp/web-load-test
 install -m 0644 /opt/jitsi/edulabs/web/custom-config.js           $CFG/web/custom-config.js
@@ -175,6 +188,27 @@ install -m 0644 /opt/jitsi/edulabs/web/nginx-custom/edulabs.conf    $CFG/web/ngi
 
 The web image rebuilds its own nginx files on every start; it includes `nginx-custom/*.conf` from this directory in both of
 its server blocks, so these settings survive restarts and image updates. Never edit the generated files.
+
+### 5a. Fix an existing install (only if step 5 ran before 2026-11-15 and prosody, jicofo or jvb restart in a loop)
+
+The loop (`preinit: 57: cannot create /run/test of writability: Permission denied`) came from `/run`, not from these folders:
+upstream's `/run` tmpfs is root-owned, and the new `compose.override.yml` gives it to uid 1000. The folders from the old
+step 5 are already right (config root:root 0755, storage and tmp 1000:1000); only the custom-ca folders may be missing or have
+been created by Docker. Nothing broader is changed:
+
+```bash
+cd /opt/jitsi/edulabs && ./jitsi.sh down
+rm -rf /opt/jitsi/edulabs && cp -r "$EDULABS_SRC/infra/jitsi" /opt/jitsi/edulabs && chmod 0755 /opt/jitsi/edulabs/*.sh
+CFG=/srv/jitsi/cfg
+install -d -m 0755 -o root -g root $CFG/web/custom-ca $CFG/prosody/custom-ca $CFG/jicofo/custom-ca $CFG/jvb/custom-ca
+stat -c '%U:%G %a %n' $CFG/web $CFG/web/nginx-custom $CFG/prosody $CFG/prosody/config $CFG/prosody/prosody-plugins-custom \
+  $CFG/jicofo $CFG/jvb $CFG/*/custom-ca                  # every line: root:root 755
+stat -c '%u:%g %a %n' $CFG/storage $CFG/storage/* $CFG/tmp $CFG/tmp/*   # every line: 1000:1000 750
+cd /opt/jitsi/edulabs && ./jitsi.sh check && ./jitsi.sh up    # up ends by checking every container is Up after 20 s
+```
+
+If a `stat` line differs, `./jitsi.sh check` names the folder; fix only that one (`chown root:root` + `chmod 0755` for a
+config folder, `chown 1000:1000` + `chmod 0750` for storage/tmp) and ask if you are unsure.
 
 ## 6. Cloudflare: DNS records, tunnel route, cache
 
@@ -231,11 +265,17 @@ deploy hook copies the new files to `/etc/edulabs/jitsi/turn-certs/` and restart
 cd /opt/jitsi/edulabs
 ./render-turn.sh                  # writes /etc/edulabs/jitsi/turnserver.conf (root:65534 0640)
 docker run --rm --entrypoint id coturn/coturn:4.19.0-debian    # expect uid=65534(nobody) gid=65534(nogroup); else tell Claude
-./jitsi.sh check                  # preflight: settings, secrets, pinned checkout, directories, certificate, port 443,
-                                  # and the published-port list above (refuses any public port but 10000/udp)
+./jitsi.sh check                  # preflight: settings, secrets, pinned checkout, folder owners, the /run tmpfs, certificate,
+                                  # ports, and the published-port list above (refuses any public port but 10000/udp)
 ./jitsi.sh pull
-./jitsi.sh up
-./jitsi.sh ps                     # web, prosody, jicofo, jvb, coturn: all "running"/"Up"; no whiteboard
+./jitsi.sh check                  # again, now that the images are here: each must run as uid=1000(s6) gid=1000(s6)
+./jitsi.sh up                     # ends with: waiting 20 s, then "<service>: Up NNs" for web, prosody, jicofo, jvb, coturn;
+                                  # any "NOT UP" prints that container's last 30 log lines and fails
+./jitsi.sh ps                     # web, prosody, jicofo, jvb, coturn: all "Up" (never "Restarting"); no whiteboard
+for s in web prosody jicofo jvb; do echo "$s $(./jitsi.sh config --format json | python3 -c "import json,sys; print(json.load(sys.stdin)['services']['$s']['tmpfs'][0])")"; done
+                                  # each: /run:size=16M or 32M,mode=1770,uid=1000,gid=1000,exec (one /run per service)
+for s in web prosody jicofo jvb; do docker exec "$(./jitsi.sh ps -q $s)" stat -c "$s %u:%g %a" /run; done
+                                  # each: 1000:1000 1770
 ip -br link show br-jitsi         # the Jitsi network's interface has its fixed name
 ```
 
@@ -480,7 +520,10 @@ To remove an origin, edit the same line by hand (keep `frame-ancestors` and at l
 
 ## What was not verified
 
-Written on a development PC; nothing was run on the VPS or against Cloudflare. Read from the sources of the pinned release
+Written on a development PC; nothing was run on the VPS or against Cloudflare. The /run fix (2026-11-15): the images' uid/gid
+1000 was read from their own `/etc/passwd` and `/etc/group` on ghcr.io, and `docker compose config` (Compose v5.6.0) was run
+on the PC against the pinned upstream file and this override; Docker Engine (29.x) accepting `uid=`/`gid=` on the tmpfs and the
+containers then starting were not run there (step 8 checks both). Read from the sources of the pinned release
 and of jitsi-meet / jicofo / excalidraw-backend master (2026-11-14): the published ports, the whiteboard backend's lack of token
 checks (why it is not run), who may create a whiteboard, what the local-recording settings do, and that jicofo does not refuse
 a screen share at source-add. Not verified: that the coturn image runs as uid 65534 (step 8 checks it), that
