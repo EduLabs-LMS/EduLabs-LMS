@@ -14,12 +14,12 @@ const rules = load('shared/teacher-reports.ts');
 const { messages } = require('./localization-test-loader.cjs').load('frontend/locales/messages.ts');
 const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
 
-test('month choices: this month first, earlier months newest first back to the first one, the whole course last', () => {
+test('range choices: Last 4 weeks first (the default), then this month and earlier months newest first back to the first one, the whole course last', () => {
  const now = Date.parse('2026-11-14T10:00:00Z');
- assert.deepEqual(Array.from(rules.monthChoices('2026-09', now)), ['2026-11', '2026-10', '2026-09', 'all']);
- assert.deepEqual(Array.from(rules.monthChoices(null, now)), ['2026-11', 'all']);
- assert.deepEqual(Array.from(rules.monthChoices('2025-12', now)).slice(0, 3), ['2026-11', '2026-10', '2026-09']);
- assert.equal(rules.monthChoices('2020-01', now).length, rules.MAX_MONTHS + 1);
+ assert.deepEqual(Array.from(rules.monthChoices('2026-09', now)), ['last4weeks', '2026-11', '2026-10', '2026-09', 'all']);
+ assert.deepEqual(Array.from(rules.monthChoices(null, now)), ['last4weeks', '2026-11', 'all']);
+ assert.deepEqual(Array.from(rules.monthChoices('2025-12', now)).slice(0, 4), ['last4weeks', '2026-11', '2026-10', '2026-09']);
+ assert.equal(rules.monthChoices('2020-01', now).length, rules.MAX_MONTHS + 2);
 });
 test('the month is the Cairo month: the last evening in UTC is already next month in Cairo', () => {
  assert.equal(rules.cairoMonth(Date.parse('2026-10-31T22:30:00Z')), '2026-11');
@@ -90,4 +90,15 @@ test('review changes: no Pace anywhere, and homework has an Open state in both l
  assert.doesNotMatch(sql, /'pace'/);
  assert.match(sql, /a\.status in \('attended','absent'\)/, 'not_marked is neither present nor absent');
  assert.match(sql, /l\.status='published'/, 'homework needs a published lesson');
+});
+test('last 4 weeks: the default range and the missed-sessions rule are in the database, the screens and the words', () => {
+ assert.equal(rules.LAST_4_WEEKS, 'last4weeks');
+ assert.equal(contract.groupReportQuery.safeParse({}).success, true, 'no month sent is the default range');
+ const sql = read('supabase/migrations/20261118120000_reports_last_4_weeks.sql');
+ assert.match(sql, /today-27/); assert.match(sql, /'last4weeks'/);
+ assert.match(sql, /att_total-att_present>=2/, 'missed 2 or more sessions');
+ assert.doesNotMatch(sql, /75\*att_total/, 'the 75% rule is gone');
+ assert.match(read('frontend/features/teacher-reports/parts.tsx'), /LAST_4_WEEKS/);
+ for (const lang of ['en', 'ar']) { assert.ok(messages[lang]['rp.month.last4']); assert.doesNotMatch(messages[lang]['rp.students.note'], /this month|هذا الشهر/i); assert.doesNotMatch(messages[lang]['rp.students.empty'], /this month|هذا الشهر/i); }
+ assert.match(messages.en['rp.month.last4'], /Last 4 weeks/);
 });

@@ -386,11 +386,11 @@ function groupsCommand(body) {
   assert.match(await page.locator('[data-report-student]').first().getAttribute('href'), new RegExp('^/teacher/students/' + stu(7001).slice(0, 24) + '[0-9a-f-]{12}\\?course=' + O.maths + '$'));
   await shot(page, 'reports-group-report-en-light-1440'); await context.close();
  });
- await step('Group Report, month picker: this month first, earlier months, Whole course last; the zone is named; choosing one reads that month', async () => {
+ await step('Group Report, range picker: Last 4 weeks first (the default), then this month and earlier months, Whole course last; the zone is named; choosing one reads that month', async () => {
   const { page, context } = await open(desktop, '/teacher/groups/' + G.alg); await page.locator('[data-tab="report"]').click(); await page.locator('[data-report-numbers]').waitFor();
   assert.match(await page.locator('[data-month-picker]').innerText(), /Cairo/);
   const select = await monthPick(page); await select.click(); await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox');
-  const options = await page.locator('[role="option"]').allInnerTexts(); assert.equal(options.at(-1), 'Whole course'); assert.equal(options.length, 5, options.join('|'));
+  const options = await page.locator('[role="option"]').allInnerTexts(); assert.equal(options[0], 'Last 4 weeks'); assert.equal(options.at(-1), 'Whole course'); assert.equal(options.length, 6, options.join('|')); assert.match(await select.innerText(), /Last 4 weeks/, 'the default');
   await page.locator('[role="option"]').nth(1).click(); await page.waitForFunction(() => /month=\d{4}-\d{2}/.test(performance.getEntriesByType('resource').map(e => e.name).join(' ')));
   await select.click(); await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'listbox'); await page.locator('[role="option"]').last().click();
   await page.waitForFunction(() => /month=all/.test(performance.getEntriesByType('resource').map(e => e.name).join(' '))); await page.locator('[data-report-numbers]').waitFor(); await context.close();
@@ -429,7 +429,7 @@ function groupsCommand(body) {
   const rows = await page.locator('[data-attention-student]').allInnerTexts(); assert.equal(rows.length, 2);
   assert.match(rows[0], /Layla Synthetic/); assert.match(rows[0], /Synthetic group/); assert.match(rows[0], /Missed 2 sessions/); assert.match(rows[1], /No Group/); assert.match(rows[1], /Absent from Chapter 1 exam/);
   assert.equal(await page.locator('[data-student]').count(), 0, 'the roster is replaced while the chip is on');
-  assert.match(await main(page), /This month, all Groups/);
+  assert.match(await main(page), /Last 4 weeks, all Groups/);
   assert.doesNotMatch(await main(page), forbidden, 'wording'); await shot(page, 'reports-students-attention-en-light-1440');
   await chip.click(); await page.locator('[data-student]').first().waitFor(); assert.equal(await page.locator('[data-attention-student]').count(), 0); await context.close();
  });
@@ -447,7 +447,7 @@ function groupsCommand(body) {
  await step('Students list: nobody needing attention says so; a failed read says so with Retry', async () => {
   await ctl({ reports: 'empty' });
   let { page, context } = await open(phone, '/teacher/students'); await page.locator('[data-student]').first().waitFor(); await page.locator('[data-needs-attention-filter]').click();
-  await page.locator('[data-attention-students] [data-state="empty"]').waitFor(); assert.match(await main(page), /Nobody needs attention this month/); await context.close();
+  await page.locator('[data-attention-students] [data-state="empty"]').waitFor(); assert.match(await main(page), /Nobody needs attention in the last 4 weeks/); await context.close();
   await ctl({ reports: 'fail' });
   ({ page, context } = await open(phone, '/teacher/students')); await page.locator('[data-student]').first().waitFor(); await page.locator('[data-needs-attention-filter]').click();
   await page.locator('[data-attention-students] [role="alert"]').waitFor(); assert.ok(await page.locator('[data-student]').count() === 0); await clean(page, 'attention failed'); await shot(page, 'reports-students-attention-error-en-light-390');

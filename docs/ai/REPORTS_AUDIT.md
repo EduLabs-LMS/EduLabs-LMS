@@ -31,9 +31,9 @@ Homework and exams carry no Group. The Group of a student for an item is the Gro
 
 ## Counting rules (DECISIONS.md, "Reports")
 
-- A month is a Cairo calendar month. "Whole course" is everything.
+- The default range is the last 28 Cairo days (rolling, up to the start of tomorrow); a month is a Cairo calendar month; "Whole course" is everything. The Groups list and the Needs attention list always use the last 4 weeks. Migration `20261118120000_reports_last_4_weeks.sql` replaces `report_bounds`, `report_reasons` and `report_reason_count`.
 - Attendance % = present / sessions that have a saved attendance list. Homework % = handed in / given (missing counts against). Exams % = marks / maximum for marked exams.
-- Needs attention: attendance under 75%, or 2 or more homework missing, or exams under 50%, or absent from an exam (up to 3 listed). Fixed for V1; teacher-editable thresholds are deferred.
+- Needs attention: 2 or more missed sessions in the range, or 2 or more homework missing, or exams under 50%, or absent from an exam (up to 3 listed). Fixed for V1; teacher-editable thresholds are deferred.
 - Order: worst first (the lowest of the three percentages, then by name).
 
 ## Authorization

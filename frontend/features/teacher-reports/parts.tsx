@@ -4,7 +4,7 @@ import { Select } from '@/frontend/components/design/controls';
 import { StatusPill } from '@/frontend/components/design/status-pill';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import type { Pct, Reason } from '@/shared/contracts/teacher-reports';
-import { barWidth, monthChoices, monthDate, reasonWords } from '@/shared/teacher-reports';
+import { LAST_4_WEEKS, barWidth, monthChoices, monthDate, reasonWords } from '@/shared/teacher-reports';
 
 /** A percent as the person reads it ("91%", "٩١٪"), or a dash when there is nothing to count. */
 export function usePct() {
@@ -26,15 +26,15 @@ export function Reasons({ reasons }: { reasons: Reason[] }) {
   })}</span>;
 }
 
-/** This month (the default, null), any earlier month, or the whole course. Months follow Cairo time, and the picker says so. */
+/** Last 4 weeks (the default, null), this month, any earlier month, or the whole course. Days and months follow Cairo time, and the picker says so. */
 export function MonthPicker({ value, firstMonth, onChange }: { value: string | null; firstMonth: string | null | undefined; onChange: (month: string | null) => void }) {
   const { t, language } = useLanguage();
   const now = useMemo(() => Date.now(), []);
   const choices = useMemo(() => monthChoices(firstMonth, now), [firstMonth, now]);
-  const options = choices.map(m => ({ value: m, label: m === 'all' ? t('rp.month.whole') : <bdi>{new Date(monthDate(m)).toLocaleDateString(language, { month: 'long', year: 'numeric', timeZone: 'UTC' })}</bdi> }));
+  const options = choices.map(m => ({ value: m, label: m === 'all' ? t('rp.month.whole') : m === LAST_4_WEEKS ? t('rp.month.last4') : <bdi>{new Date(monthDate(m)).toLocaleDateString(language, { month: 'long', year: 'numeric', timeZone: 'UTC' })}</bdi> }));
   return <div className="d-rp-head" data-month-picker>
     <label className="d-field-label"><span className="d-meta"><L id="rp.month.label" /></span>
-      <Select aria-label={t('rp.month.label')} value={value ?? choices[0]} onChange={v => onChange(v === choices[0] ? null : v)} options={options} />
+      <Select aria-label={t('rp.month.label')} value={value ?? LAST_4_WEEKS} onChange={v => onChange(v === LAST_4_WEEKS ? null : v)} options={options} />
     </label>
     <p className="d-meta"><L id="rp.zone_note" /></p>
   </div>;

@@ -3,7 +3,7 @@
 // state.mode: 'normal' (default) | 'empty' (nothing to show) | 'fail' (every read fails 503) | 'fail-once' (each route fails its first read, then answers).
 // state.delay: milliseconds to wait before answering (the harness uses it to look at the loading state); the caller applies it.
 const uuid = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
-const range = month => ({ month: month || '2026-11', timezone: 'Africa/Cairo', from: '2026-10-31T22:00:00.000Z', to: '2026-11-30T22:00:00.000Z' });
+const range = month => ({ month: month || 'last4weeks', timezone: 'Africa/Cairo', from: '2026-10-31T22:00:00.000Z', to: '2026-11-30T22:00:00.000Z' });
 const seen = new Set();
 const line = (n, name, att, hw, ex, reasons) => ({ userId: uuid(7000 + n), name, attendance: { pct: att, present: att === null ? 0 : Math.round(att / 25), total: att === null ? 0 : 4 }, homework: { done: hw[0], given: hw[1], missing: hw[1] - hw[0] }, exams: { pct: ex, count: ex === null ? 0 : 1, absent: 0 }, reasons });
 const attention = [

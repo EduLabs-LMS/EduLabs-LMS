@@ -12,14 +12,16 @@ export function cairoMonth(at: number | Date): string {
   return `${part('year')}-${part('month')}`;
 }
 
-/** The month picker: this month first, then every earlier month back to the first one the course has, newest first, and the whole course last. */
+/** The first choice of the picker and the default everywhere: the last 28 Cairo days, rolling. It is the answer when no month is sent. */
+export const LAST_4_WEEKS = 'last4weeks';
+/** The month picker: Last 4 weeks (the default), then this month and every earlier month back to the first one the course has, newest first, and the whole course last. */
 export const MAX_MONTHS = 36;
 export function monthChoices(firstMonth: string | null | undefined, now: number): string[] {
   const current = cairoMonth(now);
-  const out = [current];
+  const out = [LAST_4_WEEKS, current];
   const first = firstMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(firstMonth) && firstMonth < current ? firstMonth : current;
   let [y, m] = current.split('-').map(Number);
-  while (out.length < MAX_MONTHS) {
+  while (out.length < MAX_MONTHS + 1) {
     m -= 1;
     if (m === 0) { m = 12; y -= 1; }
     const key = `${y}-${String(m).padStart(2, '0')}`;
@@ -58,4 +60,4 @@ export function reportReply(error: { code?: string }): { status: number; body: {
 /** A percent for a bar: whole numbers, never past 100, never negative. */
 export const barWidth = (pct: number | null) => pct === null ? 0 : Math.max(0, Math.min(100, Math.round(pct)));
 /** The Needs attention rule, for the words that explain it. Fixed for V1 (DECISIONS.md, "Reports"). */
-export const ATTENTION_RULE = { attendanceBelow: 75, homeworkMissing: 2, examsBelow: 50 } as const;
+export const ATTENTION_RULE = { missedSessions: 2, homeworkMissing: 2, examsBelow: 50 } as const;
