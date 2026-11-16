@@ -7,16 +7,18 @@ built from the 52 migrations in this tree, then dropped.
 
 | Part | Scope | Report |
 | --- | --- | --- |
-| 0 | Map, lock scan across the whole database, shared security helpers | [PART-0-map-and-locks.md](PART-0-map-and-locks.md) |
-| 1 | Accounts, organizations (spaces), members, platform admin | not started |
-| 2 | Courses, content, media, storage | not started |
-| 3 | Enrollment: runs, invites, join requests | not started |
+| 0 | Map, lock scan across the whole database, shared security helpers | done: [PART-0-map-and-locks.md](PART-0-map-and-locks.md) |
+| 1 | Accounts, organizations (spaces), members, invitations, platform admin | done: [PART-1-accounts-spaces.md](PART-1-accounts-spaces.md) |
+| 2a | Courses, content, lesson progress, media and lesson storage (RLS read cost included) | done: [PART-2a-content.md](PART-2a-content.md) |
+| 2b | Academic programs and stages, the student stage pick, teacher websites and public catalogs | done: [PART-2b-programs-websites.md](PART-2b-programs-websites.md) |
+| 3 | Enrollment: runs, invites, join requests, run staff (`offering_staff`) | not started |
 | 4 | Groups, sessions, attendance, live class | not started |
 | 5 | Homework | not started |
-| 6 | Exams | not started |
+| 6a | New exams (`private.exams`, `exam_*`) | not started |
+| 6b | Legacy exams (`assessments` family): every caller, so it can be retired | not started |
 | 7 | Notifications, push, email, background jobs | not started |
 | 8 | Reports, demo data | not started |
-| 9 | Server routes and services that call the database (auth boundary, service-role key use) | not started |
+| 9 | Server routes and services that call the database (auth boundary, service-role key use), the server's direct table writes, and the service-role scripts | not started |
 
 ## How the "live" version was found
 
