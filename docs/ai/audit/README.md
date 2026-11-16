@@ -11,7 +11,7 @@ built from the 52 migrations in this tree, then dropped.
 | 1 | Accounts, organizations (spaces), members, invitations, platform admin | done: [PART-1-accounts-spaces.md](PART-1-accounts-spaces.md) |
 | 2a | Courses, content, lesson progress, media and lesson storage (RLS read cost included) | done: [PART-2a-content.md](PART-2a-content.md) |
 | 2b | Academic programs and stages, the student stage pick, teacher websites and public catalogs | done: [PART-2b-programs-websites.md](PART-2b-programs-websites.md) |
-| 3 | Enrollment: runs, invites, join requests, run staff (`offering_staff`) | not started |
+| 3 | Enrollment: runs, invites, join requests, run staff (`offering_staff`) | done: [PART-3-enrollment.md](PART-3-enrollment.md) |
 | 4 | Groups, sessions, attendance, live class | not started |
 | 5 | Homework | not started |
 | 6a | New exams (`private.exams`, `exam_*`) | not started |
