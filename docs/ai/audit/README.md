@@ -14,7 +14,7 @@ built from the 52 migrations in this tree, then dropped.
 | 3 | Enrollment: runs, invites, join requests, run staff (`offering_staff`) | done: [PART-3-enrollment.md](PART-3-enrollment.md) |
 | 4 | Groups, sessions, attendance, live class | done: [PART-4-groups-attendance-class.md](PART-4-groups-attendance-class.md) |
 | 5 | Homework | done: [PART-5-homework.md](PART-5-homework.md) |
-| 6a | New exams (`private.exams`, `exam_*`) | not started |
+| 6a | New exams (`private.exams`, `exam_*`) | done: [PART-6a-exams.md](PART-6a-exams.md) |
 | 6b | Legacy exams (`assessments` family): every caller, so it can be retired | not started |
 | 7 | Notifications, push, email, background jobs | not started |
 | 8 | Reports, demo data | not started |
