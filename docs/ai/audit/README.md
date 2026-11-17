@@ -16,7 +16,7 @@ built from the 52 migrations in this tree, then dropped.
 | 5 | Homework | done: [PART-5-homework.md](PART-5-homework.md) |
 | 6a | New exams (`private.exams`, `exam_*`) | done: [PART-6a-exams.md](PART-6a-exams.md) |
 | 6b | Legacy exams (`assessments` family): every caller, so it can be retired | done: [PART-6b-legacy-exams.md](PART-6b-legacy-exams.md) |
-| 7 | Notifications, push, email, background jobs | not started |
+| 7 | Notifications, push, email, support tickets, background jobs | done: [PART-7-notifications.md](PART-7-notifications.md) |
 | 8 | Reports, demo data | not started |
 | 9 | Server routes and services that call the database (auth boundary, service-role key use), the server's direct table writes, and the service-role scripts | not started |
 
