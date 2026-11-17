@@ -252,6 +252,25 @@ That is the exact list of tests the plan must edit.
 On 2026-11-13 these were all 0 (EXAMS_DB_AUDIT, section d), with 2 demo `exam_released` notices. The seed's legacy quiz exists only in local
 tests; the demo seed never creates legacy rows.
 
+## Dev counts (2026-11-17, owner's chat, read-only)
+
+The counts asked for in the section above, answered from the hosted dev project by the owner's chat (not by this audit):
+
+- All 9 legacy tables and `private.exam_grade_changes`: **0 rows**.
+- `media_assets` with `bucket='lms-submissions'`: **0**. Objects in `storage.objects` for `lms-submissions`: **0**.
+- `notification_events` of type `exam_released`: **42** = 40 tied to new `private.exam_results`, **0** tied to legacy `offering_assessments`,
+  **2** demo-seeded notices whose resource matches nothing (their links are dead; noted for Part 8).
+- Legacy assignment/practice items and open legacy schedules: **0** (the tables are empty).
+- Hosted edge logs, last 24 h: no `/rest/v1/rpc` calls of any kind, so the logs prove nothing here. The code search and a drop without
+  `CASCADE` are the proof.
+
+So step 0 is done: every count is 0 and the removal is a plain drop; no history needs archiving.
+
+**Decided removal order (owner, 2026-11-17):** (1) stop-gap migration (revoke grants and RPCs on legacy objects, limit the media policies to
+`lms-course-media`), shipped inside the direct-access revoke group; (2) code first: A6b-02, then delete the legacy route and modules;
+(3) database drop migration, no `CASCADE`; (4) tests, seed, docs (`exam-sql-local.cjs` lines 86 and 91 must count `private.exam_attempts`);
+(5) checks.
+
 ## Checked and fine
 
 - No new-exam function, report, notification or demo function (other than the shared pieces above) references a legacy object.
