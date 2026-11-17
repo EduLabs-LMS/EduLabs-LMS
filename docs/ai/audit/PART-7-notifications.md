@@ -9,7 +9,7 @@ machine.
 
 ## Summary
 
-- 17 findings: 0 High, 6 Medium, 9 Low, 2 Note. Two carry an **Owner question** (A7-02, A7-13).
+- 18 findings: 0 High, 6 Medium, 10 Low, 2 Note. Two carried an **Owner question** (A7-02, A7-13); both were answered on 2026-11-18 and are recorded in their sections. A7-06's fix was corrected the same day (Cloudflare Tunnel).
 - **The security side is sound.** No user can read, mark or delete another user's notice or ticket (table, RPC, or as `anon`). A push
   endpoint can only point at five fixed provider hosts (18 attack strings refused). Only `service_role` can run the worker functions. A
   removed or suspended student stops receiving session notices and queued pushes at once. Ticket isolation, the 5-tickets/hour and
@@ -119,9 +119,9 @@ The keys contain `updated_at` or the session version, so any new write is a new 
 Revocation itself is correct: a student sees only the newest revision (65 visible notices after ten edits, not 3,310), and queued
 deliveries of a revoked event are cancelled at the next `claim` and again at `check`.
 
-**Owner question.** When a teacher flips a lesson to Published again, or changes a class time again, should students be told again?
-(a) Never again for the same lesson; a class change is announced once, the newest time only (recommended). (b) Again, but at most once an
-hour. (c) Every time (today).
+**Owner answer (2026-11-18): decided, option (a).** A lesson is announced once only (key without `updated_at`, also when it is unpublished and
+published again). A class time change is announced for the newest time only, and push deliveries are created only after the session has been
+stable for 2 minutes. (Options were: (b) again at most once an hour; (c) every time, today.)
 **Fix (recommended, technical).** Lesson key without `updated_at`; for session changes, create deliveries only after the event has been stable
 for 2 minutes and then only for the newest revision (the worker already re-checks at send time).
 
@@ -173,6 +173,10 @@ per-provider cap. Add the numbers to `docs/ai/TESTING.md`.
   180 s) only marks the container `unhealthy`; Docker Compose does not restart or report an unhealthy container, and the monitor never reads it.
 - `monitor.sh` only prints and exits 1 under a systemd timer: its own line says "External HTTPS alarms must be configured separately"
   (`edulabs-monitor.service`), so a failure is written to the journal and **nobody is told**.
+- **Verified 2026-11-18 (owner's chat, VPS `docker ps`): the worker is NOT running on staging.** Only the 5 jitsi containers, `edulabs-staging-app-1`
+  and `edulabs-staging-caddy-1` are up, so on staging no session reminder has ever been created. **Decided:** the worker is REQUIRED for V1;
+  it stays off until the worker reliability group (A7-04, A7-05, A7-08) ships, then it is switched on with monitoring. Push
+  (`NOTIFICATION_WORKER_PUSH`) stays off in every environment until then.
 - The worker's database calls have no timeout (`supabase-js` fetch, `service_role` has no statement or lock timeout, A0-06): a hung call
   stops the loop; only the stale heartbeat shows it, with no restart.
 
@@ -185,7 +189,7 @@ an `AbortSignal.timeout` and a per-session `statement_timeout`. Add "worker runn
 `passwordResetRules` (`server/services/password-reset-limiter.ts:39-41`): 3 mails per address and 20 requests per client address in 15 minutes,
 **and one shared bucket of 200 when no client address is known** (`password-reset.ts:39`). The client address comes only from the header named
 in `PASSWORD_RESET_CLIENT_IP_HEADER` (`password-reset-limiter.ts:50`). That variable is in `.env.example:50` but **not in
-`infra/web.env.example`**, the file the deployed `app` container uses, and Caddy does append `X-Forwarded-For`. Unset, every request shares the one bucket.
+`infra/web.env.example`**, the file the deployed `app` container uses, Unset, every request shares the one bucket.
 
 **Proof** (limiter code run as-is):
 
@@ -199,9 +203,18 @@ Everything else about the reset is as designed: the reply is a 202 for every add
 the reply (`after`); the mail is sent only to an address that has an account; the link is built from `APP_ORIGIN` and a Firebase code (single
 use, 1 hour) and is never logged (only fixed event names); the body is JSON to Brevo, so no header injection.
 
-**Fix.** Set `PASSWORD_RESET_CLIENT_IP_HEADER=x-forwarded-for` (last entry, Caddy appends the client) in `infra/web.env.example` and make
-the deployment check fail when it is empty; stop counting a refused request against the shared bucket; add a daily cap per address (about
-10); keep the limiter in the database if a second web container is ever added (today `compose.yaml` runs one).
+**Correction (owner's chat, 2026-11-18, verified on the VPS).** The first version of this fix said `x-forwarded-for`. That is wrong for this
+deployment. Traffic reaches Caddy through the Cloudflare Tunnel (cloudflared to Caddy on loopback), so the entry Caddy appends to
+`X-Forwarded-For` is the tunnel's own address, the same for every visitor. Setting `x-forwarded-for` would put everyone in ONE per-address bucket
+of 20, which is worse than today.
+
+**Fix.** Set `PASSWORD_RESET_CLIENT_IP_HEADER=cf-connecting-ip` in `infra/web.env.example` and make the deployment check fail when it is empty.
+Cloudflare's edge sets that header to the real client (one value). It is trustworthy only because the origin is reachable through the tunnel
+alone: verified on the VPS on 2026-11-18, `ss -ltnp` shows Caddy (docker-proxy) bound to `127.0.0.1:8080` and `127.0.0.1:8443` only; the only
+public listeners are coturn on `51.195.252.97:443` (TURN). So add a **deploy check that Caddy's published ports stay on `127.0.0.1`** (Docker
+port publishing bypasses `ufw`, so a changed `ports:` line would open the origin and let anyone forge the header). Also: stop counting a refused
+request against the shared bucket; add a daily cap per address (about 10); keep the limiter in the database if a second web container is ever
+added (today `compose.yaml` runs one).
 
 ### A7-07 Low, correctness: a second account on the same browser can never turn push on
 
@@ -272,8 +285,9 @@ linearly.
 A staff reply notifies the requester (`support_reply`); a new ticket or a student's reply notifies no one (`support_command` creates no event
 for staff). Tickets wait in a queue that someone has to open; the 48-hour response mark is stored (`response_due_at`) but nothing reads it
 or warns.
-**Owner question.** Who should be told when a student opens a ticket? (a) The space's owner and admins get a bell notice (recommended; uses
-the existing system). (b) Also an email once a day listing tickets older than 24 hours. (c) No one; staff check the Support page.
+**Owner answer (2026-11-18): decided, option (a).** The space's owner and admins get a bell notice when a student opens a ticket or replies to one.
+**Fix note:** this needs a new notification type for staff (today every type is student-facing; `notification_link`, `notification_current` and
+the preference list must learn it). (Options were: (b) also a daily email; (c) no one.)
 
 ### A7-14 Note, audit: support reads are not recorded; operators exist only through SQL
 
@@ -302,7 +316,7 @@ next run (idempotent); it deletes no metadata. A teacher upload in progress has 
 But it is run by hand, only prints and applies with `--apply`, and **throws unless `LMS_MAINTENANCE_ENV=development`** (line 7), so on a
 production project it cannot run. Nothing schedules it. Not covered at all: storage objects with no row ("unregistered, manual review"), exam
 uploads (the expired list for exams does not exist, A6a-04) and the avatar bucket.
-**Fix.** Decide the production way (the worker, with the storage secret) before V1; add the exam list with A6a-04; report orphans.
+**Fix.** Decided (owner's chat, 2026-11-18): production cleanup runs inside the worker (with the storage secret), scheduled; the operator script stays for development. Add the exam list with A6a-04; report orphans.
 
 ### A7-17 Note, dead code: the legacy 1.8 GB purge deletes the oldest files that are still in use
 
@@ -311,13 +325,19 @@ their UploadThing files once total use passes 1.8 GB, whether or not anything st
 no sign-in check in the handler for the non-forced call (`server/http/upload/check-limit/route.ts:23-41`; only "force" checks a teacher), and
 callers include the legacy attachment and homework-submission routes. In Firebase mode it is unreachable: `middleware.ts:78-79` answers every
 unlisted `/api/` path with 503 (and the path is not in the allow-list). In legacy (Clerk) mode, any signed-in user could trigger it.
-**Fix.** Delete the service and its three callers in the Part 9 cleanup (joins A2a-12 / A1-08).
+**Fix.** Delete the service and its three callers in the Part 9 cleanup (joins A2a-12 / A1-08). Decided (owner's chat, 2026-11-18): delete, as written.
+
+### A7-18 Low, correctness: a reactivated enrollment sends another "account approved" notice
+
+Found in Part 7 ("Seen"), now a finding. The enrollment notice key holds `updated_at`, so when an enrollment becomes `active` again after a
+suspension (reactivation) the key is new and the student gets "account approved" a second time.
+**Fix.** Key per enrollment and first approval only. Notification fan-out group; covered by the A7-02 decision (announce once).
 
 ## Fix groups
 
 | Group | Findings | Notes |
 | --- | --- | --- |
-| **Notification fan-out** (new) | A7-01, A7-02, A7-11 | One change: the trigger writes a job row, the worker fans out in batches; keys without `updated_at`; debounce session pushes. Ships with the lock group (A0-03/04/05, A4-03): add `notification_business_event`, `emit_*` and `live_class_open` to the A0-06 `lock_timeout` list |
+| **Notification fan-out** (new) | A7-01, A7-02, A7-11, A7-18 | One change: the trigger writes a job row, the worker fans out in batches; keys without `updated_at`; debounce session pushes. Ships with the lock group (A0-03/04/05, A4-03): add `notification_business_event`, `emit_*` and `live_class_open` to the A0-06 `lock_timeout` list |
 | **Notification read and retention** (new) | A7-03, A7-09, A7-10 | A cheap `count`, a "current" column, a weekly cleanup |
 | **Worker reliability** (new) | A7-04, A7-05, A7-08 | Batch loop, monitor and alert, 401/403 handling; bound the service-role calls (A0-06) |
 | **Email** (new) | A7-06, A7-15 | Deployment setting plus limiter change; mapping change |
@@ -357,13 +377,18 @@ unlisted `/api/` path with 503 (and the path is not in the allow-list). In legac
 
 ## Could not verify
 
-- Whether the hosted dev or staging server runs the worker (the compose profile is optional): the owner's chat can check `docker compose ps`.
+- Whether the **production** server will run the worker (staging does not: verified 2026-11-18 from the owner's chat, `docker ps`, see A7-05). Dev: not yet known; the owner will check.
 - Brevo's real replies (429 body, message id format) and real web-push provider replies; both were mocked or read from code.
 - Whether the browser's push subscription survives a sign-out (A7-07 is proven in the database, not in a browser).
 - Whether Firebase's own endpoint can send a reset mail to an address directly, bypassing this limiter and its caps (Part 9, Firebase
   settings).
-- That Caddy adds the client address to `X-Forwarded-For` in the deployed setup (documented behaviour; not run).
 - Real traffic: bell and reminder numbers are from one local core.
+
+## Why "Caddy adds X-Forwarded-For" no longer matters
+
+It was listed as unverified. It does not matter: in this deployment the entry Caddy appends is the Cloudflare Tunnel's own address, so it could
+not identify a visitor anyway. The header to use is `cf-connecting-ip` (A7-06), and the only thing to verify is that Caddy's ports stay on
+`127.0.0.1` (done on 2026-11-18, and now a deploy check).
 
 ## Seen, belongs to Part 8/9
 
@@ -372,7 +397,7 @@ unlisted `/api/` path with 503 (and the path is not in the allow-list). In legac
 - Part 9: `/api/upload/check-limit`, `/api/support` and `/api/courses/*/attachments` legacy routes; the origin check shared by every route
   (`validFirebaseOrigin`); the service-role key use of the worker (limits only: A0-06).
 - Part 6a: `exam_result_notice` emits one row per released student inside the settle (A6a-10).
-- Part 3: an enrollment turning `active` again (reactivation) sends another "account approved" notice (the key holds `updated_at`).
+- Part 3 / now A7-18: an enrollment turning `active` again (reactivation) sends another "account approved" notice (the key holds `updated_at`).
 
 ## How the proofs ran
 
