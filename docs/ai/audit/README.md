@@ -15,7 +15,7 @@ built from the 52 migrations in this tree, then dropped.
 | 4 | Groups, sessions, attendance, live class | done: [PART-4-groups-attendance-class.md](PART-4-groups-attendance-class.md) |
 | 5 | Homework | done: [PART-5-homework.md](PART-5-homework.md) |
 | 6a | New exams (`private.exams`, `exam_*`) | done: [PART-6a-exams.md](PART-6a-exams.md) |
-| 6b | Legacy exams (`assessments` family): every caller, so it can be retired | not started |
+| 6b | Legacy exams (`assessments` family): every caller, so it can be retired | done: [PART-6b-legacy-exams.md](PART-6b-legacy-exams.md) |
 | 7 | Notifications, push, email, background jobs | not started |
 | 8 | Reports, demo data | not started |
 | 9 | Server routes and services that call the database (auth boundary, service-role key use), the server's direct table writes, and the service-role scripts | not started |
