@@ -18,7 +18,7 @@ built from the 52 migrations in this tree, then dropped.
 | 6b | Legacy exams (`assessments` family): every caller, so it can be retired | done: [PART-6b-legacy-exams.md](PART-6b-legacy-exams.md) |
 | 7 | Notifications, push, email, support tickets, background jobs | done: [PART-7-notifications.md](PART-7-notifications.md) |
 | 8 | Reports, demo data | done: [PART-8-reports-demo.md](PART-8-reports-demo.md) |
-| 9 | Server routes and services that call the database (auth boundary, service-role key use), the server's direct table writes, and the service-role scripts | not started |
+| 9 | Server routes and services that call the database (auth boundary, service-role key use), the server's direct table writes, and the service-role scripts | done: [PART-9-server-routes.md](PART-9-server-routes.md) |
 
 ## How the "live" version was found
 
