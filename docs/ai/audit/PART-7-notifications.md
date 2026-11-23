@@ -189,7 +189,7 @@ an `AbortSignal.timeout` and a per-session `statement_timeout`. Add "worker runn
 `passwordResetRules` (`server/services/password-reset-limiter.ts:39-41`): 3 mails per address and 20 requests per client address in 15 minutes,
 **and one shared bucket of 200 when no client address is known** (`password-reset.ts:39`). The client address comes only from the header named
 in `PASSWORD_RESET_CLIENT_IP_HEADER` (`password-reset-limiter.ts:50`). That variable is in `.env.example:50` but **not in
-`infra/web.env.example`**, the file the deployed `app` container uses, Unset, every request shares the one bucket.
+`infra/web.env.example`**, the file the deployed `app` container uses. Unset, every request shares the one bucket.
 
 **Proof** (limiter code run as-is):
 

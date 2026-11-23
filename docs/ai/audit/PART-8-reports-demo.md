@@ -8,7 +8,7 @@ stopped and deleted at the end. All people and numbers below are synthetic.
 
 ## Summary
 
-- 14 findings: 0 High, 3 Medium, 8 Low, 3 Note. Two carry an **Owner question** (A8-03, A8-05).
+- 14 findings: 0 High, 3 Medium, 8 Low, 3 Note. Two carried an **Owner question** (A8-03, A8-05); both were answered on 2026-11-23 and are recorded in their sections.
 - **The reports are correct where it matters.** Every number I worked out by hand matched: not-marked is never counted as absent, cancelled
   and not-yet-finished sessions are skipped, a student who joined mid-term is not charged for earlier work, a draft lesson and an open
   homework are not counted, only released exam results show (the report asks the same rule as the student, 8 cases), the Cairo month and the
@@ -106,12 +106,13 @@ window as is. Group: "my scope".
 other 4 become `missing`: 1 of 5 = 20%. The student page for the one who handed in shows "done"; the same percentage jumps for everyone at the deadline.
 
 **Impact.** A teacher looking at last night's homework sees 100% and a few hours later 20%.
-**Owner question.** Should a homework that is not yet due count in the Group's homework percentage?
-- (a) **Recommended:** no. Count a homework only after its deadline; show the open one as "3 of 30 handed in so far" next to it. No jump.
-- (b) Keep as is (it counts only students who handed in early).
-- (c) Count it from the start with everyone who has not handed in as "not yet" (the percentage then rises until the deadline).
+**Owner answer (decided 2026-11-23).** The hand-in figure ALWAYS counts everyone the homework was given to, also before the deadline
+(e.g. "12 of 30 handed in, 40%"), and rises as students hand in; an early hand-in never shows 100%. A student who has not handed in an open
+homework is "not yet", never "missing". "Missing" and the "Needs attention" flag start only after the deadline (and after the A5-12
+full-time rule for a student who started before it, see A8-08).
 
-**Fix.** With (a): a handed-in open homework gets `state='open'` in the percentages and stays visible in the list as "handed in".
+**Fix.** Denominator = all active students the homework was given to. Open and not handed in = `not yet` (counted in the denominator, not as
+missing, not flagged). `missing` and attention start after the deadline (and after the A5-12 grace for a student who started before it).
 
 ### A8-04 Low, performance: some reads grow with the size of the whole space and are over 1 s in a big space
 
@@ -145,11 +146,15 @@ skips non-active students (`where active and n>0`, `:244`), but the Group payloa
 (`42501 Student unavailable`), so clicking a removed student's name in "Everyone" fails.
 
 **Impact.** A paused or removed student's past absences pull the Group's percentage down, and the teacher cannot tell why or who they are.
-**Owner question.** How should a suspended student show in the Group's numbers?
-- (a) **Recommended:** they stay listed in "Everyone" with a "Suspended" or "Removed" label, and their marks are left out of the Group's
-  percentages from the day they stop being active.
-- (b) Keep as is (all past marks count, no label).
-- (c) Hide suspended and removed students completely.
+**Owner answer (decided 2026-11-23).** When a student is removed or suspended, everything from BEFORE that day stays in the Group's numbers
+exactly as it was; NOTHING from after that day counts for or against them (no absences, no missing homework, no absent exams for sessions,
+homework or exams after the end date or during a suspension). Technical choices (by the owner's chat): they stay listed in the Group report
+with a "Removed" / "Suspended" label; staff of that run can open the student's page read-only with their history (today it returns `42501`
+"Student unavailable").
+
+**Fix.** Count each item only inside the student's active periods. This needs A3-04 / A8-01: keep the first enrollment date and exclude the
+suspended gap. `report_sessions` (no enrollment filter today), `report_homework` and `report_exams` all use the same active-period rule; the
+Group payload carries a status; the student page opens read-only for staff of the run.
 
 ### A8-06 Low, correctness: "Missed N sessions" on the Students screen adds up Groups, the Group pages do not
 
@@ -247,7 +252,7 @@ present") and so is turning demo off ("clear the demo data first"). Correct as a
 | Reactivation date | A8-01 | A3-04 |
 | "My scope" and run-scoped reads | A8-02, A8-04 | A0-01 / A1-01 / A4-01 |
 | Release and grace rules in the numbers | A8-07, A8-08 | A5-12 + A6a-01 group |
-| Product rules for the numbers | A8-03, A8-05 (owner questions), A8-06 | reports (small) |
+| Product rules for the numbers | A8-03, A8-05 (decided 2026-11-23), A8-06 | reports (small) |
 | Demo polish | A8-10, A8-11, A8-12 | the "realistic demo" task |
 
 ## Checked and fine
