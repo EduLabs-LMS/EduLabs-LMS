@@ -1,6 +1,6 @@
 # Fix track 1: direct table access closed
 
-Branch `claude/fix-01-direct-access` (from `claude/backend-audit`). Status: **done in the branch, awaiting the dev check.** Nothing was applied to
+Branch `claude/fix-01-direct-access` (from `claude/backend-audit`). Status: **done in the branch (code commit `8c39c83`), awaiting the dev check.** Nothing was applied to
 any hosted project, merged or deployed. The migration is applied by the owner's chat to dev after review.
 
 Migration: `supabase/migrations/20261124120000_close_direct_table_access.sql`
