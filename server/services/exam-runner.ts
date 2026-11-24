@@ -5,7 +5,6 @@ import { createExamsRepository } from '@/server/repositories/exams';
 import type { ExamRunState, ExamResult, SecureQuestionType, GradeChange } from '@/shared/contracts/exams';
 import type { ExamAnswers } from '@/shared/exams';
 import type { Json } from '@/shared/contracts/database.types';
-import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 export const examFailure=(message:string,status=400)=>Object.assign(new Error(message),{status});
@@ -82,21 +81,8 @@ export async function examRunnerService(scheduleId:string) {
   return current;
  }
  return {state,
-  photo:async(attemptId:string,questionId:string,file:Blob)=>{
-   const s=await repo.sync(scheduleId);
-   if(s.current_attempt?.id!==attemptId||s.current_attempt.status!=='in_progress'||(s.current_attempt.deadline_at&&Date.parse(s.current_attempt.deadline_at)<=Date.parse(s.server_now)))throw examFailure('Attempt cannot accept a photo',403);
-   const qs=await repo.content(attemptId);if(!qs.some(q=>q.id===questionId&&q.question_type==='file_upload'))throw examFailure('Photo question unavailable',403);
-   const assessment=await checked<{course_id:string}>(client.from('assessments').select('course_id').eq('id',exam.assessmentId).single());
-   if(!assessment)throw examFailure('Assessment unavailable',403);
-   const course=await checked<{organization_id:string}>(client.from('courses').select('organization_id').eq('id',assessment.course_id).single());
-   if(!course)throw examFailure('Course unavailable',403);
-   const id=randomUUID(),ext=file.type==='image/png'?'png':file.type==='image/jpeg'?'jpg':'webp',objectPath=`${course.organization_id}/${id}/answer.${ext}`;
-   await checked(client.from('media_assets').insert({id,organization_id:course.organization_id,uploaded_by:identity.data!,offering_id:exam.offeringId,kind:'submission',mime_type:file.type,original_filename:`answer.${ext}`,bucket:'lms-submissions',object_path:objectPath}));
-   const uploaded=await client.storage.from('lms-submissions').upload(objectPath,file,{upsert:false,contentType:file.type});
-   if(uploaded.error){await client.rpc('abandon_media_upload',{p_asset_id:id});throw examFailure('Photo upload failed. Please retry.',503);}
-   await checked(client.rpc('complete_media_upload',{p_asset_id:id}));
-   return {imageKey:id,imageUrl:await photoUrl(id)};
-  },
+  // The legacy photo upload wrote media_assets and the lms-submissions bucket directly. Both are closed (fix-01-direct-access, A6b-01); the route answers 410.
+  photo:async(_attemptId:string,_questionId:string,_file:Blob):Promise<{imageKey:string;imageUrl:string}>=>{throw examFailure('This exam route has been retired.',410);},
   start:async()=>{await supported();await checked(client.rpc('start_assessment_attempt',{p_offering_assessment_id:scheduleId}));return state();},
   decide:async(decision:'accept'|'decline',revision:number)=>{await repo.decide(scheduleId,decision,revision);return state();},
   save:async(attemptId:string,revision:number,answers:ExamAnswers)=>{await save(attemptId,revision,answers);return state();},

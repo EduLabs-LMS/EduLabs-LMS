@@ -232,15 +232,15 @@ test('course choice: the current run is active and not ended, always the same on
  const picked = [...m.groupCourseChoices([course('c')], [], { ...none, memberships: [{ organization_id: 'org', role: 'owner', status: 'active' }] }, now)][0];
  assert.equal(picked.runId, null, 'a course with no run is still offered; saving gets it one');
 });
-test('course-run: same gates as Groups with strict input, leaves the pinned Groups files alone, runs as the caller with no privileged client, and adds only when no current run exists', () => {
+test('course-run: same gates as Groups with strict input, leaves the pinned Groups files alone, runs as the caller with no privileged client, and gets the run from one database function that makes it under a course lock', () => {
  const http = read('server/http/group-course-run.ts'), service = read('server/services/group-course-run.ts');
  assert.match(http, /z\.object\(\{ courseId: z\.string\(\)\.uuid\(\) \}\)\.strict\(\)/);
  for (const gate of ['isFirebaseStaging()', 'validFirebaseOrigin(request)', "viewer.backend !== 'firebase'", 'content-type']) assert.ok(http.includes(gate), gate);
  for (const pinned of ['server/http/groups.ts', 'server/services/groups.ts']) assert.doesNotMatch(read(pinned), /course-?run/i, pinned);
  assert.match(service, /getSupabaseServerClient\(\)/); assert.doesNotMatch(service, /service.?role|createClient/i);
  const body = service;
- assert.ok(body.indexOf('currentRun(') < body.indexOf('.insert('), 'an existing current run is reused first');
- assert.match(body, /status: 'active'/); assert.doesNotMatch(body, /insert\([^)]*\)\s*\.select/, 'the read rule refuses reading the new run back in the same statement'); assert.doesNotMatch(body, /courses'\)\.(insert|update)/);
+ assert.match(body, /rpc\('course_run', \{ p_course_id: courseId \}\)/, 'the run comes from the one function that locks the course row');
+ assert.doesNotMatch(body, /\.from\(|currentRun\(|\.insert\(/, 'no read-then-insert in the server: that was the race that made two runs');
  assert.equal((read('supabase/tests/group-course-run.sql').match(/student cannot add a run|assistant cannot add a run/g) || []).length, 2);
  assert.match(read('scripts/exam-sql-local.cjs'), /'group-course-run'/);
 });

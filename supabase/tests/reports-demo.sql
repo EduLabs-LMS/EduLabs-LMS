@@ -51,8 +51,8 @@ select pg_temp.put('course',(select id from public.courses where organization_id
 select pg_temp.put('off',(select o.id from public.course_offerings o where o.course_id=pg_temp.key('course') order by o.id limit 1));
 
 set local role authenticated; select pg_temp.claim('teacher');
-select pg_temp.ok((select count(*)=2 and bool_and((public.report_group(g.id,null)->>'attentionTotal')::int>=1) from public.study_groups g join public.course_offerings o on o.id=g.offering_id
-  where o.course_id in (select id from public.courses where organization_id=pg_temp.key('org'))),'every demo Group has at least one student needing attention (no seed change is needed)');
+reset role;select pg_temp.ok((select count(*)=2 and bool_and((public.report_group(g.id,null)->>'attentionTotal')::int>=1) from public.study_groups g join public.course_offerings o on o.id=g.offering_id
+  where o.course_id in (select id from public.courses where organization_id=pg_temp.key('org'))),'every demo Group has at least one student needing attention (no seed change is needed)'); set local role authenticated;
 select pg_temp.ok((select count(*)=1 from jsonb_array_elements(public.report_course((select id from public.courses where organization_id=pg_temp.key('org') and title like '%Physics%'),null)->'chapters') x where x->>'weakest'='true'),
  'the demo Physics course has one weakest chapter');
 select pg_temp.ok((select (public.report_course((select id from public.courses where organization_id=pg_temp.key('org') and title like '%Chemistry%'),null)->'chapters')='[]'::jsonb),'a demo course with no run shows an empty Results');

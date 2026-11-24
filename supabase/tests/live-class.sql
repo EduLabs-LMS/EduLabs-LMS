@@ -173,7 +173,7 @@ reset role;
 
 -- The teacher's Take attendance saves joined, not-marked students as Present with the EXISTING save, recorded as the teacher, never finishing.
 select pg_temp.claim('owner'); set local role authenticated;
-select public.group_command(pg_temp.key('g'),'attendance',null,jsonb_build_object('sessionId',pg_temp.key('s_now'),'sessionVersion',(select version from public.group_sessions where id=pg_temp.key('s_now')),'marks',jsonb_build_array(jsonb_build_object('userId',pg_temp.uid('a'),'status','attended'))));
+reset role;select public.group_command(pg_temp.key('g'),'attendance',null,jsonb_build_object('sessionId',pg_temp.key('s_now'),'sessionVersion',(select version from public.group_sessions where id=pg_temp.key('s_now')),'marks',jsonb_build_array(jsonb_build_object('userId',pg_temp.uid('a'),'status','attended')))); set local role authenticated;
 reset role;
 select pg_temp.ok((select status='attended' and updated_by=pg_temp.uid('owner') from public.session_attendance where session_id=pg_temp.key('s_now') and user_id=pg_temp.uid('a'))
  and (select status='not_marked' from public.session_attendance where session_id=pg_temp.key('s_now') and user_id=pg_temp.uid('b'))

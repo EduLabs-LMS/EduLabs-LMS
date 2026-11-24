@@ -154,15 +154,21 @@ test('missing identity redirects, staff go to the teacher screens, load failures
     '@/frontend/features/student-exams/exam-screen':{StudentExamScreen:({examId})=>React.createElement('p',null,'Screen '+examId)},
     '@/server/services/exams':service,'@/server/services/exams-student':student});
   const id='00000000-0000-4000-8000-000000000001', student={isStaff:false};
-  await assert.rejects(page({loadExamList:async()=>null}).WebsiteExams(),/redirect \/sign-in/);
-  await assert.rejects(page({loadExamList:async()=>({isStaff:true})}).WebsiteExams(),/redirect \/teacher\/exams/);
-  await assert.rejects(page({loadExamList:async()=>null}).WebsiteExam({examId:id}),/redirect \/sign-in/);
-  await assert.rejects(page({loadExamList:async()=>({isStaff:true})}).WebsiteExam({examId:id}),/redirect \/teacher\/exams/);
-  await assert.rejects(page({loadExamList:async()=>student}).WebsiteExam({examId:'x'}),/not found/);
-  assert.match(renderToStaticMarkup(await page({loadExamList:async()=>student}).WebsiteExam({examId:id})),/Screen 0000/);
-  assert.match(renderToStaticMarkup(await page({loadExamList:async()=>student},{readStudentExams:async()=>({status:200,body:{rows:[{}]}})}).WebsiteExams()),/Listing 1/);
+  await assert.rejects(page({loadExamAccess:async()=>null}).WebsiteExams(),/redirect \/sign-in/);
+  await assert.rejects(page({loadExamAccess:async()=>({isStaff:true})}).WebsiteExams(),/redirect \/teacher\/exams/);
+  await assert.rejects(page({loadExamAccess:async()=>null}).WebsiteExam({examId:id}),/redirect \/sign-in/);
+  await assert.rejects(page({loadExamAccess:async()=>({isStaff:true})}).WebsiteExam({examId:id}),/redirect \/teacher\/exams/);
+  await assert.rejects(page({loadExamAccess:async()=>student}).WebsiteExam({examId:'x'}),/not found/);
+  assert.match(renderToStaticMarkup(await page({loadExamAccess:async()=>student}).WebsiteExam({examId:id})),/Screen 0000/);
+  assert.match(renderToStaticMarkup(await page({loadExamAccess:async()=>student},{readStudentExams:async()=>({status:200,body:{rows:[{}]}})}).WebsiteExams()),/Listing 1/);
   for (const readStudentExams of [async()=>{throw Error('private error')},async()=>({status:503,body:{kind:'failed'}}),async()=>({status:403,body:{kind:'denied'}})]) {
-    const html=renderToStaticMarkup(await page({loadExamList:async()=>student},{readStudentExams}).WebsiteExams());
+    const html=renderToStaticMarkup(await page({loadExamAccess:async()=>student},{readStudentExams}).WebsiteExams());
     assert.match(html,/Safe error/);assert.doesNotMatch(html,/private error|Listing/);
   }
+  // The staff check itself failing never falls back to the student view: the list shows the safe error without reading any student exam, the exam page throws.
+  let studentReads=0;
+  const failing=page({loadExamAccess:async()=>{throw Error('lookup failed')}},{readStudentExams:async()=>{studentReads++;return {status:200,body:{rows:[{}]}};}});
+  const failedHtml=renderToStaticMarkup(await failing.WebsiteExams());
+  assert.match(failedHtml,/Safe error/);assert.equal(studentReads,0,'a failed staff check does not read the student list');
+  await assert.rejects(failing.WebsiteExam({examId:id}),/Unable to check access/);
 });

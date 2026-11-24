@@ -12,6 +12,11 @@ Firebase Admin verification checks revocation/project identity. Supabase maps th
 verified issuer/subject to stable profile UUIDs; email matching and client IDs do
 not grant identity or permissions. Ordinary application clients use the caller's
 verified token plus publishable key, respecting RLS. Never expose privileged keys.
+Direct table access (fix track 1): the browser role reads only the tables the app reads and writes nothing
+directly; every write is a private security-definer function behind a public invoker wrapper
+(`course_update`, `course_run`, ...). `scripts/direct-access.test.cjs` fails if app code writes a table.
+Legacy exam tables and functions are closed to every client role, `/api/secure-exams/*` answers 410.
+See fixes/TRACK-01-direct-access.md.
 
 Organizations are tenant boundaries; roles belong to organizations/courses/offerings.
 A teacher in one organization is not an admin in another. Academic programs and

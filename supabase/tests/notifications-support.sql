@@ -105,16 +105,8 @@ select pg_temp.ok((select count(*)=0 from public.notifications n where not n.in_
 select public.notification_command('preference','{"event":"support_reply","inApp":false,"push":false}');
 reset role;
 select pg_temp.ok((select count(*)=1 from private.notification_deliveries d join public.notifications n on n.id=d.notification_id join private.notification_events e on e.id=n.event_id where e.event_key='push-only-test' and d.status='cancelled'),'push opt-out cancels queued delivery');
--- Actual release/publication operations, not fabricated client events.
+-- Track 1: the legacy exam release (start/save/submit_assessment_attempt) is closed to clients. The release notification of the new exams is tested in exams-demo and exams-student.
 select pg_temp.claim(5);set local role authenticated;
-select set_config('ns.attempt',public.start_assessment_attempt('a0000000-0000-0000-0000-000000000001')::text,true);
-select pg_temp.ok((select count(*)=0 from public.notifications where event_type='exam_released'),'unsubmitted exam produces no result notification');
-select public.save_assessment_response(current_setting('ns.attempt')::uuid,'80000000-0000-0000-0000-000000000001','{"option_ids":["90000000-0000-0000-0000-000000000001"]}');
-select public.submit_assessment_attempt(current_setting('ns.attempt')::uuid);
-select pg_temp.ok((select count(*)=1 from public.notifications where event_type='exam_released'),'actual objective release creates notification');
-select pg_temp.ok((select count(*)=1 from jsonb_array_elements(public.notification_command('list')->'rows') n where n->>'event_type'='exam_released' and n->>'link'='/exams/a0000000-0000-0000-0000-000000000001'),'released exam link authorized');
-select public.submit_assessment_attempt(current_setting('ns.attempt')::uuid);
-select pg_temp.ok((select count(*)=1 from public.notifications where event_type='exam_released'),'duplicate submission does not duplicate release');
 select pg_temp.claim(2);
 select set_config('ns.group',public.group_command(null,'create',null,'{"offeringId":"60000000-0000-0000-0000-000000000001","name":"Notification test","mode":"online","joinUrl":"https://meet.example.com/room"}')->>'id',true);
 select public.group_command(current_setting('ns.group')::uuid,'add',1,'{"userId":"10000000-0000-0000-0000-000000000005"}');

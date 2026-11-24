@@ -23,6 +23,8 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
     return NextResponse.next();
   }
   if (path === '/api/health') return NextResponse.next();
+  // The legacy secure exam runner is retired (fix-01-direct-access): every method and path answers 410 Gone, in every mode, before any sign-in check.
+  if (path === '/api/secure-exams' || path.startsWith('/api/secure-exams/')) return NextResponse.json({ error: 'This exam route has been retired.' }, { status: 410, headers: { 'Cache-Control': 'no-store' } });
   if (path.startsWith('/api/auth/firebase/')) return NextResponse.next();
   if (!isFirebaseStaging()) {
     if (path === '/lms-staging') return NextResponse.redirect(new URL('/sign-in', request.url));
@@ -70,7 +72,6 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (/^\/api\/homework\/(new|[0-9a-f-]{36})\/(list|offerings|save|get|lifecycle|copy-media|assignments|revisions|inbox|history|work|upload-intent|finish-upload|cleanup|media)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(edit|progress|upload|media|cleanup|upload-intent|finish-upload)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(resources|blocks)\/[0-9a-f-]{36}$/.test(path)) return NextResponse.next();
-  if (/^\/api\/secure-exams\/[0-9a-f-]{36}\/(state|start|answers|submit|decision|result|photo|grading|grade|release|release-review|definition)$/.test(path)) return NextResponse.next();
   if (/^\/join\/[A-Za-z0-9_-]{43}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   if (path === '/api/student-administration' || path === '/api/communications' || path === '/api/study-groups' || path === '/api/study-groups/course-run' || path.startsWith('/sign-in') || path.startsWith('/sign-up') || path === '/lms-staging' || isPhaseOneRoute(path)) return NextResponse.next();
   // Password reset: these two pages only. The reset link carries a one-time code in its address, so they stay out of caches, indexes and referrers.

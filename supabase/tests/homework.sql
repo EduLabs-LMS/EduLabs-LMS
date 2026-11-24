@@ -8,8 +8,8 @@ create function pg_temp.legacy() returns uuid language sql security definer set 
 select set_config('hw.definition','{"title":"Textbook assignment","instructions":"","mode":"PLATFORM_QUESTIONS","published":false,"usesMarks":true,"filePoints":10,"modelAnswer":"Private worked answer","solutionVideo":"https://example.invalid/solution.mp4","solutionVideoId":null,"referenceIds":[],"solutionIds":[],"questions":[{"id":"b1000000-0000-0000-0000-000000000001","type":"single_choice","text":"","imageId":null,"points":5,"responseMode":"both","options":[{"id":"b2000000-0000-0000-0000-000000000001","text":""},{"id":"b2000000-0000-0000-0000-000000000002","text":""},{"id":"b2000000-0000-0000-0000-000000000003","text":""},{"id":"b2000000-0000-0000-0000-000000000004","text":""}],"correctIds":["b2000000-0000-0000-0000-000000000002"],"modelAnswer":"Private B"},{"id":"b1000000-0000-0000-0000-000000000002","type":"essay","text":"","imageId":null,"points":5,"responseMode":"both","options":[],"correctIds":[],"modelAnswer":"Private essay answer"}]}',true);
 set local role authenticated;select pg_temp.claim(2);
 select set_config('hw.id',public.save_homework(pg_temp.legacy(),'60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001',null,null,current_setting('hw.definition')::jsonb)::text,true);
-select pg_temp.ok((select count(*)=4 from public.homework_options where question_id='b1000000-0000-0000-0000-000000000001'),'four blank options remain distinct');
-select pg_temp.ok((select text='' and image_id is null from public.homework_questions where id='b1000000-0000-0000-0000-000000000001'),'blank text and absent image persist without fake content');
+reset role;select pg_temp.ok((select count(*)=4 from public.homework_options where question_id='b1000000-0000-0000-0000-000000000001'),'four blank options remain distinct'); set local role authenticated;
+reset role;select pg_temp.ok((select text='' and image_id is null from public.homework_questions where id='b1000000-0000-0000-0000-000000000001'),'blank text and absent image persist without fake content'); set local role authenticated;
 select pg_temp.ok((public.get_homework(current_setting('hw.id')::uuid)->'definition'->'questions'->0->'correctIds'->>0)='b2000000-0000-0000-0000-000000000002','teacher private key stable');
 select pg_temp.claim(5);
 select pg_temp.ok((select count(*)=0 from public.homework_assignments where id=current_setting('hw.id')::uuid),'draft hidden from student');
@@ -36,7 +36,7 @@ select pg_temp.ok(public.homework_work(current_setting('hw.id')::uuid,'submit',c
 select pg_temp.denied($s$select public.homework_work(current_setting('hw.id')::uuid,'grade',current_setting('hw.sub')::uuid,0,'{}')$s$,'42501','self grading denied');
 select pg_temp.claim(6);
 select pg_temp.denied($s$select public.get_homework(current_setting('hw.id')::uuid)$s$,'42501','sibling offering cannot read homework');
-select pg_temp.ok((select count(*)=0 from public.homework_submissions where id=current_setting('hw.sub')::uuid),'peer cannot retrieve submitted work');
+select pg_temp.denied($q$select count(*) from public.homework_submissions where id=current_setting('hw.sub')::uuid$q$,'42501','peer cannot retrieve submitted work (direct read closed)');
 select pg_temp.claim(3);
 select pg_temp.denied($s$select public.get_homework(current_setting('hw.id')::uuid)$s$,'42501','cross tenant owner denied');
 select pg_temp.claim(2);
@@ -62,7 +62,7 @@ select pg_temp.ok(public.homework_work(current_setting('hw.id')::uuid,'start')->
 select pg_temp.claim(2);
 select set_config('hw.clone',public.homework_lifecycle(current_setting('hw.id')::uuid,'clone',2)::text,true);
 select pg_temp.ok((public.get_homework(current_setting('hw.clone')::uuid)->'definition'->>'published')::boolean=false,'clone is a distinct draft version');
-select pg_temp.ok((select count(*)=4 from public.homework_options o join public.homework_questions q on q.id=o.question_id where q.assignment_id=current_setting('hw.clone')::uuid),'clone retains all four blank options');
+reset role;select pg_temp.ok((select count(*)=4 from public.homework_options o join public.homework_questions q on q.id=o.question_id where q.assignment_id=current_setting('hw.clone')::uuid),'clone retains all four blank options'); set local role authenticated;
 select public.homework_lifecycle(current_setting('hw.id')::uuid,'unpublish',2);
 select pg_temp.claim(5);
 select pg_temp.denied($s$select public.get_homework(current_setting('hw.id')::uuid)$s$,'42501','unpublication revokes student solution access');

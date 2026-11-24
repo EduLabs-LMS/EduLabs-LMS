@@ -51,8 +51,6 @@ export function createWebsiteRepository(client: SupabaseClient<Database>, profil
       return result;
     },
     segmentProgress: (offeringIds:string[]) => offeringIds.length?completeProgress(client.from('lesson_segment_progress').select('offering_id,lesson_id,segment_id,status,video_position_seconds,revision,updated_at', { count: 'exact' }).eq('user_id',profileId).in('offering_id',offeringIds).order('offering_id').order('segment_id').limit(5001)):Promise.resolve({ rows: [], incomplete: false }),
-    scheduledAssessments: (offeringIds: string[]) => offeringIds.length ? rows(client.from('offering_assessments').select('id,offering_id,assessment_id,opens_at,closes_at,published').in('offering_id', offeringIds).eq('published', true).order('id').limit(101)) : Promise.resolve([]),
-    assessments: (ids: string[]) => ids.length ? rows(client.from('assessments').select('id,title,type').in('id', ids).order('id').limit(101)) : Promise.resolve([]),
     roster: (offeringId: string, page: number) => rows(client.from('enrollments').select('id,user_id,status,enrolled_at,profiles!enrollments_user_id_fkey(display_name)').eq('offering_id', offeringId).order('id').range(page * 50, page * 50 + 50)),
     enrollmentCount: async (offeringIds: string[], status?: string) => {
       if (!offeringIds.length) return 0;

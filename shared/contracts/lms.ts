@@ -32,10 +32,8 @@ export interface LmsRepository {
   attempts(scheduledAssessmentId: string, page?: PageRequest): Promise<SafeAttempt[]>;
   responses(attemptId: string, page?: PageRequest): Promise<StudentResponse[]>;
   media(organizationId: string, page?: PageRequest): Promise<LmsRow<'media_assets'>[]>;
-  registerMedia(asset: Pick<Tables['media_assets']['Insert'], 'id' | 'organization_id' | 'offering_id' | 'kind' | 'mime_type' | 'original_filename' | 'bucket' | 'object_path'>): Promise<LmsRow<'media_assets'>>;
   completeUpload(assetId: string): Promise<void>;
   abandonUpload(assetId: string): Promise<void>;
-  updateProgress(offeringId: string, lessonId: string, value: { status: 'not_started' | 'in_progress' | 'completed'; videoPositionSeconds?: number }): Promise<void>;
   startAttempt(scheduledAssessmentId: string): Promise<string>;
   saveResponse(attemptId: string, questionId: string, response: Json, mediaAssetId?: string): Promise<string>;
   submitAttempt(attemptId: string): Promise<void>;

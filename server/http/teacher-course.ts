@@ -45,6 +45,10 @@ export async function teacherWrite(request:NextRequest, action:'organization'|'c
       const {updated_at,...fields}=input.data;
       result=await repository.update(id!,updated_at,fields);
       if(!result.error && !result.data) return reply('Course changed. Reload before saving.',409);
+      // The function's own refusals are fixed sentences (no SQL detail), so the two that a person can act on are passed on as they are.
+      if(result.error?.code==='PT409') return reply('Course changed. Reload before saving.',409);
+      if(result.error?.code==='22023') return reply('Invalid course details',400);
+      if(result.error?.code==='42501' && result.error.message?.startsWith('Only the')) return reply(result.error.message,403);
     }
     if(result.error) return reply(result.error.code==='23505' ? 'This slug is already in use' : 'Operation not permitted or unavailable',result.error.code==='23505'?409:403);
     return NextResponse.json({id:typeof result.data==='string'?result.data:result.data?.id});

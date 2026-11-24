@@ -54,10 +54,9 @@ export async function loadWebsiteScope(context: WebsiteContext, organizationId?:
     context.repository.offerings(courses.map(c => c.id)), context.repository.modules(courses.map(c => c.id)), context.repository.myEnrollments(),
   ]);
   const offerings = offeringRows.slice(0, 100), modules = moduleRows.slice(0, 500);
-  const [lessonRows, progressResult, scheduledRows] = await Promise.all([
-    context.repository.lessons(modules.map(m => m.id)), context.repository.progress(offerings.map(o => o.id)), context.repository.scheduledAssessments(offerings.map(o => o.id)),
+  const [lessonRows, progressResult] = await Promise.all([
+    context.repository.lessons(modules.map(m => m.id)), context.repository.progress(offerings.map(o => o.id)),
   ]);
-  const scheduled = scheduledRows.slice(0, 100);
   const [segments,segmentResult]=await Promise.all([context.repository.segments(lessonRows.map(l=>l.id)),context.repository.segmentProgress(offerings.map(o=>o.id))]);
   const progressLimited = progressResult.incomplete || segmentResult.incomplete || progressResult.rows.length > 1000 || segmentResult.rows.length > 5000;
   // Discard both projections together. Even a complete lesson summary must not
@@ -74,10 +73,9 @@ export async function loadWebsiteScope(context: WebsiteContext, organizationId?:
     const mine=segmentProgress.filter(s=>s.offering_id===p.offering_id&&s.lesson_id===p.lesson_id);
     return {...p,status:parts.every(s=>mine.some(x=>x.segment_id===s.id&&x.status==='completed'))?'completed':mine.length?'in_progress':'not_started'};
   });
-  const assessments = await context.repository.assessments(Array.from(new Set(scheduled.map(a => a.assessment_id))));
-  const contentLimited = courseRows.length > 100 || offeringRows.length > 100 || moduleRows.length > 500 || enrollmentRows.length > 100 || lessonRows.length > 500 || scheduledRows.length > 100 || assessments.length > 100;
+  const contentLimited = courseRows.length > 100 || offeringRows.length > 100 || moduleRows.length > 500 || enrollmentRows.length > 100 || lessonRows.length > 500;
   return { courses, offerings, modules, lessons: lessonRows.slice(0, 500).map(l=>({...l,cover_url:l.cover_asset_id?thumbnailUrls[l.cover_asset_id]??null:null})), progress: progress.slice(0, 1000),segments:parts,segmentProgress,
-    enrollments: enrollmentRows.slice(0, 100), scheduled, assessments,
+    enrollments: enrollmentRows.slice(0, 100),
     progressReadId: randomUUID(), progressReadProofs: segmentProgress.slice().sort((a,b)=>Date.parse(b.updated_at)-Date.parse(a.updated_at)||a.segment_id.localeCompare(b.segment_id)).slice(0,8).map(p=>({key:`${p.offering_id}:${p.segment_id}`,revision:p.revision})),
     progressAvailable: !progressLimited, progressLimited, contentLimited, limited: contentLimited || progressLimited };
 }

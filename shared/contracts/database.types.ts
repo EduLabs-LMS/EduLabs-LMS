@@ -2363,6 +2363,11 @@ export type Database = {
         Args: { p_name: string; p_slug: string }
         Returns: string
       }
+      course_run: { Args: { p_course_id: string }; Returns: string }
+      course_update: {
+        Args: { p_course_id: string; p_fields: Json; p_revision: string }
+        Returns: Json
+      }
       create_teacher_course: {
         Args: { p_organization_id: string; p_slug: string; p_title: string }
         Returns: string

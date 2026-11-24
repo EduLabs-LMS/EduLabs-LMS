@@ -17,8 +17,8 @@ insert into public.enrollments(offering_id,user_id,status,enrolled_at) values('6
 select set_config('gn.schedules','[{"weekday":0,"time":"12:00","durationMinutes":60},{"weekday":3,"time":"12:00","durationMinutes":60}]',true);
 select pg_temp.claim(2);set local role authenticated;
 select set_config('gn.group',public.group_command(null,'create',null,jsonb_build_object('offeringId','60000000-0000-0000-0000-000000000001','name','Synthetic recurring notices','mode','online','joinUrl','https://meet.example.com/original','schedules',current_setting('gn.schedules')::jsonb))->>'id',true);
-select pg_temp.ok((select count(*)>=24 from public.group_sessions where group_id=current_setting('gn.group')::uuid),'two weekly slots materialize approximately ninety days');
-select set_config('gn.sessions',(select jsonb_agg(id order by id)::text from public.group_sessions where group_id=current_setting('gn.group')::uuid),true);
+reset role;select pg_temp.ok((select count(*)>=24 from public.group_sessions where group_id=current_setting('gn.group')::uuid),'two weekly slots materialize approximately ninety days'); set local role authenticated;
+reset role;select set_config('gn.sessions',(select jsonb_agg(id order by id)::text from public.group_sessions where group_id=current_setting('gn.group')::uuid),true); set local role authenticated;
 reset role;
 select pg_temp.ok((select count(*)=0 from private.notification_events where resource_id=current_setting('gn.group')::uuid),'empty group materialization consumes no event keys');
 set local role authenticated;
@@ -31,7 +31,7 @@ select pg_temp.ok((select count(distinct n.recipient_id)=2 from public.notificat
 select private.materialize_group(current_setting('gn.group')::uuid);select private.materialize_group(current_setting('gn.group')::uuid);
 set local role authenticated;
 select public.group_command(current_setting('gn.group')::uuid,'edit',3,jsonb_build_object('name','Synthetic recurring notices','schedules',current_setting('gn.schedules')::jsonb));
-select pg_temp.ok((select jsonb_agg(id order by id)::text=current_setting('gn.sessions') from public.group_sessions where group_id=current_setting('gn.group')::uuid),'unchanged timetable preserves stable session IDs');
+reset role;select pg_temp.ok((select jsonb_agg(id order by id)::text=current_setting('gn.sessions') from public.group_sessions where group_id=current_setting('gn.group')::uuid),'unchanged timetable preserves stable session IDs'); set local role authenticated;
 reset role;
 select pg_temp.ok((select count(*)=2 from public.notifications n join private.notification_events e on e.id=n.event_id where e.resource_id=current_setting('gn.group')::uuid),'unchanged saves and materialization retries produce no duplicate alerts');
 -- A long-idle materialization cursor can create historical records, never alerts.
@@ -54,7 +54,7 @@ select pg_temp.claim(5);set local role authenticated;
 select pg_temp.ok((select count(*)=1 from public.notifications where event_type='session_details'),'direct table reads expose only current joining revision');
 select pg_temp.ok((select count(*)=1 from jsonb_array_elements(public.notification_command('list')->'rows') x where x->>'event_type'='session_details'),'list RPC excludes superseded joining revision');
 select pg_temp.claim(2);
-select set_config('gn.recurring_session',(select id::text from public.group_sessions where group_id=current_setting('gn.group')::uuid and starts_at>clock_timestamp() order by starts_at limit 1),true);
+reset role;select set_config('gn.recurring_session',(select id::text from public.group_sessions where group_id=current_setting('gn.group')::uuid and starts_at>clock_timestamp() order by starts_at limit 1),true); set local role authenticated;
 select public.group_command(current_setting('gn.group')::uuid,'session',6,jsonb_build_object('sessionId',current_setting('gn.recurring_session'),'sessionVersion',0,'operation','reschedule','startsAt',clock_timestamp()+interval '2 hours','endsAt',clock_timestamp()+interval '3 hours'));
 reset role;
 select pg_temp.ok((select count(*)=1 from private.notification_events where session_id=current_setting('gn.recurring_session')::uuid and revoked_at is null),'intentional recurring exception reschedule creates one useful announcement');

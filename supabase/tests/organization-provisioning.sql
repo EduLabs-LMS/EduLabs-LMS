@@ -115,14 +115,13 @@ set local role authenticated;
 select pg_temp.claim('owner-b');
 select set_config('org_test.course_b',public.create_teacher_course(current_setting('org_test.b')::uuid,'Private B','private-b')::text,true);
 select pg_temp.claim('owner-a');
-with changed as (update public.organizations set name='Security fixture A edited' where id=current_setting('org_test.a')::uuid returning id)
-select pg_temp.ok((select count(*)=1 from changed),'owner edits own organization');
+select pg_temp.ok((public.rename_my_teaching_space(current_setting('org_test.a')::uuid,'Security fixture A edited')->>'name')='Security fixture A edited','owner renames own organization through the function');
+select pg_temp.denied($s$update public.organizations set name='Direct rename' where id=current_setting('org_test.a')::uuid$s$,'a direct organization update is closed, even for the owner');
 select set_config('org_test.course_a',public.create_teacher_course(current_setting('org_test.a')::uuid,'Private A','private-a')::text,true);
 select pg_temp.ok((select title='Private A' from public.courses where id=current_setting('org_test.course_a')::uuid),'owner creates own course');
 select pg_temp.claim('teacher-a');
 select set_config('org_test.teacher_course',public.create_teacher_course(current_setting('org_test.a')::uuid,'Teacher draft','teacher-draft')::text,true);
-with changed as (update public.courses set title='Teacher edited',status='published' where id=current_setting('org_test.teacher_course')::uuid returning id)
-select pg_temp.ok((select count(*)=1 from changed),'assigned teacher edits and publishes own course');
+select pg_temp.ok((public.course_update(current_setting('org_test.teacher_course')::uuid,(select updated_at from public.courses where id=current_setting('org_test.teacher_course')::uuid),'{"title":"Teacher edited","status":"published"}')->>'id')=current_setting('org_test.teacher_course'),'assigned teacher edits and publishes own course through the function');
 
 do $$ declare label text; changed_count integer; begin
  foreach label in array array['owner-a','admin-a','teacher-a','student'] loop
@@ -132,25 +131,27 @@ do $$ declare label text; changed_count integer; begin
   perform pg_temp.ok((select count(*)=0 from public.courses where id=current_setting('org_test.course_b')::uuid),label||' cannot read private B course');
   perform pg_temp.denied($s$select public.create_teacher_course(current_setting('org_test.b')::uuid,'Forbidden','forbidden')$s$,label||' cannot create B course');
   perform pg_temp.denied($s$insert into public.organization_memberships(organization_id,user_id,role,status) values(current_setting('org_test.b')::uuid,public.current_profile_id(),'teacher','active')$s$,label||' cannot join B staff');
-  update public.organizations set name='Forbidden' where id=current_setting('org_test.b')::uuid;
-  get diagnostics changed_count=row_count;
-  perform pg_temp.ok(changed_count=0,label||' cannot update B organization');
-  update public.courses set title='Forbidden' where id=current_setting('org_test.course_b')::uuid;
-  get diagnostics changed_count=row_count;
-  perform pg_temp.ok(changed_count=0,label||' cannot update B course');
+  perform pg_temp.denied($s$update public.organizations set name='Forbidden' where id=current_setting('org_test.b')::uuid$s$,label||' cannot update B organization (direct update closed)');
+  perform pg_temp.denied($s$update public.courses set title='Forbidden' where id=current_setting('org_test.course_b')::uuid$s$,label||' cannot update B course (direct update closed)');
+  perform pg_temp.denied($s$select public.course_update(current_setting('org_test.course_b')::uuid,now(),'{"title":"Forbidden"}')$s$,label||' cannot update B course through the function');
  end loop;
 end $$;
 select pg_temp.claim('student');
-with changed as (update public.courses set title='Forbidden' where id=current_setting('org_test.teacher_course')::uuid returning id)
-select pg_temp.ok((select count(*)=0 from changed),'student cannot edit teacher content');
+select pg_temp.denied($s$select public.course_update(current_setting('org_test.teacher_course')::uuid,now(),'{"title":"Forbidden"}')$s$,'student cannot edit teacher content');
 select pg_temp.claim('owner-a');
 do $$ declare caught text; begin
  begin update public.organization_memberships set status='suspended'
  where organization_id=current_setting('org_test.a')::uuid and user_id=public.current_profile_id();
  exception when others then get stacked diagnostics caught=returned_sqlstate; end;
- perform pg_temp.ok(caught='23514','last active owner remains protected');
+ perform pg_temp.ok(caught='42501','a direct membership change is closed, even for the last owner');
 end $$;
 reset role;
+do $$ declare caught text; begin
+ begin update public.organization_memberships set status='suspended'
+ where organization_id=current_setting('org_test.a')::uuid and user_id=public.current_profile_id();
+ exception when others then get stacked diagnostics caught=returned_sqlstate; end;
+ perform pg_temp.ok(caught='23514','last active owner remains protected by the trigger');
+end $$;
 select pg_temp.ok((select name='Security fixture B' from public.organizations where id=current_setting('org_test.b')::uuid),'tenant B actually exists and remains unchanged');
 select pg_temp.ok((select title='Private B' from public.courses where id=current_setting('org_test.course_b')::uuid),'tenant B course actually exists and remains unchanged');
 select pg_temp.ok((select title='Teacher edited' and status='published' from public.courses where id=current_setting('org_test.teacher_course')::uuid),'authorized teacher changes persist inside transaction');

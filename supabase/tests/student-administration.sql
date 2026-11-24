@@ -56,8 +56,9 @@ select pg_temp.ok(private.is_enrolled('60000000-0000-0000-0000-000000000001'),'a
 select pg_temp.ok(exists(select 1 from public.notifications where event_type='account_approved'),'approval emits Step07 learning access notification');
 select pg_temp.claim(32);
 select pg_temp.ok((select count(*)=0 from public.enrollment_requests),'peer cannot read another request');
-select pg_temp.claim(31);
+reset role;
 insert into public.lesson_progress(offering_id,lesson_id,user_id,status) values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000031','in_progress');
+set local role authenticated;select pg_temp.claim(31);
 select set_config('sa.progress',(select md5(to_jsonb(p)::text) from public.lesson_progress p where user_id='10000000-0000-0000-0000-000000000031'),true);
 select pg_temp.claim(2);
 select public.student_administration('suspend','60000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000031',0,gen_random_uuid());
@@ -106,7 +107,7 @@ select set_config('sa.group',public.group_command(null,'create',null,'{"offering
 select pg_temp.ok((public.student_administration('metrics')->>'activeGroupsCount')::int=current_setting('sa.groups')::int+1,'dashboard counts real study_groups rather than offerings');
 select public.group_command(current_setting('sa.group')::uuid,'add',1,'{"userId":"10000000-0000-0000-0000-000000000031"}');
 select pg_temp.claim(31);
-select pg_temp.ok(exists(select 1 from public.study_groups where id=current_setting('sa.group')::uuid),'approved student can join real authorized group');
+reset role;select pg_temp.ok(exists(select 1 from public.study_groups where id=current_setting('sa.group')::uuid),'approved student can join real authorized group'); set local role authenticated;
 select pg_temp.claim(2);
 select set_config('sa.hwinitial',public.student_administration('metrics')->>'pendingHomeworkCount',true);
 select set_config('sa.hw',public.save_homework(null,'60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001',null,null,'{"title":"Synthetic correction queue","instructions":"","mode":"PLATFORM_QUESTIONS","published":false,"rules":{"deadline":"2099-01-01T00:00:00Z"},"usesMarks":true,"filePoints":10,"modelAnswer":"","solutionVideo":"","solutionVideoId":null,"referenceIds":[],"solutionIds":[],"questions":[{"id":"b8000000-0000-0000-0000-000000000001","type":"essay","text":"Explain","imageId":null,"points":2,"responseMode":"both","options":[],"correctIds":[],"modelAnswer":""}]}')::text,true);
@@ -143,12 +144,13 @@ reset role;
 -- Populate all four academic histories before exercising suspension again.
 update public.group_memberships set starts_at=now()-interval '10 days' where group_id=current_setting('sa.group')::uuid;
 set local role authenticated;select pg_temp.claim(2);
-select set_config('sa.session',public.group_command(current_setting('sa.group')::uuid,'one-off',(select version from public.study_groups where id=current_setting('sa.group')::uuid),jsonb_build_object('title','Synthetic history','startsAt',now()-interval '2 days','endsAt',now()-interval '2 days'+interval '1 hour'))->>'sessionId',true);
+reset role;select set_config('sa.session',public.group_command(current_setting('sa.group')::uuid,'one-off',(select version from public.study_groups where id=current_setting('sa.group')::uuid),jsonb_build_object('title','Synthetic history','startsAt',now()-interval '2 days','endsAt',now()-interval '2 days'+interval '1 hour'))->>'sessionId',true); set local role authenticated;
 select public.group_command(current_setting('sa.group')::uuid,'attendance',null,jsonb_build_object('sessionId',current_setting('sa.session'),'sessionVersion',0,'marks',jsonb_build_array(jsonb_build_object('userId','10000000-0000-0000-0000-000000000031','status','attended'))));
-select pg_temp.claim(31);
-select set_config('sa.exam',public.start_assessment_attempt('a0000000-0000-0000-0000-000000000001')::text,true);
-select public.submit_assessment_attempt(current_setting('sa.exam')::uuid);
+-- The legacy exam RPCs are closed to clients (Track 1), so the exam history row is a fixture made by the owner role.
 reset role;
+select set_config('sa.part',gen_random_uuid()::text,true);
+insert into private.assessment_participations(id,schedule_id,user_id,max_attempts) values(current_setting('sa.part')::uuid,'a0000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000031',1);
+insert into public.assessment_attempts(offering_assessment_id,user_id,attempt_number,status,submitted_at,score,max_score,participation_id) values('a0000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000031',1,'submitted',now(),1,2,current_setting('sa.part')::uuid);
 create temp view sa_current_history as
 select 'homework' kind,to_jsonb(t) row from public.homework_submissions t where user_id='10000000-0000-0000-0000-000000000031'
 union all select 'exam',to_jsonb(t) from public.assessment_attempts t where user_id='10000000-0000-0000-0000-000000000031'

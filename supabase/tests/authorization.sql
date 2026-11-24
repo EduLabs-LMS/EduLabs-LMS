@@ -26,8 +26,6 @@ select pg_temp.assert_true(not exists(select 1 from pg_proc p join pg_namespace 
 -- Another student's records exist, so isolation assertions are non-vacuous.
 set local role authenticated;
 select set_config('request.jwt.claims','{"iss":"https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1","aud":"authenticated","sub":"10000000-0000-0000-0000-000000000006","role":"authenticated"}',true);
-select set_config('test.other_attempt',public.start_assessment_attempt('a0000000-0000-0000-0000-000000000002')::text,true);
-select set_config('test.other_response',public.save_assessment_response(current_setting('test.other_attempt')::uuid,'80000000-0000-0000-0000-000000000001','{"option_ids":["90000000-0000-0000-0000-000000000002"]}')::text,true);
 
 select set_config('request.jwt.claims','{"iss":"https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1","aud":"authenticated","sub":"10000000-0000-0000-0000-000000000005","role":"authenticated"}',true);
 select pg_temp.assert_true((select count(*)=1 from public.courses),'student sees only enrolled course');
@@ -36,37 +34,28 @@ select pg_temp.assert_true((select count(*)=1 from public.lessons),'student cann
 select pg_temp.assert_true((select count(*)=1 from public.enrollments),'student cannot read peer enrollment');
 select pg_temp.assert_true((select count(*)=1 from public.profiles),'student cannot read peer profile/phone');
 select pg_temp.assert_true((select count(*)=0 from public.lesson_progress),'student cannot read peer progress');
-select pg_temp.assert_true((select count(*)=0 from public.assessment_attempts),'student cannot read peer attempt');
-select pg_temp.assert_true((select count(*)=0 from public.assessment_responses),'student cannot read peer responses');
-select pg_temp.assert_true((select count(*)=2 from public.assessment_options),'student can read safe option columns');
+select pg_temp.expect_error('select count(*) from public.assessment_attempts','42501','legacy attempts are closed to clients');
+select pg_temp.expect_error('select count(*) from public.assessment_responses','42501','legacy responses are closed to clients');
+select pg_temp.expect_error('select count(*) from public.assessment_options','42501','legacy options are closed to clients');
 select pg_temp.expect_error('select is_correct from public.assessment_options','42501','student cannot select correctness');
 select pg_temp.expect_error('select * from public.assessment_options','42501','wildcard cannot expose answer keys');
 select pg_temp.expect_error('select * from private.assessment_answer_keys','42501','private grading data is inaccessible');
 select pg_temp.expect_error($sql$select public.get_assessment_answer_keys('70000000-0000-0000-0000-000000000001')$sql$,'42501','answer key RPC denies student');
 select pg_temp.expect_error($sql$update public.profiles set status='active'$sql$,'42501','student cannot change account status');
 select pg_temp.expect_error($sql$insert into public.course_modules(course_id,title,position) values('30000000-0000-0000-0000-000000000001','attack',9)$sql$,'42501','student cannot insert teacher content');
-do $$ declare n integer; begin
- update public.lessons set title='attack'; get diagnostics n=row_count;
- perform pg_temp.assert_true(n=0,'student cannot update teacher content');
-end $$;
+select pg_temp.expect_error($sql$update public.lessons set title='attack'$sql$,'42501','student cannot update teacher content');
 select pg_temp.expect_error($sql$insert into public.enrollments(offering_id,user_id,status) values('60000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000005','active')$sql$,'42501','student cannot self enroll');
 select pg_temp.expect_error($sql$insert into public.lesson_progress(offering_id,lesson_id,user_id) values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000006')$sql$,'42501','student cannot write peer progress');
-select pg_temp.expect_error($sql$insert into public.lesson_progress(offering_id,lesson_id,user_id) values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000005')$sql$,'23514','progress rejects cross-course lesson');
-insert into public.lesson_progress(offering_id,lesson_id,user_id,status,started_at) values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000005','in_progress',now());
-update public.lesson_progress set status='completed',completed_at=now() where user_id=auth.uid();
-select pg_temp.assert_true((select count(*)=1 from public.lesson_progress where status='completed'),'student can update own progress');
-select pg_temp.expect_error($sql$select public.start_assessment_attempt('a0000000-0000-0000-0000-000000000002')$sql$,'42501','student cannot start unenrolled offering assessment');
-select pg_temp.expect_error($sql$insert into public.assessment_attempts(offering_assessment_id,user_id,attempt_number) values('a0000000-0000-0000-0000-000000000001',auth.uid(),99)$sql$,'42501','attempt insert requires checked RPC');
-select set_config('test.attempt',public.start_assessment_attempt('a0000000-0000-0000-0000-000000000001')::text,true);
-select pg_temp.assert_true(public.start_assessment_attempt('a0000000-0000-0000-0000-000000000001')=current_setting('test.attempt')::uuid,'start RPC resumes current attempt');
-select pg_temp.expect_error($sql$update public.assessment_attempts set score=999,status='graded'$sql$,'42501','student cannot assign grade');
-select pg_temp.expect_error(format('select public.save_assessment_response(%L::uuid,%L::uuid,%L::jsonb)',current_setting('test.other_attempt'),'80000000-0000-0000-0000-000000000001','{"option_ids":["90000000-0000-0000-0000-000000000001"]}'),'42501','student cannot answer peer attempt');
-select pg_temp.expect_error(format('select public.save_assessment_response(%L::uuid,%L::uuid,%L::jsonb)',current_setting('test.attempt'),'80000000-0000-0000-0000-000000000001','{"option_ids":["90000000-0000-0000-0000-000000000001"],"awarded_points":2}'),'23514','response rejects extra grading payload');
-select set_config('test.response',public.save_assessment_response(current_setting('test.attempt')::uuid,'80000000-0000-0000-0000-000000000001','{"option_ids":["90000000-0000-0000-0000-000000000002"]}')::text,true);
-select public.submit_assessment_attempt(current_setting('test.attempt')::uuid);
-select pg_temp.expect_error(format('select public.get_assessment_results(%L::uuid)',current_setting('test.attempt')),'42501','results withheld until finalized grading');
-select pg_temp.expect_error(format('select public.save_assessment_response(%L::uuid,%L::uuid,%L::jsonb)',current_setting('test.attempt'),'80000000-0000-0000-0000-000000000001','{"option_ids":["90000000-0000-0000-0000-000000000002"]}'),'42501','submitted answers are immutable');
-select pg_temp.expect_error(format('select public.grade_assessment_response(%L::uuid,2)',current_setting('test.response')),'42501','student cannot invoke grader');
+select pg_temp.expect_error($sql$insert into public.lesson_progress(offering_id,lesson_id,user_id,status,started_at) values('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000005','in_progress',now())$sql$,'42501','a direct progress insert is closed (progress is saved by save_segment_progress)');
+select pg_temp.expect_error($sql$update public.lesson_progress set status='completed',completed_at=now() where user_id=auth.uid()$sql$,'42501','a student cannot mark a lesson completed directly');
+-- Track 1: every legacy exam RPC refuses a signed-in client, so nothing below can start, answer, grade or read a legacy attempt.
+select pg_temp.expect_error($sql$select public.start_assessment_attempt('a0000000-0000-0000-0000-000000000001')$sql$,'42501','legacy start is closed');
+select pg_temp.expect_error($sql$select public.save_assessment_response(gen_random_uuid(),gen_random_uuid(),'{}'::jsonb)$sql$,'42501','legacy answer save is closed');
+select pg_temp.expect_error($sql$select public.submit_assessment_attempt(gen_random_uuid())$sql$,'42501','legacy submit is closed');
+select pg_temp.expect_error($sql$select public.get_assessment_results(gen_random_uuid())$sql$,'42501','legacy results are closed');
+select pg_temp.expect_error($sql$select public.grade_assessment_response(gen_random_uuid(),2)$sql$,'42501','legacy grader is closed');
+select pg_temp.expect_error($sql$insert into public.assessment_attempts(offering_assessment_id,user_id,attempt_number) values('a0000000-0000-0000-0000-000000000001',auth.uid(),99)$sql$,'42501','legacy attempt insert is closed');
+select pg_temp.expect_error($sql$update public.assessment_attempts set score=999,status='graded'$sql$,'42501','legacy attempt update is closed');
 -- Managed provisioning: a student cannot bootstrap a tenant through either layer.
 select pg_temp.expect_error($sql$select public.create_organization('Temporary test tenant','temporary-rls-test')$sql$,'42501','student cannot create organization through public RPC');
 select pg_temp.expect_error($sql$select private.create_organization('Temporary test tenant','temporary-rls-test')$sql$,'42501','student cannot invoke private organization creator');
@@ -77,29 +66,21 @@ select pg_temp.assert_true((select count(*)=0 from public.courses where organiza
 select pg_temp.assert_true((select count(*)=0 from public.enrollments where offering_id='60000000-0000-0000-0000-000000000003'),'teacher A cannot read tenant B roster');
 select pg_temp.assert_true((select count(*)=0 from public.profiles where id='10000000-0000-0000-0000-000000000007'),'teacher A cannot read tenant B student');
 select pg_temp.expect_error($sql$insert into public.course_modules(course_id,title,position) values('30000000-0000-0000-0000-000000000002','attack',8)$sql$,'42501','teacher A cannot write tenant B course');
-select pg_temp.expect_error($sql$update public.organization_memberships set status='suspended' where user_id=auth.uid()$sql$,'23514','last active owner cannot be removed');
-select pg_temp.expect_error($sql$update public.assessment_questions set prompt='changed' where id='80000000-0000-0000-0000-000000000001'$sql$,'23514','attempted assessment questions freeze');
-select pg_temp.expect_error($sql$update public.assessment_options set is_correct=false where id='90000000-0000-0000-0000-000000000001'$sql$,'23514','attempted assessment answer keys freeze');
-select pg_temp.expect_error($sql$update public.assessments set instructions='changed' where id='70000000-0000-0000-0000-000000000001'$sql$,'23514','attempted assessment metadata freezes');
-select pg_temp.expect_error($sql$update public.offering_assessments set max_attempts=99 where id='a0000000-0000-0000-0000-000000000001'$sql$,'23514','attempted assessment delivery config freezes');
-select set_config('test.clone',public.clone_assessment('70000000-0000-0000-0000-000000000001')::text,true);
-select pg_temp.assert_true((select version=2 and status='draft' from public.assessments where id=current_setting('test.clone')::uuid),'cloning creates draft next version');
+select pg_temp.expect_error($sql$update public.organization_memberships set status='suspended' where user_id=auth.uid()$sql$,'42501','a direct membership change is closed, even for the last owner (the last-owner trigger is tested in organization-owner-cascade)');
+select pg_temp.expect_error($sql$update public.assessment_questions set prompt='changed' where id='80000000-0000-0000-0000-000000000001'$sql$,'42501','attempted assessment questions freeze');
+select pg_temp.expect_error($sql$update public.assessment_options set is_correct=false where id='90000000-0000-0000-0000-000000000001'$sql$,'42501','attempted assessment answer keys freeze');
+select pg_temp.expect_error($sql$update public.assessments set instructions='changed' where id='70000000-0000-0000-0000-000000000001'$sql$,'42501','attempted assessment metadata freezes');
+select pg_temp.expect_error($sql$update public.offering_assessments set max_attempts=99 where id='a0000000-0000-0000-0000-000000000001'$sql$,'42501','attempted assessment delivery config freezes');
+select pg_temp.expect_error($sql$select public.clone_assessment('70000000-0000-0000-0000-000000000001')$sql$,'42501','legacy clone is closed');
 
 -- Assigned instructor also has an independent admin role in organization B.
 select set_config('request.jwt.claims','{"iss":"https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1","aud":"authenticated","sub":"10000000-0000-0000-0000-000000000002","role":"authenticated"}',true);
 select pg_temp.assert_true(private.has_org_role('20000000-0000-0000-0000-000000000001',array['teacher']) and private.has_org_role('20000000-0000-0000-0000-000000000002',array['admin']),'different tenant roles work');
 select pg_temp.assert_true((select count(*)=3 from public.enrollments),'instructor and admin can see authorized rosters');
-update public.courses set title='Admin updated title' where id='30000000-0000-0000-0000-000000000002';
+select public.course_update('30000000-0000-0000-0000-000000000002',(select updated_at from public.courses where id='30000000-0000-0000-0000-000000000002'),'{"title":"Admin updated title"}');
 select pg_temp.assert_true((select title='Admin updated title' from public.courses where id='30000000-0000-0000-0000-000000000002'),'tenant admin can manage course');
-select pg_temp.assert_true(jsonb_array_length(public.get_assessment_answer_keys('70000000-0000-0000-0000-000000000001'))=1,'assigned instructor can retrieve grading keys');
-select pg_temp.expect_error(format('select public.grade_assessment_response(%L::uuid,3)',current_setting('test.response')),'23514','grade cannot exceed question points');
-select public.grade_assessment_response(current_setting('test.response')::uuid,2,'Correct');
-select pg_temp.expect_error(format('select public.finalize_assessment_grade(%L::uuid)',current_setting('test.attempt')),'23514','grading cannot finalize pending retry');
-select set_config('request.jwt.claims','{"iss":"https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1","aud":"authenticated","sub":"10000000-0000-0000-0000-000000000005","role":"authenticated"}',true);
-select public.decide_exam_retry('a0000000-0000-0000-0000-000000000001','decline',(public.sync_exam_participation('a0000000-0000-0000-0000-000000000001')->>'revision')::bigint);
-select set_config('request.jwt.claims','{"iss":"https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1","aud":"authenticated","sub":"10000000-0000-0000-0000-000000000002","role":"authenticated"}',true);
-select public.finalize_assessment_grade(current_setting('test.attempt')::uuid);
-select pg_temp.assert_true((public.get_assessment_results(current_setting('test.attempt')::uuid)->>'score')::numeric=2,'instructor can finalize legitimate grade');
+select pg_temp.expect_error($sql$select public.get_assessment_answer_keys('70000000-0000-0000-0000-000000000001')$sql$,'42501','legacy grading keys are closed, even for an assigned instructor');
+select pg_temp.expect_error($sql$select public.finalize_assessment_grade(gen_random_uuid())$sql$,'42501','legacy grade finalization is closed');
 
 select set_config('request.jwt.claims','{"iss":"https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1","aud":"authenticated","sub":"10000000-0000-0000-0000-000000000004","role":"authenticated"}',true);
 select pg_temp.assert_true(private.can_edit_course('30000000-0000-0000-0000-000000000001'),'assigned editor can author course');
@@ -107,16 +88,12 @@ select pg_temp.assert_true(private.can_support_offering('60000000-0000-0000-0000
 select pg_temp.assert_true(not private.can_manage_offering('60000000-0000-0000-0000-000000000001'),'teaching assistant cannot manage offering/enrollment');
 
 select set_config('request.jwt.claims','{"iss":"https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1","aud":"authenticated","sub":"10000000-0000-0000-0000-000000000005","role":"authenticated"}',true);
-select pg_temp.assert_true((public.get_assessment_results(current_setting('test.attempt')::uuid)->>'score')::numeric=2,'student can read released own grade');
-select pg_temp.expect_error(format('select public.get_assessment_results(%L::uuid)',current_setting('test.other_attempt')),'42501','student cannot retrieve peer results');
 select pg_temp.expect_error('select awarded_points,feedback from public.assessment_responses','42501','direct grade fields require results RPC');
-select pg_temp.expect_error($sql$select public.start_assessment_attempt('a0000000-0000-0000-0000-000000000001')$sql$,'42501','permanent decline blocks second attempt');
 
 -- Submission uploads require tenant/owner/enrollment-bound metadata.
-insert into public.media_assets(id,organization_id,uploaded_by,offering_id,kind,mime_type,original_filename,bucket,object_path)
-values('b0000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001',auth.uid(),'60000000-0000-0000-0000-000000000001','submission','application/pdf','homework.pdf','lms-submissions','20000000-0000-0000-0000-000000000001/b0000000-0000-0000-0000-000000000001/homework.pdf');
-select pg_temp.assert_true(private.can_upload_media('lms-submissions','20000000-0000-0000-0000-000000000001/b0000000-0000-0000-0000-000000000001/homework.pdf'),'student can upload registered own submission');
-select pg_temp.expect_error($sql$select public.complete_media_upload('b0000000-0000-0000-0000-000000000001')$sql$,'23514','upload completion requires actual storage object');
+select pg_temp.expect_error($sql$insert into public.media_assets(id,organization_id,uploaded_by,offering_id,kind,mime_type,original_filename,bucket,object_path)
+values('b0000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001',auth.uid(),'60000000-0000-0000-0000-000000000001','submission','application/pdf','homework.pdf','lms-submissions','20000000-0000-0000-0000-000000000001/b0000000-0000-0000-0000-000000000001/homework.pdf')$sql$,'42501','a student cannot register a legacy submission upload (the lms-submissions path is closed)');
+select pg_temp.assert_true(not private.can_upload_media('lms-submissions','20000000-0000-0000-0000-000000000001/b0000000-0000-0000-0000-000000000001/homework.pdf'),'nothing is registered, so nothing can be uploaded');
 select set_config('request.jwt.claims','{"iss":"https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1","aud":"authenticated","sub":"10000000-0000-0000-0000-000000000006","role":"authenticated"}',true);
 select pg_temp.assert_true((select count(*)=0 from public.media_assets),'student cannot read peer submission assets');
 select pg_temp.assert_true(not private.can_upload_media('lms-submissions','20000000-0000-0000-0000-000000000001/b0000000-0000-0000-0000-000000000001/homework.pdf'),'student cannot upload over peer metadata');
@@ -127,7 +104,6 @@ set local role authenticated;
 select set_config('request.jwt.claims','{"iss":"https://gmvouqgjbtbkbhrdruzu.supabase.co/auth/v1","aud":"authenticated","sub":"10000000-0000-0000-0000-000000000005","role":"authenticated"}',true);
 select pg_temp.assert_true((select count(*)=0 from public.courses),'suspended enrollment cannot access private content');
 select pg_temp.assert_true(not private.can_upload_media('lms-submissions','20000000-0000-0000-0000-000000000001/b0000000-0000-0000-0000-000000000001/homework.pdf'),'suspended enrollment cannot upload');
-select pg_temp.assert_true((public.get_assessment_results(current_setting('test.attempt')::uuid)->>'score')::numeric=2,'own historical grade survives enrollment suspension');
 reset role;
 update public.organization_memberships set status='suspended' where organization_id='20000000-0000-0000-0000-000000000001' and user_id='10000000-0000-0000-0000-000000000002';
 set local role authenticated;

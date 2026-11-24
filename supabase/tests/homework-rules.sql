@@ -133,7 +133,7 @@ select pg_temp.ok((select not photos_allowed and tries_mode='fix_mistakes' and m
 -- Changed by 20261112120000 (the owner's review): blank answers may be any number from 2 to 8, so three blank letters now save.
 select public.save_homework(pg_temp.h('draft'),pg_temp.key('off'),pg_temp.key('lesson'),null,2,
  jsonb_set(pg_temp.def('draft',false,null,'text'),'{questions,0,options}',(pg_temp.def('draft',false,null,'text')->'questions'->0->'options')-3));
-select pg_temp.ok((select count(*)=3 from public.homework_options o join public.homework_questions q on q.id=o.question_id where q.id=pg_temp.q('draft','q1')),'a question with three blank answers saves');
+reset role;select pg_temp.ok((select count(*)=3 from public.homework_options o join public.homework_questions q on q.id=o.question_id where q.id=pg_temp.q('draft','q1')),'a question with three blank answers saves'); set local role authenticated;
 -- The read gives the rules inside the definition, so the screen can save it back unchanged.
 select public.save_homework(pg_temp.h('draft'),pg_temp.key('off'),pg_temp.key('lesson'),null,3,public.get_homework(pg_temp.h('draft'))->'definition');
 select pg_temp.ok((select revision=4 and tries_mode='fix_mistakes' and not photos_allowed from pg_temp.hwrow(pg_temp.h('draft'))),'the definition read back saves unchanged, rules included');

@@ -47,21 +47,10 @@ export function createSupabaseLmsRepository(client: SupabaseClient<Database>, ve
     attempts: (id, p) => read(client.from('assessment_attempts').select('id,offering_assessment_id,user_id,attempt_number,started_at,deadline_at,submitted_at,status,created_at,updated_at').eq('offering_assessment_id', id).eq('user_id', verifiedProfileId).order('attempt_number').range(...pageRange(p))),
     responses: (id, p) => read(client.from('assessment_responses').select('id,attempt_id,question_id,response,media_asset_id,updated_at').eq('attempt_id', id).order('question_id').range(...pageRange(p))),
     media: (id, p) => read(client.from('media_assets').select('*').eq('organization_id', id).order('id').range(...pageRange(p))),
-    registerMedia: value => read(client.from('media_assets').insert({
-      id: value.id, organization_id: value.organization_id, offering_id: value.offering_id,
-      kind: value.kind, mime_type: value.mime_type, original_filename: value.original_filename,
-      bucket: value.bucket, object_path: value.object_path, uploaded_by: verifiedProfileId,
-    }).select('*').single()),
+    // registerMedia and updateProgress are gone (fix-01-direct-access): media is registered by the upload functions (register_lesson_upload)
+    // and progress is saved by save_segment_progress. The browser role has no direct write on media_assets or lesson_progress.
     completeUpload: id => write(client.rpc('complete_media_upload', { p_asset_id: id })),
     abandonUpload: id => write(client.rpc('abandon_media_upload', { p_asset_id: id })),
-    updateProgress: (offeringId, lessonId, value) => {
-      if (value.videoPositionSeconds !== undefined && (!Number.isInteger(value.videoPositionSeconds) || value.videoPositionSeconds < 0)) throw new Error('Invalid video position');
-      return write(client.from('lesson_progress').upsert({
-        offering_id: offeringId, lesson_id: lessonId, user_id: verifiedProfileId,
-        status: value.status, video_position_seconds: value.videoPositionSeconds,
-        last_accessed_at: new Date().toISOString(), completed_at: value.status === 'completed' ? new Date().toISOString() : null,
-      }, { onConflict: 'offering_id,lesson_id,user_id' }));
-    },
     startAttempt: id => read(client.rpc('start_assessment_attempt', { p_offering_assessment_id: id })),
     saveResponse: (attemptId, questionId, response, mediaAssetId) => read(client.rpc('save_assessment_response', {
       p_attempt_id: attemptId, p_question_id: questionId, p_response: response, p_media_asset_id: mediaAssetId,

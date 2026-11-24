@@ -382,8 +382,8 @@ select pg_temp.denied($s$delete from public.course_modules where id=current_sett
 select pg_temp.denied($s$update public.course_modules set position=9 where id=current_setting('ccs.ne')::uuid$s$,'42501','a teacher cannot write a position directly');
 select pg_temp.denied($s$update public.course_modules set chapter_number=9 where id=current_setting('ccs.ne')::uuid$s$,'42501','a teacher cannot write a number directly');
 select pg_temp.denied($s$delete from public.lessons where id=current_setting('ccs.l13')::uuid$s$,'42501','a teacher cannot delete a lesson directly, so a refused delete cannot be walked around');
-update public.course_modules set group_type='Week' where id=pg_temp.key('ne');
-select pg_temp.ok(pg_temp.labels('course3')='B:Chapter:1:0|E:Chapter:2:1','a direct write of the type does not stick');
+select pg_temp.denied($s$update public.course_modules set group_type='Week' where id=current_setting('ccs.ne')::uuid$s$,'42501','a teacher cannot write the type directly');
+select pg_temp.ok(pg_temp.labels('course3')='B:Chapter:1:0|E:Chapter:2:1','a refused direct write of the type changes nothing');
 reset role;
 update public.course_modules set chapter_number=37,group_type='Week' where id=pg_temp.key('ne');
 select pg_temp.ok(pg_temp.labels('course3')='B:Chapter:1:0|E:Chapter:2:1','not even from the database owner');
@@ -416,7 +416,7 @@ insert into public.course_modules(id,course_id,title,position) values(pg_temp.ke
 insert into public.lessons(id,module_id,title,position,status,description) values(pg_temp.key('arch_l1'),pg_temp.key('arch1'),'Kept lesson',0,'draft','Before'),(pg_temp.key('arch_l2'),pg_temp.key('arch1'),'Second lesson',1,'draft','');
 set local role authenticated;
 select pg_temp.claim('owner');
-update public.courses set status='archived' where id=pg_temp.key('archive');
+select public.course_update(pg_temp.key('archive'),(select updated_at from public.courses where id=pg_temp.key('archive')),'{"status":"archived"}');
 -- The new function.
 select pg_temp.denied($s$select pg_temp.edit('create_chapter',null,null,null,'{"title":"x"}','archive')$s$,'PT409','archived: create chapter is refused');
 select pg_temp.denied($s$select pg_temp.edit('rename_chapter',pg_temp.key('arch1'),null,pg_temp.cs('arch1'),'{"title":"x"}','archive')$s$,'PT409','archived: rename chapter is refused');
@@ -435,10 +435,14 @@ select pg_temp.denied($s$select public.edit_learning_content(pg_temp.key('archiv
 select pg_temp.denied($s$select public.edit_learning_content(pg_temp.key('archive'),'reorder_modules',null,null,null,jsonb_build_object('items',(select jsonb_agg(jsonb_build_object('id',id,'updated_at',updated_at) order by position desc) from public.course_modules where course_id=pg_temp.key('archive'))))$s$,'PT409','archived: the old reorder_modules is refused');
 select pg_temp.denied($s$select public.edit_learning_content(pg_temp.key('archive'),'reorder_lessons',null,pg_temp.key('arch1'),null,jsonb_build_object('items',(select jsonb_agg(e order by ord desc) from jsonb_array_elements(pg_temp.items(pg_temp.key('arch1'))) with ordinality x(e,ord))))$s$,'PT409','archived: the old reorder_lessons is refused');
 -- Straight at the tables, as a teacher.
-select pg_temp.denied($s$update public.course_modules set title='x' where id=pg_temp.key('arch1')$s$,'PT409','archived: a direct chapter rename is refused');
-select pg_temp.denied($s$update public.lessons set title='x' where id=pg_temp.key('arch_l1')$s$,'PT409','archived: a direct lesson rename is refused');
-select pg_temp.denied($s$update public.lessons set position=9 where id=pg_temp.key('arch_l1')$s$,'PT409','archived: a direct lesson reorder is refused');
-select pg_temp.denied($s$insert into public.lessons(module_id,title,position) values(pg_temp.key('arch1'),'x',9)$s$,'PT409','archived: a direct lesson insert is refused');
+select pg_temp.denied($s$update public.course_modules set title='x' where id=pg_temp.key('arch1')$s$,'42501','archived: a direct chapter rename is refused (closed to the teacher)');
+reset role;select pg_temp.denied($s$update public.course_modules set title='x' where id=pg_temp.key('arch1')$s$,'PT409','archived: a direct chapter rename is refused (the trigger, even for the owner)');set local role authenticated;
+select pg_temp.denied($s$update public.lessons set title='x' where id=pg_temp.key('arch_l1')$s$,'42501','archived: a direct lesson rename is refused (closed to the teacher)');
+reset role;select pg_temp.denied($s$update public.lessons set title='x' where id=pg_temp.key('arch_l1')$s$,'PT409','archived: a direct lesson rename is refused (the trigger, even for the owner)');set local role authenticated;
+select pg_temp.denied($s$update public.lessons set position=9 where id=pg_temp.key('arch_l1')$s$,'42501','archived: a direct lesson reorder is refused (closed to the teacher)');
+reset role;select pg_temp.denied($s$update public.lessons set position=9 where id=pg_temp.key('arch_l1')$s$,'PT409','archived: a direct lesson reorder is refused (the trigger, even for the owner)');set local role authenticated;
+select pg_temp.denied($s$insert into public.lessons(module_id,title,position) values(pg_temp.key('arch1'),'x',9)$s$,'42501','archived: a direct lesson insert is refused (closed to the teacher)');
+reset role;select pg_temp.denied($s$insert into public.lessons(module_id,title,position) values(pg_temp.key('arch1'),'x',9)$s$,'PT409','archived: a direct lesson insert is refused (the trigger, even for the owner)');set local role authenticated;
 -- People with no rights learn nothing about the state of the course.
 select pg_temp.claim('stranger');
 select pg_temp.denied($s$select pg_temp.edit('create_chapter',null,null,null,'{"title":"x"}','archive')$s$,'42501','archived: another space is still simply denied');
@@ -464,11 +468,11 @@ select pg_temp.claim('owner');
 select public.edit_learning_content(pg_temp.key('archive'),'edit_lesson',pg_temp.key('arch_l1'),null,pg_temp.ls('arch_l1'),'{"title":"Kept lesson","description":"After","status":"draft"}');
 select pg_temp.ok((pg_temp.lesson('arch_l1')).description='After','archived: a lesson''s description is not structure and still saves');
 -- Taken out of the archive, it works again.
-update public.courses set status='published' where id=pg_temp.key('archive');
+select public.course_update(pg_temp.key('archive'),(select updated_at from public.courses where id=pg_temp.key('archive')),'{"status":"published"}');
 select pg_temp.ok(pg_temp.edit('rename_chapter',pg_temp.key('arch1'),null,pg_temp.cs('arch1'),'{"title":"Open again"}','archive')=pg_temp.key('arch1'),'out of the archive, editing works again');
 select pg_temp.ok(public.course_structure(pg_temp.key('archive'))@>'{"archived":false,"canEdit":true}','and the read says so');
 -- Deleting the whole archived course still works: its chapters and lessons go with it.
-update public.courses set status='archived' where id=pg_temp.key('archive');
+select public.course_update(pg_temp.key('archive'),(select updated_at from public.courses where id=pg_temp.key('archive')),'{"status":"archived"}');
 reset role;
 delete from public.courses where id=pg_temp.key('archive');
 select pg_temp.ok(not pg_temp.has_chapter(pg_temp.key('arch1')) and not pg_temp.has_lesson(pg_temp.key('arch_l1')),'deleting an archived course still removes its tree');
@@ -520,7 +524,7 @@ select pg_temp.refused(format($s$select public.edit_course_structure(%L,'delete_
  '["student_work", "homework"]','a demo lesson whose homework students handed in is refused, naming the student work');
 select pg_temp.ok(pg_temp.labels('demo_course') like '%Added by the teacher:Chapter:4:3','the demo teacher''s new chapter is Chapter 4');
 select pg_temp.denied($s$select pg_temp.edit('create_chapter',null,null,null,'{"title":"x"}')$s$,'42501','the demo teacher cannot reach another space');
-update public.courses set status='archived' where id=pg_temp.key('demo_course');
+select public.course_update(pg_temp.key('demo_course'),(select updated_at from public.courses where id=pg_temp.key('demo_course')),'{"status":"archived"}');
 reset role;
 select pg_temp.ok((private.demo_clear_core(pg_temp.key('org_d'),pg_temp.uid('admin'))->>'removedRows')::int>0,'Clear finishes after chapters and lessons were added, renamed, moved and deleted, and the course archived, with the homework of seed versions 5 and 6');
 select pg_temp.ok((select count(*)=0 from public.courses where organization_id=pg_temp.key('org_d')) and not pg_temp.has_chapter(pg_temp.key('dch')) and not pg_temp.has_lesson(pg_temp.key('dl')),'and removes every chapter and lesson');

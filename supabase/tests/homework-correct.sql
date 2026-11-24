@@ -125,8 +125,8 @@ select pg_temp.ok((current_setting('hc.view')::jsonb->>'staff')::boolean and (cu
 select pg_temp.ok((select bool_and(jsonb_array_length(q->'correctIds')=1) from jsonb_array_elements(current_setting('hc.view')::jsonb->'definition'->'questions') q where q->>'type'<>'essay'),'staff read the right answers of the choice questions');
 select pg_temp.ok(jsonb_array_length(current_setting('hc.view')::jsonb->'submissions')=1 and current_setting('hc.view')::jsonb->'submissions'->0->>'id'=pg_temp.try_of(1)::text,'the read holds that one try');
 select pg_temp.ok((current_setting('hc.view')::jsonb->'submissions'->0->'files'->0->>'deleted')::boolean and jsonb_array_length(current_setting('hc.view')::jsonb->'submissions'->0->'files')=1,'student 1''s photo reads as deleted');
-select pg_temp.ok((select (a->'fileIds'->>0) from jsonb_array_elements(current_setting('hc.view')::jsonb->'submissions'->0->'answers') a where a->>'questionId'=(select id::text from public.homework_questions where assignment_id=pg_temp.key('hw') and type='essay'))
- =(current_setting('hc.view')::jsonb->'submissions'->0->'files'->0->>'id'),'the essay answer points at that photo');
+reset role;select pg_temp.ok((select (a->'fileIds'->>0) from jsonb_array_elements(current_setting('hc.view')::jsonb->'submissions'->0->'answers') a where a->>'questionId'=(select id::text from public.homework_questions where assignment_id=pg_temp.key('hw') and type='essay'))
+ =(current_setting('hc.view')::jsonb->'submissions'->0->'files'->0->>'id'),'the essay answer points at that photo'); set local role authenticated;
 select pg_temp.ok((public.get_homework(pg_temp.key('hw'),pg_temp.try_of(2))->'submissions'->0->'files'->0->>'deleted')::boolean=false,'student 2''s photo is there');
 select pg_temp.ok((current_setting('hc.view')::jsonb->'submissions'->0->'correction'->>'status')='under_correction' and (current_setting('hc.view')::jsonb->'submissions'->0->'correction'->>'revision')::int=0,
  'the waiting try reads as under correction at revision 0');
@@ -149,23 +149,23 @@ reset role;
 
 -- 3. Release: one by one and many at once notify the same way.
 set local role authenticated; select pg_temp.claim('teacher');
--- Correct student 3 (waiting) and release it alone.
+reset role;-- Correct student 3 (waiting) and release it alone.
 select set_config('hc.graded',public.homework_work(pg_temp.key('hw'),'grade',pg_temp.try_of(3),0,jsonb_build_object('score',null,'feedback','Well done.','reason','',
- 'marks',jsonb_build_array(jsonb_build_object('questionId',(select id from public.homework_questions where assignment_id=pg_temp.key('hw') and type='essay'),'points',5,'feedback','Write the unit.'))))::text,true);
+ 'marks',jsonb_build_array(jsonb_build_object('questionId',(select id from public.homework_questions where assignment_id=pg_temp.key('hw') and type='essay'),'points',5,'feedback','Write the unit.'))))::text,true); set local role authenticated;
 select pg_temp.ok(current_setting('hc.graded')::jsonb->'correction'->>'status'='corrected' and (current_setting('hc.graded')::jsonb->'correction'->>'revision')::int=1,'a grade saves at revision 1');
 select pg_temp.ok(pg_temp.refusal(format('select public.homework_work(%L,''grade'',%L,0,%L)',pg_temp.key('hw'),pg_temp.try_of(3),jsonb_build_object('score',null,'feedback','','reason','','marks','[]'::jsonb))) like 'PT409 %','grading with the old revision is stale');
-select pg_temp.ok(pg_temp.refusal(format('select public.homework_work(%L,''grade'',%L,1,%L)',pg_temp.key('hw'),pg_temp.try_of(3),jsonb_build_object('score',null,'feedback','','reason','',
- 'marks',jsonb_build_array(jsonb_build_object('questionId',(select id from public.homework_questions where assignment_id=pg_temp.key('hw') and type='essay'),'points',7,'feedback',''))))) like '23514 Invalid written marks%','more than the question''s marks is refused');
+reset role;select pg_temp.ok(pg_temp.refusal(format('select public.homework_work(%L,''grade'',%L,1,%L)',pg_temp.key('hw'),pg_temp.try_of(3),jsonb_build_object('score',null,'feedback','','reason','',
+ 'marks',jsonb_build_array(jsonb_build_object('questionId',(select id from public.homework_questions where assignment_id=pg_temp.key('hw') and type='essay'),'points',7,'feedback',''))))) like '23514 Invalid written marks%','more than the question''s marks is refused'); set local role authenticated;
 select pg_temp.ok(pg_temp.released_notices(pg_temp.try_of(3))='none','nothing is sent before release');
 select set_config('hc.single',public.homework_work(pg_temp.key('hw'),'release',pg_temp.try_of(3),1,jsonb_build_object('status','approved','reason',''))::text,true);
 select pg_temp.ok((current_setting('hc.single')::jsonb->'correction'->>'released')::boolean,'a single release');
 select pg_temp.ok(pg_temp.released_notices(pg_temp.try_of(3))='homework_released|true|true|true','a single release notifies the student once');
--- Editing a released correction needs a short reason and takes the grade back until it is released again.
+reset role;-- Editing a released correction needs a short reason and takes the grade back until it is released again.
 select pg_temp.ok(pg_temp.refusal(format('select public.homework_work(%L,''grade'',%L,2,%L)',pg_temp.key('hw'),pg_temp.try_of(3),jsonb_build_object('score',null,'feedback','','reason','no',
- 'marks',jsonb_build_array(jsonb_build_object('questionId',(select id from public.homework_questions where assignment_id=pg_temp.key('hw') and type='essay'),'points',6,'feedback',''))))) like '23514 Released correction requires an audit reason%','a released grade changes only with a reason of three or more characters');
-select pg_temp.ok((public.homework_work(pg_temp.key('hw'),'grade',pg_temp.try_of(3),2,jsonb_build_object('score',null,'feedback','','reason','Marked the unit',
+ 'marks',jsonb_build_array(jsonb_build_object('questionId',(select id from public.homework_questions where assignment_id=pg_temp.key('hw') and type='essay'),'points',6,'feedback',''))))) like '23514 Released correction requires an audit reason%','a released grade changes only with a reason of three or more characters'); set local role authenticated;
+reset role;select pg_temp.ok((public.homework_work(pg_temp.key('hw'),'grade',pg_temp.try_of(3),2,jsonb_build_object('score',null,'feedback','','reason','Marked the unit',
  'marks',jsonb_build_array(jsonb_build_object('questionId',(select id from public.homework_questions where assignment_id=pg_temp.key('hw') and type='essay'),'points',6,'feedback',''))))->'correction'->>'released')::boolean=false,
- 'with a reason it saves, and the grade is withdrawn until released again');
+ 'with a reason it saves, and the grade is withdrawn until released again'); set local role authenticated;
 reset role;
 select pg_temp.ok(exists(select 1 from private.homework_audit where submission_id=pg_temp.try_of(3) and action='grade' and reason='Marked the unit'),'the reason is in the audit');
 -- Bulk release of the queue's list: the four corrected tries.

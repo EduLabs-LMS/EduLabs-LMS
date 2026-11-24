@@ -41,7 +41,7 @@ function scopeRepository(progressRepository) {
  const s=sample();
  return {...progressRepository,courses:async()=>s.courses,course:async()=>s.courses,
   offerings:async()=>s.offerings,modules:async()=>s.modules,myEnrollments:async()=>s.enrollments,
-  lessons:async()=>s.lessons,segments:async()=>s.segments,scheduledAssessments:async()=>[{id:'delivery',offering_id:'A',assessment_id:'exam',published:true}],assessments:async()=>[{id:'exam',title:'Authorized exam',type:'exam'}]};
+  lessons:async()=>s.lessons,segments:async()=>s.segments};
 }
 function scopeLoader(){return local('server/services/website.ts',{
  react:{cache:f=>f},'@/server/services/application-auth':{},'@/server/integrations/supabase':{getSupabaseServerClient:async()=>({})},'@/server/repositories/website':{},'@/shared/auth-config':{},'@/server/services/lesson-media':{lessonThumbnails:async()=>({})}
@@ -53,7 +53,7 @@ for(const truncatedTable of ['lesson_progress','lesson_segment_progress'])test('
  const result=await scopeLoader()({organizations:orgs,repository:scopeRepository(repo)});
  assert.equal(result.contentLimited,false);assert.equal(result.progressLimited,true);assert.equal(result.limited,true);assert.equal(result.progressAvailable,false);
  assert.equal(result.progress.length,0);assert.equal(result.segmentProgress.length,0);
- assert.equal(result.lessons.length,1);assert.equal(result.courses[0].title,'Physics');assert.equal(result.offerings[0].name,'Morning');assert.equal(result.assessments[0].title,'Authorized exam');
+ assert.equal(result.lessons.length,1);assert.equal(result.courses[0].title,'Physics');assert.equal(result.offerings[0].name,'Morning');assert.equal(result.assessments,undefined);assert.equal(result.scheduled,undefined);
  assert.equal(resumeLearning(result,orgs,now).unavailable,true);assert.equal(resumeLearning(result,orgs,now).items.length,0);
  const chapter=shared('shared/v2-learning-model.ts').v2Chapters(result,'A')[0];assert.equal(chapter.progressUnavailable,true);assert.equal(chapter.lessons[0].status,'Open Lesson');assert.equal(chapter.lessons[0].href,'/courses/c/chapters/s1?offering=A');
  assert.equal(calls.filter(c=>c[1]==='limit').length,2);assert.ok(calls.every(c=>c[1]!=='eq'||c[2]!=='user_id'||c[3]==='verified-self'));assert.ok(calls.filter(c=>c[1]==='select').every(c=>c[3].count==='exact'));

@@ -163,7 +163,8 @@ module.exports = async function (makeClient, admin) {
 
     // 12. A course is archived while a tab adds a chapter: the tab waits on the course, then is refused and adds nothing. The other order keeps the chapter, numbered.
     const before = await labels();
-    const archive = (c, status) => c.query('update public.courses set status=$2 where id=$1', [course, status]);
+    // Track 1: a course is saved through public.course_update (the browser has no direct course write any more); it takes the course row lock.
+    const archive = (c, status) => c.query('select public.course_update($1,(select updated_at from public.courses where id=$1),$2)', [course, JSON.stringify({ status })]);
     await a.claim(); await b.claim();
     await archive(a, 'archived');
     second = stale(structure(b, 'create_chapter', null, null, null, { title: 'Too late' }));
@@ -174,6 +175,7 @@ module.exports = async function (makeClient, admin) {
     await admin.query("update public.courses set status='draft' where id=$1", [course]);
     await a.claim(); await b.claim();
     await archive(a, 'archived');
+    await b.query('reset role'); // the browser cannot write lessons directly now; a trusted writer still meets the trigger's share lock
     second = stale(b.query("update public.lessons set title='Too late' where id=$1", [runner.id]));
     await blocked(b); await a.query('commit');
     assert.equal(await second, 'PT409'); await b.query('rollback');

@@ -86,8 +86,8 @@ insert into pg_temp.lp_q select k,gen_random_uuid() from unnest(array['q1','A','
 
 -- ---------------------------------------------------------------- 1. The direct grant is gone; the others stay
 select pg_temp.ok(not has_column_privilege('authenticated','public.lessons','status','UPDATE'),'a client can no longer update a lesson''s status directly');
-select pg_temp.ok(has_column_privilege('authenticated','public.lessons','title','UPDATE') and has_column_privilege('authenticated','public.lessons','position','UPDATE')
- and has_column_privilege('authenticated','public.lessons','description','UPDATE') and has_column_privilege('authenticated','public.lessons','estimated_duration_seconds','UPDATE'),'the other column grants stay');
+select pg_temp.ok(not has_table_privilege('authenticated','public.lessons','insert,update,delete') and not has_column_privilege('authenticated','public.lessons','title','UPDATE') and not has_column_privilege('authenticated','public.lessons','position','UPDATE')
+ and not has_column_privilege('authenticated','public.lessons','description','UPDATE') and not has_column_privilege('authenticated','public.lessons','estimated_duration_seconds','UPDATE'),'no column of a lesson can be written directly any more (Track 1)');
 select pg_temp.ok(not has_function_privilege('anon','public.edit_course_structure(uuid,text,uuid,uuid,timestamptz,jsonb)','execute')
  and has_function_privilege('authenticated','public.edit_course_structure(uuid,text,uuid,uuid,timestamptz,jsonb)','execute')
  and not has_function_privilege('anon','private.edit_course_structure(uuid,text,uuid,uuid,timestamptz,jsonb)','execute'),'the grants of edit_course_structure are kept');
@@ -189,15 +189,15 @@ set local role authenticated;
 select pg_temp.claim('owner');
 select pg_temp.ok(pg_temp.unpub('hwl')=pg_temp.key('hwl'),'the owner unpublishes it, although a student has work in it');
 select pg_temp.claim('s1');
-select pg_temp.ok((select count(*)=0 from public.lessons where id=pg_temp.key('hwl')) and (select count(*)=0 from public.homework_assignments where lesson_id=pg_temp.key('hwl'))
- and (select count(*)=0 from public.homework_submissions where assignment_id=pg_temp.hw()),'after unpublish the student sees neither the lesson, its homework nor their try');
+select pg_temp.ok((select count(*)=0 from public.lessons where id=pg_temp.key('hwl')) and (select count(*)=0 from public.homework_assignments where lesson_id=pg_temp.key('hwl')),'after unpublish the student sees neither the lesson nor its homework');
+select pg_temp.denied($s$select count(*) from public.homework_submissions where assignment_id=pg_temp.hw()$s$,'42501','and cannot read the try by a direct table read either (closed)');
 select pg_temp.denied($s$select public.get_homework(pg_temp.hw())$s$,'42501','and cannot open the homework');
 select pg_temp.denied($s$select public.homework_work(pg_temp.hw(),'start')$s$,'42501','nor start a new try');
 reset role;
 select pg_temp.ok(pg_temp.work()=current_setting('lp.before')::jsonb,'every try, answer, correction, mark, file and audit row is kept exactly');
 set local role authenticated;
 select pg_temp.claim('instructor');
-select pg_temp.ok((select count(*)=1 from public.homework_submissions where assignment_id=pg_temp.hw()),'the teacher still sees the student''s try');
+reset role;select pg_temp.ok((select count(*)=1 from public.homework_submissions where assignment_id=pg_temp.hw()),'the teacher still sees the student''s try'); set local role authenticated;
 select pg_temp.claim('owner');
 select pg_temp.pub('hwl');
 select pg_temp.claim('s1');

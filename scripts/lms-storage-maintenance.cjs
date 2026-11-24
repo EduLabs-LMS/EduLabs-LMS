@@ -29,7 +29,7 @@ async function main() {
       const claimed = await db.$queryRaw`update public.media_assets m set status='archived'
         where id=${id}::uuid and storage_provider='supabase' and ((status='pending' and upload_expires_at<now()) or status='archived')
         and not exists(select 1 from public.lesson_blocks b where b.media_asset_id=m.id)
-        and not exists(select 1 from public.assessment_responses r where r.media_asset_id=m.id)
+        and not private.assessment_response_uses_media(m.id)
         returning bucket,object_path`;
       if (!claimed.length) continue;
       const { error } = await client.storage.from(claimed[0].bucket).remove([claimed[0].object_path]);

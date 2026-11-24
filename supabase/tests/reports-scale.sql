@@ -63,12 +63,14 @@ begin
  end loop;
 end $$;
 analyze;
+create temp table scale_ids as select id,name from public.study_groups where name like 'Scale group %';
+grant select on scale_ids to authenticated;
 set local role authenticated;
 select pg_temp.claim('owner');
 do $$
 declare t0 timestamptz; ids uuid[]; r jsonb; ga jsonb; rep jsonb; d1 numeric; d2 numeric; d3 numeric;
 begin
- ids:=array(select id from public.study_groups where name like 'Scale group %' order by name limit 40);
+ ids:=array(select id from scale_ids order by name limit 40);
  t0:=clock_timestamp(); r:=public.report_groups(ids); d1:=extract(epoch from clock_timestamp()-t0);
  perform pg_temp.ok(jsonb_array_length(r->'groups')=40 and (select sum((x->>'attention')::int) from jsonb_array_elements(r->'groups') x)>100,'the Groups list line for 40 Groups, with Needs attention counts');
  perform pg_temp.ok((select (x->'attendance'->>'total')::int from jsonb_array_elements(r->'groups') x where x->>'groupId'=ids[1]::text)=40*24,'a Group line counts 40 students over 24 sessions');

@@ -24,21 +24,22 @@ const { randomUUID, createHash } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const runtime = process.env.LMS_SQL_RUNTIME || path.resolve('.local/step03a/runtime/node_modules');
 
-const SUITES = ['authorization','hardening','firebase-identity','organization-owner-cascade','organization-provisioning','teacher-editor','exam-attempts-results','exam-authoring','exam-completion','lessons','homework','groups-attendance','group-course-run','notifications-support','group-notifications','student-administration','lesson-covers','chapter-metadata','group-presentation-summary','account-profiles','academic-programs-stages','teacher-websites','website-domains','settings','platform-admin-provisioning','teacher-invitation-delivery','demo-clear-robust','demo-students','demo-notifications','demo-students-screen','group-summary-performance','listing-performance','teaching-space-name','course-content-tree','homework-rules','homework-reads','demo-homework','lesson-publish','homework-move','homework-correct','exams','exams-demo','exams-student','demo-seed-8','reports','reports-scale','reports-demo','live-class'];
-const RACES = ['website-concurrency','domain-concurrency','academic-programs-concurrency','account-concurrency','milestone2-concurrency','group-presentation-concurrency','exam-concurrency','lesson-concurrency','homework-concurrency','homework-rules-concurrency','group-concurrency','communications-concurrency','group-notification-concurrency','student-administration-concurrency','teacher-invitation-concurrency','course-content-concurrency','lesson-publish-concurrency','homework-move-concurrency','exams-concurrency','teacher-homework-sql','course-content-screen-sql'];
+const SUITES = ['authorization','hardening','firebase-identity','organization-owner-cascade','organization-provisioning','teacher-editor','exam-attempts-results','exam-authoring','exam-completion','direct-access-closed','lessons','homework','groups-attendance','group-course-run','notifications-support','group-notifications','student-administration','lesson-covers','chapter-metadata','group-presentation-summary','account-profiles','academic-programs-stages','teacher-websites','website-domains','settings','platform-admin-provisioning','teacher-invitation-delivery','demo-clear-robust','demo-students','demo-notifications','demo-students-screen','group-summary-performance','listing-performance','teaching-space-name','course-content-tree','homework-rules','homework-reads','demo-homework','lesson-publish','homework-move','homework-correct','exams','exams-demo','exams-student','demo-seed-8','reports','reports-scale','reports-demo','live-class'];
+const RACES = ['website-concurrency','domain-concurrency','academic-programs-concurrency','account-concurrency','milestone2-concurrency','group-presentation-concurrency','lesson-concurrency','homework-concurrency','homework-rules-concurrency','group-concurrency','communications-concurrency','group-notification-concurrency','student-administration-concurrency','teacher-invitation-concurrency','course-content-concurrency','lesson-publish-concurrency','homework-move-concurrency','exams-concurrency','teacher-homework-sql','course-content-screen-sql','course-run-concurrency'];
 // Which SQL suites a race or screen-SQL script belongs to (a trailing * matches a prefix). A filtered run takes a script when any
 // selected suite matches.
 const RACE_SUITES = {
  'website-concurrency':['teacher-websites'],'domain-concurrency':['website-domains','teacher-websites'],'academic-programs-concurrency':['academic-programs-stages'],
  'account-concurrency':['account-profiles','settings'],'milestone2-concurrency':['lessons','lesson-covers','chapter-metadata','teacher-editor'],
- 'group-presentation-concurrency':['group-presentation-summary'],'exam-concurrency':['exam-attempts-results','exam-authoring','exam-completion'],
- 'lesson-concurrency':['lessons','lesson-covers','chapter-metadata'],'homework-concurrency':['homework*','demo-homework'],'homework-rules-concurrency':['homework*','demo-homework'],
+ 'group-presentation-concurrency':['group-presentation-summary'], 'lesson-concurrency':['lessons','lesson-covers','chapter-metadata'],'homework-concurrency':['homework*','demo-homework'],'homework-rules-concurrency':['homework*','demo-homework'],
  'group-concurrency':['groups-attendance','group-course-run','group-summary-performance'],'communications-concurrency':['notifications-support'],
  'group-notification-concurrency':['group-notifications','notifications-support'],'student-administration-concurrency':['student-administration'],
  'teacher-invitation-concurrency':['teacher-invitation-delivery','platform-admin-provisioning'],'course-content-concurrency':['course-content-tree'],
  'lesson-publish-concurrency':['lesson-publish'],'homework-move-concurrency':['homework*'],'exams-concurrency':['exams','exams-demo'],
- 'teacher-homework-sql':['homework*'],'course-content-screen-sql':['course-content-tree'],'exam-deadline':['exam-attempts-results','exam-completion'],
+ 'teacher-homework-sql':['homework*'],'course-content-screen-sql':['course-content-tree'],'course-run-concurrency':['group-course-run','direct-access-closed'],
 };
+// Track 1: exam-concurrency.cjs and exam-deadline.cjs raced the legacy exam RPCs, which no client can call any more. They are no longer
+// run (the files stay until Track 10 deletes the legacy exam code); the new exams are raced by exams-concurrency.
 // A script that needs another script's fixtures runs right after it, in the same clone (one job).
 const RACE_AFTER = {'domain-concurrency':'website-concurrency'};
 // Peak connections a script opens (measured; unknown scripts count as 14). A SQL suite counts 2 (its clone and the create/drop).
@@ -121,7 +122,6 @@ async function sequential() {
   if((flag('--bench')||flag('--bench-only')||flag('--bench-listing'))&&!flag('--bench-attendance')){const results=await db.exec(fs.readFileSync('supabase/tests/listing-performance-benchmark.sql','utf8'));console.log('BENCH listing-performance',JSON.stringify(results.flatMap(r=>r.rows).filter(r=>Object.keys(r).some(k=>k.startsWith('lpb_')))));}
   if(flag('--bench')||flag('--bench-only')||flag('--bench-attendance')){const base=fs.readFileSync('supabase/tests/groups-attendance.sql','utf8').split('\n'),cut=base.findIndex(l=>l.includes("set_config('ga.bulk_session'"));const results=await db.exec(base.slice(0,cut+1).join('\n')+'\n'+fs.readFileSync('supabase/tests/group-attendance-save-benchmark.sql','utf8'));console.log('BENCH group-attendance-save',JSON.stringify(results.flatMap(r=>r.rows).filter(r=>Object.keys(r).some(k=>k.startsWith('gas_')))));}
   if(admin) for(const script of RACES) await require(`./${script}.cjs`)(makeClient,db);
-  if(admin && flag('--timers')) await require('./exam-deadline.cjs')(makeClient,db);
   console.log('All local SQL suites passed. No connected Supabase database accessed.');
  } finally {
   await db.close();
@@ -194,7 +194,7 @@ async function parallel() {
  const admin=new Client(options);await admin.connect();
  const run=randomUUID().replaceAll('-','').slice(0,8);
  const only=process.env.LMS_SQL_ONLY?process.env.LMS_SQL_ONLY.split(',').map(s=>s.trim()).filter(Boolean):null;
- const allScripts=[...RACES,...(flag('--timers')?['exam-deadline']:[])];
+ const allScripts=[...RACES];
  if(only){const unknown=only.filter(n=>!SUITES.includes(n)&&!allScripts.includes(n));if(unknown.length)throw new Error('LMS_SQL_ONLY names no suite or script: '+unknown.join(', '));}
  const suites=only?SUITES.filter(n=>only.includes(n)):SUITES;
  const picked=process.env.LMS_SQL_RACES==='0'?[]:only?allScripts.filter(n=>only.includes(n)||matches(n,only)):allScripts;

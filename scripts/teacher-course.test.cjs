@@ -53,6 +53,23 @@ test('teacher update denies unauthorized editors and stale revisions',async()=>{
  assert.equal(saved.writes[0][0],id); assert.equal(saved.writes[0][1],body.updated_at);
  assert.equal(saved.writes[0][2].title,'Physics');assert.equal(saved.writes[0][2].updated_at,undefined);
 });
+test('course save maps the database function refusals: stale revision, invalid details, who may publish, and nothing else leaks',async()=>{
+ const body={status:'published',updated_at:'2026-10-10T15:00:00.000Z'};
+ const run=async error=>{const h=handler({result:{data:null,error}});return h.run(request(body),'update',id);};
+ const stale=await run({code:'PT409',message:'Course changed; reload'});assert.equal(stale.status,409);assert.equal(stale.body.error,'Course changed. Reload before saving.');
+ const invalid=await run({code:'22023',message:'Course slug is invalid'});assert.equal(invalid.status,400);
+ const lead='Only the course owner, its instructor or the space owner or admin can publish, unpublish or archive a course';
+ const notLead=await run({code:'42501',message:lead});assert.equal(notLead.status,403);assert.equal(notLead.body.error,lead);
+ const other=await run({code:'42501',message:'private SQL detail'});assert.equal(other.status,403);assert.equal(JSON.stringify(other).includes('private SQL detail'),false);
+ const duplicate=await run({code:'23505',message:'duplicate key value violates unique constraint "courses_slug_key"'});assert.equal(duplicate.status,409);assert.equal(duplicate.body.error,'This slug is already in use');
+});
+test('the repository saves a course through the one database function and never writes the table',async()=>{
+ const calls=[];const client={rpc:async(name,args)=>{calls.push([name,args]);return {data:{id,updatedAt:'2026-10-10T15:00:01.000Z'},error:null};},from:()=>assert.fail('no direct table access')};
+ const repository=load('server/repositories/teacher-course.ts',{'@/shared/teacher-course':model}).teacherCourseRepository(client,id);
+ const result=await repository.update(id,'2026-10-10T15:00:00.000Z',{title:'Physics',status:'published'});
+ assert.equal(JSON.stringify(calls),JSON.stringify([['course_update',{p_course_id:id,p_revision:'2026-10-10T15:00:00.000Z',p_fields:{title:'Physics',status:'published'}}]]));
+ assert.equal(result.data.id,id);assert.equal(result.error,null);
+});
 test('teacher write rejects mass assignment and oversized bodies',async()=>{
  const h=handler();assert.equal((await h.run(request({title:'Physics',slug:'physics',organization_id:id,created_by:id}),'create')).status,400);
  assert.equal((await h.run(request({description:'x'.repeat(33000)}),'update',id)).status,413);assert.equal(h.writes.length,0);

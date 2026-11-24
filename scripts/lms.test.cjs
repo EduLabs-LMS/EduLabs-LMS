@@ -42,12 +42,9 @@ test('repository excludes keys and unreleased grading columns from student reads
   await repo.options('question'); await repo.responses('attempt');
   assert.deepEqual(selects, ['id,question_id,text,position', 'id,attempt_id,question_id,response,media_asset_id,updated_at']);
 });
-test('progress writes derive identity from verified session and reject invalid positions', async () => {
-  let inserted;
-  const repo = load('server/repositories/lms.ts').createSupabaseLmsRepository({ from: () => ({ upsert(value) { inserted = value; return Promise.resolve({ error: null }); } }) }, 'verified-user');
-  await repo.updateProgress('offering', 'lesson', { status: 'in_progress', videoPositionSeconds: 20, user_id: 'attacker' });
-  assert.equal(inserted.user_id, 'verified-user');
-  assert.throws(() => repo.updateProgress('offering', 'lesson', { status: 'in_progress', videoPositionSeconds: -1 }));
+test('the repository has no direct progress write (progress is saved by a database function)', () => {
+  const repo = load('server/repositories/lms.ts').createSupabaseLmsRepository({ from: () => assert.fail('no table access') }, 'verified-user');
+  assert.equal(repo.updateProgress, undefined);
 });
 test('private storage does not overwrite and rejects Free-tier oversized uploads', async () => {
   let options;
@@ -56,14 +53,9 @@ test('private storage does not overwrite and rejects Free-tier oversized uploads
   assert.equal(options.upsert, false);
   await assert.rejects(adapter.upload('lms-course-media', 'path', { size: 50_000_001 }), /limit/);
 });
-test('media registration allowlists metadata and derives uploader identity', async () => {
-  let inserted;
-  const query = { insert(value) { inserted = value; return this; }, select() { return this; }, single: async () => ({ data: { id: 'asset' }, error: null }) };
-  const repo = load('server/repositories/lms.ts').createSupabaseLmsRepository({ from: () => query }, 'verified-user');
-  await repo.registerMedia({ id: 'asset', status: 'ready', storage_provider: 'external', uploaded_by: 'attacker', organization_id: 'organization' });
-  assert.equal(inserted.uploaded_by, 'verified-user');
-  assert.equal(Object.hasOwn(inserted, 'status'), false);
-  assert.equal(Object.hasOwn(inserted, 'storage_provider'), false);
+test('the repository has no direct media registration (uploads are registered by a database function)', () => {
+  const repo = load('server/repositories/lms.ts').createSupabaseLmsRepository({ from: () => assert.fail('no table access') }, 'verified-user');
+  assert.equal(repo.registerMedia, undefined);
 });
 test('grade port validates result payload and strips unspecified key material', async () => {
   const response = { attempt_id: '10000000-0000-0000-0000-000000000001', status: 'graded', score: 2, max_score: 2, responses: [], answer_keys: 'must never forward' };

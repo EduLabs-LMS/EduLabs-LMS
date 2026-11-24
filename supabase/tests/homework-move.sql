@@ -232,16 +232,16 @@ declare opts jsonb:='[]';keys jsonb:='[]';i integer;o uuid;begin
  return jsonb_set(pg_temp.def('choice',p_published),'{questions,0}',jsonb_build_object('id',pg_temp.q('choice','q1'),'type',p_type,'text','','imageId',null,'points',2,'responseMode','text','modelAnswer','','options',opts,'correctIds',keys));
 end$$;
 select public.save_homework(pg_temp.h('choice'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('choice'),pg_temp.choice(6,2,'multiple_choice',true));
-select pg_temp.ok((select count(*)=6 from public.homework_options where question_id=pg_temp.q('choice','q1')) and (select type='multiple_choice' from public.homework_questions where id=pg_temp.q('choice','q1')),
- 'six blank answers with two right ones publish as multiple choice, with no question text');
+reset role;select pg_temp.ok((select count(*)=6 from public.homework_options where question_id=pg_temp.q('choice','q1')) and (select type='multiple_choice' from public.homework_questions where id=pg_temp.q('choice','q1')),
+ 'six blank answers with two right ones publish as multiple choice, with no question text'); set local role authenticated;
 select public.save_homework(pg_temp.h('choice'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('choice'),pg_temp.choice(2,1,'single_choice',true));
-select pg_temp.ok((select count(*)=2 from public.homework_options where question_id=pg_temp.q('choice','q1')),'two blank answers with one right one publish');
+reset role;select pg_temp.ok((select count(*)=2 from public.homework_options where question_id=pg_temp.q('choice','q1')),'two blank answers with one right one publish'); set local role authenticated;
 select public.save_homework(pg_temp.h('choice'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('choice'),pg_temp.choice(8,8,'multiple_choice',true));
-select pg_temp.ok((select count(*)=8 from public.homework_options where question_id=pg_temp.q('choice','q1')),'eight blank answers, all right, publish');
+reset role;select pg_temp.ok((select count(*)=8 from public.homework_options where question_id=pg_temp.q('choice','q1')),'eight blank answers, all right, publish'); set local role authenticated;
 select public.save_homework(pg_temp.h('choice'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('choice'),pg_temp.choice(5,1,'single_choice',true,'Answer '));
-select pg_temp.ok((select count(*)=5 from public.homework_options where question_id=pg_temp.q('choice','q1') and text like 'Answer %'),'answers with text still save');
+reset role;select pg_temp.ok((select count(*)=5 from public.homework_options where question_id=pg_temp.q('choice','q1') and text like 'Answer %'),'answers with text still save'); set local role authenticated;
 select public.save_homework(pg_temp.h('choice'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('choice'),pg_temp.choice(3,0,'single_choice',false));
-select pg_temp.ok((select count(*)=3 from public.homework_options where question_id=pg_temp.q('choice','q1')),'a draft may have no right answer yet');
+reset role;select pg_temp.ok((select count(*)=3 from public.homework_options where question_id=pg_temp.q('choice','q1')),'a draft may have no right answer yet'); set local role authenticated;
 select pg_temp.denied($s$select public.save_homework(pg_temp.h('choice'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('choice'),pg_temp.choice(9,1,'single_choice',false))$s$,'23514','nine answers are refused');
 select pg_temp.denied($s$select public.save_homework(pg_temp.h('choice'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('choice'),pg_temp.choice(1,1,'single_choice',false))$s$,'23514','one answer is refused');
 select pg_temp.denied($s$select public.save_homework(pg_temp.h('choice'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('choice'),pg_temp.choice(4,0,'single_choice',true))$s$,'23514','publishing needs a right answer');
@@ -350,12 +350,14 @@ select pg_temp.ok(exists(select 1 from jsonb_array_elements(public.homework_uplo
 create function pg_temp.portal_rows() returns jsonb language plpgsql set search_path='' as $$declare acc jsonb:='[]';t text;r jsonb;page integer;begin
  foreach t in array array['open','closed','drafts'] loop page:=0;
   loop r:=public.homework_portal(null,t,page)->'rows'; exit when jsonb_array_length(r)=0; acc:=acc||r; page:=page+1; end loop; end loop; return acc; end$$;
+reset role;
 create function pg_temp.naive_counts(i uuid) returns jsonb language sql security definer set search_path='' as $$
  select jsonb_build_object('questionCount',(select count(*) from public.homework_questions where assignment_id=i),
   'totalMarks',(select case when a.mode='FILE_UPLOAD' then a.file_points else (select coalesce(sum(points),0) from public.homework_questions where assignment_id=i) end from public.homework_assignments a where a.id=i))$$;
+set local role authenticated;
 select pg_temp.ok((select count(*)>=8 from jsonb_array_elements(pg_temp.portal_rows())),'the page lists the teacher''s homework');
-select pg_temp.ok(not exists(select 1 from jsonb_array_elements(pg_temp.portal_rows()) r where jsonb_build_object('questionCount',r->'questionCount','totalMarks',r->'totalMarks')<>pg_temp.naive_counts((r->>'id')::uuid)),
- 'every row''s questions and marks equal a naive count');
+reset role;select pg_temp.ok(not exists(select 1 from jsonb_array_elements(pg_temp.portal_rows()) r where jsonb_build_object('questionCount',r->'questionCount','totalMarks',r->'totalMarks')<>pg_temp.naive_counts((r->>'id')::uuid)),
+ 'every row''s questions and marks equal a naive count'); set local role authenticated;
 select pg_temp.ok((select (r->>'questionCount')::int=2 and (r->>'totalMarks')::int=7 from jsonb_array_elements(pg_temp.portal_rows()) r where (r->>'id')::uuid=pg_temp.h('published')),'two questions, seven marks');
 select pg_temp.ok(exists(select 1 from jsonb_array_elements(public.homework_portal(null,'open',0)->'toCorrect') r where (r->>'id')::uuid=pg_temp.h('handed') and (r->>'questionCount')::int=2 and (r->>'totalMarks')::int=7),'To correct rows carry them too');
 select pg_temp.claim('physonly');

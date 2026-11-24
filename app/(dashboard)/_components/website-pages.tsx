@@ -45,15 +45,6 @@ function Offerings({ scope, hideEmpty = false }: { scope: NonNullable<Awaited<Re
     <div className="divide-y divide-slate-100">{scope.offerings.map(o => <Link className="flex flex-wrap justify-between gap-2 py-4 text-sm hover:text-sky-700" key={o.id} href={`/offerings/${o.id}`}><span className="font-semibold">{o.name}</span><span>{o.status} · {o.delivery_mode.replace('_', ' ')}{scope.enrollments.find(e => e.offering_id === o.id) ? ` · Your enrollment: ${scope.enrollments.find(e => e.offering_id === o.id)?.status}` : ''}</span></Link>)}</div>
   </section>;
 }
-function Assessments({ scope }: { scope: NonNullable<Awaited<ReturnType<typeof loadWebsiteScope>>> }) {
-  const now = Date.now();
-  const upcoming = scope.scheduled.filter(s => scope.assessments.some(a=>a.id===s.assessment_id&&['exam','quiz'].includes(a.type))&&(!s.closes_at || Date.parse(s.closes_at) > now));
-  if (!scope.contentLimited && !upcoming.length) return null;
-  return <section className={panel}><h2 className="mb-3 text-xl font-bold"><L id="common.available_upcoming_assessments"/></h2><p className="mb-4 text-xs text-slate-500"><L id="common.published_exams_and_quizzes_for"/></p>
-    {!upcoming.length && <p className="text-sm text-slate-500">{scope.contentLimited ? "Assessment data is incomplete; no empty summary can be determined." : "No upcoming published assessments."}</p>}
-    {upcoming.map(s => <div className="border-t py-3 text-sm" key={s.id}><Link href={'/exams/'+s.id}><strong>{scope.assessments.find(a => a.id === s.assessment_id)?.title || 'Assessment'}</strong></Link><p>{scope.offerings.find(o => o.id === s.offering_id)?.name}{" "}<L id="common.opens"/>{" "}{s.opens_at ? new Date(s.opens_at).toISOString() : 'any time'}{" "}<L id="common.closes"/>{" "}{s.closes_at ? new Date(s.closes_at).toISOString() : 'without a deadline'}</p></div>)}
-  </section>;
-}
 /**
  * A teacher's Home needs none of the student learning scope (modules, lessons, progress, assessments, thumbnails: about eight more
  * reads in several rounds). With no filter and within the limits, decide staff-or-not from the context's own course and offering
@@ -81,7 +72,7 @@ export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
     <StudentLearning resume={resumeLearning(scope, context.organizations)} home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={scope.offerings} lessons={scope.contentLimited ? [] : v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} />}
     {scope.limited && <p className="text-sm text-slate-500"><L id="common.open_a_course_for_its"/></p>}
     {!staff&&<p className="text-sm text-slate-600"><L id="common.need_course_access_use_your"/>{" "}<Link className="underline" href="/access"><L id="common.view_your_access_requests"/></Link>.</p>}
-    <Offerings scope={scope} hideEmpty /><Assessments scope={scope} />
+    <Offerings scope={scope} hideEmpty />
   </div>;
 }
 export async function WebsiteCourses({ search = {}, teacher = false }: { search?: WebsiteSearch; teacher?: boolean }) {

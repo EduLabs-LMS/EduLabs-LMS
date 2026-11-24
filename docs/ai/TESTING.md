@@ -336,7 +336,7 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
   `homework-move-concurrency` and `teacher-homework-sql`). A script name can be given directly. An unknown name is an error.
   `LMS_SQL_RACES=0` skips races. No filter runs everything. `listing-performance` runs only in the full run or when named.
 - Benchmarks (`--bench`, `--bench-only`, `--bench-attendance`, `--bench-listing`) and the in-memory PGlite runtime keep the old
-  sequential single-database run. `--timers` adds `exam-deadline.cjs` as a job.
+  sequential single-database run. `--timers` and the legacy `exam-concurrency` / `exam-deadline` race scripts were removed from the runner in fix track 1 (the legacy exam functions are closed to every role; the script files stay until Track 10 deletes them). `course-run-concurrency` and the suite `direct-access-closed` were added; `scripts/direct-access.test.cjs` is the A9-11 guard (no direct table write in app code, empty allow-list).
 - **Measured (2026-11-13, 20 cores).** Before: the last full run of the old runner took about 77 minutes (14:38–15:55; earlier ones
   45–55 min). After: 222 s for a full run that also rebuilt the template; the same 189 PASS lines (suites with their check counts,
   races, the 47 replayed migrations' preservation and rewrite checks), no difference. A filtered run (`exams,exams-demo,homework-correct`
