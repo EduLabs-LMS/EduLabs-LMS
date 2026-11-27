@@ -193,6 +193,13 @@ Boards `Correct-Desktop` and `Correct-Phone` in `docs/design/homework-content/`;
   deadline changed". Refusals are said plainly in English and Arabic ("The deadline has passed", "No tries left", changed, already
   handed in, unavailable).
 
+## Homework page change (owner, 2026-11-27, built on `claude/ui-batch-2`, awaiting owner approval)
+
+- **Rows:** every homework, Open and Closed, adds "X of Y handed in · Z late · average M / T" ("no marks yet" when nothing is marked; the average covers released marks, so self-marked homework counts at once). Closed is newest first. "To correct" lists essays only; self-marking homework never appears there.
+- **Students list** (`/teacher/homework/<id>/students`, opened by the row's "X / Y Students" button; exact path in `middleware.ts`, no referrer, private no-store): read only, by Group (then name), each student handed in / late / not handed in, the hand-in time (Cairo), tries used and the mark; a summary line and a note that correcting is on Correct. Route `GET /api/teacher/homework/<id>/students?page=` (100 a page; `public.homework_students`, support staff of the run).
+- **Wizard, Solutions step:** no "Right after they hand in / After the deadline" choice; the rule line says when the answers open (one try: after the hand-in; tries: after the last try, at the deadline or when the student chooses to see them).
+- Screenshots: `docs/design/screenshots/ui-batch-2/`.
+
 ## Reports, spread into existing pages (built on `claude/reports`, awaiting owner approval)
 
 No Reports menu item or page. Existing design components, both looks, light and dark, English and Arabic (RTL), phone first; each section has its own error with Retry and a skeleton that keeps the layout.

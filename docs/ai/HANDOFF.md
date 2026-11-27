@@ -89,3 +89,24 @@ with demo seed 8 (migration `20261116120000`, not applied). Open questions for t
 `docs/design/screenshots/password-reset/`, a real-inbox test, and the decision to apply the migration.
 
 Live online classes (`claude/online-class`, 2026-11-14): Part A (Jitsi server files, runbook, audit) and Part B (draft migration `20261119120000_live_class.sql`, not applied; class page, Start/Join, "Joined online", `class_started` notification, demo seed 9) are built. Next: the owner gives `APP_ORIGIN` (runbook step 0), runs the runbook on the VPS, reviews the screens, and decides on applying the migration and setting `LIVE_CLASS_*`.
+
+## Hard-coded English and placeholder text left after UI batch 2 (2026-11-27)
+
+Fixed on `claude/ui-batch-2`: the student Group page, the Home carousel and badge, the attendance tiles, chapter labels, the "Course
+image" alt, the footer's "soon" items, every message of the student homework result. Still in English or placeholder (a scan of
+`frontend/features`, `frontend/components` and `app/(dashboard)`; page titles passed to `TeacherFoundationPage`, which only renders off
+the new platform, are left out):
+
+- Student homework (the solving page is redesigned after V1): `homework-file-review.tsx` (PDF pages, positioned notes),
+  `homework-history.tsx` ("Correction history", its pager), `homework-media.tsx` (video and picture errors, alt text),
+  `homework-question.tsx` ("Take a photo"), `homework-submission-form.tsx` (older file homework), the "Platform Questions" chip text.
+- Student pages: `self-learning/academic-selection.tsx` (the stage picker, about 15 lines), `student-learning.tsx` (the discovery
+  empty line), `continue-learning.tsx` ("Learning unavailable"), `secure-player.tsx` and `secure-lesson-page.tsx` (video errors,
+  "Return to your lessons"), `exams-view.tsx` and `website-exams.tsx` (load errors), `exam-runner.tsx` ("Exam changed in another tab"),
+  `notifications-view.tsx` (four push messages), `groups/group-roster-view.tsx` ("Study Group Cohort", homework status words),
+  `unavailable/page.tsx` ("This feature is awaiting integration").
+- Shared and older components: `support-modal.tsx` and `support/*` (placeholders, labels), `waitlist-overlay.tsx`,
+  `modals/confirm-modal.tsx` and `add-note-modal.tsx`, `file-upload.tsx` ("Uploads are awaiting a Supabase Storage integration."),
+  `textbook-header.tsx`, the Firebase sign-in messages in `providers/firebase-auth-provider.tsx`, sign-out messages in
+  `dashboard-form.tsx` and `teacher-settings/account-section.tsx`, `home/page.tsx` ("Questions? Contact:").
+- Teacher pages: nothing user-visible found besides the above shared pieces (the matches are message keys and `https://`).
