@@ -38,6 +38,7 @@ supabase/migrations/20261117120000_reports.sql -text
 supabase/migrations/20261118120000_reports_last_4_weeks.sql -text
 supabase/migrations/20261119120000_live_class.sql -text
 supabase/migrations/20261124120000_close_direct_table_access.sql -text
+supabase/migrations/20261127130000_homework_marks_immediate.sql -text
 
 # Live-class server files run on Linux.
 infra/jitsi/** text eol=lf

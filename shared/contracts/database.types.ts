@@ -2327,6 +2327,10 @@ export type Database = {
       homework_portal: { Args: { p_course?: string | null; p_page?: number; p_tab?: string }; Returns: Json }
       homework_queue: { Args: { p_assignment: string; p_page?: number; p_tab?: string }; Returns: Json }
       homework_release_many: { Args: { p_assignment: string; p_items: Json }; Returns: Json }
+      // Homework marks and lesson completion (20261127130000_homework_marks_immediate.sql).
+      homework_students: { Args: { p_assignment: string; p_page?: number }; Returns: Json }
+      lesson_completion: { Args: { p_offerings: string[] }; Returns: Json }
+      lesson_opened: { Args: { p_offering: string; p_lesson: string }; Returns: Json }
       // Exams (20261114120000_exams.sql): private tables, these wrappers only.
       exam_save: { Args: { p_exam: string | null; p_offering: string | null; p_revision: number | null; p_definition: Json }; Returns: Json }
       exam_lifecycle: { Args: { p_exam: string; p_action: string; p_revision: number; p_data?: Json }; Returns: Json }

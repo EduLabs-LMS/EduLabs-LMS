@@ -58,7 +58,7 @@ insert into public.course_staff(course_id,user_id,role) values(pg_temp.key('cour
 insert into public.course_offerings(id,course_id,name,delivery_mode,status) values(pg_temp.key('off'),pg_temp.key('course'),'Synthetic run','scheduled','active'),
  (pg_temp.key('off2'),pg_temp.key('course2'),'Empty run','scheduled','active'),(pg_temp.key('off_b'),pg_temp.key('course_b'),'Foreign run','scheduled','active');
 insert into public.offering_staff(offering_id,user_id,role) values(pg_temp.key('off'),pg_temp.uid('ta'),'teaching_assistant');
-insert into public.enrollments(offering_id,user_id,status,enrolled_at) select pg_temp.key('off'),pg_temp.uid(l),'active',now()-interval '60 days' from unnest(array['a','b','c','d','e','f']) l;
+insert into public.enrollments(offering_id,user_id,status,enrolled_at) select pg_temp.key('off'),pg_temp.uid(l),'active',now()-interval '80 days' from unnest(array['a','b','c','d','e','f']) l;
 insert into public.enrollments(offering_id,user_id,status,enrolled_at) values(pg_temp.key('off_b'),pg_temp.uid('sb'),'active',now()-interval '1 day');
 insert into public.course_modules(id,course_id,title,position) values(pg_temp.key('m1'),pg_temp.key('course'),'Electric current',0),(pg_temp.key('m2'),pg_temp.key('course'),'Magnetism',1),(pg_temp.key('m3'),pg_temp.key('course'),'Induction',2);
 insert into public.lessons(id,module_id,title,position,status) values(pg_temp.key('l1'),pg_temp.key('m1'),'Ohm',0,'published'),(pg_temp.key('l2'),pg_temp.key('m2'),'Fields',0,'published'),(pg_temp.key('l3'),pg_temp.key('m3'),'Coils',0,'published');
@@ -68,8 +68,8 @@ insert into public.study_groups(id,offering_id,name,mode,location,created_by) va
 -- Memberships: a b e in G1 and f in G2 all along; c in G1 until 5 minutes into the month, then G2; d in no Group.
 insert into public.group_memberships(id,group_id,offering_id,user_id,enrollment_id,starts_at,ends_at,created_by)
  select pg_temp.put('mem_'||v.l||'_'||v.gk,gen_random_uuid()),pg_temp.key(v.gk),e.offering_id,e.user_id,e.id,v.s,v.en,pg_temp.uid('owner')
- from (values ('a','g1',now()-interval '50 days',null::timestamptz),('b','g1',now()-interval '50 days',null),('e','g1',now()-interval '50 days',null),('f','g2',now()-interval '50 days',null),
-  ('c','g1',now()-interval '50 days',pg_temp.lo()+interval '5 minutes'),('c','g2',pg_temp.lo()+interval '5 minutes',null)) v(l,gk,s,en)
+ from (values ('a','g1',now()-interval '70 days',null::timestamptz),('b','g1',now()-interval '70 days',null),('e','g1',now()-interval '70 days',null),('f','g2',now()-interval '70 days',null),
+  ('c','g1',now()-interval '70 days',pg_temp.lo()+interval '5 minutes'),('c','g2',pg_temp.lo()+interval '5 minutes',null)) v(l,gk,s,en)
  join public.enrollments e on e.offering_id=pg_temp.key('off') and e.user_id=pg_temp.uid(v.l);
 
 -- ---------------------------------------------------------------- Sessions. G1: S1..S4 finalized this month (S4 starts exactly at the first instant), S5 cancelled, S6 unsaved (draft),
@@ -92,7 +92,7 @@ insert into public.session_attendance(session_id,user_id,membership_id,status)
 -- ---------------------------------------------------------------- Homework (published, file upload, 10 points). H1 H2 H3 due in the first seconds of the month, H6 20 minutes in (c is in G2 by then),
 -- H4 not due yet (10 days ahead), H5 last month. Submissions (released = a grade the student can see).
 insert into public.homework_assignments(id,course_id,offering_id,lesson_id,title,status,family_id,created_by,deadline_at,uses_marks,workflow,mode,tries_mode,max_tries,solutions_open)
- select pg_temp.key(v.k),pg_temp.key('course'),pg_temp.key('off'),pg_temp.key(v.l),v.t,'published',pg_temp.key(v.k),pg_temp.uid('owner'),v.d,true,'questions','PLATFORM_QUESTIONS','one_time',1,'after_deadline' from (values
+ select pg_temp.key(v.k),pg_temp.key('course'),pg_temp.key('off'),pg_temp.key(v.l),v.t,'published',pg_temp.key(v.k),pg_temp.uid('owner'),v.d,true,'questions','PLATFORM_QUESTIONS','one_time',1,'after_hand_in' from (values
   ('h1','l1','Ohm practice',pg_temp.lo()+interval '1 second'),('h2','l1','Series and parallel',pg_temp.lo()+interval '2 seconds'),('h3','l1','Right-hand rule',pg_temp.lo()+interval '3 seconds'),
   ('h6','l2','Magnetic field',pg_temp.lo()+interval '20 minutes'),('h4','l1','Not due yet',now()+interval '400 days'),('h5','l1','Last month',pg_temp.plo()+interval '6 hours')) v(k,l,t,d);
 insert into public.homework_questions(id,assignment_id,position,type,text,points,response_mode) select gen_random_uuid(),a.id,0,'essay','Explain',10,'text' from public.homework_assignments a where a.course_id=pg_temp.key('course');
@@ -287,7 +287,7 @@ insert into public.group_sessions(id,group_id,title,starts_at,ends_at,original_s
 insert into public.session_attendance(session_id,user_id,membership_id,status)
  select pg_temp.key(v.s),pg_temp.uid(v.l),pg_temp.key('mem4_'||pg_temp.uid(v.l)),v.st from (values ('x1','a','attended'),('x2','a','attended'),('x1','b','attended'),('x2','b','not_marked')) v(s,l,st);
 insert into public.homework_assignments(id,course_id,offering_id,lesson_id,title,status,family_id,created_by,deadline_at,uses_marks,workflow,mode,tries_mode,max_tries,solutions_open)
- select pg_temp.key(v.k),pg_temp.key('course3'),pg_temp.key('off3'),pg_temp.key(v.l),v.t,'published',pg_temp.key(v.k),pg_temp.uid('owner'),v.d,true,'questions','PLATFORM_QUESTIONS','one_time',1,'after_deadline' from (values
+ select pg_temp.key(v.k),pg_temp.key('course3'),pg_temp.key('off3'),pg_temp.key(v.l),v.t,'published',pg_temp.key(v.k),pg_temp.uid('owner'),v.d,true,'questions','PLATFORM_QUESTIONS','one_time',1,'after_hand_in' from (values
   ('hp','lp','Published homework',pg_temp.lo()+interval '3 seconds'),('hd','ld','Homework in a draft lesson',pg_temp.lo()+interval '4 seconds'),
   ('ho','lp','Still open',pg_temp.lo()+interval '1 month'-interval '1 minute')) v(k,l,t,d);
 insert into public.homework_submissions(id,assignment_id,user_id,number,status,submitted_at) values(gen_random_uuid(),pg_temp.key('hp'),pg_temp.uid('a'),1,'submitted',now()-interval '1 day');
@@ -355,7 +355,7 @@ insert into public.session_attendance(session_id,user_id,membership_id,status)
   ('r1','c','attended'),('r2','c','attended'),('r3','c','attended'),('r4','c','attended'),('r5','c','attended'),
   ('r1','e','absent'),('r3','e','attended')) v(s,l,st);
 insert into public.homework_assignments(id,course_id,offering_id,lesson_id,title,status,family_id,created_by,deadline_at,uses_marks,workflow,mode,tries_mode,max_tries,solutions_open)
- select pg_temp.key(v.k),pg_temp.key('course4'),pg_temp.key('off4'),pg_temp.key('l5'),v.t,'published',pg_temp.key(v.k),pg_temp.uid('owner'),v.d,true,'questions','PLATFORM_QUESTIONS','one_time',1,'after_deadline' from (values
+ select pg_temp.key(v.k),pg_temp.key('course4'),pg_temp.key('off4'),pg_temp.key('l5'),v.t,'published',pg_temp.key(v.k),pg_temp.uid('owner'),v.d,true,'questions','PLATFORM_QUESTIONS','one_time',1,'after_hand_in' from (values
   ('ha','Due at the start of the window',pg_temp.rs()),('hb','Due just before the window',pg_temp.rs()-interval '1 second')) v(k,t,d);
 set local role authenticated;
 select pg_temp.claim('owner');

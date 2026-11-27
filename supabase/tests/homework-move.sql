@@ -292,15 +292,16 @@ select pg_temp.ok(not has_function_privilege('anon','private.homework_storage(te
 -- After the deadline, and after a reschedule (solutions after the deadline).
 set local role authenticated;
 select pg_temp.claim('teacher');
-select pg_temp.make('later',false,'off1','l1',jsonb_build_object('deadline',pg_temp.at('3 days'),'solutionsOpen','after_deadline'));
+-- 'after_deadline' was retired by the owner (2026-11-27): a try left keeps the solutions shut after the hand-in until the deadline.
+select pg_temp.make('later',false,'off1','l1',jsonb_build_object('deadline',pg_temp.at('3 days'),'tries','fix_mistakes','maxTries',2));
 reset role;
 select set_config('hm.pic2',pg_temp.upload('later','solution','image/jpeg')::text,true);
 set local role authenticated;
 select pg_temp.claim('teacher');
-select public.save_homework(pg_temp.h('later'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('later'),pg_temp.def('later',true,current_setting('hm.pic2')::uuid,jsonb_build_object('deadline',pg_temp.at('3 days'),'solutionsOpen','after_deadline')));
+select public.save_homework(pg_temp.h('later'),pg_temp.key('off1'),pg_temp.key('l1'),null,pg_temp.rev('later'),pg_temp.def('later',true,current_setting('hm.pic2')::uuid,jsonb_build_object('deadline',pg_temp.at('3 days'),'tries','fix_mistakes','maxTries',2)));
 select pg_temp.claim('s1');
 select pg_temp.hand('later');
-select pg_temp.ok(not pg_temp.reads(current_setting('hm.pic2')::uuid) and pg_temp.model_key('later') is null,'solutions after the deadline: closed right after the hand-in, picture included');
+select pg_temp.ok(not pg_temp.reads(current_setting('hm.pic2')::uuid) and pg_temp.model_key('later') is null,'a try left: closed right after the hand-in, picture included');
 select pg_temp.set_deadline('later','-1 second');
 select pg_temp.ok(pg_temp.reads(current_setting('hm.pic2')::uuid) and pg_temp.model_key('later')=current_setting('hm.pic2')::uuid,'open once the deadline passes, picture included');
 select pg_temp.claim('s2');

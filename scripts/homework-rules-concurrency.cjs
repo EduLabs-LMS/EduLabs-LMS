@@ -64,7 +64,7 @@ module.exports = async function (makeClient, admin) {
     const grading = (hw, points) => ({ marks: [{ questionId: hw.q.q2, points, feedback: 'Checked' }], feedback: 'Checked' });
 
     // 1. Two graders (the teacher and an assistant) correct the same try from the same revision: one stands, the other is stale.
-    const hw = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_deadline' });
+    const hw = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_hand_in' });
     const try1 = await hand(s1, hw, 'B', 'First try');
     let r0 = await crev(try1);
     await teacher.claim(); await ta.claim();
@@ -176,7 +176,7 @@ module.exports = async function (makeClient, admin) {
     const released = async list => (await admin.query('select submission_id from private.homework_corrections where submission_id=any($1::uuid[]) and released_at is not null', [list])).rows.map(r => r.submission_id).sort();
     // Three students hand in and the teacher grades them, unreleased.
     const corrected = async () => {
-      const h = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_deadline' });
+      const h = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_hand_in' });
       const t = [await hand(s1, h, 'B', 'Bulk one'), await hand(s2, h, 'B', 'Bulk two'), await hand(s3, h, 'B', 'Bulk three')];
       for (const s of t) { await teacher.claim(); await work(teacher, h.id, 'grade', s, await crev(s), grading(h, 3)); await teacher.query('commit'); }
       return { h, t: [...t].sort() };
@@ -222,7 +222,7 @@ module.exports = async function (makeClient, admin) {
     // 10. A reschedule holds the homework while the old deadline passes; the waiting hand-in counts under the new deadline (late off).
     const resched = (hw, deadline) => one('select revision from public.homework_assignments where id=$1', [hw.id])
       .then(r => teacher.query("select public.homework_lifecycle($1,'reschedule',$2,$3) value", [hw.id, r.revision, { deadline }]));
-    const moved = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_deadline', lateAllowed: false });
+    const moved = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_hand_in', lateAllowed: false });
     await s2.claim();
     const st = value(await work(s2, moved.id, 'start'));
     await work(s2, moved.id, 'save', st.id, st.revision, answer(moved.q, 'B', 'At the old deadline'));
@@ -242,7 +242,7 @@ module.exports = async function (makeClient, admin) {
 
     // 11. The other order: a hand-in holds the homework past the old deadline, the reschedule waits, then records that student
     // (solutions opened at the old deadline), so the extension gives them no further try.
-    const held = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_deadline', lateAllowed: false });
+    const held = await make({ tries: 'fix_mistakes', maxTries: 3, solutionsOpen: 'after_hand_in', lateAllowed: false });
     await s3.claim();
     const st3 = value(await work(s3, held.id, 'start'));
     await work(s3, held.id, 'save', st3.id, st3.revision, answer(held.q, 'A', 'Just before'));

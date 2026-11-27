@@ -65,7 +65,7 @@ begin
    insert into public.homework_assignments(id,family_id,course_id,offering_id,lesson_id,title,mode,status,workflow,deadline_at,late_allowed,tries_mode,max_tries,solutions_open,created_by,updated_at)
     values(hw,hw,c,o,l,'Homework '||k||'.'||j,case when wf='legacy' then 'FILE_UPLOAD' else 'PLATFORM_QUESTIONS' end,st,wf,dl,late,
      case when wf='questions' then (array['one_time','fix_mistakes','from_zero'])[1+j%3] end,case when wf='questions' then case when j%3=0 then 1 else 3 end end,
-     case when wf='questions' then (array['after_hand_in','after_deadline'])[1+j%2] end,pg_temp.uid('owner_a'),now()-make_interval(hours=>j*k));
+     case when wf='questions' then 'after_hand_in' end,pg_temp.uid('owner_a'),now()-make_interval(hours=>j*k));
    -- A second version: in offering 1, homework 4 gets v2 (no work in it), so v1 (with work) and v2 are both listed; homework 2 gets v2 and its v1 (no work) is hidden.
    if k=1 and j in (2,4) then prev:=hw; hw:=gen_random_uuid();
     insert into public.homework_assignments(id,family_id,course_id,offering_id,lesson_id,title,mode,status,workflow,deadline_at,late_allowed,tries_mode,max_tries,solutions_open,created_by,version,supersedes_id)
@@ -126,6 +126,7 @@ create function pg_temp.naive_rows() returns table(id uuid,tab text,counted bool
   'handedIn',case when v.counted then (select count(*) from latest l where l.assignment_id=v.id) end,
   'total',case when v.counted then (select count(distinct e.user_id) from public.enrollments e where e.offering_id=v.offering_id and e.status='active' and (e.enrolled_at is null or e.enrolled_at<=clock_timestamp()) and (e.expires_at is null or e.expires_at>clock_timestamp())) end,
   'late',case when v.counted then (select count(distinct s.user_id) from public.homework_submissions s where s.assignment_id=v.id and s.status='submitted' and s.missed_deadline) end,
+  'averageScore',case when v.counted and v.uses_marks then (select round(avg(c.score),2) from latest l join private.homework_corrections c on c.submission_id=l.id where l.assignment_id=v.id and c.released_at is not null and c.score is not null) end,
   'waiting',case when v.counted then (select coalesce(sum((select count(*) from private.homework_marks m join public.homework_questions q on q.id=m.question_id where m.submission_id=l.id and m.points is null and q.type='essay')
     +case when v.mode='FILE_UPLOAD' and (select c.status from private.homework_corrections c where c.submission_id=l.id)='under_correction' then 1 else 0 end),0) from latest l where l.assignment_id=v.id) end,
   'imageBytes',case when v.counted and v.tab='closed' then (select coalesce(sum(u.size_bytes),0) from private.homework_uploads u where u.assignment_id=v.id and u.purpose='submission' and u.status='ready') end)

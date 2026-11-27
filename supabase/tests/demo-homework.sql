@@ -58,9 +58,9 @@ select pg_temp.ok((select count(*)=5 and bool_and(a.course_id=pg_temp.key('cours
  from public.homework_assignments a join public.courses c on c.id=a.course_id where c.organization_id=pg_temp.key('org')),'all five homework are questions-only homework of the published Physics course, for its whole offering');
 select pg_temp.ok((select array_agg(a.title||'|'||a.status||'|'||a.tries_mode||'|'||a.max_tries||'|'||a.late_allowed||'|'||a.solutions_open||'|'||
   case when a.deadline_at>now() then 'future' else 'past' end order by a.title)
- =array['Kirchhoff''s laws practice|draft|from_zero|3|false|after_deadline|future','Magnetic field of a wire|published|from_zero|2|false|after_deadline|past',
+ =array['Kirchhoff''s laws practice|draft|from_zero|3|false|after_hand_in|future','Magnetic field of a wire|published|from_zero|2|false|after_hand_in|past',
   'Magnetism review homework|published|one_time|1|true|after_hand_in|past',
-  'Ohm''s law: practice set|published|fix_mistakes|2|true|after_deadline|future','Ohm''s law: textbook page 34|published|one_time|1|true|after_hand_in|past']
+  'Ohm''s law: practice set|published|fix_mistakes|2|true|after_hand_in|future','Ohm''s law: textbook page 34|published|one_time|1|true|after_hand_in|past']
  from public.homework_assignments a join public.courses c on c.id=a.course_id where c.organization_id=pg_temp.key('org')),'a draft, an open one, two closed one-time ones and a closed from-zero one');
 select pg_temp.ok((select bool_and(extract(hour from deadline_at at time zone 'Africa/Cairo')=20 and extract(minute from deadline_at at time zone 'Africa/Cairo')=0) from public.homework_assignments where id in
  (pg_temp.hw('Kirchhoff''s laws practice'),pg_temp.hw('Ohm''s law: practice set'),pg_temp.hw('Ohm''s law: textbook page 34'),pg_temp.hw('Magnetic field of a wire'))),'every demo deadline is 20:00 Cairo time');

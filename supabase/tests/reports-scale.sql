@@ -48,7 +48,7 @@ begin
  for j in 1..8 loop
   hw:=gen_random_uuid();
   insert into public.homework_assignments(id,course_id,offering_id,lesson_id,title,status,family_id,created_by,deadline_at,uses_marks,workflow,mode,tries_mode,max_tries,solutions_open)
-   values(hw,course,off,l,'Scale homework '||j,'published',hw,owner,lo+j*interval '1 second',true,'questions','PLATFORM_QUESTIONS','one_time',1,'after_deadline');
+   values(hw,course,off,l,'Scale homework '||j,'published',hw,owner,lo+j*interval '1 second',true,'questions','PLATFORM_QUESTIONS','one_time',1,'after_hand_in');
   insert into public.homework_questions(id,assignment_id,position,type,text,points,response_mode) values(gen_random_uuid(),hw,0,'essay','Explain',10,'text');
   insert into public.homework_submissions(id,assignment_id,user_id,number,status,submitted_at)
    select gen_random_uuid(),hw,sp.id,1,'submitted',now()-interval '1 day' from sp where sp.n<=1600 and (abs(hashtext(sp.id::text||j::text)) % 100)<80;

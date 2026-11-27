@@ -243,13 +243,14 @@ select pg_temp.ok(pg_temp.refusal($s$select public.homework_upload(pg_temp.h('dr
 
 -- ---------------------------------------------------------------- 4. Solutions after the deadline
 select pg_temp.claim('instructor');
-select pg_temp.make('ad',('{"deadline":"'||pg_temp.at('1 hour')||'","lateAllowed":true,"solutionsOpen":"after_deadline"}')::jsonb);
+-- 'after_deadline' was retired by the owner (2026-11-27): the same gates are proved on homework with a try left (fix mistakes, 2 tries).
+select pg_temp.make('ad',('{"deadline":"'||pg_temp.at('1 hour')||'","lateAllowed":true,"tries":"fix_mistakes","maxTries":2}')::jsonb);
 select set_config('hr.ad_solution',pg_temp.solution_file('ad'),true);
 select pg_temp.make('fix2',('{"deadline":"'||pg_temp.at('1 hour')||'","tries":"from_zero","maxTries":2}')::jsonb);
 select pg_temp.claim('s1');
 select pg_temp.hand('ad',pg_temp.ans('ad','B','Before','x'));
 select pg_temp.hand('fix2',pg_temp.ans('fix2','B','Before','x'));
-select pg_temp.ok(pg_temp.solutions('ad')='null'::jsonb and not private.homework_storage('lms-homework',current_setting('hr.ad_solution'),'read'),'after_deadline: closed after a hand-in before the deadline');
+select pg_temp.ok(pg_temp.solutions('ad')='null'::jsonb and not private.homework_storage('lms-homework',current_setting('hr.ad_solution'),'read'),'a try left: closed after a hand-in before the deadline');
 select pg_temp.ok(pg_temp.solutions('fix2')='null'::jsonb,'after_hand_in with a try left: closed before the deadline');
 select pg_temp.set_deadline('ad','-1 second');
 select pg_temp.set_deadline('fix2','-1 second');
@@ -379,7 +380,7 @@ create function pg_temp.seen(p_label text) returns text[] language sql security 
 set local role authenticated;
 -- 9a. Before the old deadline: no new version, and nothing opens or ends.
 select pg_temp.claim('instructor');
-select pg_temp.make('rs',('{"deadline":"'||pg_temp.at('1 hour')||'","tries":"fix_mistakes","maxTries":3,"solutionsOpen":"after_deadline"}')::jsonb);
+select pg_temp.make('rs',('{"deadline":"'||pg_temp.at('1 hour')||'","tries":"fix_mistakes","maxTries":3}')::jsonb);
 select pg_temp.claim('s1');
 select set_config('hr.rs_s1',pg_temp.hand('rs',pg_temp.ans('rs','B','Before','x'))::text,true);
 select pg_temp.claim('ta1');
@@ -405,7 +406,7 @@ select pg_temp.claim('editor');
 select pg_temp.ok(pg_temp.reschedule('rs','{"lateAllowed":true}')=pg_temp.h('rs') and (pg_temp.hwrow(pg_temp.h('rs'))).late_allowed,'a course editor (authoring) may turn late hand-ins on');
 -- 9b. After the old deadline: whoever could see solutions keeps them and has no more tries; the others work under the new deadline.
 select pg_temp.claim('instructor');
-select pg_temp.make('rx',('{"deadline":"'||pg_temp.at('1 hour')||'","tries":"fix_mistakes","maxTries":3,"solutionsOpen":"after_deadline"}')::jsonb);
+select pg_temp.make('rx',('{"deadline":"'||pg_temp.at('1 hour')||'","tries":"fix_mistakes","maxTries":3}')::jsonb);
 select set_config('hr.rx_solution',pg_temp.solution_file('rx'),true);
 select pg_temp.claim('s1');
 select set_config('hr.rx_s1',pg_temp.hand('rx',pg_temp.ans('rx','A','First','y'))::text,true);
