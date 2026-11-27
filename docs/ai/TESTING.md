@@ -423,3 +423,14 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
 - Listing-performance is not part of this track's final SQL run (no listing reads changed; owner, 2026-11-14): the run passes every other suite and script by name in `LMS_SQL_ONLY`.
 
 - `scripts/ui-quick-fixes.test.cjs` (part of npm test): the five owner items of `claude/ui-quick-fixes` at unit level. `scripts/ui-quick-fixes-browser.cjs` (Chromium; `LMS_BROWSER_RUNTIME`, `LMS_CHROMIUM_EXECUTABLE`, a Firebase-mode build for fonts) takes the before/after pictures: teacher screens in the real frame against a fictional API, student pages from the real server components of `website-pages.tsx` rendered with a synthetic scope (no browser scripts, so live sections show their loading state). Its stylesheet takes only the fonts from the build. `LMS_SHOTS_AS=before` in a checkout of the base commit takes the "before" set; `LMS_ONLY_STEPS` runs one step.
+
+## "My scope" (fix track 2a, `claude/fix-02a-my-scope`)
+
+- `supabase/tests/my-scope.sql` (32 checks, `LMS_SQL_ONLY=my-scope`, about 60 s: it also runs the old per-row rules it compares with): structure and grants;
+  39 callers x 8 tables, the new policies' rows equal the old expressions'; each my_* set equals its old helper on every row; anonymous refused; 312
+  progress saves equal the old function's answers; no caller cache (a suspension or revocation in the same transaction takes effect at the next statement,
+  forged settings change nothing); the hashed-SubPlan plan.
+- `scripts/my-scope-proof.cjs` (on demand, not in the runner; needs the runner's template): the large fixtures, old rules (`supabase/tests/my-scope-before.sql`
+  on a clone) vs new, the old server code (git `059d394`) vs the new through a PostgREST-shaped client, timings with an 8 s statement limit, EXPLAIN, the
+  A2a-01 case, caller isolation on one connection. Steps: `MY_SCOPE_ONLY=apply,isolation,rows`, then `MY_SCOPE_REUSE=1 MY_SCOPE_KEEP=1` with `server`
+  (`MY_SCOPE_PART=1/3` .. `3/3`), `explain`, `timings` (it writes progress, so after `server`), `too-large`. Each fits the 10-minute foreground limit.

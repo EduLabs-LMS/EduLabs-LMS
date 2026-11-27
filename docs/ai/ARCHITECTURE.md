@@ -17,6 +17,12 @@ directly; every write is a private security-definer function behind a public inv
 (`course_update`, `course_run`, ...). `scripts/direct-access.test.cjs` fails if app code writes a table.
 Legacy exam tables and functions are closed to every client role, `/api/secure-exams/*` answers 410.
 See fixes/TRACK-01-direct-access.md.
+Reads are authorized once per statement (fix track 2a): the read policies of courses, organizations, profiles, course_modules,
+lessons, lesson_blocks, lesson_segments and lesson_resources check `id in (select private.my_...())`, a security-definer set the
+caller may see, computed once per statement from the existing helpers' own rules. The helpers stay for functions; a new read policy
+must use a set, never a per-row helper. The page context reads the caller's spaces and courses through `public.my_scope()`; the
+student lesson page reads the course outline and the opened lesson only. The caller is resolved per statement, never cached.
+See fixes/TRACK-02a-my-scope.md.
 
 Organizations are tenant boundaries; roles belong to organizations/courses/offerings.
 A teacher in one organization is not an admin in another. Academic programs and

@@ -209,7 +209,7 @@ function restClient(db, label, timings) {
         if (st.single === 'one' && data.length !== 1) return { data: null, error: { code: 'PGRST116' }, count };
         if (st.single === 'maybe' && data.length > 1) return { data: null, error: { code: 'PGRST116' }, count };
         return { data: st.head ? null : st.single ? data[0] ?? null : data, error: null, count };
-      } catch (e) { return { data: null, error: { code: e.code, message: e.message }, count: null }; }
+      } catch (e) { if (process.env.MY_SCOPE_DEBUG) console.error("query error", table, e.code, e.message); return { data: null, error: { code: e.code, message: e.message }, count: null }; }
     }
     return b;
   }
@@ -491,9 +491,9 @@ async function explainBlocks() {
 async function tooLarge() {
   for (const d of [OLD, NEW]) { const c = await connect(d); try { await c.query(`insert into public.lesson_blocks(lesson_id,block_type,position,content) select l.id,'text',10,'{"text":"One more"}' from public.lessons l join public.course_modules m on m.id=l.module_id where m.course_id=$1`, [BIG]); } finally { await c.end(); } }
   const seg = md5uuid('my-scope:key:BIG-m0-l0-p0');
-  const o = await (async () => { const db = await connect(OLD); try { const client = restClient(db, 'seed5'); const code = codeFor('old', client, { id: '10000000-0000-0000-0000-000000000005', backend: 'firebase' }); return settle(async () => oldLessonPage(code, await code.lessons.learningService(BIG), BIG, seg, BIGa)); } finally { await db.end(); } })();
-  const n = await (async () => { const db = await connect(NEW); try { const client = restClient(db, 'seed5'); const code = codeFor('new', client, { id: '10000000-0000-0000-0000-000000000005', backend: 'firebase' }); return settle(async () => code.page.studentLessonPage(await code.lessons.learningService(BIG), BIG, seg, BIGa)); } finally { await db.end(); } })();
-  check(o.error === 413 && n.ok?.kind === 'page' && n.ok.tabs.lessonBlocks.length === 11, 'A2a-01: with 660 items in 60 lessons the old page failed with 413 (shown as "unpublished or expired"); the new page shows the lesson with its 11 items', { old: o.error ?? 'page', new: n.ok?.tabs?.lessonBlocks?.length ?? n.error });
+  const o = await (async () => { const db = await connect(OLD); try { const client = restClient(db, 'seed5'); const code = codeFor('old', client, { id: '10000000-0000-0000-0000-000000000005', backend: 'firebase' }); return await settle(async () => oldLessonPage(code, await code.lessons.learningService(BIG), BIG, seg, BIGa)); } finally { await db.end(); } })();
+  const n = await (async () => { const db = await connect(NEW); try { const client = restClient(db, 'seed5'); const code = codeFor('new', client, { id: '10000000-0000-0000-0000-000000000005', backend: 'firebase' }); return await settle(async () => code.page.studentLessonPage(await code.lessons.learningService(BIG), BIG, seg, BIGa)); } finally { await db.end(); } })();
+  check(o.error === 413 && n.ok?.kind === 'page' && n.ok.tabs.lessonBlocks.length === 11, 'A2a-01: with 660 items in 60 lessons the old page failed with 413 (shown as "unpublished or expired"); the new page shows the lesson with its 11 items', { old: o.error ?? 'page', oldMessage: o.message, new: n.ok?.tabs?.lessonBlocks?.length ?? n.error, newMessage: n.message });
 }
 
 // The caller on one connection: consecutive transactions as different people each get their own rows; nothing carries over.
