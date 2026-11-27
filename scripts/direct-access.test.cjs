@@ -88,11 +88,20 @@ test('no file under server/, app/, shared/ or frontend/ writes a table directly 
   assert.deepEqual(offenders, [], 'Direct table writes must go through a database function:\n' + offenders.join('\n'));
 });
 
-test('the legacy secure exam route answers 410 Gone for every method, and neither allow-list lets it through', () => {
+test('the legacy secure exam route answers 410 Gone for every method, and neither allow-list lets it through', async () => {
   const route = fs.readFileSync('app/api/secure-exams/[examId]/[action]/route.ts', 'utf8');
-  assert.match(route, /status: 410/);
-  for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) assert.match(route, new RegExp('as ' + method + '\\b'), method);
+  for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']) assert.match(route, new RegExp('retiredRoute as ' + method + '\\b'), method);
+  assert.match(route, /from '@\/server\/http\/retired-route';/, 'the adapter delegates to server/http/');
   assert.doesNotMatch(route, /^(import|export)\b.*(exam-runner|examPOST)/m, 'the retired route no longer reaches the old handler');
+  const handler = 'server/http/retired-route.ts';
+  assert.doesNotMatch(fs.readFileSync(handler, 'utf8'), /exam-runner'|examPOST/, 'the retired handler does not reach the old one');
+  const ts = require('typescript'), vm = require('node:vm'), next = require('next/server'), mod = { exports: {} };
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(handler, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
+    { module: mod, exports: mod.exports, require: n => n === 'server-only' ? {} : n === 'next/server' ? next : require(n) });
+  const response = mod.exports.retiredRoute();
+  assert.equal(response.status, 410);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await response.json(), { error: 'This exam route has been retired.' });
   const middleware = fs.readFileSync('middleware.ts', 'utf8');
   assert.match(middleware, /path\.startsWith\('\/api\/secure-exams\/'\)\) return NextResponse\.json\(\{ error: 'This exam route has been retired\.' \}, \{ status: 410/);
   assert.doesNotMatch(middleware, /secure-exams[^\n]*NextResponse\.next\(\)/, 'middleware no longer allows secure-exams through');
