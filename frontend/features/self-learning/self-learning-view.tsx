@@ -153,10 +153,11 @@ export const SelfLearningView = ({ chapters }: SelfLearningViewProps) => {
 										<div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
 											{chapter.lessons.map((lesson, idx) => {
 												const firstSegment = lesson.chapters[0];
+							const href = lesson.href === null ? undefined : lesson.href ?? (firstSegment ? `/courses/${lesson.id}/chapters/${firstSegment.id}` : undefined);
 												return (
 													<LessonCard
 														key={lesson.id}
-														href={lesson.href === null ? undefined : lesson.href ?? (firstSegment ? `/courses/${lesson.id}/chapters/${firstSegment.id}` : undefined)}
+														href={href}
 														chapterType={lesson.chapterType ?? 'Chapter'}
 														chapterNumber={lesson.chapterNumber}
 														lessonNumber={idx + 1}
@@ -164,7 +165,7 @@ export const SelfLearningView = ({ chapters }: SelfLearningViewProps) => {
 														description={lesson.description}
 														imageUrl={lesson.imageUrl}
 														partsCount={lesson.partsCount === undefined ? lesson.chapters.length : lesson.partsCount}
-														status={lesson.status ?? getLessonCardStatus(lesson.chapters)}
+														status={getLessonCardStatus(lesson.chapters, href, lesson.status)}
 													/>
 												);
 											})}

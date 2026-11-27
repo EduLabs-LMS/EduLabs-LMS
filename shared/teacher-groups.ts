@@ -132,6 +132,17 @@ export function failureKind(status: number | null): FailureKind {
   return status === 401 ? 'signin' : status === 403 ? 'denied' : status === 409 ? 'changed' : status === 400 || status === 413 || status === 415 ? 'invalid' : 'unavailable';
 }
 
+/**
+ * Why the database refused to add a student, when it says so. Each key is one of group_command's fixed sentences (no SQL detail), so
+ * the teacher is told which reason applies instead of a list of maybes. Anything else stays a plain "invalid".
+ */
+export const groupRefusals = { 'Already assigned; use transfer': 'other_group', 'Group is full': 'full', 'Active eligible enrollment required': 'no_access' } as const;
+export type GroupRefusal = typeof groupRefusals[keyof typeof groupRefusals];
+export function groupRefusal(message: unknown): GroupRefusal | undefined {
+  return typeof message === 'string' && Object.prototype.hasOwnProperty.call(groupRefusals, message) ? groupRefusals[message as keyof typeof groupRefusals] : undefined;
+}
+export const isGroupRefusal = (value: unknown): value is GroupRefusal => Object.values(groupRefusals).includes(value as GroupRefusal);
+
 // ---- Create and Edit a Group: the form is plain text until it is checked; the database still checks everything again.
 export const GROUP_LENGTHS = [30, 45, 60, 75, 90, 120, 150, 180];
 export const MAX_WEEKLY_TIMES = 14;

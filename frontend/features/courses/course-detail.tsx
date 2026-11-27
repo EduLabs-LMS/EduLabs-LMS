@@ -3,8 +3,8 @@
 import { L, Localized } from '@/frontend/components/language-provider';
 import { Preview } from '@/frontend/components/preview';
 import { Button } from '@/frontend/components/ui/button';
+import Link from 'next/link';
 import { cn } from '@/shared/utils';
-import { Star } from 'lucide-react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import FeedbackItem from '@/frontend/features/courses/feedback/feedback-item';
@@ -15,7 +15,12 @@ import type { Feedback } from '@/shared/contracts/courses';
 import { useAuth } from '@/frontend/components/providers/v2-identity';
 import { isFirebaseStaging } from '@/shared/auth-config';
 
-const CourseDetailPage = ({ initialCourse }: { initialCourse?: {id:string;title:string;description:string|null;imageUrl?:string|null} }) => {
+/**
+ * The top of a student's course page: title, description, picture and Continue (to the part Continue Learning would open).
+ * Feedback and ratings are not a feature of the new platform yet, so nothing of them is shown in Firebase staging: no rating, no
+ * empty list, no placeholder line. The older Clerk build keeps its own feedback list and form.
+ */
+const CourseDetailPage = ({ initialCourse, continueHref }: { initialCourse?: {id:string;title:string;description:string|null;imageUrl?:string|null}; continueHref?: string }) => {
 	const { courseId } = useParams<{ courseId: string }>();
 
 	const { userId } = useAuth();
@@ -65,32 +70,29 @@ const CourseDetailPage = ({ initialCourse }: { initialCourse?: {id:string;title:
 		setIsFeedbacked(true);
 	};
 
+	const staging = isFirebaseStaging();
+	const description = typeof course?.description === 'string' ? course.description : '';
+	// Text a teacher typed in the course settings is plain; older courses may hold rich text from the retired editor.
+	const rich = /^\s*<[a-z][\s\S]*>/i.test(description);
 	return (
-		<div className="p-8">
- {isFirebaseStaging() && <p role="status" className="mb-4 text-xs text-slate-500"><L id="common.feedback_is_awaiting_integration_the"/></p>}
-			<div className="grid grid-cols-1 sm:grid-cols-2 gap-8 center-content">
-				<div>
-					<div className="px-[15px] py-[12px] text-3xl font-bold">
+		<div data-course-detail className="py-2">
+			<div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2 sm:gap-8">
+				<div className="min-w-0">
+					<h1 dir="auto" className="text-3xl font-bold text-slate-950 break-words">
 						{course?.title}
+					</h1>
+
+					<div className={cn('mt-2 text-sm', !description && 'text-slate-500 italic')}>
+						{!description && <L id="common.no_description"/>}
+						{description && (rich ? <div className="-mx-[15px]"><Preview value={description} /></div> : <p dir="auto" className="whitespace-pre-line break-words text-slate-700">{description}</p>)}
 					</div>
 
-					<div
-						className={cn(
-							'text-sm mt-2',
-							!course?.description && 'text-slate-500 italic'
-						)}
-					>
-						{!course?.description && 'No description'}
-
-						{course?.description && <Preview value={course?.description} />}
-					</div>
-
-					<div className="px-4">
-						<Button className="mt-4 w-full"><L id="common.continue_studying"/></Button>
-					</div>
+					{continueHref && (
+						<Button asChild className="mt-4 w-full"><Link data-course-continue href={continueHref}><L id="common.continue_studying"/></Link></Button>
+					)}
 				</div>
 
-				<div>
+				<div className="min-w-0">
 					{course?.imageUrl && (
 						<div className="w-full h-[350px] relative">
 							<Localized as={Image} labels={{"alt":"common.course_image"}}
@@ -100,41 +102,34 @@ const CourseDetailPage = ({ initialCourse }: { initialCourse?: {id:string;title:
 							/>
 						</div>
 					)}
+				</div>
+			</div>
 
-					<div className="flex mt-6 items-center">
-						<div className="flex items-center text-orange-400 font-bold text-xl">
-							{`4/5`}
-							<Star className="w-4 h-4 ml-1 fill-current" />
-						</div>
+			{!staging && (
+				<div className="mt-12">
+					<h2 className="text-2xl font-bold mt-8 mb-4"><L id="common.feedbacks"/></h2>
 
-						<div className="ml-3 text-sm text-slate-500">{`(${feedbacks.length} đánh giá)`}</div>
+					<div className="grid grid-cols-1 gap-y-3">
+						{feedbacks.map((feedback, index) => (
+							<FeedbackItem
+								key={feedback.id}
+								content={feedback.content}
+								fullName={feedback.fullName}
+								imageUrl={feedback.avatarUrl}
+								rating={5}
+								duration={index + 1}
+							/>
+						))}
 					</div>
-				</div>
-			</div>
 
-			<div className="mt-12 pl-4">
-				<div className="text-2xl font-bold mt-8 mb-4"><L id="common.feedbacks"/></div>
-
-				<div className="grid grid-cols-1 gap-y-3">
-					{feedbacks.map((feedback, index) => (
-						<FeedbackItem
-							key={feedback.id}
-							content={feedback.content}
-							fullName={feedback.fullName}
-							imageUrl={feedback.avatarUrl}
-							rating={5}
-							duration={index + 1}
+					{course && !isFeedbacked && (
+						<FeedbackForm
+							courseId={course.id}
+							afterSentFeedback={afterSentFeedback}
 						/>
-					))}
+					)}
 				</div>
-
-				{course && !isFirebaseStaging() && !isFeedbacked && (
-					<FeedbackForm
-						courseId={course.id}
-						afterSentFeedback={afterSentFeedback}
-					/>
-				)}
-			</div>
+			)}
 		</div>
 	);
 };

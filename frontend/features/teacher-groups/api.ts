@@ -1,9 +1,10 @@
-import { failureKind, type FailureKind } from '@/shared/teacher-groups';
+import { failureKind, isGroupRefusal, type FailureKind, type GroupRefusal } from '@/shared/teacher-groups';
 import { swrDropPrefix } from '@/frontend/lib/swr-cache';
 
 /** `status` is null when no reply arrived: for a change, the outcome is then unknown and must not be retried blindly. */
 export class GroupCallError extends Error {
-  constructor(readonly status: number | null) { super(String(status)); }
+  /** `reason`: why the database refused, when it said so (a 400 from adding a student). */
+  constructor(readonly status: number | null, readonly reason?: GroupRefusal) { super(String(status)); }
   get kind(): FailureKind { return failureKind(this.status); }
 }
 
@@ -15,7 +16,11 @@ export async function postJson<T>(url: string, body: object, signal?: AbortSigna
     if ((e as Error).name === 'AbortError') throw e;
     throw new GroupCallError(null);
   }
-  if (!response.ok) throw new GroupCallError(response.status);
+  if (!response.ok) {
+    let reason: GroupRefusal | undefined;
+    if (response.status === 400) try { const body = await response.json() as { reason?: unknown }; if (isGroupRefusal(body.reason)) reason = body.reason; } catch { /* no reason given */ }
+    throw new GroupCallError(response.status, reason);
+  }
   try { return await response.json() as T; } catch { throw new GroupCallError(null); }
 }
 

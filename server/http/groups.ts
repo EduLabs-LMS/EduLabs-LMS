@@ -33,5 +33,5 @@ export async function groupsPOST(request:NextRequest){
    result=await service.command(groupId,action,envelope.version??null,data as Json);
   }
   return NextResponse.json(result,{headers:{'Cache-Control':'no-store'}});
- }catch(e){const status=e instanceof z.ZodError||e instanceof SyntaxError?400:(e as {status?:number}).status??503;return NextResponse.json({error:status===400?'Check the entered details.':status===503?'Groups are temporarily unavailable or require their approved database update.':(e as Error).message},{status,headers:{'Cache-Control':'no-store'}});}
+ }catch(e){const status=e instanceof z.ZodError||e instanceof SyntaxError?400:(e as {status?:number}).status??503;const reason=status===400?(e as {reason?:string}).reason:undefined;return NextResponse.json({error:status===400?'Check the entered details.':status===503?'Groups are temporarily unavailable or require their approved database update.':(e as Error).message,...(reason?{reason}:{})},{status,headers:{'Cache-Control':'no-store'}});}
 }

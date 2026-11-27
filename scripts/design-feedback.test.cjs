@@ -145,7 +145,7 @@ test('A toast only where the screen already confirms, and only as an addition to
     ['frontend/features/teacher-students/invite.tsx', /data-made-link/, /actionToast\(t\('ts\.invite\.ready'\)\)/],
     ['frontend/features/teacher-students/requests.tsx', /data-request-notices/, /actionToast\(t\('ts\.requests\.rejected'\)\)/],
     ['frontend/features/teacher-attendance/attendance-view.tsx', /data-finished/, /actionToast\(t\('ta\.finished'\)\)/],
-    ['frontend/features/teacher-course/course-view.tsx', /data-status-note/, /actionToast\(t\(target === 'published'/],
+    ['frontend/features/teacher-course/course-view.tsx', /data-status-note/, /actionToast\(t\(changeWords\[what\]\.done\)\)/],
   ]) { const source = read(file); assert.match(source, confirmed, file); assert.match(source, said, file); }
 });
 

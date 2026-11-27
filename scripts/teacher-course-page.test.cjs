@@ -37,8 +37,9 @@ test('page: staff only, the id comes from the route, nothing is decided on the c
 });
 test('view: publishing uses the existing PATCH with the version it read; it asks first; it calls no other write endpoint', () => {
  const v = read('frontend/features/teacher-course/course-view.tsx');
- assert.match(v, /fetch\(`\/api\/teacher\/courses\/\$\{course\.id\}`, \{ method: 'PATCH'/); assert.match(v, /JSON\.stringify\(\{ updated_at: course\.updatedAt, status: target \}\)/);
- assert.match(v, /setAsking\(true\)/); assert.match(v, /sent\.current/); assert.match(v, /key=\{load\.course\.updatedAt\}/);
+ assert.match(v, /fetch\(`\/api\/teacher\/courses\/\$\{course\.id\}`, \{ method: 'PATCH'/); assert.match(v, /JSON\.stringify\(\{ updated_at: course\.updatedAt, \.\.\.fields \}\)/);
+ // claude/ui-quick-fixes: one PATCH helper for the name, the description and every status change (Archive and Restore added); each asks first.
+ assert.match(v, /patchCourse\(course, \{ status: what === 'restore' \? 'draft' : what \}\)/); assert.match(v, /setAsking\(what\)/); assert.match(v, /sent\.current/); assert.match(v, /key=\{load\.course\.updatedAt\}/);
  assert.deepEqual([...new Set([...v.matchAll(/['"`](\/api\/[^'"`?$]*)/g)].map(m => m[1]))].sort(), ['/api/teacher/academics', '/api/teacher/courses/']);
  assert.doesNotMatch(v, /usePageLoadingSignal/); assert.doesNotMatch(v.replace(/organizationId/g, ''), /organization/i);
 });

@@ -214,3 +214,10 @@ Only when the meeting server is configured; otherwise nothing below shows and Ow
 - **Board `/class/<session>/board` (staff only; 404 for anyone else):** the whole tab, no frame. A toolbar (wraps on narrow screens; 44 px targets; both looks, light and dark) over a white drawing area that stays white in dark mode: Pen, Eraser; six colours (black, blue, red, green, orange, purple); three widths; Undo, Redo (also Ctrl+Z / Ctrl+Y), Clear page (asks first); Previous, "Page n of N", Next, New page; Save picture (PNG of the page on white); New board (asks first, deletes every page from this browser). Pen, mouse and touch; pen pressure; a resting hand does not draw once a pen is used. A line at the bottom: students see it only when the tab is shared, and it is kept in this browser only; a notice when the browser cannot keep it.
 - **Take attendance:** a "Joined online" tag next to students who opened the class; joined students still not marked are saved as Present once per visit (never a mark changed, never Finish).
 - **Students:** "Join class" on the Group card and the Home next-class card inside the window; the "Your class has started" and "starts soon" notifications open the class page.
+
+## UI quick fixes (built on `claude/ui-quick-fixes`, awaiting owner approval)
+
+- **Every teacher page:** on wide screens the content column is centred beside the menu, 1040 px wide at most; the phone is unchanged.
+- **Course page:** a Course settings card (Course name, Description, Save changes) for whoever may edit the course, before Visibility. Visibility has Publish or Unpublish and Archive (course owner, instructor, space owner or admin), Restore on an archived course (space owner or admin; it comes back as a draft). Archive and Restore ask first. Tour target: `course-settings`.
+- **Group page, Add a student:** a refused Add is said on that student's row, with the database's reason.
+Pictures: `docs/design/screenshots/ui-quick-fixes/` (README there).

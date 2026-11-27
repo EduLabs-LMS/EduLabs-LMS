@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSwr } from '@/frontend/lib/use-swr';
-import { Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { ActionMenu, type MenuAction } from '@/frontend/components/design/action-menu';
 import { AttendanceBar } from '@/frontend/components/design/attendance-bar';
@@ -22,7 +22,8 @@ import { cairoWallTime, sessionDefinition, sessionState, type GroupPage, type Gr
 import { attendanceHref, canTakeAttendance } from '@/shared/teacher-attendance';
 import { classHref, isLiveClass, liveClassOpenAt } from '@/shared/live-class';
 import { useLiveClassOn } from '@/frontend/features/live-class/use-live-class';
-import { NEEDS_SHOWN, attendanceSummary, cairoFields, currentMembers, groupSessions, inviteHref, studentsByName, type WeeklyTime } from '@/shared/teacher-groups';
+import { NEEDS_SHOWN, attendanceSummary, cairoFields, currentMembers, groupSessions, inviteHref, studentsByName, type GroupRefusal, type WeeklyTime } from '@/shared/teacher-groups';
+import type { MessageKey } from '@/frontend/locales/messages';
 import { GroupCallError, groupCall, isAbort } from './api';
 import { readAttendanceTotals, type Totals } from './attendance-totals';
 import { useCourseTitles } from './course-titles';
@@ -382,6 +383,16 @@ function StudentRow({ row, group, canChange, attendance, onRemoved, onStale }: {
   </li>;
 }
 
+const refusalText: Record<GroupRefusal, MessageKey> = { other_group: 'tg.students.add_failed.other_group', full: 'tg.students.add_failed.full', no_access: 'tg.students.add_failed.no_access' };
+
+/** Why an Add failed: the database's own reason when it gives one, otherwise the plain failure. */
+function AddError({ error, name, onStale }: { error: GroupCallError; name?: string; onStale: () => void }) {
+  if (error.reason) return <div role="alert" data-state="error" className="d-alert">
+    <p className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" /><span><L id={refusalText[error.reason]} values={{ name: name ?? '' }} /></span></p>
+  </div>;
+  return <GroupError kind={error.kind} unknownOutcome={error.status === null} invalidText="tg.students.add_failed" onRetry={error.status === null || error.kind === 'changed' ? onStale : undefined} retryLabel="tg.reload" />;
+}
+
 type Eligible = { state: 'loading' } | { state: 'error'; error: GroupCallError } | { state: 'ready'; rows: GroupRow[]; hasMore: boolean; page: number; more: 'idle' | 'loading' | GroupCallError };
 
 /** Students who already have access to this course (the existing `eligible` read); the database re-checks access and capacity on every Add. */
@@ -391,7 +402,8 @@ function AddStudents({ group, present, full, onAdded, onStale, onClose }: { grou
   const [list, setList] = useState<Eligible>({ state: 'loading' });
   const [revision, setRevision] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const { busy, error, run } = useCommand(() => setBusyId(null));
+  const [failedId, setFailedId] = useState<string | null>(null);
+  const { busy, error, run } = useCommand(() => { setBusyId(null); setFailedId(null); });
   useEffect(() => { const timer = setTimeout(() => setQuery(search.trim()), 300); return () => clearTimeout(timer); }, [search]);
   useEffect(() => {
     const controller = new AbortController();
@@ -416,14 +428,16 @@ function AddStudents({ group, present, full, onAdded, onStale, onClose }: { grou
     {list.state === 'loading' && <Loading label="tg.students.loading_eligible" className="h-16" />}
     {list.state === 'error' && <GroupError kind={list.error.kind} onRetry={() => setRevision(v => v + 1)} />}
     {list.state === 'ready' && !rows.length && !list.hasMore && <p data-state="empty" className="d-body"><L id={query ? 'tg.students.none_match' : 'tg.students.none_eligible'} /></p>}
-    {rows.length > 0 && <ul className="d-list">{rows.map(r => <li key={r.user_id} data-eligible={r.user_id} className="d-row">
+    {rows.length > 0 && <ul className="d-list">{rows.map(r => <li key={r.user_id} data-eligible={r.user_id} className="d-row d-row--wrap">
       <Avatar id={r.user_id} name={r.display_name} />
       <span className="d-row-body d-label d-wrap"><span><bdi>{r.display_name}</bdi></span></span>
-      <Button type="button" data-add-one aria-label={t('tg.students.add_named', { name: r.display_name })} disabled={busy || full} onClick={() => { setBusyId(r.user_id); void run(async () => onAdded((await groupCall<{ version: number }>('add', group.id, { userId: r.user_id }, group.version)).version)); }}><Busy on={busyId === r.user_id && busy} /><L id="tg.students.add_one" /></Button>
+      <Button type="button" data-add-one aria-label={t('tg.students.add_named', { name: r.display_name })} aria-describedby={error && failedId === r.user_id ? `add-error-${r.user_id}` : undefined} disabled={busy || full} onClick={() => { setBusyId(r.user_id); setFailedId(r.user_id); void run(async () => onAdded((await groupCall<{ version: number }>('add', group.id, { userId: r.user_id }, group.version)).version)); }}><Busy on={busyId === r.user_id && busy} /><L id="tg.students.add_one" /></Button>
+      {/* The refusal is said on the row whose Add was pressed (and announced), not at the end of a long list. */}
+      {error && failedId === r.user_id && <div id={`add-error-${r.user_id}`} data-add-error={error.reason ?? error.kind} className="d-row-note"><AddError error={error} name={r.display_name} onStale={onStale} /></div>}
     </li>)}</ul>}
     {list.state === 'ready' && list.hasMore && <Button type="button" data-more-eligible disabled={list.more === 'loading'} onClick={() => void loadMore()}><Busy on={list.more === 'loading'} /><L id="tg.students.more_eligible" /></Button>}
     {list.state === 'ready' && list.more instanceof GroupCallError && <GroupError kind={list.more.kind} onRetry={() => void loadMore()} />}
-    {error && <GroupError kind={error.kind} unknownOutcome={error.status === null} invalidText="tg.students.add_failed" onRetry={error.status === null || error.kind === 'changed' ? onStale : undefined} retryLabel="tg.reload" />}
+    {error && (!failedId || !rows.some(r => r.user_id === failedId)) && <div data-add-error={error.reason ?? error.kind}><AddError error={error} onStale={onStale} /></div>}
     <div className="d-dialog-footer"><Button type="button" data-close-add onClick={onClose}><L id="tg.students.close" /></Button></div>
   </section>;
 }

@@ -8,19 +8,31 @@ import { CheckCircle2, Layers, LockKeyhole, PlayCircle } from 'lucide-react';
 
 import { formatChapterLabel } from '@/shared/chapter-label';
 import { cn } from '@/shared/utils';
+import type { MessageKey } from '@/frontend/locales/messages';
 
 export type LessonCardStatus = 'Completed' | 'In Progress' | 'Open Lesson' | 'Not Started' | 'Locked';
 
-/** One rule for both the dashboard and the self-learning page. */
-export const getLessonCardStatus = (parts: { isCompleted: boolean }[]): LessonCardStatus => {
-	if (parts.length === 0) return 'Locked';
+/** The words each status shows, in the student's language. */
+const statusText: Record<LessonCardStatus, MessageKey> = {
+	Completed: 'common.completed', 'In Progress': 'common.inProgressTitle', 'Open Lesson': 'common.openLesson', 'Not Started': 'common.notStartedTitle', Locked: 'common.locked',
+};
+
+/**
+ * One rule for both the dashboard and the self-learning page. A lesson is never tethered to one of its components (DECISIONS.md): a
+ * published lesson with no parts is a normal lesson that opens its lesson page. "Locked" therefore means exactly one thing: the card
+ * has no link, because the student cannot open it (no Group of theirs gives access).
+ */
+export const getLessonCardStatus = (parts: { isCompleted: boolean }[], href?: string | null, given?: LessonCardStatus): LessonCardStatus => {
+	if (!href) return 'Locked';
+	if (given && given !== 'Locked') return given;
+	if (parts.length === 0) return 'Open Lesson';
 	if (parts.every((part) => part.isCompleted)) return 'Completed';
 	if (parts.some((part) => part.isCompleted)) return 'In Progress';
 	return 'Open Lesson';
 };
 
 interface LessonCardProps {
-	/** Link target. Omit when the lesson has no parts yet. */
+	/** Link target. Omit only when the student cannot open the lesson (the card then says Locked). */
 	href?: string;
 	chapterType: string;
 	chapterNumber: number | null;
@@ -136,7 +148,7 @@ export const LessonCard = ({
 					)}
 				>
 					<StatusIcon className="h-3.5 w-3.5" aria-hidden="true" />
-					{status}
+					<L id={statusText[status]} />
 				</span>
 			</div>
 		</article>

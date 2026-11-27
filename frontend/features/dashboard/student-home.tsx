@@ -442,10 +442,11 @@ const StudentHome = ({
 						lessons.map((lesson, index) => {
 							if (discoveryLessonIds && !discoveryLessonIds.includes(lesson.id)) return null;
 							const firstChapter = lesson.chapters[0];
+							const href = lesson.href === null ? undefined : lesson.href ?? (firstChapter ? `/courses/${lesson.id}/chapters/${firstChapter.id}` : undefined);
 							return (
 								<div className="w-72 shrink-0" key={lesson.id}>
 									<LessonCard
-										href={lesson.href === null ? undefined : lesson.href ?? (firstChapter ? `/courses/${lesson.id}/chapters/${firstChapter.id}` : undefined)}
+										href={href}
 										chapterType={lesson.chapterType ?? 'Chapter'}
 										chapterNumber={lesson.chapterNumber}
 										lessonNumber={lessonNumbers[index]}
@@ -453,7 +454,7 @@ const StudentHome = ({
 										description={lesson.description}
 										imageUrl={lesson.imageUrl}
 										partsCount={lesson.partsCount === undefined ? lesson.chapters.length : lesson.partsCount}
-										status={lesson.status ?? getLessonCardStatus(lesson.chapters)}
+										status={getLessonCardStatus(lesson.chapters, href, lesson.status)}
 									/>
 								</div>
 							);

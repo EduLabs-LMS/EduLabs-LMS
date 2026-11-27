@@ -57,7 +57,7 @@ test('no app code writes a lesson status directly (only definer functions do)', 
   for (const f of files) assert.doesNotMatch(read(f), /from\(['"]lessons['"]\)\s*\.\s*(update|upsert|insert)/, f);
 });
 
-test('student models: a published lesson with no parts shows Locked and links to its lesson page, and nothing throws', () => {
+test('student models: a published lesson with no parts links to its lesson page and its card says Open lesson, not Locked; nothing throws', () => {
   const model = load('shared/v2-learning-model.ts'), { resumeLearning } = load('shared/continue-learning.ts');
   const scope = { courses: [{ id: 'c', title: 'Physics' }], modules: [{ id: 'm', course_id: 'c', title: 'Chapter', position: 0, group_type: 'Chapter', chapter_number: 1 }],
     lessons: [{ id: 'empty', module_id: 'm', title: 'Homework only', status: 'published', cover_url: null }, { id: 'full', module_id: 'm', title: 'With a part', status: 'published', cover_url: null }],
@@ -69,6 +69,18 @@ test('student models: a published lesson with no parts shows Locked and links to
   assert.equal(full.href, '/courses/c/chapters/s?offering=o', 'the lesson beside it is unchanged');
   const student = model.v2StudentLessons(scope).find(l => l.id === 'o:empty');
   assert.equal(student.status, 'Locked'); assert.equal(student.href, '/courses/c/lessons/empty?offering=o');
+  // The model (a protected baseline file) still names it Locked; the card follows the owner's rule instead (claude/ui-quick-fixes):
+  // a lesson is never tethered to one of its components, so with a link it is a normal lesson, and Locked means only "no link".
+  const { getLessonCardStatus } = load('frontend/features/courses/lesson-card.tsx');
+  assert.equal(getLessonCardStatus(empty.chapters, empty.href, empty.status), 'Open Lesson', 'Home and the self-learning page: Open lesson');
+  assert.equal(getLessonCardStatus(student.chapters, student.href, student.status), 'Open Lesson');
+  assert.equal(getLessonCardStatus([], null, 'Locked'), 'Locked', 'no link (no Group of theirs): Locked');
+  assert.equal(getLessonCardStatus([{ isCompleted: false }], undefined, 'Not Started'), 'Locked', 'a card without a link is never shown as openable');
+  assert.equal(getLessonCardStatus(full.chapters, full.href, full.status), full.status, 'a lesson with parts keeps its status');
+  assert.equal(getLessonCardStatus([], '/x'), 'Open Lesson'); assert.equal(getLessonCardStatus([{ isCompleted: true }], '/x'), 'Completed');
+  const card = read('frontend/features/courses/lesson-card.tsx');
+  assert.match(card, /<L id=\{statusText\[status\]\} \/>/, 'the status is said in the student\'s language');
+  for (const f of ['frontend/features/dashboard/student-home.tsx', 'frontend/features/self-learning/self-learning-view.tsx']) assert.match(read(f), /status=\{getLessonCardStatus\(lesson\.chapters, href, lesson\.status\)\}/, f + ' uses the one rule');
   const resume = resumeLearning({ limited: false, courses: [{ id: 'c', organization_id: 'org', title: 'Physics', status: 'published' }], offerings: [{ id: 'o', course_id: 'c', name: 'Run', status: 'active' }],
     enrollments: [{ offering_id: 'o', status: 'active', enrolled_at: null, expires_at: null }], modules: scope.modules, lessons: scope.lessons, segments: [], segmentProgress: [], progress: [] }, [{ id: 'org', status: 'active' }], Date.now());
   assert.equal(resume.items.length, 0, 'Continue Learning offers nothing for it');

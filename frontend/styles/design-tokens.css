@@ -14,6 +14,7 @@
 :root {
   --d-space-1: 4px; --d-space-2: 8px; --d-space-3: 12px; --d-space-4: 16px; --d-space-5: 24px; --d-space-6: 32px; --d-space-7: 48px;
   --d-sidebar-width: 240px;
+  --d-content-max: 1040px; /* the teacher content column on wide screens; the same as .d-page */
   --d-header-height: 56px;
   --d-tabs-height: 60px;
   --d-target: 44px;

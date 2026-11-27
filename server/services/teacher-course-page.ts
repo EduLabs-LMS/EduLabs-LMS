@@ -2,7 +2,7 @@ import 'server-only';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import type { WebsiteContext } from '@/server/services/website';
 import { canEditTeacherCourse } from '@/shared/teacher-course';
-import type { CourseLoad } from '@/shared/teacher-course-page';
+import { canChangeCourseStatus, canRestoreCourse, type CourseLoad } from '@/shared/teacher-course-page';
 import type { CourseStatus } from '@/shared/teacher-home';
 
 const statuses: readonly string[] = ['draft', 'published', 'archived'];
@@ -24,6 +24,7 @@ export async function loadCoursePage(context: WebsiteContext, courseId: string):
         showSpace: context.organizations.filter(o => o.status === 'active' && context.memberships.some(m => m.organization_id === o.id && m.status === 'active')).length > 1,
         title: data.title, description: data.description, status: data.status as CourseStatus, updatedAt: data.updated_at,
         canEdit: canEditTeacherCourse(membership, staff),
+        canChangeStatus: canChangeCourseStatus(membership, staff), canRestore: canRestoreCourse(membership),
       },
     };
   } catch { return { state: 'error', status: null }; }

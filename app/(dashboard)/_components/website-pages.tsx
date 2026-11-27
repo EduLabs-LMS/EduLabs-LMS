@@ -18,6 +18,9 @@ import OriginalCourseDetail from '@/frontend/features/courses/course-detail';
 import { v2Chapters, v2StudentLessons,v2OfferingChapters } from '@/shared/v2-learning-model';
 import SearchInput from '@/frontend/components/search-input';
 import { canEditTeacherCourse } from '@/shared/teacher-course';
+import { Suspense } from 'react';
+import { nextSession, type GroupSession, type StudyGroup } from '@/shared/contracts/groups';
+import { YourGroups, type YourGroup } from '@/frontend/features/groups/your-groups';
 
 export type WebsiteSearch = { organization?: string; offering?: string; page?: string; title?: string };
 const panel = 'rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm';
@@ -38,12 +41,29 @@ async function scopeFor(search: WebsiteSearch, courseId?: string) {
 function LimitNotice({ limited, progressLimited = false }: { limited: boolean; progressLimited?: boolean }) {
   return <>{progressLimited && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><L id="resume.partialOverview"/></p>}{limited ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><L id="common.this_overview_shows_at_most"/></p> : null}</>;
 }
-function Offerings({ scope, hideEmpty = false }: { scope: NonNullable<Awaited<ReturnType<typeof loadWebsiteScope>>>; hideEmpty?: boolean }) {
-  if (hideEmpty && !scope.contentLimited && !scope.offerings.length) return null;
-  return <section className={panel}><h2 className="mb-4 flex items-center gap-2 text-xl font-bold"><Users className="h-5 w-5 text-cyan-600" /><L id="common.your_groups_offerings"/></h2>
-    {!scope.offerings.length && <p className="text-sm text-slate-500">{scope.contentLimited ? 'Offering data is incomplete. Open an individual course to check its groups.' : 'No accessible offerings yet. Your teacher will arrange your course enrollment.'}</p>}
-    <div className="divide-y divide-slate-100">{scope.offerings.map(o => <Link className="flex flex-wrap justify-between gap-2 py-4 text-sm hover:text-sky-700" key={o.id} href={`/offerings/${o.id}`}><span className="font-semibold">{o.name}</span><span>{o.status} · {o.delivery_mode.replace('_', ' ')}{scope.enrollments.find(e => e.offering_id === o.id) ? ` · Your enrollment: ${scope.enrollments.find(e => e.offering_id === o.id)?.status}` : ''}</span></Link>)}</div>
-  </section>;
+type Scope = NonNullable<Awaited<ReturnType<typeof loadWebsiteScope>>>;
+/**
+ * "Your Groups": the student's own Groups for the courses on this page, each with its next session, from the existing group reads
+ * (group_view; the database shows a student only their own Groups). No Group, or a failed read, shows nothing: never an empty or
+ * technical box. At most three Groups read their sessions, a few at a time, and the box streams in after the page.
+ */
+async function StudentGroups({ scope, courseId }: { scope: Scope; courseId?: string }) {
+  const offerings = new Map(scope.offerings.filter(o => !courseId || o.course_id === courseId).map(o => [o.id, o]));
+  if (!offerings.size) return null;
+  let groups: StudyGroup[];
+  try { groups = (await (await groupService()).overview()).rows.filter(g => g.status === 'active' && offerings.has(g.offering_id)).slice(0, 3); } catch { return null; }
+  if (!groups.length) return null;
+  const now = Date.now();
+  const rows: YourGroup[] = await Promise.all(groups.map(async g => {
+    let next: GroupSession | null = null;
+    try { const page = await (await groupService()).view<GroupSession>(g.id, 'sessions'); next = nextSession([...(page.nextSession ? [page.nextSession] : []), ...page.rows], page.serverNow ? Date.parse(page.serverNow) : now); } catch { next = null; }
+    const course = scope.courses.find(c => c.id === offerings.get(g.offering_id)?.course_id);
+    return { id: g.id, name: g.name, courseTitle: course?.title ?? '', mode: g.mode, nextStartsAt: next?.starts_at ?? null };
+  }));
+  return <YourGroups groups={rows} showCourse={!courseId} />;
+}
+function Offerings({ scope, courseId }: { scope: Scope; courseId?: string }) {
+  return <Suspense fallback={null}><StudentGroups scope={scope} courseId={courseId} /></Suspense>;
 }
 /**
  * A teacher's Home needs none of the student learning scope (modules, lessons, progress, assessments, thumbnails: about eight more
@@ -72,7 +92,7 @@ export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
     <StudentLearning resume={resumeLearning(scope, context.organizations)} home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={scope.offerings} lessons={scope.contentLimited ? [] : v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} />}
     {scope.limited && <p className="text-sm text-slate-500"><L id="common.open_a_course_for_its"/></p>}
     {!staff&&<p className="text-sm text-slate-600"><L id="common.need_course_access_use_your"/>{" "}<Link className="underline" href="/access"><L id="common.view_your_access_requests"/></Link>.</p>}
-    <Offerings scope={scope} hideEmpty />
+    {!staff && <Offerings scope={scope} />}
   </div>;
 }
 export async function WebsiteCourses({ search = {}, teacher = false }: { search?: WebsiteSearch; teacher?: boolean }) {
@@ -80,7 +100,7 @@ export async function WebsiteCourses({ search = {}, teacher = false }: { search?
     const { context, scope } = await scopeFor(search);
     if (search.offering && !scope.offerings.some(o => o.id === search.offering)) notFound();
     const enrolled=scope.offerings.filter(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'&&(!e.expires_at||Date.parse(e.expires_at)>Date.now())&&(!e.enrolled_at||Date.parse(e.enrolled_at)<=Date.now())));
-    return <><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited}/><StudentLearning resumeOfferingId={search.offering} resume={resumeLearning(scope, context.organizations, Date.now(), search.offering)} organizationId={search.organization} limited={scope.limited} offerings={enrolled} lessons={[]} chapters={scope.contentLimited ? [] : v2OfferingChapters({...scope,offerings:enrolled}, search.offering)}/><Offerings scope={scope} hideEmpty/></>;
+    return <><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited}/><StudentLearning resumeOfferingId={search.offering} resume={resumeLearning(scope, context.organizations, Date.now(), search.offering)} organizationId={search.organization} limited={scope.limited} offerings={enrolled} lessons={[]} chapters={scope.contentLimited ? [] : v2OfferingChapters({...scope,offerings:enrolled}, search.offering)}/><Offerings scope={scope}/></>;
   }
   return <TeacherFoundationPage title="Courses"/>;
 }
@@ -98,7 +118,9 @@ export async function WebsiteCourse({ courseId, search = {} }: { courseId: strin
   const course = scope.courses[0];
   if (search.offering && !scope.offerings.some(o => o.id === search.offering)) notFound();
   const offering = scope.offerings.find(o => o.id === search.offering) ?? scope.offerings.find(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'));
-  return <div className="space-y-6"><OriginalCourseDetail initialCourse={course}/><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited}/><Offerings scope={scope}/><SelfLearningView chapters={scope.contentLimited ? [] : v2Chapters(scope, offering?.id)}/><p role="status"><L id="common.choose_a_lesson_to_study"/></p></div>;
+  const resume = offering ? resumeLearning(scope, context.organizations, Date.now(), offering.id).items.find(i => i.href.startsWith(`/courses/${course.id}/`)) : undefined;
+  // One centred column for the whole page: the top section lines up with the lessons below (SelfLearningView is max-w-6xl, centred).
+  return <div data-course-page className="mx-auto w-full max-w-6xl space-y-6"><OriginalCourseDetail initialCourse={course} continueHref={resume?.href}/><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited}/>{!courseCapability(context, course) && <Offerings scope={scope} courseId={course.id}/>}<SelfLearningView chapters={scope.contentLimited ? [] : v2Chapters(scope, offering?.id)}/><p role="status" className="text-sm text-slate-600"><L id="common.choose_a_lesson_to_study"/></p></div>;
 
 }
 export async function WebsiteGroups({ search = {} }: { search?: WebsiteSearch }) {

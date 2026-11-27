@@ -57,6 +57,9 @@ html[data-lms-appearance][lang] :is(h1, h2, h3).d-title { font-family: var(--d-f
 .d-list { margin: 0; padding: 0; list-style: none; }
 .d-row { display: flex; align-items: center; gap: var(--d-space-3); padding: 10px 0; min-height: 64px; border-bottom: var(--d-divider-width) solid var(--d-divider); }
 .d-row:last-child { border-bottom: 0; }
+/* A row that can carry its own message under it (an Add that was refused says why on that row). */
+.d-row--wrap { flex-wrap: wrap; }
+.d-row-note { flex-basis: 100%; min-width: 0; }
 .d-row-link { display: flex; align-items: center; gap: var(--d-space-3); flex: 1; min-width: 0; min-height: var(--d-target); border-radius: var(--d-radius-field); color: inherit; }
 .d-row-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .d-row-trailing { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--d-space-2); flex: none; max-width: 100%; }
@@ -226,6 +229,9 @@ html[data-design="new"] .d-logo--phone .d-logo-mark { height: 30px; }
 .d-main-inner { flex: 1; width: 100%; padding: var(--d-space-4); }
 @media (min-width: 640px) { .d-main-inner { padding: var(--d-space-5); } }
 @media (min-width: 768px) { .d-main { padding-inline-start: var(--d-sidebar-width); } .d-main-inner { padding: var(--d-space-6); } }
+/* Wide screens: the content column is centred in the space beside the menu, with one width for every teacher page (the page header and
+   each page's own narrower forms start at its edge). Below that width nothing changes, so the phone and tablet layout is as before. */
+@media (min-width: 768px) { .d-main-inner { max-width: calc(var(--d-content-max) + 2 * var(--d-space-6)); margin-inline: auto; } }
 @media (max-width: 767px) { .d-main { min-height: calc(100vh - var(--d-header-height)); padding-bottom: var(--d-tabs-offset); } }
 
 /* Desktop sidebar: flush to the edge */
@@ -260,7 +266,7 @@ html[data-design="new"] .d-logo--phone .d-logo-mark { height: 30px; }
 .d-phone-footer { margin: 0; padding: var(--d-space-3) var(--d-space-4); text-align: center; font-size: 13px; line-height: 18px; color: var(--d-meta); border-top: var(--d-divider-width) solid var(--d-divider); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- Home ---- */
-.d-page { width: 100%; max-width: 1040px; display: flex; flex-direction: column; gap: var(--d-space-5); }
+.d-page { width: 100%; max-width: var(--d-content-max); display: flex; flex-direction: column; gap: var(--d-space-5); }
 .d-tiles { display: grid; grid-template-columns: repeat(var(--d-tile-count, 3), minmax(0, 1fr)); gap: var(--d-space-3); }
 @media (min-width: 768px) { .d-tiles { gap: var(--d-space-4); } }
 .d-kpi { display: flex; align-items: center; gap: 10px; padding: var(--d-space-3) var(--d-space-4); min-width: 0; }
