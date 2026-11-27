@@ -276,7 +276,9 @@ test('the student lesson page: a draft lesson is unavailable, a lesson with a pa
  assert.deepEqual(plain(studentLesson.lessonOverview(tree, progress, 'c', 'nope', 'o')), { kind: 'unavailable' });
  assert.equal(studentLesson.lessonHref('c', 'l1', 'o'), '/courses/c/lessons/l1?offering=o');
  const page = read('app/(dashboard)/_components/secure-lesson-overview.tsx');
- assert.ok(page.indexOf('await service.offering(offeringId!)') < page.indexOf('service.tree()'), 'the group and enrollment check first (draft course, inactive group, ended enrollment)');
+ assert.ok(page.indexOf('await service.offering(offeringId!)') >= 0 && page.indexOf('await service.offering(offeringId!)') < page.indexOf('service.outline()'), 'the group and enrollment check first (draft course, inactive group, ended enrollment)');
+ const partPage = read('server/services/student-lesson-page.ts');
+ assert.ok(partPage.indexOf('await service.offering(offeringId)') >= 0 && partPage.indexOf('await service.offering(offeringId)') < partPage.indexOf('service.outline()'), 'the part page also checks the group and enrollment before it reads anything');
  assert.match(page, /redirect\('\/sign-in'\)/); assert.match(read('frontend/features/courses/lesson/lesson-overview.tsx'), /segmentId=\{null\}/); assert.match(page, /if \(view\.kind === 'part'\) redirect\(view\.href\)/);
  assert.match(read('shared/v2-learning-model.ts'), /:offeringId\?`\/courses\/\$\{module\.course_id\}\/lessons\/\$\{lesson\.id\}\?offering=\$\{offeringId\}`:null/, 'the Locked card links to it');
  assert.doesNotMatch(read('shared/continue-learning.ts'), /\/lessons\//, 'Continue Learning keeps linking parts');

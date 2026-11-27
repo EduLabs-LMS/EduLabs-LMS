@@ -268,6 +268,7 @@ export const ar: Record<keyof typeof en, string> = {
   "lesson_page.back": "العودة إلى الكورس",
   "lesson_page.unavailable": "هذا الدرس غير منشور أو غير متاح، أو انتهى اشتراكك.",
   "lesson_page.failed": "تعذّر تحميل الدروس. حاول مرة أخرى.",
+  "lesson_page.too_large": "هذا الدرس أكبر من أن يُعرض. أخبر معلمك من فضلك.",
   "lesson_page.return": "العودة إلى دروسك",
   "homework.create_homework": "إنشاء واجب",
   "homework.loading_authorized_homework": "جارٍ تحميل الواجبات المتاحة لك…",

@@ -3,7 +3,7 @@ import { validateLessonImage } from './lesson-image-validation';
 import { getSupabaseServerClient } from '@/server/integrations/supabase';
 import { getApplicationViewer } from '@/server/services/application-auth';
 import { editableTeacherCourse } from '@/server/services/teacher-course';
-import { learningEdit, lessonId,lessonUploadIntent,validLessonFile,type LearningTree, type SegmentProgress } from '@/shared/contracts/lessons';
+import { learningEdit, lessonId,lessonUploadIntent,validLessonFile,type LearningBlock,type LearningLessonContent,type LearningOutline,type LearningResource,type LearningSegment,type SegmentProgress } from '@/shared/contracts/lessons';
 import type { Json } from '@/shared/contracts/database.types';
 import { lessonThumbnails } from '@/server/services/lesson-media';
 
@@ -24,19 +24,38 @@ export async function learningService(courseId:string,teacher=false) {
  const client=await getSupabaseServerClient();
  const course=teacher?await editableTeacherCourse(viewer.id,courseId):await checked(client.from('courses').select('id,organization_id,title,status').eq('id',courseId).maybeSingle());
  if(!course)throw lessonFailure('Course unavailable',404);
- async function batch<T>(ids:string[],query:(part:string[])=>PromiseLike<{data:T[]|null;error:{code?:string}|null}>) {
+ // Every page of a read, 1,000 rows at a time (PostgREST's max_rows), in a stable order. The size of OTHER lessons never makes a lesson
+ // unavailable (A2a-01): the outline reads only ids, titles, positions and status, and content is read for the opened lesson alone. A read
+ // past `cap` rows is reported as too large (413), never as unpublished, unavailable or expired.
+ async function pages<T>(query:(from:number,to:number)=>PromiseLike<{data:T[]|null;error:{code?:string}|null}>,cap=20000):Promise<T[]> {
   const results:T[]=[];
-  for(let i=0;i<ids.length;i+=50){const data=await checked(query(ids.slice(i,i+50)));if(data.length>500)throw lessonFailure('Content is too large for this editor. Narrow the module.',413);results.push(...data);}
-  if(results.length>5000)throw lessonFailure('Content is too large for this editor.',413);return results;
+  for(let from=0;;from+=1000){
+   const data=await checked(query(from,from+999));results.push(...data);
+   if(data.length<1000)return results;
+   if(results.length>=cap)throw lessonFailure('This lesson is too large to show.',413);
+  }
  }
- async function tree():Promise<LearningTree> {
-  const modules=await checked(client.from('course_modules').select('*').eq('course_id',courseId).order('position').limit(501));
-  if(modules.length>500)throw lessonFailure('Too many modules. Contact your teacher.',413);
-  const lessons=await batch(modules.map(m=>m.id),ids=>{const q=client.from('lessons').select('*').in('module_id',ids).order('position').limit(501);return teacher?q:q.eq('status','published');});
-  const segments=await batch(lessons.map(l=>l.id),ids=>{const q=client.from('lesson_segments').select('*').in('lesson_id',ids).order('position').limit(501);return teacher?q:q.eq('status','published');});
-  const resources=await batch(segments.map(s=>s.id),ids=>client.from('lesson_resources').select('*').in('segment_id',ids).limit(501));
-  const blocks=await batch(lessons.map(l=>l.id),ids=>client.from('lesson_blocks').select('id,lesson_id,block_type,position,content,media_asset_id,updated_at').in('lesson_id',ids).order('position').limit(501));
-  return {modules,lessons,segments,resources,blocks};
+ // Ids in groups of 100, read one group after another, so a request URL stays bounded and one page view holds one connection at a time.
+ async function grouped<T>(ids:string[],read:(part:string[])=>Promise<T[]>):Promise<T[]> {
+  const results:T[]=[];for(let i=0;i<ids.length;i+=100)results.push(...await read(ids.slice(i,i+100)));return results;
+ }
+ /** The course outline: chapters, lessons and parts with what navigation needs (published only for a student), no content. */
+ async function outline():Promise<LearningOutline> {
+  const modules=await pages<LearningOutline['modules'][number]>((a,b)=>client.from('course_modules').select('id,title,group_type,position').eq('course_id',courseId).order('position').order('id').range(a,b));
+  const lessons=await grouped(modules.map(m=>m.id),ids=>pages<LearningOutline['lessons'][number]>((a,b)=>{const q=client.from('lessons').select('id,module_id,title,position,status').in('module_id',ids);return (teacher?q:q.eq('status','published')).order('id').range(a,b);}));
+  const segments=await grouped(lessons.map(l=>l.id),ids=>pages<LearningOutline['segments'][number]>((a,b)=>{const q=client.from('lesson_segments').select('id,lesson_id,title,position,status').in('lesson_id',ids);return (teacher?q:q.eq('status','published')).order('id').range(a,b);}));
+  return {modules,lessons,segments};
+ }
+ /** One lesson of the outline: its parts (published only for a student), its content items, and the attachments of one part. */
+ async function lesson(from:LearningOutline,id:string,segmentId?:string):Promise<LearningLessonContent> {
+  if(!from.lessons.some(l=>l.id===id))throw lessonFailure('Lesson unavailable or access expired',403);
+  if(segmentId!==undefined&&!from.segments.some(s=>s.id===segmentId&&s.lesson_id===id))throw lessonFailure('Lesson unavailable or access expired',403);
+  const [parts,blocks,resources]=await Promise.all([
+   pages<LearningSegment>((a,b)=>{const q=client.from('lesson_segments').select('*').eq('lesson_id',id);return (teacher?q:q.eq('status','published')).order('position').order('id').range(a,b);}),
+   pages<LearningBlock>((a,b)=>client.from('lesson_blocks').select('id,lesson_id,block_type,position,content,media_asset_id,updated_at').eq('lesson_id',id).order('position').order('id').range(a,b)),
+   segmentId===undefined?Promise.resolve([] as LearningResource[]):pages<LearningResource>((a,b)=>client.from('lesson_resources').select('*').eq('segment_id',segmentId).order('created_at').order('id').range(a,b)),
+  ]);
+  return {parts,blocks,resources};
  }
  async function offering(id:string) {
   lessonId.parse(id);
@@ -93,7 +112,7 @@ export async function learningService(courseId:string,teacher=false) {
   await checked(client.rpc('complete_media_upload',{p_asset_id:id}).then(r=>({...r,data:r.error?null:true})));
   return {id,name:info.name,kind:info.mime==='video/mp4'?'video':info.mime==='application/pdf'?'pdf':'image'};
  }
- return {course,tree,media,offering,cleanup,resource,blockResource,registerUpload,finishUpload,thumbnails:(ids:string[])=>lessonThumbnails(client,ids),
+ return {course,outline,lesson,media,offering,cleanup,resource,blockResource,registerUpload,finishUpload,thumbnails:(ids:string[])=>lessonThumbnails(client,ids),
   progress:async(offeringId:string):Promise<SegmentProgress[]>=>{await offering(offeringId);return checked(client.from('lesson_segment_progress').select('segment_id,lesson_id,offering_id,status,video_position_seconds,revision').eq('offering_id',offeringId).eq('user_id',viewer.id).limit(5001));},
   edit:async(input:unknown)=>{if(!teacher)throw lessonFailure('Editing denied',403);const v=learningEdit.parse(input);return checked(client.rpc('edit_learning_content',{p_course_id:courseId,p_action:v.action,p_id:v.id,p_parent_id:v.parentId,p_updated_at:v.updatedAt,p_data:v.data as Json}));},
   saveProgress:async(offeringId:string,segmentId:string,position:number,complete:boolean,revision:number)=>checked(client.rpc('save_segment_progress',{p_offering_id:offeringId,p_segment_id:segmentId,p_position:position,p_complete:complete,p_revision:revision})),

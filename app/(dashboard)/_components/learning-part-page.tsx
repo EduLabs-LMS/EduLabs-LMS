@@ -8,7 +8,7 @@ export async function LearningPartPage({courseId,segmentId}:{courseId:string;seg
  if(!isFirebaseStaging())return <TeacherFoundationPage title="Course management"/>;
  if(!await getApplicationViewer())redirect('/sign-in');
  if(!lessonId.safeParse(courseId).success||!lessonId.safeParse(segmentId).success)notFound();
- const service=await learningService(courseId,true);const tree=await service.tree();
- if(!tree.segments.some(s=>s.id===segmentId))notFound();
+ const service=await learningService(courseId,true);const outline=await service.outline();
+ if(!outline.segments.some(s=>s.id===segmentId))notFound();
  return <TeacherFoundationPage title="Lesson editor"/>;
 }

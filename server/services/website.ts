@@ -10,18 +10,19 @@ import { lessonThumbnails } from '@/server/services/lesson-media';
 
 /**
  * Who the caller is and what they may see, read once per request.
- * Rounds: (1) the profile lookup (two reads), the spaces, and the courses followed by their offerings, all side by side (none of
- * those three needs the profile id), then (2) memberships, course staff and offering staff together. Authorization is unchanged:
- * every read still runs with the caller's own token under RLS, and nothing from round (1) is used if the profile is missing.
+ * Rounds: (1) the profile lookup (two reads), and the caller's spaces and courses (one my_scope call, fix track 2a) followed by the
+ * courses' offerings, side by side (neither needs the profile id), then (2) memberships, course staff and offering staff together.
+ * Every read runs with the caller's own token: my_scope applies the read policies' own rule for the caller it resolves from that token,
+ * the other reads run under RLS, and nothing from round (1) is used if the profile is missing.
  */
 export const getWebsiteContext = cache(async () => {
   if (!isFirebaseStaging()) throw new Error('Firebase staging required');
   const session = await getFirebaseSession();
   if (!session || session.identity.role !== 'authenticated' || !session.identity.email_verified) return null;
   const client = await getSupabaseServerClient();
-  // organizations(), courses() and offerings() never use the profile id, so they can start before the profile is known.
+  // scope() and offerings() never use the profile id, so they can start before the profile is known.
   const early = createWebsiteRepository(client, '');
-  const spacesAndCourses = Promise.all([early.organizations(), early.courses().then(async courses => ({ courses, offerings: await early.offerings(courses.map(c => c.id)) }))]);
+  const spacesAndCourses = early.scope().then(async ({ organizations, courses }) => [organizations, { courses, offerings: await early.offerings(courses.map(c => c.id)) }] as const);
   spacesAndCourses.catch(() => {}); // when there is no profile the result is dropped; a failure must not surface as an unhandled rejection
   const viewer = await getApplicationViewer();
   if (!viewer) return null;

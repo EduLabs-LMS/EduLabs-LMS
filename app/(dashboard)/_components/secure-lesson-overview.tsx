@@ -17,9 +17,10 @@ export async function SecureLessonOverview({ courseId, id, offeringId }: { cours
   try {
     const service = await learningService(courseId);
     await service.offering(offeringId!);
-    const [tree, progress] = await Promise.all([service.tree(), service.progress(offeringId!)]);
-    view = lessonOverview(tree, progress, courseId, id, offeringId!);
-  } catch (e) { return <LessonUnavailable failed={(e as { status?: number }).status === 503} />; }
+    // The outline only (ids, titles, positions, status): this page shows no content, so it reads none (fix track 2a).
+    const [outline, progress] = await Promise.all([service.outline(), service.progress(offeringId!)]);
+    view = lessonOverview(outline, progress, courseId, id, offeringId!);
+  } catch (e) { const status = (e as { status?: number }).status; return <LessonUnavailable failed={status === 503} tooLarge={status === 413} />; }
   if (view.kind === 'part') redirect(view.href);
   if (view.kind === 'unavailable') return <LessonUnavailable />;
   return <LessonOverview courseId={courseId} lessonId={id} offeringId={offeringId!} title={view.title} module={view.module} back={lessonPage(courseId, offeringId!)} />;

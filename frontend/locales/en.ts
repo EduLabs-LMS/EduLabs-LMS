@@ -268,6 +268,7 @@ export const en = {
   "lesson_page.back": "Back to the course",
   "lesson_page.unavailable": "This lesson is unpublished, unavailable or your enrollment has expired.",
   "lesson_page.failed": "Lessons could not be loaded. Please retry.",
+  "lesson_page.too_large": "This lesson is too large to show. Please tell your teacher.",
   "lesson_page.return": "Return to your lessons",
   "homework.create_homework": "Create Homework",
   "homework.loading_authorized_homework": "Loading authorized homework…",

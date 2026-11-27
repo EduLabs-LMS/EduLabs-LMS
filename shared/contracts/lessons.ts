@@ -38,11 +38,14 @@ export type LearningResource = {id:string;segment_id:string;name:string;media_as
 export type LearningBlock = {id:string;lesson_id:string;block_type:string;position:number;content:import('./database.types').Json;media_asset_id:string|null;updated_at:string};
 export type SegmentProgress = {segment_id:string;lesson_id:string;offering_id:string;status:string;video_position_seconds:number;revision:number};
 export type LearningTree = {modules:LearningModule[];lessons:LearningLesson[];segments:LearningSegment[];resources:LearningResource[];blocks:LearningBlock[]};
+/** A student's course outline (fix track 2a): what navigation needs, no content. Content is read for the opened lesson only. */
+export type LearningOutline = {modules:Pick<LearningModule,'id'|'title'|'group_type'|'position'>[];lessons:Pick<LearningLesson,'id'|'module_id'|'title'|'position'|'status'>[];segments:Pick<LearningSegment,'id'|'lesson_id'|'title'|'position'|'status'>[]};
+export type LearningLessonContent = {parts:LearningSegment[];blocks:LearningBlock[];resources:LearningResource[]};
 
 export function lessonPartHref(courseId:string,segmentId:string,offeringId:string) {
  return `/courses/${courseId}/chapters/${segmentId}?offering=${offeringId}`;
 }
-export function continuePart(parts:LearningSegment[],progress:SegmentProgress[],offeringId:string) {
+export function continuePart<T extends Pick<LearningSegment,'id'|'position'|'status'>>(parts:T[],progress:SegmentProgress[],offeringId:string):T|undefined {
  const rows = parts.filter(p=>p.status==='published').sort((a,b)=>a.position-b.position);
  return rows.find(s=>progress.some(p=>p.offering_id===offeringId&&p.segment_id===s.id&&p.status==='in_progress')) ??
  rows.find(s=>!progress.some(p=>p.offering_id===offeringId&&p.segment_id===s.id&&p.status==='completed')) ?? rows[0];

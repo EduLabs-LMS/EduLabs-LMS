@@ -2514,6 +2514,7 @@ export type Database = {
         }
         Returns: Json
       }
+      my_scope: { Args: never; Returns: Json }
       onboard_firebase_profile: { Args: never; Returns: string }
       register_lesson_upload: {
         Args: { p_course_id: string; p_filename: string; p_mime: string }

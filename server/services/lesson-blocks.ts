@@ -2,7 +2,7 @@ import 'server-only';
 import type { LearningTree } from '@/shared/contracts/lessons';
 export type LessonBlockView={id:string;type:string;text:string;mediaUrl:string|null;downloadUrl:string|null};
 /** Existing Supabase blocks remain readable; no Clerk/Prisma data is consulted. */
-export async function lessonBlockViews(tree:LearningTree,lessonId:string,courseId:string,media:(id:string)=>Promise<string>):Promise<LessonBlockView[]> {
+export async function lessonBlockViews(tree:Pick<LearningTree,'blocks'>,lessonId:string,courseId:string,media:(id:string)=>Promise<string>):Promise<LessonBlockView[]> {
  return Promise.all(tree.blocks.filter(b=>b.lesson_id===lessonId).map(async b=>{
   const content=b.content&&typeof b.content==='object'&&!Array.isArray(b.content)?b.content:{};
   const raw=content.text??content.html??content.title;

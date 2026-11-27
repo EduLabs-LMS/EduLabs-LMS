@@ -21,9 +21,9 @@ export function LessonOverview({ courseId, lessonId, offeringId, title, module, 
   </div>;
 }
 
-export function LessonUnavailable({ failed = false }: { failed?: boolean }) {
+export function LessonUnavailable({ failed = false, tooLarge = false }: { failed?: boolean; tooLarge?: boolean }) {
   return <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3" data-lesson-unavailable>
-    <p role="alert"><L id={failed ? 'lesson_page.failed' : 'lesson_page.unavailable'} /></p>
+    <p role="alert"><L id={tooLarge ? 'lesson_page.too_large' : failed ? 'lesson_page.failed' : 'lesson_page.unavailable'} /></p>
     <Link className="inline-flex min-h-[44px] items-center text-sky-700 font-semibold" href="/self-learning"><L id="lesson_page.return" /></Link>
   </div>;
 }

@@ -22,7 +22,18 @@ async function completeProgress<T>(query: PromiseLike<{ data: T[] | null; error:
 /** Read-only Phase 1 port. Caller JWT + RLS remain authoritative on every query. */
 export function createWebsiteRepository(client: SupabaseClient<Database>, profileId: string) {
   return {
-    organizations: () => rows(client.from('organizations').select('id,name,status').order('id').limit(101)),
+    // The caller's spaces and courses for the every-page context (fix track 2a, A1-01): one definer function resolves the caller once and
+    // returns the first 101 of each by id, the rows the old unfiltered reads returned under RLS, instead of a permission check per row of
+    // the whole platform.
+    scope: async () => {
+      const data = await rows(client.rpc('my_scope'));
+      const value = data as { organizations?: unknown; courses?: unknown } | null;
+      if (!value || typeof value !== 'object' || !Array.isArray(value.organizations) || !Array.isArray(value.courses)) throw new Error('Unable to load learning data');
+      return {
+        organizations: value.organizations as { id: string; name: string; status: string }[],
+        courses: value.courses as { id: string; organization_id: string; title: string; description: string | null; status: string }[],
+      };
+    },
     memberships: () => rows(client.from('organization_memberships').select('organization_id,role,status').eq('user_id', profileId).order('organization_id').limit(101)),
     courseStaff: () => rows(client.from('course_staff').select('course_id,role').eq('user_id', profileId).order('course_id').limit(101)),
     offeringStaff: () => rows(client.from('offering_staff').select('offering_id,role').eq('user_id', profileId).order('offering_id').limit(101)),
