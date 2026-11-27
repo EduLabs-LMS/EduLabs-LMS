@@ -58,7 +58,7 @@ test('the teacher\'s footer says where to get help; students keep their text; /s
   assert.ok(messages.en['dynamic.platformHelp'].includes('authorized teacher'), 'the student wording is untouched');
   const { isPhaseOneRoute } = localization.load('shared/website-routes.ts');
   assert.equal(isPhaseOneRoute('/support'), true, 'the link goes somewhere real');
-  assert.ok(footer.includes('dynamic.courseHelp') && footer.includes('dynamic.contactSoon'), 'the Soon items are left as they are');
+  assert.ok(!footer.includes('dynamic.courseHelp') && !footer.includes('dynamic.contactSoon') && /\{!firebase && <>/.test(footer), 'the Soon items are hidden on the new platform (owner, 2026-11-27)');
 });
 
 test('the menu changes in place: no travelling indicator in the frame, 120 ms, only inside the motion block; the tab underline stays', () => {

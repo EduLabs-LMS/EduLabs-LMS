@@ -4,7 +4,8 @@
 
 export const CAIRO = 'Africa/Cairo';
 export type Tries = 'one_time' | 'fix_mistakes' | 'from_zero';
-export type SolutionsOpen = 'after_hand_in' | 'after_deadline';
+/** 'after_deadline' was retired by the owner (2026-11-27): the answers open once a student can no longer improve. */
+export type SolutionsOpen = 'after_hand_in';
 export type PortalTab = 'open' | 'closed' | 'drafts';
 export const PORTAL_TABS: readonly PortalTab[] = ['open', 'closed', 'drafts'];
 export const MIN_TRIES = 2, MAX_TRIES = 10, MAX_QUESTIONS = 100, MAX_OPTIONS = 8, MIN_OPTIONS = 2, MAX_MARKS = 100;
@@ -61,6 +62,8 @@ export type PortalRow = {
   workflow: 'legacy' | 'questions'; mode: string; status: 'draft' | 'published'; deadline: string | null; lateAllowed: boolean; tries: Tries; maxTries: number;
   solutionsOpen: SolutionsOpen; photosAllowed: boolean; updatedAt: string; questionCount: number; totalMarks: number;
   handedIn: number | null; total: number | null; late: number | null; waiting: number | null; imageBytes: number | null;
+  /** The average of the released marks of the latest tries (a self-marked try counts at its hand-in); null with nothing marked yet. */
+  averageScore?: number | null;
 };
 export type Portal = {
   tab: PortalTab; page: number; pageSize: number; serverNow: string;
@@ -300,7 +303,26 @@ export function fromView(v: TeacherHomeworkView, courseId: string): WizardState 
   };
 }
 /** The plain rule for when solutions open (DECISIONS.md, "Homework and course content"). */
-export function solutionsRule(s: Pick<WizardState, 'solutionsOpen' | 'tries' | 'maxTries'>): 'after_hand_in' | 'after_last_try' | 'after_deadline' {
-  if (s.solutionsOpen === 'after_deadline') return 'after_deadline';
+export function solutionsRule(s: Pick<WizardState, 'tries' | 'maxTries'>): 'after_hand_in' | 'after_last_try' {
   return s.tries === 'one_time' ? 'after_hand_in' : 'after_last_try';
+}
+
+/** One homework's students (homework_students, owner 2026-11-27): read only, 100 a page, by Group then name. */
+export type StudentState = 'handed_in' | 'late' | 'not_handed_in';
+export type HomeworkStudentRow = { userId: string; name: string | null; groupId: string | null; groupName: string | null; state: StudentState; late: boolean;
+  submittedAt: string | null; tries: number; score: number | null; waiting: boolean };
+export type HomeworkStudents = {
+  page: number; pageSize: number; serverNow: string;
+  homework: { id: string; title: string; courseId: string; offeringId: string; deadline: string | null; lateAllowed: boolean; tries: Tries; maxTries: number; status: string; usesMarks: boolean; totalMarks: number };
+  counts: { total: number; handedIn: number; late: number; notHandedIn: number; averageScore: number | null };
+  rows: HomeworkStudentRow[];
+};
+/** The rows of one page, grouped by Group in the order they came (null Group last, as the database sorts). */
+export function byGroup(rows: HomeworkStudentRow[]): { groupId: string | null; groupName: string | null; rows: HomeworkStudentRow[] }[] {
+  const out: { groupId: string | null; groupName: string | null; rows: HomeworkStudentRow[] }[] = [];
+  for (const r of rows) {
+    const last = out[out.length - 1];
+    if (last && last.groupId === r.groupId) last.rows.push(r); else out.push({ groupId: r.groupId, groupName: r.groupName, rows: [r] });
+  }
+  return out;
 }

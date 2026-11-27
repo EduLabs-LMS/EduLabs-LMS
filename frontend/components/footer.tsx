@@ -24,14 +24,17 @@ const Footer = ({ audience = 'student' }: { audience?: 'student' | 'teacher' }) 
 						</p>
 					</div>
 					<Localized as="nav" labels={{"aria-label":"common.contact_and_support"}} className="flex flex-wrap items-center gap-2">
-						<a role="link" href={firebase ? undefined : TEACHER_CONTACT.whatsappUrl} aria-disabled={firebase || undefined} tabIndex={0} title={firebase ? 'Course help routing is not yet available.' : undefined} target={firebase ? undefined : '_blank'} rel="noopener noreferrer" className={`${contactClass} bg-emerald-50 text-emerald-800 hover:bg-emerald-100`}>
+						{/* Course help and Contact are not routed yet on the new platform: hidden there, not shown as "soon" (owner, 2026-11-27). */}
+						{!firebase && <>
+						<a role="link" href={TEACHER_CONTACT.whatsappUrl} tabIndex={0} target="_blank" rel="noopener noreferrer" className={`${contactClass} bg-emerald-50 text-emerald-800 hover:bg-emerald-100`}>
 							<MessageCircle className="h-4 w-4" aria-hidden="true" />
-							{firebase ? <L id="dynamic.courseHelp"/> : <L id="dynamic.whatsapp"/>}
+							<L id="dynamic.whatsapp"/>
 						</a>
-						<a role="link" href={firebase ? undefined : TEACHER_CONTACT.phoneUrl} aria-disabled={firebase || undefined} tabIndex={0} title={firebase ? 'Course contact routing is not yet available.' : undefined} className={`${contactClass} bg-white text-slate-700 hover:bg-slate-100`}>
+						<a role="link" href={TEACHER_CONTACT.phoneUrl} tabIndex={0} className={`${contactClass} bg-white text-slate-700 hover:bg-slate-100`}>
 							<Phone className="h-4 w-4" aria-hidden="true" />
-							{firebase ? <L id="dynamic.contactSoon"/> : <L id="dynamic.call"/>}
+							<L id="dynamic.call"/>
 						</a>
+						</>}
 						<a role="link" href="/support" tabIndex={0} className={`${contactClass} text-sky-700 hover:bg-sky-50`}>
 							<HelpCircle className="h-4 w-4" aria-hidden="true" /><L id="navigation.support"/></a>
 					</Localized>

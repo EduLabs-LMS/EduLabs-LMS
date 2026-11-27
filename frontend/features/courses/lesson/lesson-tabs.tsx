@@ -1,7 +1,7 @@
 'use client';
 
 import { L } from '@/frontend/components/language-provider';
-import { formatChapterLabel } from '@/shared/chapter-label';
+import { useChapterLabel } from '@/frontend/features/courses/chapter-words';
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -131,6 +131,7 @@ const LessonTabs = ({
 			: null;
 
 	const completedCount = segments.filter((s) => s.isCompleted).length;
+	const chapterWords = useChapterLabel();
 
 	const onHomeworkSubmitted = () => {
 		setHasSubmission(true);
@@ -151,7 +152,7 @@ const LessonTabs = ({
 
 				<div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
 					<span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700 border border-sky-200/80">
-						{formatChapterLabel(chapterType, chapterNumber)}
+						{chapterWords.label(chapterType, chapterNumber)}
 					</span>
 					{courseTitle && (
 						<>

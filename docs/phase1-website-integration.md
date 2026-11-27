@@ -264,7 +264,7 @@ ignored artifacts, not deployment configuration.
 - frontend/components/sidebar.tsx
 - frontend/components/support-modal.tsx
 - frontend/features/auth/firebase-form.tsx
-- frontend/features/courses/detail/legacy-course-detail.tsx
+- frontend/features/courses/detail/legacy-course-detail.tsx (deleted 2026-11-27: nothing imported it)
 - frontend/features/dashboard/admin-home.tsx
 - frontend/features/dashboard/student-home.tsx
 - frontend/features/groups/group-roster-view.tsx

@@ -275,11 +275,9 @@ export function HomeworkWizard({ load, homeworkId, initialCourse }: { load: Home
     <p className="d-meta"><L id="hw.w.tries_note" /></p>
   </Card>;
 
-  const ruleKey: Record<ReturnType<typeof solutionsRule>, MessageKey> = { after_hand_in: 'hw.w.rule.after_hand_in', after_last_try: 'hw.w.rule.after_last_try', after_deadline: 'hw.w.rule.after_deadline' };
+  const ruleKey: Record<ReturnType<typeof solutionsRule>, MessageKey> = { after_hand_in: 'hw.w.rule.after_hand_in', after_last_try: 'hw.w.rule.after_last_try' };
   const video = files.find(f => f.kind === 'video');
   const solutions = <Card title="hw.w.step.solutions" hint="hw.w.solutions_hint">
-    <ChoiceGroup label={t('hw.w.solutions_open')} value={state.solutionsOpen} onChange={v => change(s => ({ ...s, solutionsOpen: v }))} options={[
-      { value: 'after_hand_in', label: t('hw.w.sol.after_hand_in'), 'data-solutions': 'after_hand_in' }, { value: 'after_deadline', label: t('hw.w.sol.after_deadline'), 'data-solutions': 'after_deadline' }]} />
     <p className="d-content-line" data-solutions-rule><Icon name="info" /><span>{t(ruleKey[solutionsRule(state)], { n: state.maxTries })}</span></p>
     <TextArea label={<><L id="hw.w.solution_text" /> <span className="d-meta"><L id="hw.w.optional" /></span></>} value={state.solutionText} maxLength={20000} rows={3} onChange={v => change(s => ({ ...s, solutionText: v }))} data="solution-text" />
     <div className="d-stack-xs" data-solution-files>

@@ -568,7 +568,7 @@ begin
    'notHandedIn',(select count(*) from rows_ r where state='not_handed_in'),'averageScore',(select round(avg(score),2) from rows_ where score is not null)),
   'rows',coalesce((select jsonb_agg(jsonb_build_object('userId',x.user_id,'name',x.display_name,'groupId',x.group_id,'groupName',x.group_name,'state',x.state,'late',x.late,
     'submittedAt',x.submitted_at,'tries',coalesce(x.tries,0),'score',x.score,'waiting',x.waiting) order by x.o)
-   from (select r.*,row_number() over(order by r.group_name nulls last,r.display_name nulls last,r.user_id) o from rows_ r order by o limit 100 offset p_page*100) x),'[]'::jsonb)) into result;
+   from (select r.*,row_number() over(order by r.group_name nulls last,r.group_id nulls last,r.display_name nulls last,r.user_id) o from rows_ r order by o limit 100 offset p_page*100) x),'[]'::jsonb)) into result;
  return result;
 end $$;
 

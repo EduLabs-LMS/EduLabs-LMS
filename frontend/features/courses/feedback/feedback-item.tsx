@@ -24,7 +24,7 @@ const FeedbackItem = ({
 					<Image
 						className="rounded-full shadow-md object-cover"
 						src={imageUrl}
-						alt="course-image"
+						alt=""
 						fill
 					/>
 				</div>

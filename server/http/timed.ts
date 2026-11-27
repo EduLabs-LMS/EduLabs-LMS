@@ -8,7 +8,7 @@ import { academicsHTTP } from './academics';
 import { createCoursePOST } from './teacher-course';
 import { updateCoursePATCH } from './teacher-course';
 import { courseContentGET, courseContentPOST } from './course-content';
-import { homeworkDeleteImagesPOST, homeworkGET, homeworkLifecyclePOST, homeworkPortalGET, homeworkQueueGET, homeworkReleaseManyPOST, homeworkSavePOST, homeworkTryGET, homeworkTryPOST } from './teacher-homework';
+import { homeworkDeleteImagesPOST, homeworkGET, homeworkLifecyclePOST, homeworkPortalGET, homeworkQueueGET, homeworkStudentsGET, homeworkReleaseManyPOST, homeworkSavePOST, homeworkTryGET, homeworkTryPOST } from './teacher-homework';
 import { studentExamGET, studentExamUploadPOST, studentExamWorkPOST, studentExamsGET } from './exams-student';
 import { examGET, examLifecyclePOST, examMarksPOST, examPortalGET, examQueueGET, examReleaseManyPOST, examSavePOST, examSheetGET, examTryGET, examUploadPOST, examWindowPOST, examWorkPOST } from './teacher-exams';
 
@@ -30,6 +30,7 @@ export const timedHomeworkSavePOST = withServerTiming(homeworkSavePOST);
 export const timedHomeworkLifecyclePOST = withServerTiming(homeworkLifecyclePOST);
 export const timedHomeworkDeleteImagesPOST = withServerTiming(homeworkDeleteImagesPOST);
 export const timedHomeworkQueueGET = withServerTiming(homeworkQueueGET);
+export const timedHomeworkStudentsGET = withServerTiming(homeworkStudentsGET);
 export const timedHomeworkTryGET = withServerTiming(homeworkTryGET);
 export const timedHomeworkTryPOST = withServerTiming(homeworkTryPOST);
 export const timedHomeworkReleaseManyPOST = withServerTiming(homeworkReleaseManyPOST);

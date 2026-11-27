@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle2, Layers, LockKeyhole, PlayCircle } from 'lucide-react';
 
-import { formatChapterLabel } from '@/shared/chapter-label';
+import { useChapterLabel } from '@/frontend/features/courses/chapter-words';
 import { cn } from '@/shared/utils';
 import type { MessageKey } from '@/frontend/locales/messages';
 
@@ -65,6 +65,7 @@ export const LessonCard = ({
 	status,
 	className,
 }: LessonCardProps) => {
+	const chapterWords = useChapterLabel();
 	const [failedImage, setFailedImage] = useState<string|null>(null);
  const refreshed=useRef(false),router=useRouter();
 	const hasImage = Boolean(imageUrl) && failedImage !== imageUrl;
@@ -113,7 +114,7 @@ export const LessonCard = ({
 					hasImage ? 'text-sky-200' : 'text-sky-700'
 				)}
 			>
-				{formatChapterLabel(chapterType, chapterNumber)}{" "}<L id="common.lesson"/>{" "}{lessonNumber}
+				{chapterWords.label(chapterType, chapterNumber)}{" "}<L id="common.lesson"/>{" "}{lessonNumber}
 			</p>
 
 			<h3 dir="auto" className={cn('mt-3 line-clamp-2 text-lg font-bold leading-snug', hasImage && 'drop-shadow-sm')}>

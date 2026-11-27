@@ -1,5 +1,6 @@
 'use client';
 
+import { lessonDone } from '@/shared/lesson-completion';
 import { L, LocalCount } from '@/frontend/components/language-provider';
 import type { SelfLearningLesson, SelfLearningChapter } from '@/shared/contracts/dashboard';
 export type { SelfLearningLesson, SelfLearningChapter } from '@/shared/contracts/dashboard';
@@ -14,7 +15,8 @@ import {
 	Sparkles,
 } from 'lucide-react';
 import { cn } from '@/shared/utils';
-import { chapterKey, formatChapterLabel, formatChapterTitle } from '@/shared/chapter-label';
+import { chapterKey } from '@/shared/chapter-label';
+import { useChapterLabel } from '@/frontend/features/courses/chapter-words';
 import { LessonCard, getLessonCardStatus } from '@/frontend/features/courses/lesson-card';
 
 
@@ -24,6 +26,7 @@ interface SelfLearningViewProps {
 }
 
 export const SelfLearningView = ({ chapters }: SelfLearningViewProps) => {
+	const chapterWords = useChapterLabel();
 	// Default open the first active chapter
 	const [expandedChapter, setExpandedChapter] = useState<string | null>(
 		chapters.length > 0 ? (chapters[0].id ?? chapterKey(chapters[0].type, chapters[0].number)) : null
@@ -72,9 +75,8 @@ export const SelfLearningView = ({ chapters }: SelfLearningViewProps) => {
 						const key = (chapter.id ?? chapterKey(chapter.type, chapter.number));
 						const isExpanded = expandedChapter === key;
 						const totalLessons = chapter.lessons.length;
-						const completedLessons = chapter.lessons.filter((l) =>
-							l.chapters.length > 0 && l.chapters.every((c) => c.isCompleted)
-						).length;
+						// One completion rule (owner, 2026-11-27): the card's status carries parts AND homework.
+						const completedLessons = chapter.lessons.filter((l) => lessonDone(l)).length;
 
 						return (
 							<div
@@ -106,10 +108,10 @@ export const SelfLearningView = ({ chapters }: SelfLearningViewProps) => {
 
 										<div className="space-y-1">
 											<span className="text-xs font-bold uppercase tracking-wider text-sky-700">
-												{formatChapterLabel(chapter.type, chapter.number)}
+												{chapterWords.label(chapter.type, chapter.number)}
 											</span>
 											<h2 dir="auto" className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">
-												{formatChapterTitle(chapter.type, chapter.number, chapter.title)}
+												{chapterWords.title(chapter.type, chapter.number, chapter.title)}
 											</h2>
 											{chapter.subtitle && (
 												<p dir="auto" className="text-xs sm:text-sm text-slate-500 line-clamp-2">

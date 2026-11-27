@@ -16,6 +16,8 @@ import { validRosterPage } from '@/shared/website-model';
 import { SelfLearningView } from '@/frontend/features/self-learning/self-learning-view';
 import OriginalCourseDetail from '@/frontend/features/courses/course-detail';
 import { v2Chapters, v2StudentLessons,v2OfferingChapters } from '@/shared/v2-learning-model';
+import { chaptersWithCompletion, lessonsWithCompletion } from '@/shared/lesson-completion';
+import { lessonCompletion } from '@/server/services/lesson-completion';
 import SearchInput from '@/frontend/components/search-input';
 import { canEditTeacherCourse } from '@/shared/teacher-course';
 import { Suspense } from 'react';
@@ -36,7 +38,7 @@ async function scopeFor(search: WebsiteSearch, courseId?: string) {
   if ((search.organization && !uuid.test(search.organization)) || (courseId && !uuid.test(courseId))) notFound();
   const scope = await loadWebsiteScope(context, search.organization, courseId);
   if (!scope || (courseId && !scope.courses.length)) notFound();
-  return { context, scope };
+  return { context, scope: { ...scope, completion: await lessonCompletion(scope) } };
 }
 function LimitNotice({ limited, progressLimited = false }: { limited: boolean; progressLimited?: boolean }) {
   return <>{progressLimited && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><L id="resume.partialOverview"/></p>}{limited ? <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><L id="common.this_overview_shows_at_most"/></p> : null}</>;
@@ -89,7 +91,7 @@ export async function WebsiteHome({ search = {} }: { search?: WebsiteSearch }) {
 
   return <div className="space-y-8"><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited} />
     {staff ? <TeacherHomePage/> :
-    <StudentLearning resume={resumeLearning(scope, context.organizations)} home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={scope.offerings} lessons={scope.contentLimited ? [] : v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) })} />}
+    <StudentLearning resume={resumeLearning(scope, context.organizations)} home organizationId={search.organization} limited={scope.limited} chapters={[]} offerings={scope.offerings} lessons={scope.contentLimited ? [] : lessonsWithCompletion(v2StudentLessons({ ...scope, offerings: scope.offerings.filter(o => scope.enrollments.some(e => e.offering_id === o.id && e.status === 'active' && (!e.expires_at || Date.parse(e.expires_at) > Date.now()) && (!e.enrolled_at || Date.parse(e.enrolled_at) <= Date.now()))) }), scope.completion)} />}
     {scope.limited && <p className="text-sm text-slate-500"><L id="common.open_a_course_for_its"/></p>}
     {!staff&&<p className="text-sm text-slate-600"><L id="common.need_course_access_use_your"/>{" "}<Link className="underline" href="/access"><L id="common.view_your_access_requests"/></Link>.</p>}
     {!staff && <Offerings scope={scope} />}
@@ -100,7 +102,7 @@ export async function WebsiteCourses({ search = {}, teacher = false }: { search?
     const { context, scope } = await scopeFor(search);
     if (search.offering && !scope.offerings.some(o => o.id === search.offering)) notFound();
     const enrolled=scope.offerings.filter(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'&&(!e.expires_at||Date.parse(e.expires_at)>Date.now())&&(!e.enrolled_at||Date.parse(e.enrolled_at)<=Date.now())));
-    return <><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited}/><StudentLearning resumeOfferingId={search.offering} resume={resumeLearning(scope, context.organizations, Date.now(), search.offering)} organizationId={search.organization} limited={scope.limited} offerings={enrolled} lessons={[]} chapters={scope.contentLimited ? [] : v2OfferingChapters({...scope,offerings:enrolled}, search.offering)}/><Offerings scope={scope}/></>;
+    return <><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited}/><StudentLearning resumeOfferingId={search.offering} resume={resumeLearning(scope, context.organizations, Date.now(), search.offering)} organizationId={search.organization} limited={scope.limited} offerings={enrolled} lessons={[]} chapters={scope.contentLimited ? [] : chaptersWithCompletion(v2OfferingChapters({...scope,offerings:enrolled}, search.offering), scope.completion)}/><Offerings scope={scope}/></>;
   }
   return <TeacherFoundationPage title="Courses"/>;
 }
@@ -120,7 +122,7 @@ export async function WebsiteCourse({ courseId, search = {} }: { courseId: strin
   const offering = scope.offerings.find(o => o.id === search.offering) ?? scope.offerings.find(o=>scope.enrollments.some(e=>e.offering_id===o.id&&e.status==='active'));
   const resume = offering ? resumeLearning(scope, context.organizations, Date.now(), offering.id).items.find(i => i.href.startsWith(`/courses/${course.id}/`)) : undefined;
   // One centred column for the whole page: the top section lines up with the lessons below (SelfLearningView is max-w-6xl, centred).
-  return <div data-course-page className="mx-auto w-full max-w-6xl space-y-6"><OriginalCourseDetail initialCourse={course} continueHref={resume?.href}/><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited}/>{!courseCapability(context, course) && <Offerings scope={scope} courseId={course.id}/>}<SelfLearningView chapters={scope.contentLimited ? [] : v2Chapters(scope, offering?.id)}/><p role="status" className="text-sm text-slate-600"><L id="common.choose_a_lesson_to_study"/></p></div>;
+  return <div data-course-page className="mx-auto w-full max-w-6xl space-y-6"><OriginalCourseDetail initialCourse={course} continueHref={resume?.href}/><LimitNotice limited={scope.contentLimited} progressLimited={scope.progressLimited}/>{!courseCapability(context, course) && <Offerings scope={scope} courseId={course.id}/>}<SelfLearningView chapters={scope.contentLimited ? [] : chaptersWithCompletion(v2Chapters(scope, offering?.id), scope.completion)}/><p role="status" className="text-sm text-slate-600"><L id="common.choose_a_lesson_to_study"/></p></div>;
 
 }
 export async function WebsiteGroups({ search = {} }: { search?: WebsiteSearch }) {

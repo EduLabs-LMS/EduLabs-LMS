@@ -49,10 +49,10 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (/^\/courses\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/lessons\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)) return NextResponse.next();
   if (/^\/api\/teacher\/(website|academics|organizations|space|courses(?:\/[0-9a-f-]{36}(?:\/content)?)?)$/.test(path)) return NextResponse.next();
   // Teacher Homework: the page read, one homework, save (a new one only at new/save), lifecycle, Delete images, and correcting (the queue,
-  // one try read and written, Release N grades). Exact paths only.
-  if (path === '/api/teacher/homework' || /^\/api\/teacher\/homework\/(?:new\/save|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:save|lifecycle|delete-images|queue|release-many|tries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?)$/.test(path)) return NextResponse.next();
-  // The Homework page, New homework, one homework's editor and its correcting screen. Titles, names and students' numbers are on them: kept out of caches and referrers.
-  if (path === '/teacher/homework' || path === '/teacher/homework/new' || /^\/teacher\/homework\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/correct)?$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
+  // one try read and written, Release N grades), and one homework's students (read only). Exact paths only.
+  if (path === '/api/teacher/homework' || /^\/api\/teacher\/homework\/(?:new\/save|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:save|lifecycle|delete-images|queue|students|release-many|tries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?)$/.test(path)) return NextResponse.next();
+  // The Homework page, New homework, one homework's editor, its correcting screen and its students. Titles, names and students' numbers are on them: kept out of caches and referrers.
+  if (path === '/teacher/homework' || path === '/teacher/homework/new' || /^\/teacher\/homework\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/correct|\/students)?$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   // Teacher Exams: the page read, one exam, save (a new one only at new/save), lifecycle, a Group's window, pictures, and correcting (the
   // queue, one try, grade/release, Release N) and paper marks (the sheet, the marks). Exact paths only.
   if (path === '/api/teacher/exams' || /^\/api\/teacher\/exams\/(?:new\/save|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:save|lifecycle|window|upload|queue|work|release-many|sheet|marks|tries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?)$/.test(path)) return NextResponse.next();
@@ -70,6 +70,8 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
   if (path === '/api/exams' || /^\/api\/exams\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:work|upload))?$/.test(path)) return NextResponse.next();
   if (path === '/exams' || /^\/exams\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}
   if (/^\/api\/homework\/(new|[0-9a-f-]{36})\/(list|offerings|save|get|lifecycle|copy-media|assignments|revisions|inbox|history|work|upload-intent|finish-upload|cleanup|media)$/.test(path)) return NextResponse.next();
+  // A lesson with no part was opened (lesson_opened, owner 2026-11-27). Exact path only.
+  if (path === '/api/learning/opened') return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(edit|progress|upload|media|cleanup|upload-intent|finish-upload)$/.test(path)) return NextResponse.next();
   if (/^\/api\/learning\/[0-9a-f-]{36}\/(resources|blocks)\/[0-9a-f-]{36}$/.test(path)) return NextResponse.next();
   if (/^\/join\/[A-Za-z0-9_-]{43}$/.test(path)) {const response=NextResponse.next();response.headers.set('Referrer-Policy','no-referrer');response.headers.set('Cache-Control','private, no-store');return response;}

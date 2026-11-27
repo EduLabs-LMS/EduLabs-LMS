@@ -173,7 +173,9 @@ test('wizard: tries are one time (sent as 1) or 2 to 10', () => {
  }
  assert.equal(hw.solutionsRule({ solutionsOpen: 'after_hand_in', tries: 'one_time', maxTries: 1 }), 'after_hand_in');
  assert.equal(hw.solutionsRule({ solutionsOpen: 'after_hand_in', tries: 'fix_mistakes', maxTries: 3 }), 'after_last_try');
- assert.equal(hw.solutionsRule({ solutionsOpen: 'after_deadline', tries: 'one_time', maxTries: 1 }), 'after_deadline');
+ // 'after_deadline' was retired by the owner (2026-11-27): the contract refuses it, so no client can send it.
+ const late = plain(hw.toDefinition(s, true)); late.rules.solutionsOpen = 'after_deadline';
+ assert.ok(!contract.teacherHomeworkDefinition.safeParse(late).success, 'the contract refuses after_deadline');
 });
 test('wizard: the deadline is sent with its offset and matches the database pattern; none while the date is empty', () => {
  const def = hw.toDefinition(complete(), true);
@@ -196,7 +198,7 @@ test('wizard: a draft saves once it has a title, a course, a lesson and question
  assert.ok(!contract.teacherHomeworkDefinition.safeParse({ ...def, published: true }).success, 'but not published without a key');
 });
 test('wizard: what is saved reads back as the same wizard', () => {
- const s = { ...complete(), id: uuid(50), revision: 7, tries: 'fix_mistakes', maxTries: 4, photos: false, lateAllowed: true, solutionsOpen: 'after_deadline', solutionText: 'Look at page 12' };
+ const s = { ...complete(), id: uuid(50), revision: 7, tries: 'fix_mistakes', maxTries: 4, photos: false, lateAllowed: true, solutionsOpen: 'after_hand_in', solutionText: 'Look at page 12' };
  const def = hw.toDefinition(s, false);
  s.questions[2] = { ...s.questions[2], modelImageId: uuid(60) };
  s.questions[0] = { ...s.questions[0], modelAnswer: 'B: the current halves', modelImageId: uuid(61) };

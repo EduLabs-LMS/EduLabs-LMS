@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z, type ZodTypeAny } from 'zod';
 import { validFirebaseOrigin } from '@/server/http/firebase/route';
 import { getApplicationViewer } from '@/server/services/application-auth';
-import { deleteHomeworkImages, homeworkLifecycle, readHomework, readPortal, readQueue, readTry, releaseManyTries, saveHomework, writeTry, type HomeworkResult } from '@/server/services/teacher-homework';
+import { deleteHomeworkImages, homeworkLifecycle, readHomework, readPortal, readQueue, readStudents, readTry, releaseManyTries, saveHomework, writeTry, type HomeworkResult } from '@/server/services/teacher-homework';
 import { isFirebaseStaging } from '@/shared/auth-config';
-import { homeworkDeleteImages, homeworkLifecycle as lifecycleBody, homeworkSave, portalQuery, queueQuery, releaseMany, tryWrite } from '@/shared/contracts/teacher-homework';
+import { homeworkDeleteImages, homeworkLifecycle as lifecycleBody, homeworkSave, portalQuery, queueQuery, releaseMany, studentsQuery, tryWrite } from '@/shared/contracts/teacher-homework';
 
 type Context = { params: Promise<{ homeworkId: string }> };
 const reply = (body: unknown, status: number) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
@@ -134,6 +134,20 @@ export async function homeworkQueueGET(request: NextRequest, context: Context) {
   try {
     if (!await signedIn()) return reply({ kind: 'signin' }, 401);
     return send(await readQueue(target.homeworkId, query.data.tab, query.data.page));
+  } catch { return reply({ kind: 'failed' }, 503); }
+}
+
+/** GET /api/teacher/homework/<id>/students?page= : every student of the homework's run, read only (homework_students). */
+export async function homeworkStudentsGET(request: NextRequest, context: Context) {
+  if (!isFirebaseStaging()) return reply({ kind: 'denied' }, 404);
+  if (!sameOriginRead(request)) return reply({ kind: 'denied' }, 403);
+  const target = await ids(context);
+  const keys = Array.from(request.nextUrl.searchParams.keys());
+  const query = studentsQuery.safeParse(Object.fromEntries(request.nextUrl.searchParams));
+  if (!target || !query.success || keys.length !== new Set(keys).size) return reply({ kind: 'invalid' }, 400);
+  try {
+    if (!await signedIn()) return reply({ kind: 'signin' }, 401);
+    return send(await readStudents(target.homeworkId, query.data.page));
   } catch { return reply({ kind: 'failed' }, 503); }
 }
 

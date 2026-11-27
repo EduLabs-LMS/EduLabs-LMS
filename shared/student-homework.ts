@@ -6,9 +6,13 @@ import type { HomeworkAnswer, HomeworkSubmission, HomeworkView } from '@/shared/
 export type StudentHomeworkView = HomeworkView & {
   workflow?: 'legacy' | 'questions'; deadline?: string | null; deadlinePassed?: boolean; triesUsed?: number; triesLeft?: number | null;
   canStart?: boolean; canRetry?: boolean; triesEnded?: boolean;
+  /** The student chose "I'm done, show me the answers" (owner, 2026-11-27): no more tries, the answers are open. */
+  stopped?: boolean; canStop?: boolean; solutionsOpen?: boolean;
 };
 export type StudentAnswer = HomeworkAnswer & { kept?: boolean };
-export type StudentSubmission = HomeworkSubmission & { missedDeadline?: boolean };
+/** Before the teacher releases an essay, the student already sees the questions that mark themselves (20261127130000). */
+export type SelfMarked = { score: number; max: number; essays: number; marks: { questionId: string; points: number | null }[] };
+export type StudentSubmission = HomeworkSubmission & { missedDeadline?: boolean; correction?: HomeworkSubmission['correction'] & { selfMarked?: SelfMarked } };
 
 /** The refusals a student can meet, by the reason the database names (or the message it raises when it names none). */
 export type StudentReason = 'deadline_passed' | 'no_tries_left' | 'stale' | 'submitted' | 'unavailable';
@@ -43,8 +47,32 @@ export function studentFacts(view: StudentHomeworkView, submission: StudentSubmi
     triesLeft: questions && typeof view.triesLeft === 'number' ? view.triesLeft : null,
     missed: Boolean(submission?.status === 'submitted' && submission.missedDeadline),
     canRetry: Boolean(questions && view.canRetry && submission?.status === 'submitted'),
+    canStop: Boolean(questions && view.canStop && submission?.status === 'submitted'),
+    stopped: Boolean(questions && view.stopped),
     triesEnded: Boolean(questions && view.triesEnded),
   };
+}
+
+/** What a handed-in try shows (owner, 2026-11-27): a self-marked mark at once; an essay waits for the teacher; the total after the release.
+ *  mark(questionId) is the points shown beside a question (null: not shown, or waiting for the teacher). */
+export function studentResult(view: Pick<HomeworkView, 'definition'>, submission: StudentSubmission | null) {
+  const questions = view.definition.questions, correction = submission?.status === 'submitted' ? submission.correction : undefined;
+  const max = questions.reduce((sum, q) => sum + (q.points ?? 0), 0);
+  if (!correction) return { state: 'none' as const, score: null, max, selfScore: null, selfMax: null, essays: 0, mark: (_id: string): number | null => null };
+  if (correction.released) {
+    const marks = new Map(correction.marks.map(m => [m.questionId, m.points]));
+    return { state: 'released' as const, score: correction.score, max, selfScore: null, selfMax: null, essays: 0, mark: (id: string) => marks.get(id) ?? null };
+  }
+  const self = correction.selfMarked;
+  const marks = new Map((self?.marks ?? []).map(m => [m.questionId, m.points]));
+  return { state: self && self.essays > 0 ? 'essays_waiting' as const : 'waiting' as const, score: null, max, selfScore: self ? self.score : null, selfMax: self ? self.max : null,
+    essays: self?.essays ?? 0, mark: (id: string) => marks.get(id) ?? null };
+}
+
+/** When the answers open for this student (owner's rule B): already open; after the hand-in; or after the last try / "I'm done". */
+export function solutionsWhen(view: StudentHomeworkView, submission: StudentSubmission | null): 'open' | 'after_hand_in' | 'after_tries' {
+  if (view.solutions) return 'open';
+  return submission?.status === 'submitted' && view.workflow === 'questions' ? 'after_tries' : 'after_hand_in';
 }
 /** A kept answer (fix mistakes) is locked: the student cannot change it in the new try. */
 export const answerKept = (answer: HomeworkAnswer | undefined) => Boolean((answer as StudentAnswer | undefined)?.kept);

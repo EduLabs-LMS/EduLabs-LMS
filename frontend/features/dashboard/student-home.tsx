@@ -1,5 +1,6 @@
 'use client';
 
+import { lessonDone } from '@/shared/lesson-completion';
 import { L, useLanguage } from '@/frontend/components/language-provider';
 import type { StudentLesson } from '@/shared/contracts/dashboard';
 export type { StudentLesson } from '@/shared/contracts/dashboard';
@@ -10,7 +11,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@/frontend/components/providers/v2-identity';
 import {
 	AlertCircle,
-	ArrowUpRight,
 	Atom,
 	BookOpenCheck,
 	CalendarClock,
@@ -48,56 +48,20 @@ interface StudentHomeProps {
 	} | null;
 }
 
+// One welcome slide (owner, 2026-11-27): the five placeholder slides and the "Your Grade" badge are gone.
 const heroSlides = [
 	{
 		image: 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&w=1600&q=80',
 		eyebrow: 'Welcome to your classroom',
 		title: 'EduLabs',
 		description: 'Your lessons, homework, and progress, all in one place.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Chapter by chapter',
-		title: 'Course Highlight One',
-		description: 'A short description of this course or topic goes here.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Core foundations',
-		title: 'Course Highlight Two',
-		description: 'A short description of this course or topic goes here.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Going deeper',
-		title: 'Course Highlight Three',
-		description: 'A short description of this course or topic goes here.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Advanced curriculum',
-		title: 'Course Highlight Four',
-		description: 'A short description of this course or topic goes here.',
-		badge: 'Your Grade',
-	},
-	{
-		image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1600&q=80',
-		eyebrow: 'Comprehensive practice',
-		title: 'Exam Prep & High Scores',
-		description: 'Tackle past exams and exercises with structured guidance.',
-		badge: 'Your Grade',
 	},
 ] as const;
 
 const getLessonStatus = (lesson: StudentLesson) => {
+	// One completion rule (owner, 2026-11-27): the card's status carries parts AND homework.
+	if (lessonDone(lesson)) return 'Completed' as const;
 	if (lesson.chapters.length === 0) return 'Locked' as const;
-	if (lesson.chapters.every((chapter) => chapter.isCompleted)) {
-		return 'Completed' as const;
-	}
 	if (lesson.chapters.some((chapter) => chapter.isCompleted)) {
 		return 'In Progress' as const;
 	}
@@ -291,9 +255,6 @@ const StudentHome = ({
 								<p className="max-w-xl text-sm sm:text-base text-slate-200 leading-relaxed">
 									<L text={slide.description}/>
 								</p>
-								<span className="mt-2 inline-flex w-fit items-center gap-2 rounded-full bg-white/15 backdrop-blur-xs px-3.5 py-1.5 text-xs sm:text-sm font-medium ring-1 ring-white/25 text-white">
-									<L text={slide.badge}/> <ArrowUpRight className="h-4 w-4" />
-								</span>
 							</div>
 
 							<Atom
@@ -306,7 +267,7 @@ const StudentHome = ({
 				</div>
 
 				{/* Clickable Indicator Dots */}
-				<div className="absolute bottom-4 inset-x-0 z-20 flex justify-center items-center gap-2">
+				{heroSlides.length > 1 && <div className="absolute bottom-4 inset-x-0 z-20 flex justify-center items-center gap-2">
 					{heroSlides.map((slide, index) => (
 						<button
 							aria-label={t('home.slide',{count:index+1})}
@@ -322,7 +283,7 @@ const StudentHome = ({
 							type="button"
 						/>
 					))}
-				</div>
+				</div>}
 			</section>
 
 			{/* LIVE SESSION & HOMEWORK REMINDER BANNER */}
@@ -413,13 +374,13 @@ const StudentHome = ({
 					</div>
 
 					{[
-						{ label: 'Sessions Attended', value:attendance.data?.own.attended, icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
-						{ label: 'Sessions Absent', value:attendance.data?.own.absent, icon: CalendarClock, tone: 'bg-violet-50 text-violet-600' },
+						{ label: 'home.attended' as const, value:attendance.data?.own.attended, icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
+						{ label: 'home.absent' as const, value:attendance.data?.own.absent, icon: CalendarClock, tone: 'bg-violet-50 text-violet-600' },
 					].map(({ label, value, icon: Icon, tone }) => (
 						<div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-md active:translate-y-0 cursor-default" key={label}>
 							<div className="flex items-start justify-between gap-4">
 								<div>
-									<p className="text-sm font-medium text-slate-500"><L text={label}/></p>
+									<p className="text-sm font-medium text-slate-500"><L id={label}/></p>
 									<p className="mt-2 text-lg font-semibold text-slate-950">{phase1&&attendance.loading?<L id="common.loading"/>:value??<L id="common.unavailable"/>}</p>
 								</div>
 								<span className={cn('grid h-11 w-11 place-items-center rounded-xl', tone)}>

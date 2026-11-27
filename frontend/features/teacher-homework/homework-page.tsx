@@ -30,7 +30,7 @@ const API = '/api/teacher/homework';
  * own context suggests; the database decides.
  */
 export function TeacherHomeworkPage({ load }: { load: HomeworkPageLoad }) {
-  const { t, language } = useLanguage();
+  const { t, language, number } = useLanguage();
   const lang = language === 'ar' ? 'ar' : 'en';
   const phone = usePhone();
   const router = useLoadingRouter();
@@ -186,14 +186,19 @@ export function TeacherHomeworkPage({ load }: { load: HomeworkPageLoad }) {
         {row.workflow === 'questions' && <span className="d-meta" data-counts>{countText(t, 'question', row.questionCount)} · {countText(t, 'mark', row.totalMarks)}</span>}
         {row.workflow === 'questions' && <span className="d-meta" data-rules>
           {row.deadline ? t('hw.due', { day: cairoDay(row.deadline, lang), time: cairoTime(row.deadline, lang) }) : t('hw.no_deadline')}
-          {row.lateAllowed && <> · {t('hw.late_allowed')}</>} · {triesText(t, row.tries, row.maxTries)} · {t(row.solutionsOpen === 'after_deadline' ? 'hw.solutions.after_deadline' : 'hw.solutions.after_hand_in')}
+          {row.lateAllowed && <> · {t('hw.late_allowed')}</>} · {triesText(t, row.tries, row.maxTries)} · {t(row.tries === 'one_time' ? 'hw.solutions.after_hand_in' : 'hw.solutions.after_tries')}
+        </span>}
+        {row.status !== 'draft' && row.handedIn !== null && row.total !== null && <span className="d-meta" data-row-summary>
+          {t('hw.handed', { handed: number(row.handedIn), total: number(row.total) })} · {t('hw.late', { n: number(row.late ?? 0) })}
+          {row.workflow === 'questions' && <> · {row.averageScore === null || row.averageScore === undefined ? t('hw.average_none') : t('hw.average', { score: number(row.averageScore), max: number(row.totalMarks) })}</>}
         </span>}
         {rowTab === 'closed' && size && <span className="d-meta" data-image-space>{t('hw.images', { size: t(size.unit === 'mb' ? 'hw.size.mb' : 'hw.size.kb', { n: size.value }) })}</span>}
         {rowNotice && <span role="alert" data-row-failure={rowNotice.kind} className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" />{failureWords(t, rowNotice)}</span>}
       </span>
       <span className="d-row-trailing">
         {row.status === 'draft' && <StatusPill tone="neutral" data-draft=""><L id="hw.draft" /></StatusPill>}
-        {row.handedIn !== null && row.total !== null && row.status !== 'draft' && <span className="d-meta" data-handed>{t('hw.handed_short', { handed: row.handedIn, total: row.total })}</span>}
+        {row.handedIn !== null && row.total !== null && row.status !== 'draft' && <Link href={`/teacher/homework/${row.id}/students`} className={buttonClass('secondary')} data-students={row.id} data-handed>
+          <span className="sr-only">{row.title} · </span>{t('hw.handed_short', { handed: number(row.handedIn), total: number(row.total) })} <L id="hw.students_link" /></Link>}
         {rowBusy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}
         {actions.length > 0 && <ActionMenu label={t('hw.actions_for', { title: row.title })} triggerData={{ 'data-row-menu': row.id }} items={actions} />}
       </span>

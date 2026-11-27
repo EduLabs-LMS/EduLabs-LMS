@@ -126,6 +126,13 @@ export async function readQueue(id: string, tab: QueueTab, page: number): Promis
   if (error) return homeworkReply(error);
   return { status: 200, body: data };
 }
+/** One homework's students (homework_students): handed in, late or not, the mark and the tries used. Support staff of the run only. */
+export async function readStudents(id: string, page: number): Promise<HomeworkResult> {
+  const client = await getSupabaseServerClient();
+  const { data, error } = await client.rpc('homework_students', { p_assignment: id, p_page: page });
+  if (error) return homeworkReply(error);
+  return { status: 200, body: data };
+}
 /** One try with its homework (get_homework with the try). Staff only: a student reading their own try here is told no. */
 export async function readTry(id: string, submissionId: string): Promise<HomeworkResult> {
   const client = await getSupabaseServerClient();
