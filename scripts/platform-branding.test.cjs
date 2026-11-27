@@ -7,7 +7,7 @@ function footer(firebase){
  return renderToStaticMarkup(React.createElement(module.exports.default));
 }
 test('Firebase footer enables real support and keeps unavailable teacher contacts disabled',()=>{
- const html=footer(true);assert.doesNotMatch(html,/Ghada|010946|wa\.me|tel:/);assert.match(html,/href="\/support"/);assert.doesNotMatch(html,/Help — soon/);assert.match(html,/authorized teacher/);assert.equal((html.match(/aria-disabled="true"/g)||[]).length,2);assert.equal((html.match(/tabindex="0"/g)||[]).length,3);assert.match(html,/Made by:/);assert.match(html,/Mohamed Tamer Mohamed/);
+ const html=footer(true);assert.doesNotMatch(html,/Ghada|010946|wa\.me|tel:/);assert.match(html,/href="\/support"/);assert.doesNotMatch(html,/Help — soon/);assert.match(html,/authorized teacher/);assert.equal((html.match(/aria-disabled="true"/g)||[]).length,0,'the soon contacts are hidden, not disabled (owner, 2026-11-27)');assert.doesNotMatch(html,/soon/i);assert.equal((html.match(/tabindex="0"/g)||[]).length,1);assert.match(html,/Made by:/);assert.match(html,/Mohamed Tamer Mohamed/);
 });
 test('legacy footer keeps functional contact links and attribution',()=>{
  const html=footer(false);assert.match(html,/href="https:\/\/wa.me\/201094683366"/);assert.match(html,/href="tel:\+201094683366"/);assert.match(html,/href="\/support"/);assert.doesNotMatch(html,/aria-disabled="true"/);

@@ -308,7 +308,7 @@ test('student refusals: the database reason becomes a reason the screen says in 
    const other = await caught({ code: '23514', message: 'x' }); assert.equal(other.reason, undefined); assert.equal(other.message, 'Check the homework structure, files and correction state.');
   } finally { console.error = quiet; }
   const route = read('server/http/homework.ts');
-  assert.match(route, /action:z\.enum\(\['start','retry','save','submit','grade','release','annotate'\]\)/, 'retry, with no data (the else branch)');
+  assert.match(route, /action:z\.enum\(\['start','retry','stop','save','submit','grade','release','annotate'\]\)/, 'retry and stop, with no data (the else branch)');
   assert.match(route, /const reason=status===503\?undefined:\(e as \{reason\?:string\}\)\.reason;/);
   assert.match(read('frontend/lib/homework.ts'), /reason:typeof v\.reason==='string'\?v\.reason:undefined/);
  })();
@@ -316,9 +316,12 @@ test('student refusals: the database reason becomes a reason the screen says in 
 test('the student homework screen: deadline (Cairo), tries left, Missed the deadline, Try again, kept answers locked, the tries-ended line', () => {
  const facts = v => plain(student.studentFacts(v, v.sub ?? null));
  const base = { workflow: 'questions', deadline: '2026-11-11T18:00:00Z', triesLeft: 1, canRetry: true, triesEnded: false };
- assert.deepEqual(facts({ ...base, sub: { status: 'submitted', missedDeadline: true } }), { deadline: base.deadline, triesLeft: 1, missed: true, canRetry: true, triesEnded: false });
+ assert.deepEqual(facts({ ...base, sub: { status: 'submitted', missedDeadline: true } }), { deadline: base.deadline, triesLeft: 1, missed: true, canRetry: true, canStop: false, stopped: false, triesEnded: false });
  assert.equal(facts({ ...base, sub: { status: 'draft' } }).canRetry, false, 'Try again only after a hand-in');
- assert.deepEqual(facts({ workflow: 'legacy', deadline: null, triesLeft: null }), { deadline: null, triesLeft: null, missed: false, canRetry: false, triesEnded: false }, 'an older homework shows none of it');
+ assert.deepEqual(facts({ workflow: 'legacy', deadline: null, triesLeft: null }), { deadline: null, triesLeft: null, missed: false, canRetry: false, canStop: false, stopped: false, triesEnded: false }, 'an older homework shows none of it');
+ // "I'm done, show me the answers" (owner, 2026-11-27): only after a hand-in of a questions homework, and stopped is said.
+ assert.equal(facts({ ...base, canStop: true, sub: { status: 'submitted' } }).canStop, true); assert.equal(facts({ ...base, canStop: true, sub: { status: 'draft' } }).canStop, false);
+ assert.equal(facts({ ...base, stopped: true }).stopped, true); assert.equal(facts({ workflow: 'legacy', canStop: true, stopped: true, sub: { status: 'submitted' } }).canStop, false);
  assert.equal(facts({ ...base, triesEnded: true }).triesEnded, true);
  assert.ok(student.answerKept({ kept: true })); assert.ok(!student.answerKept(undefined));
  const screen = read('frontend/features/courses/lesson/homework-student.tsx');
