@@ -43,3 +43,4 @@ supabase/migrations/20261127130000_homework_marks_immediate.sql -text
 # Live-class server files run on Linux.
 infra/jitsi/** text eol=lf
 supabase/migrations/20261127140000_my_scope_content.sql -text
+supabase/migrations/20261128120000_my_scope_groups_work.sql -text
