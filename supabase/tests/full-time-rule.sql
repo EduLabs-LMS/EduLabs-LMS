@@ -38,6 +38,10 @@ select pg_temp.ok(bool_and(not p.prosecdef and has_function_privilege('authentic
  from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('exam_get','exam_work','exam_save','exam_lifecycle','exam_upload','homework_work','homework_upload','get_homework','exam_student_list');
 select pg_temp.ok(not has_table_privilege(r,'private.expired_exam_uploads','select') and not has_table_privilege(r,'private.expired_homework_uploads','select'),'the cleanup views are closed to '||r)
  from unnest(array['authenticated','anon','service_role']) r;
+-- Every private view runs with the caller's rights (create or replace view without the WITH clause would silently drop the option).
+select pg_temp.ok(coalesce(c.reloptions,'{}') @> array['security_invoker=true'],'private view '||c.oid::regclass::text||' keeps security_invoker=true')
+ from pg_class c where c.relnamespace='private'::regnamespace and c.relkind='v';
+select pg_temp.ok(count(*)>=3,'the private views were checked ('||count(*)||')') from pg_class c where c.relnamespace='private'::regnamespace and c.relkind='v';
 select pg_temp.ok((select attnotnull and pg_get_expr(d.adbin,d.adrelid)='true' from pg_attribute a join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
   where a.attrelid='private.exams'::regclass and a.attname='protect_answers'),'protect_answers is boolean not null default true');
 select pg_temp.ok(private.homework_grace()=interval '30 minutes' and private.upload_cap()=40,'the grace is 30 minutes and the photo cap 40');

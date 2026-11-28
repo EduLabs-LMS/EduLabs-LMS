@@ -7,7 +7,7 @@ Findings: **A6a-01** (High), **A5-12**, **A6a-02**, **A6a-03**, **A6a-15** (exam
 (Low). Owner decisions of 2026-11-17 and 2026-11-28: `docs/ai/DECISIONS.md`, "Full-time rule and Protect answers".
 
 Migration: `supabase/migrations/20261128140000_full_time_rule.sql` (after `20261128130000_reports_scope.sql`)
-SHA-256: `794cfff35a2eb43dd6edc3486d6766965d536be37da339d0032a10253acbb433` (one new line in `scripts/migrations.sha256`, `-text` in `.gitattributes`).
+SHA-256: `92126e501afd9560ec2b257e848c7477e1e280c989d2d5323e96b096c5a867c1` (one new line in `scripts/migrations.sha256`, `-text` in `.gitattributes`).
 One transaction. One new column (`private.exams.protect_answers boolean not null default true`: every existing exam reads ON the moment it is applied;
 no backfill). No new table, index, policy or trigger. Nothing new is writable by the browser.
 
@@ -77,6 +77,8 @@ no backfill). No new table, index, policy or trigger. Nothing new is writable by
    - `private.expired_homework_uploads` (same columns) also lists ready unreferenced files older than a day.
    - New `private.expired_exam_uploads(id, exam_id, uploaded_by, path, status, expires_at)`: expired pending files, and ready files older than a
      day that no answer, question picture or model picture references. Closed to every role but its owner.
+   - Both views are `with (security_invoker=true)`, like every private view (follow-up, 2026-11-28: the first version of this migration, sha256
+     `794cfff3…`, replaced the homework view without the option, which `create or replace view` then drops).
    - **Listing only.** `scripts/lms-storage-maintenance.cjs` deletes only rows of `expired_homework_uploads` with `status='deleted'`; the new
      ready rows are never `deleted`, so it deletes nothing more than before. It does not read the exam view. Deleting is a later decision.
 
@@ -122,12 +124,13 @@ on the synthetic rows. All pass:
 - **g.** 40 ready unreferenced photos: the 41st intent refused `too_many_uploads` (homework and exam); a pending photo counts; after a day
   they appear in the expired views (39 homework ready, 40 exam); a referenced photo is never listed.
 
-### One session: `supabase/tests/full-time-rule.sql` (29 checks, `LMS_SQL_ONLY=full-time-rule`)
+### One session: `supabase/tests/full-time-rule.sql` (33 checks, `LMS_SQL_ONLY=full-time-rule`)
 
 The six new private helpers are definers with `search_path=''` and no grant to authenticated, anon or service_role; the replaced private
 functions keep definer, empty search path and exactly their old grants (`create or replace` keeps ACLs: only the bodies behind the public
 wrappers and `homework_unlocked`, used by Storage policies, are callable by authenticated, as before); the public entry points stay security
-invoker, authenticated only; both cleanup views are closed; the column is `boolean not null default true`; the grace is 30 minutes and the cap
+invoker, authenticated only; both cleanup views are closed; **every view in schema `private` has `security_invoker=true` in its reloptions** (fails on the first version of
+the migration, passes now); the column is `boolean not null default true`; the grace is 30 minutes and the cap
 40; six lateness cases; **every demo-fill exam reads back Protect answers ON** (column and `exam_settings_json`); save OFF, back ON, publish,
 OFF again before anyone started; a clone copies it; a paper exam refuses it; a non-boolean is refused; the gate on synthetic rows (over at the
 close, not over while a try runs past it, over when its deadline passes; `exam_last_close` unchanged).
@@ -139,7 +142,12 @@ submissions, 123 active enrollments), every person a synthetic Firebase identity
 (the replaced definitions as the database had them, then the additions removed). Hosted limits: statement and lock timeout 8 s, UTC.
 
 - **apply:** the migration on a copy of `ftr_old` gives exactly `ftr_new`'s functions (md5 of each definition and its ACL), views, columns with
-  types and defaults, and policies. 28 catalog lines change; no policy.
+  types and defaults, view options (`reloptions`) and policies. 28 catalog lines change; no policy. Also: no view loses an option it had before
+  the migration, and every private view has `security_invoker=true`.
+  - Why the first version passed it: the new database is built from the migration and the old one from that copy plus the before file, so
+    the equality can never flag a property the migration itself drops; the before file had the same omission and `reloptions` was not
+    compared. Now the before file keeps the option, `reloptions` is compared, and the two checks above compare old with new (on the first
+    version they fail: `expired_homework_uploads` `[security_invoker=true]` → `[]`).
 - **equiv: 10,965 reads compared, 0 differences.** Every student: `exam_student_list` (123), `exam_get` of each exam of their runs (876) and of
   each own try (524), `get_homework` (3,792) and with each own submission (2,824), `homework_submission_json` (2,824); and every row of
   `report_exams` (883 rows) and `report_homework` (3,592 rows) for all runs. Each read in its own rolled-back transaction; compared as JSON
@@ -217,7 +225,8 @@ The A6a-10 numbers are on this machine; Part 6a measured 785 ms and 746–1,286 
    | `report_exams(uuid[],timestamptz,timestamptz,uuid[],uuid,boolean)` | `d4e71a6b43bcd48f123d825aaa64cf89` |
 
    Views (`md5(pg_get_viewdef(…))`): `private.expired_homework_uploads` `e76ffff9c717dd368e1d5b43f81e921f`, `private.expired_exam_uploads`
-   `05c3c5b718770be5247b83a268d66676`. Hashes are of this local PostgreSQL 17; if dev's server prints a definition differently, compare the text.
+   `05c3c5b718770be5247b83a268d66676`. **Both views have `reloptions` `{security_invoker=true}`** (`select oid::regclass, reloptions from
+   pg_class where relnamespace='private'::regnamespace and relkind='v'`: all three private views, with `expired_media_uploads`). Hashes are of this local PostgreSQL 17; if dev's server prints a definition differently, compare the text.
 4. **Grants:** the six new functions have `proacl = {postgres=X/postgres}`; the replaced ones keep their ACL; `select has_table_privilege(r,
    'private.expired_exam_uploads','select')` is false for `authenticated`, `anon`, `service_role`. Policies: `select count(*) from pg_policy` is the
    same before and after (none touched). `scripts/direct-access.test.cjs` stays green.

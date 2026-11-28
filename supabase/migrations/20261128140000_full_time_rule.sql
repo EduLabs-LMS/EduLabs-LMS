@@ -190,12 +190,12 @@ $$;
 -- Uploads: what the cleanup may look at (listing only; nothing here deletes)
 -- ---------------------------------------------------------------------------------------------------------------------------------------
 -- Same columns as before; adds ready files that nothing references, older than a day.
-create or replace view private.expired_homework_uploads as
+create or replace view private.expired_homework_uploads with (security_invoker=true) as
  select u.id,u.assignment_id,u.uploaded_by,u.path,u.status,u.expires_at from private.homework_uploads u
  where (u.status='pending' and u.expires_at<now() or u.status='archived') and not private.homework_upload_referenced(u.id) or u.status='deleted'
   or (u.status='ready' and u.created_at<now()-interval '1 day' and not private.homework_upload_referenced(u.id));
 
-create view private.expired_exam_uploads as
+create view private.expired_exam_uploads with (security_invoker=true) as
  select u.id,u.exam_id,u.uploaded_by,u.path,u.status,u.expires_at from private.exam_uploads u
  where (u.status='pending' and u.expires_at<now())
   or (u.status='ready' and u.created_at<now()-interval '1 day'

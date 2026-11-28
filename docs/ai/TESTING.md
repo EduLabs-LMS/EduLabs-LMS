@@ -461,7 +461,7 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
 
 ## The full-time rule and Protect answers (fix track 3, `claude/fix-03-full-time`)
 
-- `supabase/tests/full-time-rule.sql` (29 checks, `LMS_SQL_ONLY=full-time-rule`): grants and definer settings of what `20261128140000` adds and
+- `supabase/tests/full-time-rule.sql` (33 checks, `LMS_SQL_ONLY=full-time-rule`): every private view keeps `security_invoker=true`; grants and definer settings of what `20261128140000` adds and
   replaces, the `protect_answers` column (every demo-fill exam reads back ON), save / clone / paper refusal, the two constants, the three-argument
   `homework_is_late`, the over gate on synthetic rows.
 - `scripts/full-time-rule-concurrency.cjs` (two sessions, about 17 s; mapped to `exams`, `exams-student`, `homework-rules`, `full-time-rule`): the

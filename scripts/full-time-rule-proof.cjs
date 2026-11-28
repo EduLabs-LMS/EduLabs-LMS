@@ -78,7 +78,7 @@ async function build() {
 // ---------------------------------------------------------------- apply
 const catalogSql = `select string_agg(x,E'\\n' order by x) v from (
   select 'f '||p.oid::regprocedure::text||' '||md5(pg_get_functiondef(p.oid))||' '||coalesce(p.proacl::text,'') x from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prokind='f'
-  union all select 'v '||c.oid::regclass::text||' '||md5(pg_get_viewdef(c.oid))||' '||coalesce(c.relacl::text,'') from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and c.relkind='v'
+  union all select 'v '||c.oid::regclass::text||' '||md5(pg_get_viewdef(c.oid))||' '||coalesce(c.relacl::text,'')||' '||coalesce(c.reloptions::text,'{}') from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and c.relkind='v'
   union all select 'c '||a.attrelid::regclass::text||'.'||a.attname||' '||format_type(a.atttypid,a.atttypmod)||' '||a.attnotnull||' '||coalesce(pg_get_expr(d.adbin,d.adrelid),'') from pg_attribute a
    join pg_class c on c.oid=a.attrelid join pg_namespace n on n.oid=c.relnamespace left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum where n.nspname in ('public','private') and c.relkind='r' and a.attnum>0 and not a.attisdropped
   union all select 'p '||polrelid::regclass::text||' '||polname||' '||md5(coalesce(pg_get_expr(polqual,polrelid),'')||coalesce(pg_get_expr(polwithcheck,polrelid),'')) from pg_policy) q`;
@@ -94,6 +94,12 @@ async function applyCheck() {
     const changed = want.split('\n').filter(l => !before.split('\n').includes(l)).map(l => l.split(' ').slice(0, 2).join(' '));
     result.counts.catalogChanged = changed; log('Changed or added by the migration:', changed.length);
     check(changed.every(l => /^(f|v|c) /.test(l)) && !changed.some(l => l.startsWith('p ')), 'no policy is changed');
+    // A view the migration replaces keeps every option it had before (create or replace view without WITH drops security_invoker).
+    const opts = async db => Object.fromEntries((await db.query("select c.oid::regclass::text v,coalesce(c.reloptions,'{}') o from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and c.relkind='v'")).rows.map(r => [r.v, r.o]));
+    const was = await opts(o), now = await opts(n);
+    const lost = Object.entries(was).filter(([v, os]) => v in now && os.some(x => !now[v].includes(x))).map(([v, os]) => ({ view: v, before: os, after: now[v] }));
+    check(lost.length === 0, 'no view loses an option it had before the migration (security_invoker)', lost.length ? lost : undefined);
+    check(Object.entries(now).filter(([v]) => v.startsWith('private.')).every(([, os]) => os.includes('security_invoker=true')), 'every private view has security_invoker=true');
   } finally { await a.end(); await n.end(); await o.end(); }
   if (!process.env.FTR_KEEP) await admin(`drop database if exists ${APPLY} with (force)`);
 }

@@ -1003,7 +1003,7 @@ begin
  ) x(kind,offering_id,group_id,user_id,item_id,title,ref_at,state,score,maxv,detail,lesson_id);
 end $function$;
 
-create or replace view private.expired_homework_uploads as
+create or replace view private.expired_homework_uploads with (security_invoker=true) as
 SELECT id,
     assignment_id,
     uploaded_by,
