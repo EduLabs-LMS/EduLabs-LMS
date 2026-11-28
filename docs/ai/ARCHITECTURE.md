@@ -23,6 +23,10 @@ caller may see, computed once per statement from the existing helpers' own rules
 must use a set, never a per-row helper. The page context reads the caller's spaces and courses through `public.my_scope()`; the
 student lesson page reads the course outline and the opened lesson only. The caller is resolved per statement, never cached.
 See fixes/TRACK-02a-my-scope.md.
+Track 2b extends it to enrollments, enrollment_requests, course_offerings, offering_staff and homework_assignments, and to the Group,
+homework and exam reads (group_view's lists, homework_portal, exam_portal), with sets named `private.caller_*` (2a's `my_*` list is
+closed). The single-object helpers (can_manage_group, can_view_group, homework_staff, homework_enrolled) look the caller up once per
+call; exam_student_list settles only the exams exam_settle has something to do for. See fixes/TRACK-02b-my-scope.md.
 
 Organizations are tenant boundaries; roles belong to organizations/courses/offerings.
 A teacher in one organization is not an admin in another. Academic programs and

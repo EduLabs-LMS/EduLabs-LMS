@@ -650,3 +650,13 @@ These rules **replace** the earlier homework release rules for marks and solutio
 6. **The progress save** checks "lesson published, or staff of the course" instead of `can_view_segment` (the same answers; the staff check runs only for a draft lesson).
 
 Full list, numbers and the dev checklist: `docs/ai/fixes/TRACK-02a-my-scope.md`.
+
+## "My scope" for Groups, homework, exams and enrollments (fix track 2b, branch `claude/fix-02b-my-scope`; draft migration `20261128120000_my_scope_groups_work.sql`, not applied)
+
+1. **Same rule as 2a, wider.** The read policies of `enrollments`, `enrollment_requests`, `course_offerings`, `offering_staff` and `homework_assignments` check a once-per-statement set (or the caller's own row). `group_view`'s list sections, `homework_portal` and `exam_portal` take the caller's Groups, courses and runs as one set instead of a helper per Group, course or run. New sets are `private.caller_*`; 2a's `my_*` names stay a closed list.
+2. **Single-object helpers look the caller up once.** `can_manage_group`, `can_view_group`, `homework_staff` and `homework_enrolled` answer exactly as before (same signature, volatility, grants), through `caller_offering_rights` / `caller_course_edit`, instead of nesting `can_manage_offering` → `has_org_role` → `is_active_user`.
+3. **The student exam list settles only what needs it.** It calls `exam_settle` only for an exam meeting one of `exam_settle`'s own three conditions (an overdue try of the student, an auto release due, a Group window to link); for every other exam `exam_settle` did nothing. `exam_settle` and every exam rule are unchanged (owner: exams stay as they are).
+4. **Proof: 0 differences.** `supabase/tests/my-scope-2b.sql` runs the old functions beside the new (the big reads rebuilt and checked by md5) for 43 callers; `scripts/my-scope-2b-proof.cjs` compares old and new databases on the large fixtures (up to 211 Groups, 2,000 students in a space, 201 courses and 401 runs for one teacher and one assistant). No cache (2a's decision).
+5. **Known trade-off:** a space owner's direct lesson homework list computes the owner's whole visible-homework set (9 → 20 ms with 201 courses); a student's list went 29 → 10 ms.
+
+Full list, numbers and the dev checklist: `docs/ai/fixes/TRACK-02b-my-scope.md`.

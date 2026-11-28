@@ -434,3 +434,15 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
   on a clone) vs new, the old server code (git `059d394`) vs the new through a PostgREST-shaped client, timings with an 8 s statement limit, EXPLAIN, the
   A2a-01 case, caller isolation on one connection. Steps: `MY_SCOPE_ONLY=apply,isolation,rows`, then `MY_SCOPE_REUSE=1 MY_SCOPE_KEEP=1` with `server`
   (`MY_SCOPE_PART=1/3` .. `3/3`), `explain`, `timings` (it writes progress, so after `server`), `too-large`. Each fits the 10-minute foreground limit.
+
+## "My scope" for Groups, homework, exams and enrollments (fix track 2b, `claude/fix-02b-my-scope`)
+
+- `supabase/tests/my-scope-2b.sql` (28 checks, `LMS_SQL_ONLY=my-scope-2b`, about 145 s: it runs the old functions too): structure and grants; the old
+  helpers verbatim and the four big reads rebuilt by undoing the migration's edits (each checked by md5 against its old definition), under `*_before`
+  names; 43 callers x 21 set/helper/policy comparisons; 6,192 reads as JSON (group_view, get_homework, homework_students, homework_portal, exam_portal,
+  exam_student_list), each in a rolled-back subtransaction with a digest of what it wrote; no cache; the plans. Its fixture section is 2a's (copied) plus
+  the `fixture-2b` part. The suite holds the migration's edits (`ms_edits`) and the old definitions' md5s (`ms_old_md5`) inline, and
+  `supabase/tests/my-scope-2b-before.sql` holds the old definitions; if the migration's edited functions change, update all three together.
+- `scripts/my-scope-2b-proof.cjs` (on demand): old vs new databases on the large fixtures; see its header and fixes/TRACK-02b-my-scope.md for the
+  steps (`MY_SCOPE_ONLY`, `MY_SCOPE_LEVELS`, `MY_SCOPE_PART` for `rows`, `MY_SCOPE_REUSE`, `MY_SCOPE_KEEP`). Every step fits the 10-minute limit; run
+  `rows` in four parts.
