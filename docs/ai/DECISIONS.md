@@ -502,8 +502,12 @@ builder, no demo seed. Plan and details: `EXAMS_DB_AUDIT.md` (section f). The ow
 6. One shared correct/release pair per assistant per course (homework's rights table).
 7. Paper: optional "held on" date; marks in 0.5 steps from 0 to the maximum; Absent is separate from 0.
 8. Fix mistakes keeps the first try's order; essays reopen with the first answer, editable.
-9. Auto-release and notices are written at the next action after the last close.
-10. Manual release per student once their own window has closed; answer review waits for the last window.
+9. Auto-release and notices are written at the next action after the last close (since fix track 3: after the exam is over, item 10).
+10. Manual release per student once their own window has closed; answer review waits for the last window. **Amended (owner, 2026-11-17 and
+    2026-11-28; fix track 3):** a try started before the close keeps its full time, so "the last window" became "the exam is over": the last
+    window close has passed and no try is in progress. Manual release also waits until no one in the student's Group is still writing, and the
+    review follows Protect answers ("Full-time rule and Protect answers" below). The deadline at start is start + limit (no limit: the close),
+    no longer `least(close, start + limit)`, and the wizard no longer caps the limit at the shortest window.
 11. Answer review only for students with a handed-in try.
 12. Authoring (save, publish, windows) uses course edit rights (`can_edit_course`).
 13. Demo Clear removes teacher-added exams in demo spaces and refuses, removing nothing, while a real person's exam work or a
@@ -673,3 +677,28 @@ Full list, numbers and the dev checklist: `docs/ai/fixes/TRACK-02b-my-scope.md`.
 4. Needs attention does not stop after 25: its `total` needs every active student's numbers.
 
 Full list, numbers and the dev checklist: `docs/ai/fixes/TRACK-02c-reports.md`.
+
+## Full-time rule and Protect answers (owner, 2026-11-17 and 2026-11-28; fix track 3, branch `claude/fix-03-full-time`; draft migration `20261128140000_full_time_rule.sql`, not applied)
+
+1. **A start before the deadline or close gets the full time.** An exam try started before the student's window closes runs for its whole time
+   limit, even past the close (deadline = start + limit; no limit: the close). A homework try started (created) at or before the deadline gets a
+   30-minute grace: it may be saved and handed in until deadline + 30 minutes and counts on time (`private.homework_grace()`). No homework time
+   limit is added. A start or a retry after the deadline or close stays refused.
+2. **An exam is "over"** when the last window close has passed **and** no try is in progress (`private.exam_over_at`). Answer review,
+   auto-release and its notices, the queue's "ready to release" and the closed tabs wait for it. A manual release of one student needs their own
+   window closed, no try of theirs in progress, and no one in their Group still writing. A released result takes no new try.
+3. **Archive, delete and unpublish are refused while the exam is not over** (a window open, or a try in progress), with the reason
+   `students_writing` and the message "Students are still writing" (en, ar). The new exams have no delete action, so only archive and unpublish
+   are guarded.
+4. **"Protect answers from sharing"** is a per-exam setting, default ON, copied on clone, shown as a switch with a hint in the wizard.
+   - ON: the review (right answers, model answers, the marker's note) opens only when the exam is over.
+   - OFF: the review opens right after the student's own hand-in, but never while that student has another try in progress.
+5. **Homework gets no Protect setting.** Solutions open at the deadline even while a classmate is in their grace. The only guard: never while
+   the caller's own try is a draft that can still be handed in. (A6a-15's homework half is superseded.)
+6. **The fix-mistakes try 2 keeps showing the kept answers** whatever the setting (overrides the A6a-13 wording).
+
+Also decided while building: windows stay locked once opened (out of scope here); at most 40 ready photos nothing references (plus pending ones)
+per student per homework and per exam (`private.upload_cap()`), the 41st refused with `too_many_uploads`; files older than a day that nothing
+references are listed for cleanup (`expired_homework_uploads`, new `expired_exam_uploads`), nothing is deleted yet.
+
+Full list, proofs, numbers and the dev checklist: `docs/ai/fixes/TRACK-03-full-time.md`.

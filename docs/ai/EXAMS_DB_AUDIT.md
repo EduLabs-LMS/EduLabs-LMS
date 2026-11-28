@@ -447,7 +447,9 @@ Rules in the database:
   session for a Group with no row yet; else `needs_time`. The LAST close is null while any active Group is `cancelled` or
   `needs_time`. A student in no Group: earliest Group start to latest Group end. A student in two Groups: the first window that has
   not closed. A trigger on `group_sessions` stores the opened times when a linked session that had opened is moved or cancelled.
-- **Deadline** fixed at start: `least(window end, start + limit)`. A save or hand-in at or after it is refused (`deadline_passed`);
+- **Deadline** fixed at start: start + limit (no limit: the window end). Until fix track 3 (`20261128140000`, owner 2026-11-17: a start before
+  the close keeps the full time) it was `least(window end, start + limit)`. A start at or after the close is refused. A save or hand-in at or after
+  the deadline is refused (`deadline_passed`);
   the next action (any read or write of the exam) hands the try in as it stood, at its deadline (`auto_submitted`).
 - **Tries.** One time; fix mistakes (same order; right choice and number answers copied and locked as `kept`; essays copied and
   editable; an unchanged essay keeps its first-try mark); from zero (a new paper). At most two.

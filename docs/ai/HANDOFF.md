@@ -92,6 +92,11 @@ Live online classes (`claude/online-class`, 2026-11-14): Part A (Jitsi server fi
 
 ## Hard-coded English and placeholder text left after UI batch 2 (2026-11-27)
 
+Fix track 3 (`claude/fix-03-full-time`) adds English only where the screen shows its own words from the reason: the database messages "Students
+are still writing" (`students_writing`) and "Too many photos; remove some first" (`too_many_uploads`), and the homework route's text for the
+latter (`studentReasonText`). The screens show `ex.fail.students_writing`, `se.fail.too_many_uploads`, `homework.err.too_many_uploads` and
+`homework.grace_until` in English and Arabic.
+
 Fixed on `claude/ui-batch-2`: the student Group page, the Home carousel and badge, the attendance tiles, chapter labels, the "Course
 image" alt, the footer's "soon" items, every message of the student homework result. Still in English or placeholder (a scan of
 `frontend/features`, `frontend/components` and `app/(dashboard)`; page titles passed to `TeacherFoundationPage`, which only renders off

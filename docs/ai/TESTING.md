@@ -458,3 +458,16 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
   with 3 years). Steps `REPORTS_ONLY=build,apply,equiv,time`; run `equiv` one school at a time (`REPORTS_SCHOOLS`), the big ones in parts
   (`REPORTS_PART=1/4` …) so each step fits the 10-minute limit.
 - `scripts/teacher-reports-browser.cjs` has a 60-Group step: 25 Groups per numbers read, the next pages as the list scrolls.
+
+## The full-time rule and Protect answers (fix track 3, `claude/fix-03-full-time`)
+
+- `supabase/tests/full-time-rule.sql` (29 checks, `LMS_SQL_ONLY=full-time-rule`): grants and definer settings of what `20261128140000` adds and
+  replaces, the `protect_answers` column (every demo-fill exam reads back ON), save / clone / paper refusal, the two constants, the three-argument
+  `homework_is_late`, the over gate on synthetic rows.
+- `scripts/full-time-rule-concurrency.cjs` (two sessions, about 17 s; mapped to `exams`, `exams-student`, `homework-rules`, `full-time-rule`): the
+  owner's proofs a to g (writing past the close, Protect OFF, kept answers, archive/unpublish refusals, starts after the close, the homework grace
+  and solutions, the photo caps). It waits for a real 3 to 4 second window close; longer times are set on its synthetic rows.
+- `scripts/full-time-rule-proof.cjs` (on demand): old (`supabase/tests/full-time-rule-before.sql`) vs new databases with the hosted limits. Steps
+  `FTR_ONLY=build,apply,equiv,a6a10,a6a01,time`, `FTR_KEEP=1` keeps the databases; run `build,apply` first, then each step (each under 10
+  minutes). If the migration's functions change, regenerate the before file from a database migrated through `20261128130000`.
+- `scripts/homework-rules-concurrency.cjs` steps 5 and 6 wait past the end of the 30-minute grace (the rule changed in track 3).
