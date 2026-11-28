@@ -21,8 +21,8 @@ import { buildTree, type CourseStructure } from '@/shared/course-content';
 import type { GroupPage, GroupSession } from '@/shared/contracts/groups';
 import { cairoDay, cairoFields, cairoIso, cairoTime } from '@/shared/teacher-homework';
 import {
-  cairoDate, clampLimit, closesIso, coreOf, dayLabel, detailsOnly, examIssues, examSavable, examStepIssues, examTotal, fromExamView, hasEssays, limitCap, newExam, newExamQuestion,
-  opensIso, PAPER_MAX, questionsComplete, setExamKind, stepsOf, toExamDefinition, toggleChapter,
+  cairoDate, clampLimit, closesIso, coreOf, dayLabel, detailsOnly, examIssues, examSavable, examStepIssues, examTotal, fromExamView, hasEssays, newExam, newExamQuestion,
+  opensIso, PAPER_MAX, questionsComplete, setExamKind, stepsOf, TIME_LIMIT_MAX, toExamDefinition, toggleChapter,
   type ExamFailure, type ExamIssue, type ExamKind, type ExamPageLoad, type ExamQuestion, type ExamStep, type ExamView, type ExamWindow, type ExamWizard as Wizard,
 } from '@/shared/teacher-exams';
 import { durationWords, EXAMS_API, examCall, examCount, examFailureWords, triesWords } from './exam-words';
@@ -128,14 +128,13 @@ export function ExamWizard({ load, examId, initialCourse, initialKind }: { load:
     return () => window.clearTimeout(timer);
   }, [state, save, send, finishing, author]);
 
-  const cap = state ? limitCap(state, windows) : null;
   const coreChanged = state ? coreOf(state) !== baseCore.current : false;
 
   /** Review: publish (every step complete) or keep as a draft. A started exam whose questions, times or rules changed becomes a new version first. */
   async function finish(publish: boolean) {
     const s = latest.current;
     if (!s || finishing || !author) return;
-    const blocking = publish || (s.started && coreChanged) ? examIssues(s, Date.now(), cap) : examStepIssues(s, 'details', Date.now());
+    const blocking = publish || (s.started && coreChanged) ? examIssues(s, Date.now()) : examStepIssues(s, 'details', Date.now());
     if (blocking.length) { setIssues(blocking); return; }
     setFinishing(true); setFailure(null);
     try {
@@ -147,7 +146,7 @@ export function ExamWizard({ load, examId, initialCourse, initialKind }: { load:
         current = { ...s, id: clone.body.id, revision: clone.body.revision, status: 'draft', started: false, version: s.version + 1 };
         latest.current = current; setState(current);
       }
-      if (current.id && current.status !== 'draft' && !current.started && !questionsComplete(current)) { setIssues(examIssues(current, Date.now(), cap)); return; }
+      if (current.id && current.status !== 'draft' && !current.started && !questionsComplete(current)) { setIssues(examIssues(current, Date.now())); return; }
       const stored = await store(current);
       if (!stored.ok) { setFailure(stored.failure); if (stored.failure.kind === 'changed') setSave('stale'); return; }
       current = { ...current, id: stored.body.id, revision: stored.body.revision };
@@ -192,11 +191,11 @@ export function ExamWizard({ load, examId, initialCourse, initialKind }: { load:
   const index = Math.max(0, steps.indexOf(step));
   const shown = steps[index];
   const go = (next: ExamStep) => { setIssues([]); setStep(next); if (typeof window !== 'undefined') window.scrollTo({ top: 0 }); };
-  const next = () => { const found = examStepIssues(state, shown, Date.now(), cap); if (found.length) { setIssues(found); return; } go(steps[index + 1]); };
+  const next = () => { const found = examStepIssues(state, shown, Date.now()); if (found.length) { setIssues(found); return; } go(steps[index + 1]); };
   const now = Date.now();
   const saveText: Record<Save, MessageKey | null> = { idle: state.id ? 'hw.w.saved' : null, saving: 'hw.w.saving', saved: 'hw.w.saved', waiting: 'hw.w.unsaved', failed: 'hw.w.save_failed', stale: 'hw.w.save_failed' };
   const status = !author || state.started || state.status !== 'draft' ? null : saveText[save];
-  const issueList = issues.length > 0 && <div role="alert" data-issues className="d-alert"><ul className="d-stack-xs">{issues.map((issue, i) => <li key={i} data-issue={issue.key} className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" />{t(`ex.w.issue.${issue.key}` as MessageKey, { n: (issue.question ?? 0) + 1, cap: cap === null ? '' : durationWords(t, cap, number) })}</li>)}</ul></div>;
+  const issueList = issues.length > 0 && <div role="alert" data-issues className="d-alert"><ul className="d-stack-xs">{issues.map((issue, i) => <li key={i} data-issue={issue.key} className="d-alert-text"><AlertCircle aria-hidden className="d-alert-icon" />{t(`ex.w.issue.${issue.key}` as MessageKey, { n: (issue.question ?? 0) + 1 })}</li>)}</ul></div>;
   const fixed = Boolean(state.id);
   // Before the steps: the When step's window rows use it too.
   const readOnlyWhy = !author ? 'ex-w-read-only' : undefined;
@@ -270,12 +269,11 @@ export function ExamWizard({ load, examId, initialCourse, initialKind }: { load:
       <p className="d-content-line" data-everyone-note><Icon name="info" /><span><L id="ex.w.same_time_note" /></span></p>
     </fieldset>}
     <div className="d-stack-xs" data-time-limit>
-      <Switch checked={state.limitOn} onChange={on => change(s => ({ ...s, limitOn: on, timeLimitMinutes: clampLimit(s.timeLimitMinutes, cap) }))} data-limit-switch="" label={<span className="d-stack-xs"><span><L id="ex.w.limit" /></span><span className="d-meta"><L id="ex.w.limit_hint" /></span></span>} />
+      <Switch checked={state.limitOn} onChange={on => change(s => ({ ...s, limitOn: on, timeLimitMinutes: clampLimit(s.timeLimitMinutes) }))} data-limit-switch="" label={<span className="d-stack-xs"><span><L id="ex.w.limit" /></span><span className="d-meta"><L id="ex.w.limit_hint" /></span></span>} />
       {state.limitOn && <div className="d-hw-qhead"><span className="d-label"><L id="ex.w.limit_minutes" /></span>
-        <Stepper value={state.timeLimitMinutes} min={5} max={cap ?? 1440} step={5} label={t('ex.w.limit_minutes')} less={t('ex.w.limit_less')} more={t('ex.w.limit_more')} shown={durationWords(t, state.timeLimitMinutes, number)}
-          lessReason={t('ex.w.limit_min')} moreReason={cap !== null ? t('ex.w.limit_cap', { cap: durationWords(t, cap, number) }) : undefined} onChange={n => change(s => ({ ...s, timeLimitMinutes: clampLimit(n, cap) }))} data="limit" />
+        <Stepper value={state.timeLimitMinutes} min={5} max={TIME_LIMIT_MAX} step={5} label={t('ex.w.limit_minutes')} less={t('ex.w.limit_less')} more={t('ex.w.limit_more')} shown={durationWords(t, state.timeLimitMinutes, number)}
+          lessReason={t('ex.w.limit_min')} onChange={n => change(s => ({ ...s, timeLimitMinutes: clampLimit(n) }))} data="limit" />
       </div>}
-      {state.limitOn && cap !== null && <p className="d-meta" data-limit-cap>{t('ex.w.limit_cap', { cap: durationWords(t, cap, number) })}</p>}
     </div>
   </Card>;
 
@@ -291,6 +289,8 @@ export function ExamWizard({ load, examId, initialCourse, initialKind }: { load:
     {essays && <Switch checked={state.photos} onChange={on => change(s => ({ ...s, photos: on }))} data-photos-switch="" label={<span className="d-stack-xs"><span><L id="hw.w.photos" /></span><span className="d-meta"><L id="hw.w.photos_hint" /></span></span>} />}
     <Switch checked={state.autoRelease && !essays} disabled={essays} reason={essays ? t('ex.w.auto_release_off') : undefined} onChange={on => change(s => ({ ...s, autoRelease: on }))} data-auto-release=""
       label={<span className="d-stack-xs"><span><L id="ex.w.auto_release" /></span><span className="d-meta"><L id="ex.w.auto_release_hint" /></span></span>} />
+    <Switch checked={state.protectAnswers} onChange={on => change(s => ({ ...s, protectAnswers: on }))} data-protect-answers=""
+      label={<span className="d-stack-xs"><span><L id="ex.w.protect" /></span><span className="d-meta"><L id={state.protectAnswers ? 'ex.w.protect_hint_on' : 'ex.w.protect_hint_off'} /></span></span>} />
   </Card>;
 
   // -- Review
@@ -309,7 +309,7 @@ export function ExamWizard({ load, examId, initialCourse, initialKind }: { load:
         <ReviewRow k="when" go={go}><span className="d-label">{whenText}</span>
           <span className="d-meta">{state.limitOn ? t('ex.w.r.limit', { d: durationWords(t, state.timeLimitMinutes, number) }) : t('ex.w.r.no_limit')}</span></ReviewRow>
         <ReviewRow k="rules" go={go}><span className="d-label">{triesWords(t, state.tries)}</span>
-          <span className="d-meta">{t(state.shuffle ? 'ex.w.r.shuffle_on' : 'ex.w.r.shuffle_off')} · {t(state.autoRelease && !essays ? 'ex.w.r.auto_on' : 'ex.w.r.auto_off')}</span></ReviewRow>
+          <span className="d-meta">{t(state.shuffle ? 'ex.w.r.shuffle_on' : 'ex.w.r.shuffle_off')} · {t(state.autoRelease && !essays ? 'ex.w.r.auto_on' : 'ex.w.r.auto_off')} · {t(state.protectAnswers ? 'ex.w.r.protect_on' : 'ex.w.r.protect_off')}</span></ReviewRow>
       </>}
     </dl>
     {state.started && <div className="d-notice d-stack-xs" data-started-review><p className="d-label"><L id={coreChanged ? 'ex.w.version_title' : 'ex.w.started_title'} /></p><p className="d-body"><L id={coreChanged ? 'ex.w.version_body' : 'ex.w.started_body'} /></p></div>}

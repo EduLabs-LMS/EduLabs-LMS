@@ -124,13 +124,16 @@ module.exports = async function (makeClient, admin) {
     assert.equal(Number((await one('select count(*) n from private.homework_marks where submission_id=$1 and question_id=$2 and points=2', [next.id, hw.q.q1])).n), 1);
     console.log('PASS homework rules race: two tabs hand in the same try, it is handed in once');
 
-    // 5. A hand-in that waits past the deadline, late hand-ins off: refused with the stable message, nothing handed in.
+    // 5. A hand-in that waits past the deadline and its grace, late hand-ins off: refused with the stable message, nothing handed in.
     const closing = await make({ tries: 'one_time', maxTries: 1, solutionsOpen: 'after_hand_in', lateAllowed: false });
     await s2.claim();
     const started = value(await work(s2, closing.id, 'start')), draft = started.id;
     await work(s2, closing.id, 'save', draft, started.revision, answer(closing.q, 'A', 'Just in time'));
     await s2.query('commit');
-    await admin.query("update public.homework_assignments set deadline_at=clock_timestamp()+interval '1.5 seconds' where id=$1", [closing.id]);
+    // Fix track 3 (A5-12): a try started before the deadline has a grace; this step now waits past the END of the grace (the try started an
+    // hour ago, the deadline was 30 minutes minus 1.5 seconds ago).
+    await admin.query("update public.homework_submissions set created_at=clock_timestamp()-interval '1 hour' where id=$1", [draft]);
+    await admin.query("update public.homework_assignments set deadline_at=clock_timestamp()-private.homework_grace()+interval '1.5 seconds' where id=$1", [closing.id]);
     const dr = await rev(draft);
     const holder = await makeClient(); clients.push(holder);
     await holder.query('begin'); await holder.query('select id from public.homework_submissions where id=$1 for update', [draft]);
@@ -151,7 +154,10 @@ module.exports = async function (makeClient, admin) {
     const started2 = value(await work(s2, lateOk.id, 'start')), draft2 = started2.id;
     await work(s2, lateOk.id, 'save', draft2, started2.revision, answer(lateOk.q, 'B', 'A little late'));
     await s2.query('commit');
-    await admin.query("update public.homework_assignments set deadline_at=clock_timestamp()+interval '1.5 seconds' where id=$1", [lateOk.id]);
+    // Fix track 3 (A5-12): a try started before the deadline has a grace; this step now waits past the END of the grace (the try started an
+    // hour ago, the deadline was 30 minutes minus 1.5 seconds ago).
+    await admin.query("update public.homework_submissions set created_at=clock_timestamp()-interval '1 hour' where id=$1", [draft2]);
+    await admin.query("update public.homework_assignments set deadline_at=clock_timestamp()-private.homework_grace()+interval '1.5 seconds' where id=$1", [lateOk.id]);
     const dr2 = await rev(draft2);
     await holder.query('begin'); await holder.query('select id from public.homework_submissions where id=$1 for update', [draft2]);
     await s2.claim();

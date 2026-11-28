@@ -112,5 +112,5 @@ export function studentReply(error: DatabaseError) {
 /** Every reason a student route can answer with; each has words (se.fail.<reason>). */
 export const STUDENT_REASONS = [
   'stale', 'deadline_passed', 'not_open', 'no_window', 'needs_time', 'no_tries_left', 'started', 'answer_kept', 'takes_photo', 'takes_text', 'photo_unavailable', 'bad_choice', 'bad_answer', 'start_first',
-  'photos_off', 'uploads_pending', 'file_type', 'shape', 'in_use',
+  'photos_off', 'uploads_pending', 'file_type', 'shape', 'in_use', 'too_many_uploads',
 ] as const;

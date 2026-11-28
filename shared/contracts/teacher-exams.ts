@@ -40,7 +40,7 @@ export const examDefinition = z.object({
   chapterIds: z.array(id).max(200).optional(), coversAllChapters: z.boolean().optional(), heldOn: day.nullable().optional(), maxMarks: z.number().int().min(1).max(1000).optional(),
   timing: z.enum(['per_group', 'same_time']).optional(), startingFrom: day.nullable().optional(), opensAt: iso.nullable().optional(), closesAt: iso.nullable().optional(),
   timeLimitMinutes: z.number().int().min(1).max(1440).nullable().optional(), tries: z.enum(['one_time', 'fix_mistakes', 'from_zero']).optional(),
-  shuffle: z.boolean().optional(), photosAllowed: z.boolean().optional(), autoRelease: z.boolean().optional(), questions: z.array(examQuestion).max(100).optional(),
+  shuffle: z.boolean().optional(), photosAllowed: z.boolean().optional(), autoRelease: z.boolean().optional(), protectAnswers: z.boolean().optional(), questions: z.array(examQuestion).max(100).optional(),
 }).strict().superRefine((d, c) => {
   if (d.chapterIds && new Set(d.chapterIds).size !== d.chapterIds.length) c.addIssue({ code: 'custom', message: 'chapters' });
   if (d.opensAt && d.closesAt && Date.parse(d.closesAt) <= Date.parse(d.opensAt)) c.addIssue({ code: 'custom', message: 'closes after it opens' });

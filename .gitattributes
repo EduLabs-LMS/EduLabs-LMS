@@ -45,3 +45,4 @@ infra/jitsi/** text eol=lf
 supabase/migrations/20261127140000_my_scope_content.sql -text
 supabase/migrations/20261128120000_my_scope_groups_work.sql -text
 supabase/migrations/20261128130000_reports_scope.sql -text
+supabase/migrations/20261128140000_full_time_rule.sql -text

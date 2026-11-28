@@ -8,6 +8,8 @@ export type StudentHomeworkView = HomeworkView & {
   canStart?: boolean; canRetry?: boolean; triesEnded?: boolean;
   /** The student chose "I'm done, show me the answers" (owner, 2026-11-27): no more tries, the answers are open. */
   stopped?: boolean; canStop?: boolean; solutionsOpen?: boolean;
+  /** Only while the caller's draft, started before the deadline, is inside its 30-minute grace (owner, 2026-11-17): hand in by then, on time. */
+  graceUntil?: string;
 };
 export type StudentAnswer = HomeworkAnswer & { kept?: boolean };
 /** Before the teacher releases an essay, the student already sees the questions that mark themselves (20261127130000). */
@@ -15,8 +17,8 @@ export type SelfMarked = { score: number; max: number; essays: number; marks: { 
 export type StudentSubmission = HomeworkSubmission & { missedDeadline?: boolean; correction?: HomeworkSubmission['correction'] & { selfMarked?: SelfMarked } };
 
 /** The refusals a student can meet, by the reason the database names (or the message it raises when it names none). */
-export type StudentReason = 'deadline_passed' | 'no_tries_left' | 'stale' | 'submitted' | 'unavailable';
-export const STUDENT_REASONS: readonly StudentReason[] = ['deadline_passed', 'no_tries_left', 'stale', 'submitted', 'unavailable'];
+export type StudentReason = 'deadline_passed' | 'no_tries_left' | 'stale' | 'submitted' | 'unavailable' | 'too_many_uploads';
+export const STUDENT_REASONS: readonly StudentReason[] = ['deadline_passed', 'no_tries_left', 'stale', 'submitted', 'unavailable', 'too_many_uploads'];
 type DatabaseError = { code?: string | null; message?: string | null; details?: string | null };
 export function studentHomeworkReason(error: DatabaseError | null | undefined): StudentReason | null {
   if (!error) return null;
@@ -29,6 +31,7 @@ export function studentHomeworkReason(error: DatabaseError | null | undefined): 
     if (/(Homework|Answers) changed; reload/.test(error.message ?? '')) return 'stale';
     return null;
   }
+  if (error.code === '23514' && named === 'too_many_uploads') return named;
   if (error.code === '42501' && /^(Homework unavailable|Active enrollment required|Enrollment expired)/.test(error.message ?? '')) return 'unavailable';
   return null;
 }
@@ -36,6 +39,7 @@ export function studentHomeworkReason(error: DatabaseError | null | undefined): 
 export const studentReasonText: Record<StudentReason, string> = {
   deadline_passed: 'The deadline has passed', no_tries_left: 'No tries left', stale: 'Homework changed. Reload before saving.',
   submitted: 'This try was already handed in. Reload to see it.', unavailable: 'Homework unavailable or permission denied',
+  too_many_uploads: 'Too many photos; remove some first',
 };
 export const isStudentReason = (value: unknown): value is StudentReason => typeof value === 'string' && (STUDENT_REASONS as readonly string[]).includes(value);
 

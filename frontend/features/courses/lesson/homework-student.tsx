@@ -55,6 +55,7 @@ export function HomeworkStudent({initial,preview=false}:{initial:HomeworkView;pr
   <h2 className="font-display text-xl font-bold">{d.title||<L id="homework.preview"/>}</h2><span className="text-xs rounded-full border px-3 py-1">{d.mode==='FILE_UPLOAD'?<L id="homework.fileMode"/>:<L id="homework.platformMode"/>}</span>{d.instructions&&<p className="whitespace-pre-wrap text-sm break-words">{d.instructions}</p>}
 
   {!preview&&(facts.deadline||facts.triesLeft!==null)&&<p className="text-sm text-slate-600" data-homework-rules>{facts.deadline&&<span data-homework-deadline>{t('homework.deadline',{day:cairoDay(facts.deadline,lang),time:cairoTime(facts.deadline,lang)})}</span>}{facts.deadline&&facts.triesLeft!==null&&' · '}{facts.triesLeft!==null&&<span data-tries-left={facts.triesLeft}>{t('homework.tries_left',{n:number(facts.triesLeft)})}</span>}</p>}
+  {!preview&&typeof (view as StudentHomeworkView).graceUntil==='string'&&<p className="text-sm font-semibold text-amber-800" role="status" data-homework-grace>{t('homework.grace_until',{time:cairoTime((view as StudentHomeworkView).graceUntil as string,lang)})}</p>}
 
   {!preview&&facts.triesEnded&&<p className="text-sm text-slate-600" data-tries-ended><L id="homework.tries_ended"/></p>}
 

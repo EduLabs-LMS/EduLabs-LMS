@@ -369,15 +369,15 @@ test('wizard: what still stops each step, the time limit never past a window, an
  assert.deepEqual(plain(ex.examStepIssues({ ...same, opensDate: '2026-11-10', closesDate: '2026-11-10' }, 'when', now).map(i => i.key)), ['times_past']);
  assert.deepEqual(plain(ex.examStepIssues({ ...same, opensDate: '2026-11-10', closesDate: '2026-11-10', status: 'published' }, 'when', now)), [], 'a published exam keeps its past window');
  const timed = { ...same, opensDate: '2026-11-20', closesDate: '2026-11-20', opensTime: '10:00', closesTime: '10:30', limitOn: true, timeLimitMinutes: 45 };
- assert.equal(ex.limitCap(timed, []), 30); assert.deepEqual(plain(ex.examStepIssues(timed, 'when', now, 30).map(i => i.key)), ['limit_long']);
- assert.equal(ex.clampLimit(45, 30), 30); assert.equal(ex.clampLimit(0, null), 1); assert.equal(ex.clampLimit(5000, null), 1440);
- const windows = [{ state: 'ok', opensAt: '2026-11-20T10:00:00+02:00', closesAt: '2026-11-20T12:00:00+02:00' }, { state: 'ok', opensAt: '2026-11-21T10:00:00+02:00', closesAt: '2026-11-21T11:30:00+02:00' }, { state: 'needs_time', opensAt: null, closesAt: null }];
- assert.equal(ex.limitCap(base, windows), 90, 'the shortest Group window'); assert.equal(ex.limitCap(base, []), null, 'nothing capped before the windows are read');
+ // Fix track 3 (owner, 2026-11-17, A5-12): a start before the close gets the full time, so a limit longer than the window is no issue and is not cut.
+ assert.deepEqual(plain(ex.examStepIssues(timed, 'when', now)), [], 'a limit longer than the window is allowed');
+ assert.equal(ex.limitCap, undefined, 'no window cap');
+ assert.equal(ex.clampLimit(45), 45); assert.equal(ex.clampLimit(0), 1); assert.equal(ex.clampLimit(5000), 1440);
  assert.deepEqual(plain(ex.examStepIssues({ ...base, autoRelease: true, questions: [ex.newExamQuestion('essay', ids)] }, 'rules', now).map(i => i.key)), ['auto_release']);
  assert.equal(ex.examSavable(base), false, 'a new exam needs its run'); assert.equal(ex.examSavable({ ...base, offeringId: RUN }), true);
  assert.equal(ex.examSavable({ ...same, offeringId: RUN, opensDate: '2026-11-20', closesDate: '2026-11-20', opensTime: '11:00', closesTime: '10:00' }), false);
  assert.equal(ex.examSavable({ ...ex.newExam(ids, 'paper'), offeringId: RUN, maxMarks: 1001 }), false);
- for (const key of ['title', 'course', 'max_marks', 'no_questions', 'question_text', 'correct', 'number_value', 'tolerance', 'starting_from', 'times', 'times_invalid', 'closes_before', 'times_past', 'limit_long', 'auto_release'])
+ for (const key of ['title', 'course', 'max_marks', 'no_questions', 'question_text', 'correct', 'number_value', 'tolerance', 'starting_from', 'times', 'times_invalid', 'closes_before', 'times_past', 'auto_release'])
   assert.ok(messages.en[`ex.w.issue.${key}`] && messages.ar[`ex.w.issue.${key}`], 'words for ' + key);
 });
 

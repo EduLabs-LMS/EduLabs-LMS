@@ -62,7 +62,7 @@ export function examReply(error: DatabaseError): { status: number; body: { kind:
 }
 /** Every reason the routes can answer with, for the words table and its test (each one has words on screen). */
 export const EXAM_REASONS = [
-  'started', 'needs_time', 'reason_required', 'window_open', 'still_open', 'already_released', 'unfinished', 'unfinished_questions', 'no_window', 'not_open', 'deadline_passed', 'no_tries_left',
+  'started', 'needs_time', 'reason_required', 'window_open', 'still_open', 'students_writing', 'already_released', 'unfinished', 'unfinished_questions', 'no_window', 'not_open', 'deadline_passed', 'no_tries_left',
   ...Array.from(new Set(reasonByMessage.map(([, r]) => r))), 'in_use', 'other_space',
 ] as const;
 
@@ -88,7 +88,7 @@ export type StaffQuestion = {
 export type ExamSettings = {
   id: string; familyId: string; version: number; courseId: string; offeringId: string; kind: ExamKind; title: string; description: string; status: ExamStatus; publishedAt: string | null;
   maxMarks: number | null; heldOn: string | null; timing: Timing | null; startingFrom: string | null; opensAt: string | null; closesAt: string | null; timeLimitMinutes: number | null;
-  tries: ExamTries | null; shuffle: boolean; photosAllowed: boolean; autoRelease: boolean; coversAllChapters: boolean; chapterIds: string[]; questionCount: number; totalPoints: number; hasEssays: boolean;
+  tries: ExamTries | null; shuffle: boolean; photosAllowed: boolean; autoRelease: boolean; protectAnswers: boolean; coversAllChapters: boolean; chapterIds: string[]; questionCount: number; totalPoints: number; hasEssays: boolean;
 };
 export type AttemptItem = StaffQuestion & {
   answer: { optionIds: string[] | null; numberValue: number | null; text: string | null; uploadId: string | null; kept: boolean; savedAt: string } | null;
@@ -162,6 +162,8 @@ export type ExamWizard = {
   heldOn: string; maxMarks: number;
   timing: Timing; startingFrom: string; opensDate: string; opensTime: string; closesDate: string; closesTime: string;
   limitOn: boolean; timeLimitMinutes: number; tries: ExamTries; shuffle: boolean; photos: boolean; autoRelease: boolean;
+  /** Protect answers from sharing (owner, 2026-11-17/28): ON (the default) keeps the answer review shut until every student has finished. */
+  protectAnswers: boolean;
   questions: ExamQuestion[];
 };
 export const ONLINE_STEPS = ['details', 'questions', 'when', 'rules', 'review'] as const;
@@ -182,7 +184,7 @@ export function setExamKind(q: ExamQuestion, kind: ExamQuestion['kind'], id: Ids
 export function newExam(id: Ids, kind: ExamKind, defaults: Partial<Pick<ExamWizard, 'courseId' | 'offeringId'>> = {}): ExamWizard {
   return { id: null, revision: null, version: 1, status: 'draft', started: false, kind, courseId: '', offeringId: '', title: '', description: '', chapterIds: [], coversAllChapters: true,
     heldOn: '', maxMarks: 100, timing: 'per_group', startingFrom: '', opensDate: '', opensTime: '09:00', closesDate: '', closesTime: '10:00',
-    limitOn: false, timeLimitMinutes: 60, tries: 'one_time', shuffle: false, photos: true, autoRelease: false, questions: kind === 'online' ? [newExamQuestion('choice', id)] : [], ...defaults };
+    limitOn: false, timeLimitMinutes: 60, tries: 'one_time', shuffle: false, photos: true, autoRelease: false, protectAnswers: true, questions: kind === 'online' ? [newExamQuestion('choice', id)] : [], ...defaults };
 }
 /** The chapters chips: "All" covers every chapter (and ones added later); picking one turns All off; none picked is All again. */
 export function toggleChapter(s: Pick<ExamWizard, 'chapterIds' | 'coversAllChapters'>, chapterId: string | 'all') {
@@ -196,16 +198,10 @@ export const opensIso = (s: Pick<ExamWizard, 'opensDate' | 'opensTime'>) => s.op
 export const closesIso = (s: Pick<ExamWizard, 'closesDate' | 'closesTime'>) => s.closesDate ? cairoIso(s.closesDate, s.closesTime) : null;
 
 /**
- * The longest time limit the windows allow, in minutes: never past a window's end. Same time: the one window. In each Group's session:
- * the shortest window that has times (null while none is known yet, so nothing is capped before the windows are read).
+ * A time limit in whole minutes, 1 to TIME_LIMIT_MAX. Not capped by the windows (owner, 2026-11-17, A5-12): a student who starts before the
+ * window closes gets the full time, even past the close.
  */
-export function limitCap(s: Pick<ExamWizard, 'timing' | 'opensDate' | 'opensTime' | 'closesDate' | 'closesTime'>, windows: readonly Pick<ExamWindow, 'opensAt' | 'closesAt' | 'state'>[]): number | null {
-  const minutes = (a: string, b: string) => Math.floor((Date.parse(b) - Date.parse(a)) / 60000);
-  if (s.timing === 'same_time') { const a = opensIso(s), b = closesIso(s); return a && b && Date.parse(b) > Date.parse(a) ? Math.min(TIME_LIMIT_MAX, minutes(a, b)) : null; }
-  const lengths = windows.filter(w => w.state === 'ok' && w.opensAt && w.closesAt).map(w => minutes(w.opensAt as string, w.closesAt as string)).filter(n => n > 0);
-  return lengths.length ? Math.min(TIME_LIMIT_MAX, ...lengths) : null;
-}
-export const clampLimit = (n: number, cap: number | null) => Math.max(1, Math.min(cap ?? TIME_LIMIT_MAX, Math.round(n)));
+export const clampLimit = (n: number) => Math.max(1, Math.min(TIME_LIMIT_MAX, Math.round(n)));
 
 /** A question ready to publish: a choice has 2 to 8 answers and a right one, a number has its value (and a tolerance of 0 or more). A draft stores it either way. */
 export function questionReady(q: ExamQuestion) {
@@ -237,7 +233,7 @@ export function toExamDefinition(s: ExamWizard, opts: { create?: boolean; questi
   if (s.timing === 'per_group') d.startingFrom = s.startingFrom || null;
   else { d.opensAt = opensIso(s); d.closesAt = closesIso(s); }
   d.timeLimitMinutes = s.limitOn ? Math.max(1, Math.min(TIME_LIMIT_MAX, Math.round(s.timeLimitMinutes))) : null;
-  d.tries = s.tries; d.shuffle = s.shuffle; d.photosAllowed = s.photos; d.autoRelease = s.autoRelease && !hasEssays(s);
+  d.tries = s.tries; d.shuffle = s.shuffle; d.photosAllowed = s.photos; d.autoRelease = s.autoRelease && !hasEssays(s); d.protectAnswers = s.protectAnswers;
   // Every question is always sent: a draft keeps unfinished ones (nothing is left out), a published exam is checked by the database.
   if (opts.questions !== false) d.questions = s.questions.map(q => toQuestion(q, s.photos));
   return d;
@@ -258,7 +254,7 @@ export function fromExamView(v: ExamView, ids: Ids): ExamWizard {
     title: v.title, description: v.description, chapterIds: v.coversAllChapters ? [] : v.chapterIds, coversAllChapters: v.coversAllChapters,
     heldOn: v.heldOn ?? '', maxMarks: v.maxMarks ?? 100, timing: v.timing ?? 'per_group', startingFrom: v.startingFrom ?? '',
     opensDate: opens?.date ?? '', opensTime: opens?.time ?? '09:00', closesDate: closes?.date ?? '', closesTime: closes?.time ?? '10:00',
-    limitOn: v.timeLimitMinutes !== null, timeLimitMinutes: v.timeLimitMinutes ?? 60, tries: v.tries ?? 'one_time', shuffle: v.shuffle, photos: v.photosAllowed, autoRelease: v.autoRelease,
+    limitOn: v.timeLimitMinutes !== null, timeLimitMinutes: v.timeLimitMinutes ?? 60, tries: v.tries ?? 'one_time', shuffle: v.shuffle, photos: v.photosAllowed, autoRelease: v.autoRelease, protectAnswers: v.protectAnswers ?? true,
     // Option ids are the database's (they change on every save, so the screen keys its rows by them only between reads).
     questions: v.questions.map(q => ({
       id: q.id || ids(), kind: q.type === 'essay' ? 'essay' : q.type === 'number' ? 'number' : 'choice', text: q.text, imageId: q.imageId, points: q.points,
@@ -270,7 +266,7 @@ export function fromExamView(v: ExamView, ids: Ids): ExamWizard {
 
 export type ExamIssue = { step: ExamStep; key: string; question?: number };
 /** What still stops a step from being complete, in order. Publishing needs every step complete; a draft saves with less. */
-export function examStepIssues(s: ExamWizard, step: ExamStep, now: number, cap: number | null = null): ExamIssue[] {
+export function examStepIssues(s: ExamWizard, step: ExamStep, now: number): ExamIssue[] {
   const out: ExamIssue[] = [];
   if (step === 'details') {
     if (!s.title.trim()) out.push({ step, key: 'title' });
@@ -295,12 +291,11 @@ export function examStepIssues(s: ExamWizard, step: ExamStep, now: number, cap: 
       else if (Date.parse(b) <= Date.parse(a)) out.push({ step, key: 'closes_before' });
       else if (s.status === 'draft' && Date.parse(b) <= now) out.push({ step, key: 'times_past' });
     }
-    if (s.limitOn && cap !== null && s.timeLimitMinutes > cap) out.push({ step, key: 'limit_long' });
   }
   if (step === 'rules' && s.kind === 'online' && s.autoRelease && hasEssays(s)) out.push({ step, key: 'auto_release' });
   return out;
 }
-export const examIssues = (s: ExamWizard, now: number, cap: number | null = null) => stepsOf(s.kind).filter(k => k !== 'review').flatMap(step => examStepIssues(s, step, now, cap));
+export const examIssues = (s: ExamWizard, now: number) => stepsOf(s.kind).filter(k => k !== 'review').flatMap(step => examStepIssues(s, step, now));
 /** A new exam can be created once it has a kind and a run; a saved one saves whenever the shape is valid (the title may be empty for a moment). */
 export function examSavable(s: ExamWizard) {
   if (!s.offeringId) return false;
