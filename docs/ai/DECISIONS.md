@@ -660,3 +660,16 @@ Full list, numbers and the dev checklist: `docs/ai/fixes/TRACK-02a-my-scope.md`.
 5. **Known trade-off:** a space owner's direct lesson homework list computes the owner's whole visible-homework set (9 → 20 ms with 201 courses); a student's list went 29 → 10 ms.
 
 Full list, numbers and the dev checklist: `docs/ai/fixes/TRACK-02b-my-scope.md`.
+
+## Reports read only what they show (fix track 2c, branch `claude/fix-02c-reports`; draft migration `20261128130000_reports_scope.sql`, not applied)
+
+1. **The fact functions take a scope** (Groups, one student, active students only) and return exactly the old rows that match it; the old
+   signatures stay and call the new ones with no scope (one rule). `report_group`, `report_groups`, `report_student` and `report_attention` pass
+   theirs; `report_course` reads homework and exams only. The per-run checks of the list reads use `my_supported_offerings()`.
+2. **The Groups list asks 25 Groups per numbers read** (`GROUPS_PER_READ`, the list's page size): the first page at once, the next as their cards
+   come near the screen. The route and the database still accept 1 to 100.
+3. **"Whole course" is not capped.** Course Results, Whole course, of a 2,000-student run with 3 years of history still takes about 1.7 s locally
+   (5.2 s before): it is the whole run by definition. Limiting it is an open product question for the owner.
+4. Needs attention does not stop after 25: its `total` needs every active student's numbers.
+
+Full list, numbers and the dev checklist: `docs/ai/fixes/TRACK-02c-reports.md`.

@@ -446,3 +446,15 @@ pushing. Never run it twice in a row for the same change. Don't include `listing
 - `scripts/my-scope-2b-proof.cjs` (on demand): old vs new databases on the large fixtures; see its header and fixes/TRACK-02b-my-scope.md for the
   steps (`MY_SCOPE_ONLY`, `MY_SCOPE_LEVELS`, `MY_SCOPE_PART` for `rows`, `MY_SCOPE_REUSE`, `MY_SCOPE_KEEP`). Every step fits the 10-minute limit; run
   `rows` in four parts.
+
+## Reports read only what they show (fix track 2c, `claude/fix-02c-reports`)
+
+- `supabase/tests/reports-scope.sql` (12 checks, `LMS_SQL_ONLY=reports-scope`, about 200 s: it runs the old report functions too): the ten replaced
+  functions side by side as `*_before` (verbatim from `20261117120000`); the fact functions unscoped, by Group, by student and active only against
+  the old rows for every run and range; every report read as JSON for 18 callers, the Groups list in pages of 25 joined back. Its school builder
+  (`-- school-begin` to `-- school-end`) is shared with the proof. `supabase/tests/reports-scope-before.sql` is the old functions for the proof;
+  if the report functions change again, regenerate both from the migration text.
+- `scripts/reports-scope-proof.cjs` (on demand): old vs new databases on Part 8's sizes (1 / 20 / 50 teachers, 10 Groups × 200 students, the same
+  with 3 years). Steps `REPORTS_ONLY=build,apply,equiv,time`; run `equiv` one school at a time (`REPORTS_SCHOOLS`), the big ones in parts
+  (`REPORTS_PART=1/4` …) so each step fits the 10-minute limit.
+- `scripts/teacher-reports-browser.cjs` has a 60-Group step: 25 Groups per numbers read, the next pages as the list scrolls.
