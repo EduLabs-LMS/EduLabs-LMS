@@ -368,6 +368,24 @@ function groupsCommand(body) {
   const cls = await shiftOf(page); assert.ok(cls < 0.1, 'layout shift ' + cls); await context.close();
  });
 
+ await step('Groups list with 60 Groups: the numbers are read 25 Groups at a time (the list\'s page size), the first page at once and the next ones as the list scrolls; every card gets its numbers', async () => {
+  const extra = [];
+  for (let i = 0; i < 57; i++) { const id = uuid(9000 + i); extra.push(id); S.data.groups[id] = { ...S.data.groups[G.alg], id, name: 'Synthetic group ' + String(i + 10).padStart(2, '0') }; S.data.members[id] = []; }
+  try {
+   const before = reportRequests().length;
+   const reads = () => reportRequests().slice(before).filter(r => r.startsWith('GET /api/teacher/reports/groups?')).map(r => new URL('http://x' + r.slice(4)).searchParams.get('groups').split(',').length);
+   // Not waitSettled: the cards below the first page keep their skeleton line until they come near the screen (that is the point).
+   const { page, context } = await open(phone, '/teacher/groups'); await page.waitForFunction(() => document.querySelectorAll('[data-group-card] [data-report-line]').length >= 25); await page.waitForTimeout(500);
+   assert.equal(await page.locator('[data-group-card]').count(), 60, 'the list shows all 60 active Groups');
+   assert.deepEqual(reads(), [25], 'before scrolling only the first page of 25 is read');
+   const done = () => page.evaluate(() => document.querySelectorAll('[data-group-card]').length === document.querySelectorAll('[data-group-card] [data-report-line]').length);
+   for (let i = 0; i < 40 && !(await done()); i++) { await page.mouse.wheel(0, 1200); await page.waitForTimeout(150); }
+   assert.ok(await done(), 'every card has its numbers after scrolling');
+   assert.deepEqual(reads(), [25, 25, 10], 'three reads of 25, 25 and 10 Groups, each page once');
+   await context.close();
+  } finally { for (const id of extra) { delete S.data.groups[id]; delete S.data.members[id]; } }
+ });
+
  // ------------------------------------------------------------------ 2. the Group page, Report tab
  await step('Group page: the Report tab (after Students, before Details) shows three numbers with counts, Needs attention (plain-word reasons, worst first), Everyone else; rows open the Student page', async () => {
   const { page, context } = await open(desktop, '/teacher/groups/' + G.alg); await page.locator('[role="tab"]').first().waitFor();

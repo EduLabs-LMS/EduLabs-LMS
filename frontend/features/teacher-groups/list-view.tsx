@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSwr } from '@/frontend/lib/use-swr';
 import { L, LocalDate, useLanguage } from '@/frontend/components/language-provider';
 import { buttonClass } from '@/frontend/components/design/button';
@@ -19,7 +19,7 @@ import { GroupCallError, groupCall, limited } from './api';
 import { useCourseTitles } from './course-titles';
 import { GroupError, ModePill, WeeklyTimes } from './parts';
 import { GroupsListBodySkeleton } from './skeletons';
-import { GroupNumbersLine, useGroupNumbers, type NumbersState } from '@/frontend/features/teacher-reports/groups-numbers';
+import { GroupNumbersLine, useGroupNumbers, useNearScreen, type NumbersState } from '@/frontend/features/teacher-reports/groups-numbers';
 
 type Overview = { rows: StudyGroup[]; truncated: boolean };
 
@@ -47,8 +47,8 @@ export function TeacherGroupsList() {
   const counts = useMemo(() => groupCounts(rows), [rows]);
   const titleOf = useCallback((g: Pick<StudyGroup, 'offering_id'>) => titles.get(g.offering_id) ?? '', [titles]);
   const shown = useMemo(() => filterGroups(rows, filter, query, titleOf), [rows, filter, query, titleOf]);
-  // This month's numbers for the Groups on the list: one read per 100 Groups, with its own error and Retry.
-  const { numbers, retry: retryNumbers } = useGroupNumbers(useMemo(() => shown.map(g => g.id), [shown]));
+  // The numbers of the last 4 weeks: one read per page of 25 Groups (the first at once, the next as their cards come near the screen), each with its own error and Retry.
+  const numbers = useGroupNumbers(useMemo(() => shown.map(g => g.id), [shown]));
 
   return <div data-teacher-groups className="d-page">
     <PageHeader title={<L id="tg.title" />} meta={<L id="tg.intro" />} primary={{ key: 'create', href: '/teacher/groups/new', label: <L id="tg.create.button" />, data: { 'data-create-group': '', 'data-tour': 'create-group' } }} />
@@ -65,7 +65,7 @@ export function TeacherGroupsList() {
       {shown.length === 0
         ? <div data-state="empty" className="d-card d-card--pad d-stack"><p className="d-body"><L id={query.trim() ? 'tg.empty.search' : filter === 'active' ? 'tg.empty.active' : 'tg.empty.archived'} /></p>
           {!query.trim() && filter === 'active' && <Link href="/teacher/groups/new" data-create-group-empty className={buttonClass('primary')}><L id="tg.create.button" /></Link>}</div>
-        : <ul className="d-group-list" data-group-list>{shown.map(g => <li key={g.id}><GroupCard group={g} course={titleOf(g)} numbers={numbers} onRetryNumbers={retryNumbers} /></li>)}</ul>}
+        : <ul className="d-group-list" data-group-list>{shown.map(g => <li key={g.id}><GroupCard group={g} course={titleOf(g)} numbers={numbers.stateOf(g.id)} onRetryNumbers={numbers.retry} onNear={numbers.want} /></li>)}</ul>}
     </>}
   </div>;
 }
@@ -73,7 +73,9 @@ export function TeacherGroupsList() {
 type Facts = { schedules: WeeklyTime[]; sessions: GroupSession[]; skew: number; students: ReturnType<typeof studentsCount> };
 
 /** One Group: a card on a desktop, a calm row on a phone. Its details come from three reads that only run for the cards on screen, a few at a time; a failure here only affects this card. A card seen before shows its last facts at once. */
-function GroupCard({ group, course, numbers, onRetryNumbers }: { group: StudyGroup; course: string; numbers: NumbersState; onRetryNumbers: () => void }) {
+function GroupCard({ group, course, numbers, onRetryNumbers, onNear }: { group: StudyGroup; course: string; numbers: NumbersState; onRetryNumbers: (groupId: string) => void; onNear: (groupId: string) => void }) {
+  const card = useRef<HTMLElement>(null);
+  useNearScreen(card, useCallback(() => onNear(group.id), [onNear, group.id]));
   const { data: facts, retry } = useSwr<Facts, GroupCallError>(`group:${group.id}:facts:${group.capacity ?? ''}`, signal => limited(async () => {
     const [detail, sessions, members] = await Promise.all([
       groupCall<{ schedules: WeeklyTime[]; serverNow: string }>('view', group.id, { section: 'detail' }, null, signal),
@@ -88,7 +90,7 @@ function GroupCard({ group, course, numbers, onRetryNumbers }: { group: StudyGro
   const unsaved = ready ? lastUnsavedSession(ready.sessions, now) : null;
   const live = ready ? ready.sessions.some(s => sessionState(s, now) === 'ongoing') : false;
   const href = `/teacher/groups/${group.id}`;
-  return <article data-group-card={group.id} className="d-group-card">
+  return <article ref={card} data-group-card={group.id} className="d-group-card">
     <div className="d-group-card-head">
       <div className="d-row-body">
         <h2 className="d-label"><Link href={href} className="d-group-link">{group.name}</Link></h2>
@@ -117,7 +119,7 @@ function GroupCard({ group, course, numbers, onRetryNumbers }: { group: StudyGro
         : <><L id="tg.card.no_weekly" />{group.status === 'active' && group.instructor && <> <Link href={`${href}?edit=1`} data-add-weekly className="d-inline-link"><L id="tg.card.add_times" /></Link></>}</>}</p>
       <p className="d-meta" data-students-count><Students value={ready.students} /></p>
       {numbers.state === 'loading' && <div aria-hidden="true" data-state="loading"><DesignSkeleton className="h-5 w-2/3" /></div>}
-      {numbers.state === 'error' && <GroupError kind={numbers.error.kind} onRetry={onRetryNumbers} />}
+      {numbers.state === 'error' && <GroupError kind={numbers.error.kind} onRetry={() => onRetryNumbers(group.id)} />}
       {numbers.state === 'ready' && <GroupNumbersLine numbers={numbers.byGroup.get(group.id)} />}
     </>}
   </article>;

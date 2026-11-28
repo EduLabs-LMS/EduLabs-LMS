@@ -9,8 +9,9 @@ const id = z.string().uuid();
 export const reportMonth = z.union([z.literal('all'), z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)]);
 const page = z.coerce.number().int().min(0).max(100000);
 
-/** The Groups list sends the Group ids of the page it shows, comma separated (at most 100, each once). */
-export const GROUPS_PER_READ = 100;
+/** The Groups list asks for the numbers of one page of its list at a time: 25 Groups (its page size), comma separated, each once. The route and the
+ * database accept 1 to 100 (an older page may still send 100). */
+export const GROUPS_PER_READ = 25;
 // The check runs on the string (a failed pattern can still reach a later step), then the ids are split.
 const idList = (v: string) => { const ids = v.split(','); return ids.every(x => id.safeParse(x).success) && new Set(ids).size === ids.length; };
 export const groupsQuery = z.object({
